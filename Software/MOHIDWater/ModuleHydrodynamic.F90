@@ -193,7 +193,7 @@ Module ModuleHydrodynamic
                                        GetAssimilationAltimetryDT, GetAltimetryDecayTime,&
                                        GetAltimSigmaDensAnalyzed, GetAssimilationVectorField, &
                                        GetWaveCelerityField, GetNumberOfFields, GetNumberOfUpscalingFields
-    
+
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,           &
                                        GetStatisticParameters, GetStatisticLayersNumber, &
@@ -10452,7 +10452,7 @@ i7:             if (.not. ContinuousGOTM)  then
         !Opens the energy result file and allocates the buffer to store the data
         if (Me%ComputeOptions%Energy) &
             call ConstructEnergy
-        
+
         !Sobrinho - relaxation estava aqui
 
         !Allocates and initialise the variables necessary to compute
@@ -10489,9 +10489,11 @@ i7:             if (.not. ContinuousGOTM)  then
         integer                                     :: Task
         integer,  dimension(:,:), pointer           :: Connections, SonWaterPoints2D, FatherWaterPoints2D
         integer, dimension(:,:), pointer            :: IZ, JZ
+        logical                                     :: FoundDischarge
         !----------------------------------------------------------------------
 
         Task = 1 !Flag to indicate that the code should only find the matrixes size for allocation
+        FoundDischarge = .false.
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
@@ -10510,12 +10512,17 @@ i7:             if (.not. ContinuousGOTM)  then
 
                 call GetDischargesGridLocalization(ObjFather%ObjDischarges, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
-
+                !Managed by ModuleTwoWay
                 call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
-                                                  FatherWaterPoints2D, IZ, JZ, Task) !Managed by ModuleTwoWay
+                                                  FatherWaterPoints2D, IZ, JZ, Task, Flag = FoundDischarge)
             endif
 
         enddo
+
+        if (.not. FoundDischarge) then
+            write (*,*) 'No upscaling discharges were found between SonID: ', trim(Me%ModelName), 'and its father'
+            stop 'Set_Upscaling_Discharges - Failed to find an upscaling Discharge'
+        endif
 
         Task = 2 ! Allocate Upscaling matrixes
 
@@ -11835,7 +11842,7 @@ iStart: if (OutputOk) then
             !Gets a pointer to Bathymetry
             call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR10'
-            
+
             !Gets WaterPoints3D
             call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
@@ -12923,7 +12930,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR210")
             Me%Relaxation%DecayTimeGeo(:,:,:) = FillValueReal
         endif
-        
+
         !Sobrinho
         call GetData(Me%Relaxation%Upscaling,                             &
                     Me%ObjEnterData, iflag,                                       &
@@ -12933,7 +12940,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
                     ClientModule ='ModuleHydrodynamic',                           &
                     STAT       = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
-        
+
         !Sobrinho
         if (Me%Relaxation%Upscaling) then
             allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
@@ -22999,9 +23006,9 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Leendertse_Scheme")
 
         call MaintainDirection
-        
+
         call Explicit_Forces
-        
+
         call Compute_Velocity(PressureBackwardInTime = .true.)
         ! Water Flux must be consistent with the water level equation
         Me%WaterFluxes%New_Old = 0.
@@ -23014,9 +23021,9 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         call Bottom_Boundary
 
         call Explicit_Forces
-        
+
         call Compute_WaterLevel
-        
+
         call Compute_Velocity(PressureBackwardInTime = .false.)
         ! Water Flux must be consistent with the water level equation
         Me%WaterFluxes%New_Old = 1.
@@ -31429,10 +31436,10 @@ cd3:                   if (Manning) then
         !Baroclinic density gradient integral
         if (Me%ComputeOptions%Baroclinic)                                      &
             call Modify_ROX3  (Me%External_Var%SigmaDens, Me%Forces%Rox3XY)
-        
+
         !griflet: still needs to be parallelized
         call Modify_Horizontal_Transport
-        
+
 ! Modified by Matthias DELPEY - 15/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress  .or.   &
             Me%ComputeOptions%WaveForcing3D == GLM    ) then
@@ -38046,7 +38053,7 @@ do3:            do k = kbottom, KUB
         real,    dimension(:,:,:), pointer      :: Velocity_UV_New, SubModel_UV_New, Relax_Aceleration
         real,    dimension(:,:,:), pointer      :: DecayTime, SonVolInFather3D
         real,    dimension(:,:)  , pointer      :: DecayTime_Upscale2D
-        
+
         real                            :: CoefCold, CoefCold_Upscale
         integer                         :: Vel_ID, status
         integer                         :: iL, NFieldsUV2D, NFieldsUV3D, NFieldsUV3D_Upscaling, LocalSolution
@@ -38068,10 +38075,10 @@ do3:            do k = kbottom, KUB
 
         call GetNumberOfVelocityFields(NFieldsUV2D, NFieldsUV3D)
         call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
-        
+
         if ((NFieldsUV2D + NFieldsUV3D ) > 0) Downscaling = .true.
         if (NFieldsUV3D_Upscaling        > 0) Upscaling   = .true.  !Sobrinho
-        
+
         if (NFieldsUV3D_Upscaling > 0) then
             call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
             if (status /= SUCCESS_) &
@@ -38090,23 +38097,23 @@ do3:            do k = kbottom, KUB
             Vel_ID = VelocityV_
             if (Me%SubModel%ON) SubModel_UV_New => Me%SubModel%V_New
         endif
-        
+
         do iL = 1, NFieldsUV3D
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D)
         enddo
-        
+
         do iL = 1, NFieldsUV2D
             call GetAssimilationVectorFields(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D)
         enddo
-        
+
         do iL = 1, NFieldsUV3D_Upscaling
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D_Upscaling(iL)%VelAssimilation3D, &
                                                 Upscaling = Upscaling)
         enddo
-        
+
         if (Downscaling) call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
         if (Upscaling) call GetTimeCoefs_2D (Vel_ID, CoefCold_Upscale, DecayTime_Upscale2D, Upscaling)
-        
+
 !------------------------------------------Finished initialization --------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
@@ -38132,7 +38139,7 @@ do3:            do k = kbottom, KUB
                 call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_RefVelocity, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                            List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
             enddo
-            
+
         elseif (LocalSolution == AssimilaPlusSubModel_ .or. LocalSolution == AssimilaGaugeSubmodel_) then
 
             where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
@@ -38155,7 +38162,7 @@ do3:            do k = kbottom, KUB
         elseif (LocalSolution == Gauge_) then
             stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR10'
         endif
-        
+
         !Sobrinho
         if (Upscaling) then
             if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
@@ -38163,14 +38170,14 @@ do3:            do k = kbottom, KUB
                 write (*,*) 'to use upscaling, activate Keyword UPSCALING in Hydrodynamic.dat'
                 stop
             endif
-            
+
             Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
             do iL =1, NFieldsUV3D_Upscaling
                 call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                      List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
             enddo
         endif
-        
+
        ! --------------------------------Compute relaxation acceleration -----------------------------------------------
         !Sobrinho
         if (Downscaling .and. Upscaling) then
@@ -38184,28 +38191,28 @@ do3:            do k = kbottom, KUB
 
         ! -------------------------------- Kill variables -------------------------------------------------------------
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
-        
+
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
-        
+
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime_Upscale2D, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
-        
+
         do iL =1, NFieldsUV3D
             call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D, STAT = status)
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
         enddo
-        
+
         do iL =1, NFieldsUV2D
             call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D, STAT = status)
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
         enddo
-        
+
         do iL =1, NFieldsUV3D_Upscaling
             call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D, STAT = status)
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
         enddo
-        
+
         deallocate(List3D, List2D)
 
         if (NFieldsUV3D_Upscaling > 0) then
@@ -38219,7 +38226,7 @@ do3:            do k = kbottom, KUB
 
     End Subroutine ModifyRelaxAceleration
     !---------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets number of barotropic_U/V and velocity_U/V fields provided in assimilation.dat
@@ -38246,7 +38253,7 @@ do3:            do k = kbottom, KUB
 
     end subroutine GetNumberOfVelocityFields
     !------------------------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets assimilation components of vector fields from the assimilation module
@@ -38262,7 +38269,7 @@ do3:            do k = kbottom, KUB
         !Begin ------------------------------------------------------------------------
         Upscaling_ = .false.
         if (present(Upscaling)) Upscaling_ = Upscaling
-        
+
         if (Me%Direction%XY == DirectionX_) then
             !It is important to read vector fields in agreggated way to allow the
             !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
@@ -38285,7 +38292,7 @@ do3:            do k = kbottom, KUB
                 if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Failed to get Assim BarVelocityX vectors")
             endif
         else
-  
+
             if (present(VelAssimilation3D)) then
                 call GetAssimilationVectorField (AssimilationID = Me%ObjAssimilation,           &
                                                  VectorX_ID     = VelocityU_,                   &
@@ -38304,12 +38311,12 @@ do3:            do k = kbottom, KUB
                                                  Upscaling      = Upscaling_, STAT = status)
                 if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Failed to get Assim BarVelocityY vector")
             endif
-            
+
         endif
 
     end subroutine GetAssimilationVectorFields
     !----------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets number of barotropic_U/V and velocity_U/V fields provided in assimilation.dat
@@ -38326,7 +38333,7 @@ do3:            do k = kbottom, KUB
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetNumberOfVelocityFields - Hydrodynamic - ERR020")
 
     end subroutine GetNumberOfVelocityFields_Upscaling
-    
+
     !>@author Maretec
     !>@Brief
     !>Gets cold coef and time decay set by the user, for nudging
@@ -38368,7 +38375,7 @@ do3:            do k = kbottom, KUB
 
     end subroutine GetTimeCoefs
     !----------------------------------------------------------------------------------
-    
+
     !>@author Maretec
     !>@Brief
     !>Gets cold coef and time_decay2D set by the user, for nudging
@@ -38388,7 +38395,7 @@ do3:            do k = kbottom, KUB
         EndTime     = Me%EndTime
         BeginTime   = Me%BeginTime
         CurrentTime = Me%CurrentTime
-        
+
         Upscaling_ = .false.
         if (present(Upscaling)) Upscaling_ = Upscaling
 
@@ -38456,11 +38463,11 @@ do3:            do k = kbottom, KUB
         endif
 
     end subroutine Compute_ModelVelocity
-    
+
     !-----------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Computes the acceleration matrix for relaxation of the velocities when downscaling and upscaling methods 
+    !>Computes the acceleration matrix for relaxation of the velocities when downscaling and upscaling methods
     !>are present in the assimilation module
     !>@param[in] DecayTime, DecayTime_Upscale2D, CoefCold, CoefCold_Upscale, SonVolInFather3D
     !-----------------------------------------------------------------------------------
@@ -38480,10 +38487,10 @@ do3:            do k = kbottom, KUB
         integer                                     :: CHUNK, ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
         !Begin ------------------------------------------------------------------------------------------
         Relax_Aceleration    => Me%Forces%Relax_Aceleration
-        
+
         IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
-        
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom, Gradient, Aceleration_Downscaling, Aceleration_Upscaling) &
         !$OMP PRIVATE(Gradient_Upscale, DecayTime_Upscale, TimeCoef_Upscale, TotalDecayTime, Volume_Factor) &
@@ -38493,11 +38500,11 @@ do3:            do k = kbottom, KUB
         do  i = ILB, IUB
             if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered) then
                 kbottom = Me%External_Var%KFloor_UV(i, j)
-                
+
                 DecayTime_Upscale    = DecayTime_Upscale2D(i, j)
                 DecayTime_Downscale  = DecayTime(i, j, KUB)
                 TimeCoef_Downscale   = CoefCold / DecayTime_Downscale
-                    
+
                 if (DecayTime_Upscale == FillValueReal) then
                     !Only use downscaling vel reference (because current cell is not covered by an upscaling domain)
                     do K=kbottom, KUB
@@ -38505,28 +38512,28 @@ do3:            do k = kbottom, KUB
                         Relax_Aceleration(i, j, k)  = (Me%Relaxation%Assim_RefVelocity(i, j, k)  &
                                                     -  Me%Relaxation%Assim_ModelVel    (i, j, k)) &
                                                     * TimeCoef_Downscale
-                    enddo   
+                    enddo
                 else
                     !Assuming a constant decaytime in the vertical coordinate(This should be done in fillmatrix)
                     TimeCoef_Upscale     = CoefCold_Upscale / DecayTime_Upscale
-                    
+
                     TotalDecayTime       = DecayTime_Downscale + DecayTime_Upscale
 
                     Fraction_Donwscaling = 1 - DecayTime_Downscale / TotalDecayTime
                     Fraction_Upscaling   = 1 - Fraction_Donwscaling
-                    
+
                     do K=kbottom, KUB
                         ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
                         Gradient         = Me%Relaxation%Assim_RefVelocity        (i, j, k) &
                                          - Me%Relaxation%Assim_ModelVel            (i, j, k)
                         Gradient_Upscale = Me%Relaxation%Assim_RefVelocity_Upscale(i, j, k) &
                                          - Me%Relaxation%Assim_ModelVel            (i, j, k)
-                            
+
                         Volume_Factor = SonVolInFather3D(i, j, k) / Me%External_Var%Volume_Z_New(i, j, k)
-                        
+
                         Aceleration_Downscaling = TimeCoef_Downscale * Gradient
                         Aceleration_Upscaling   = TimeCoef_Upscale   * Gradient_Upscale * Volume_Factor
-                        
+
                         Relax_Aceleration(i, j, k) = Aceleration_Downscaling + Aceleration_Upscaling
                     enddo
                 endif
@@ -38535,11 +38542,11 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-            
+
     end subroutine Relaxation_Acceleration_Down_Up
-    
+
     !-----------------------------------------------------------------------------------
-    
+
     !>@author Paulo Chambel Maretec
     !>Edited By Joao Sobrinho - 08-2020
     !>@Brief
@@ -38555,10 +38562,10 @@ do3:            do k = kbottom, KUB
         integer                                     :: CHUNK, ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
         !Begin ------------------------------------------------------------------------------------------
         Relax_Aceleration => Me%Forces%Relax_Aceleration
-        
+
         IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
-        
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -38577,10 +38584,10 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-            
+
     end subroutine Relaxation_Acceleration_Down
     !-------------------------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes the acceleration matrix for relaxation of the velocities when only upscaling method
@@ -38596,17 +38603,17 @@ do3:            do k = kbottom, KUB
         real                                      :: TimeCoef_Upscale
         !Begin ------------------------------------------------------------------------------------------
         Relax_Aceleration => Me%Forces%Relax_Aceleration
-        
+
         IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
-        
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom, TimeCoef_Upscale)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB
             if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered ) then
-                    
+
                 kbottom = Me%External_Var%KFloor_UV(i, j)
                 TimeCoef_Upscale = CoefCold_Upscale * DecayTime_Upscale2D(i, j)
                 do K=kbottom, KUB
@@ -38619,9 +38626,9 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-            
+
     end subroutine Relaxation_Acceleration_Up
-    
+
     !-----------------------------------------------------------------------------------
 
     Subroutine ModifyRelaxAcelerationVert
@@ -48252,8 +48259,7 @@ do5:            do i = ILB, IUB
                             ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-                    call PrepTwoWay (SonID = AuxHydrodynamicID, CallerID = mHydrodynamic_,&
-                                     STAT = STAT_CALL)
+                    call PrepTwoWay (SonID = AuxHydrodynamicID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------

@@ -46,6 +46,7 @@ Module ModuleTwoWay
     public  :: AllocateTwoWayAux
     public  :: ConstructUpscalingDischarges
     public  :: Fill_Upscaling_DecayTime
+    private :: DischargeIsAssociated
 
     !Selector
     public  :: GetUpscalingDischarge
@@ -226,7 +227,7 @@ Module ModuleTwoWay
         if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
-            
+
             if (present(ModelName)) Me%ModelName = ModelName
 
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
@@ -237,7 +238,7 @@ Module ModuleTwoWay
             TwoWayID          = Me%InstanceID
 
             if (present(IntMethod)) Me%Hydro%InterpolationMethod = IntMethod
-            
+
             call GetGeometrySize(GeometryID = Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR01'
 
@@ -469,14 +470,16 @@ Module ModuleTwoWay
     !>@Brief
     !> Searches and sets discharge faces of father cell, and finds son cells to use in upscaling
     !>@param[in] SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, Task
-    subroutine ConstructUpscalingDischarges(SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, Task)
+    subroutine ConstructUpscalingDischarges(SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, &
+    Task, Flag)
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                           :: SonID, dI, dJ !dI & dJ = Cell discharge location
-        integer, intent(IN)                           :: Task
-        integer,  dimension(:,:), pointer, intent(IN) :: Connections, SonWaterPoints, FatherWaterPoints
-        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell and its father Z cell
+        integer, intent(IN)                              :: SonID, dI, dJ !dI & dJ = Cell discharge location
+        integer, intent(IN)                              :: Task
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections, SonWaterPoints, FatherWaterPoints
+        integer, dimension(:,:), pointer , intent(IN)    :: IZ, JZ !Connection between a son Zcell and its father Zcell
+        logical, optional                , intent(INOUT) :: Flag
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, STAT_CALL !, VelID
+        integer                                       :: ready_, STAT_CALL
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
 
@@ -488,10 +491,15 @@ Module ModuleTwoWay
             if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
 
             if (Task == 1) then !find number of lines to allocate
-                call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, &
-                                         Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
-                                         Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
-                                         Me%Father%WorkSize%KUB)
+                if (DischargeIsAssociated (Connections, dI, dJ)) then
+                    call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, &
+                                             Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
+                                             Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
+                                             Me%Father%WorkSize%KUB)
+                    !If this call did not generate an error, then a discharge has been found
+                    Flag = .true.
+                endif
+
                 !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
 
@@ -502,7 +510,7 @@ Module ModuleTwoWay
                     allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
                     allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
                 else
-                    write(*,*)'No upscaling discharges was found between SonID: ', SonID, 'and its father'
+                    write(*,*)'No upscaling discharge faces were found between SonID: ', SonID, 'and its father'
                 endif
 
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
@@ -510,8 +518,11 @@ Module ModuleTwoWay
                 !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
                 !Save discharge cell IDs into a matrix
                 if (Me%Father%DischargeCells%n_Z > 0) then
-                    call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, Me%Father%DischargeCells%Z, &
-                                                    Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB, dI, dJ)
+                    if (DischargeIsAssociated (Connections, dI, dJ)) then
+                        call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, &
+                                                        Me%Father%DischargeCells%Z, Me%Father%External_Var%KFloor_Z, &
+                                                        Me%Father%WorkSize%KUB, dI, dJ)
+                    endif
                 endif
 
             endif
@@ -524,6 +535,30 @@ Module ModuleTwoWay
     end subroutine ConstructUpscalingDischarges
 
     !-------------------------------------------------------------------------
+    logical function DischargeIsAssociated (Connections, IFather, JFather)
+        !Arguments------------------------------------------------------------------
+        integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections
+        !Local-----------------------------------------------------------------------
+        Logical                                          :: Found
+        integer                                          :: MaxSize, i
+        !Begin-----------------------------------------------------------------------
+        MaxSize = size(Connections, 1)
+        found = .false.
+        do i = 1, MaxSize
+            if (Connections(i, 1) == IFather)then
+                if (Connections(i, 2) == JFather)then
+                    Found = .true.
+                    exit
+                endif
+            endif
+        enddo
+
+        DischargeIsAssociated = Found
+
+    end function DischargeIsAssociated
+
+    !-------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -532,7 +567,7 @@ Module ModuleTwoWay
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Gets upscaling discharge flow
@@ -568,9 +603,9 @@ Module ModuleTwoWay
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetUpscalingDischarge
-    
+
     !---------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Gets the 2D or 3D integrated son volume inside each father cell
@@ -585,27 +620,27 @@ Module ModuleTwoWay
         !Local-----------------------------------------------------------------
         integer                                             :: ready_, STAT_
         !----------------------------------------------------------------------
-        
+
         call Ready(TwoWayID, ready_)
-        
+
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             call Read_Lock(mTwoWay_, Me%InstanceID)
-            
+
             if (present(Matrix2D)) Matrix2D => Me%TotSonIn_2D
-            
+
             if (present(Matrix3D)) Matrix3D => Me%TotSonIn
-            
+
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
         end if
 
         if (present(STAT)) STAT = STAT_
-    
+
     end subroutine GetSonVolInFather
-    
+
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -621,17 +656,17 @@ Module ModuleTwoWay
         !Local-----------------------------------------------------------------
         integer                                             :: ready_, STAT_
         !----------------------------------------------------------------------
-        
+
         call Ready(TwoWayID, ready_)
-        
+
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             if (present(Matrix2D)) nullify(Matrix2D)
             if (present(Matrix3D)) nullify(Matrix3D)
-            
+
             call Read_UnLock(mTwoWay_, Me%InstanceID, "UnGetSonVolInFather")
-            
+
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
@@ -639,7 +674,7 @@ Module ModuleTwoWay
 
         if (present(STAT)) STAT = STAT_
     end subroutine UnGetSonVolInFather
-    
+
     !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -675,9 +710,9 @@ Module ModuleTwoWay
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             Offline = .false.
-            
+
             if (MonitorPerformance) call StartWatch ("ModuleTwoWay", "ModifyTwoWay")
 
             if (CallerID == mHydrodynamic_) then
@@ -692,7 +727,7 @@ Module ModuleTwoWay
                 InterpolMethod = 1
                 Offline =  .true.
             endif
-            
+
             !if it is a 3D matrix
             if (present(FatherMatrix)) then
                 if (present(VelocityID))then
@@ -726,7 +761,7 @@ Module ModuleTwoWay
                 else
                     call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
                 endif
-                
+
             elseif (InterpolMethod == 2) then
                 call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
             endif
@@ -745,12 +780,11 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets external variables
-    !>@param[in] SonID, FatherID, CallerID, STAT
+    !>@param[in] SonID, CallerID, STAT
     subroutine PrepTwoWay (SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
-        integer, intent(IN)                         :: SonID
-        integer, optional, intent(IN)               :: CallerID
-        integer, optional, intent(OUT)              :: STAT
+        integer, intent(IN)                         :: SonID, CallerID
+        integer, optional, intent(IN)               :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_, CallerID_
         !Begin------------------------------------------------------------------
@@ -760,9 +794,9 @@ Module ModuleTwoWay
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             CallerID_ = 0
-            
+
             if (present(callerID)) CallerID_ = callerID
             if (CallerID_ == 1) then
                 !For future developments (when other modules call for twoway)
@@ -789,11 +823,11 @@ Module ModuleTwoWay
             call GetComputeFaces3D (Map_ID = Me%ObjMap, ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
                                     ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son U/V ComputeFaces3D'
-            
+
             call GetBoundaries(HorizontalMapID = Me%ObjHorizontalMap,                               &
                                BoundaryPoints2D = Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son BoundaryPoints2D'
-            
+
             call GetWaterPoints3D(Map_ID = Me%ObjMap, WaterPoints3D = Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'PrepTwoWay - Failed to get Son WaterPoints3D'
 
@@ -989,9 +1023,9 @@ Module ModuleTwoWay
         !Local variables--------------------------------------------------------------------------
         integer                                 :: i, j, k, ifather, jfather, kfather, k_difference, CHUNK, Flag
         !Begin------------------------------------------------------------------------------------
-        
+
         if (Offline) call ComputeSonVolInFather_offline(Volume_3D, Volume_2D, Ilink, Jlink)
-            
+
         if (present(Volume_3D) .and. .not. offline) then
             !account for different amount of vertical layers between domains.
             k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
@@ -1058,12 +1092,12 @@ Module ModuleTwoWay
         integer                                        :: CHUNK
         !Begin------------------------------------------------------------------------------------
         KLB = Me%WorkSize%KLB; KUB = Me%WorkSize%KUB
-        
+
         if (present(Volume_3D)) then
             !account for different amount of vertical layers between domains.
             k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            
+
             !$OMP PARALLEL PRIVATE(i,j,k,Flag)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -1077,7 +1111,7 @@ Module ModuleTwoWay
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-            
+
         elseif (present(Volume_2D)) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1089,7 +1123,7 @@ Module ModuleTwoWay
         endif
 
     end subroutine ComputeSonVolInFather_offline
-    
+
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -1188,7 +1222,7 @@ Module ModuleTwoWay
     end subroutine Nudging_average
 
     !------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Calls offline Feedback routines present in mondule functions, based on the type of input matrixes
@@ -1204,7 +1238,7 @@ Module ModuleTwoWay
         type (T_TwoWay), pointer                                    :: ObjFather
         integer                                                     :: ready_father
         !Begin ----------------------------------------------------------------
-        
+
         if (present(FatherMatrix)) then
             !3D
             !compute nudging Z type cell
@@ -1220,7 +1254,7 @@ Module ModuleTwoWay
 
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
             if (.not. associated(ObjFather%TotSonIn)) ObjFather%TotSonIn => Me%Father%TotSonIn
-            
+
         else
             call Upscaling_Avrg_WL (    FatherMatrix2D   = FatherMatrix2D,                      &
                                         SonMatrix2D      = SonMatrix2D,                         &
@@ -1230,13 +1264,13 @@ Module ModuleTwoWay
                                         Jlink            = Me%External_Var%JZ,                  &
                                         VolumeSon2D      = Me%External_Var%VolumeZ_2D,          &
                                         TotSonIn2D       = GetPointer(Me%Father%TotSonIn_2D))
-            
+
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
             if (.not. associated(ObjFather%TotSonIn_2D)) ObjFather%TotSonIn_2D => Me%Father%TotSonIn_2D
         endif
 
     end subroutine Nudging_average_offline
-    
+
     !------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -1387,16 +1421,19 @@ Module ModuleTwoWay
     !>@Brief
     !>Routine responsible for filling the concentration for each upscaling discharge cell
     !>@param[in] FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime
-    subroutine UpscaleDischarge_WP (FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime)
+    subroutine UpscaleDischarge_WP (FatherID, Connections_Z, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, &
+    Kmax, FirstTime)
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: FatherID
+        integer, dimension(:,:    ), pointer, intent(IN)  :: Connections_Z
         real(8), dimension(:, :, :), pointer, intent(IN)  :: Flow
         real,    dimension(:, :, :), pointer, intent(IN)  :: Prop
         real, dimension(:)      , pointer, intent(IN)     :: FlowVector, PropVector
         integer, dimension(:), pointer, intent(INOUT)     :: dI, dJ, dK, Kmin, Kmax
         logical                       , intent(IN)        :: FirstTime
         !Local-----------------------------------------------------------------
-        integer                                           :: STAT_CALL, DischargeNumber, AuxCell, AuxKmin, AuxKmax, dis, nCells, i
+        integer                                           :: STAT_CALL, DischargeNumber, AuxCell, AuxKmin, AuxKmax, dis, &
+                                                             nCells, i
         integer, dimension(:), pointer                    :: VectorI, VectorJ, VectorK
         !----------------------------------------------------------------------
 
@@ -1406,40 +1443,43 @@ Module ModuleTwoWay
         AuxCell = 0
         do dis = 1 , DischargeNumber
 
-            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, VectorI = VectorI, &
-                                              VectorJ = VectorJ, VectorK = VectorK, kmin = AuxKmin, kmax = AuxKmax, &
-                                              STAT = STAT_CALL)
+            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, &
+                                                VectorI = VectorI, VectorJ = VectorJ, VectorK = VectorK, &
+                                                kmin = AuxKmin, kmax = AuxKmax, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get dischargeflowdistribution'
 
-            if (IsUpscaling(FatherID, dis)) then
-                if (FirstTime)then
-                    do i = 1, nCells
-                        AuxCell = AuxCell + 1
-                        dI        (AuxCell) = VectorI(i)
-                        dJ        (AuxCell) = VectorJ(i)
-                        dK        (AuxCell) = VectorK(i)
-                        Kmin      (AuxCell) = AuxKmin
-                        Kmax      (AuxCell) = AuxKmax
-                        FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
-                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                    enddo
+            !using VectorI/J(1) because the value is the same for the entire vector (only the K value changes)
+            if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
+                if (IsUpscaling(FatherID, dis)) then
+                    if (FirstTime)then
+                        do i = 1, nCells
+                            AuxCell = AuxCell + 1
+                            dI        (AuxCell) = VectorI(i)
+                            dJ        (AuxCell) = VectorJ(i)
+                            dK        (AuxCell) = VectorK(i)
+                            Kmin      (AuxCell) = AuxKmin
+                            Kmax      (AuxCell) = AuxKmax
+                            FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                            PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                        enddo
+                    else
+                        do i = 1, nCells
+                            AuxCell = AuxCell + 1
+                            PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                        enddo
+                    endif
                 else
-                    do i = 1, nCells
-                        AuxCell = AuxCell + 1
-                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                    enddo
+                    AuxCell = AuxCell + nCells
                 endif
-            else
-                AuxCell = AuxCell + nCells
             endif
         enddo
 
     end subroutine UpscaleDischarge_WP
-    
+
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Fills domain matrix with user-provided upscaling decay time only in the overlapped area, excluding n cells 
+    !>Fills domain matrix with user-provided upscaling decay time only in the overlapped area, excluding n cells
     !>from the border
     !>@param[in] SonID, Matrix2D, DecayValue, NumCellsToIgnore, STAT
     subroutine Fill_Upscaling_DecayTime(SonID, Matrix2D, DecayValue, NumCellsToIgnore, STAT)
@@ -1453,21 +1493,21 @@ Module ModuleTwoWay
         integer                                                     :: i, j, ILB, JLB, IUB, JUB, Flag, IFather, JFather
         !Begin------------------------------------------------------------------
         STAT_ = UNKNOWN_
-        
+
         call Ready(SonID, ready_)
-        
+
         if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             !Son matrix bounds
             ILB = Me%WorkSize%ILB ; JLB = Me%WorkSize%JLB
             IUB = Me%WorkSize%IUB ; JUB = Me%WorkSize%JUB
-            
+
             call PrepTwoWay(SonID, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Failed get Upscaling ExternalVars - Fill_Upscaling_DecayTime - TwoWay'
-            
+
             if (.not. allocated(Me%IgnoreOBCells)) &
                 call Compute_MatrixFilterOB (NumCellsToIgnore, Me%External_Var%BoundaryPoints2D)
-            
+
             !A lot of repetitions because there are many son cells per father cell.. but its only for the construct
             !and the matrix is 2D so there is not much performance loss.
             do j = JLB, JUB
@@ -1475,24 +1515,24 @@ Module ModuleTwoWay
                 Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
                     IFather = Me%External_Var%IZ(i, j)  ;  JFather = Me%External_Var%JZ(i, j)
-                        
+
                     Matrix2D(IFather, JFather) = DecayValue
                 endif
             enddo
             enddo
-            
+
             call UngetTwoWayExternal_Vars (SonID, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Failed unget Upscaling ExternalVars - Fill_Upscaling_DecayTime - TwoWay'
-            
+
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
         endif
 
         if (present(STAT)) STAT = STAT_
-    
+
     end subroutine Fill_Upscaling_DecayTime
-    
+
     !------------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
@@ -1513,10 +1553,10 @@ Module ModuleTwoWay
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             callerID_ = 0
             if (present(callerID)) callerID_ = callerID_
-            
+
             if (callerID == 1) then
                 !For future developments (when other modules call for twoway)
             endif
