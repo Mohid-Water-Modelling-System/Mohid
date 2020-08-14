@@ -1783,8 +1783,6 @@ cd2 :           if (BlockFound) then
                                     TimeID               = Me%ObjTime,               &
                                     HorizontalGridID     = Me%ObjHorizontalGrid,     &
                                     GeometryID           = Me%ObjGeometry,           &
-                                    HorizontalMapID      = Me%ObjHorizontalMap,      &
-                                    MapID                = Me%ObjMap,                &
                                     TwoWayID             = Me%ObjTwoWay,             &
                                     ExtractType          = FromBlockInBlock,         &
                                     PointsToFill2D       = PointsToFill2D,           &
@@ -2311,16 +2309,9 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         type(T_Size3D)                          :: Size
         type(T_Size3D)                          :: WorkSize
         !----------------------------------------------------------------------
-        if (NewProperty%Upscaling) then
-            call GetGeometrySize(NewProperty%ID%ObjGeometry, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)stop 'Could not get size for upscaling 2D field - Assimilation'
-        else
-            Size = Me%Size ; WorkSize = Me%WorkSize
-        endif
-        !Sobrinho - Passar a parte do upscaling para uma routina à parte em que é feito o fill matrix para a matriz filho e depois
-        ! é feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
-        ILB = Size%ILB; JLB = Size%JLB; KLB = Size%KLB
-        IUB = Size%IUB; JUB = Size%JUB; KUB = Size%KUB
+     
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
         
         allocate(NewProperty%CoefField%R3D(ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(PointsToFill3D           (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -2552,8 +2543,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     !--------------------------------------------------------------------------
 
     
-    subroutine GetAssimilationField(AssimilationID, ID, N_Field,                & 
-                                    Field2D, Field3D, GroupOutPutName, STAT)
+    subroutine GetAssimilationField(AssimilationID, ID, N_Field, Field2D, Field3D, GroupOutPutName, Upscaling, STAT)
 
         !Arguments--------------------------------------------------------------
         integer          , intent(IN )              :: AssimilationID
@@ -2563,13 +2553,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         real, dimension(:,:,:), pointer, optional   :: Field3D
         character(len=StringLength), optional       :: GroupOutPutName
         integer, optional, intent(OUT)              :: STAT
-
+        logical, optional, intent(IN)               :: Upscaling
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX    
         integer                                     :: STAT_CALL, STAT_CALL1
         integer                                     :: N_Field_
-
+        logical                                     :: Upscaling_
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
 
@@ -2588,11 +2578,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 N_Field_ = N_Field
             else
                 N_Field_ = 1
-            endif            
+            endif
+            
+            Upscaling_ = .false.
+            if (present(Upscaling)) Upscaling_ = Upscaling
             
             call SearchProperty(PropertyX           = PropertyX,                        &
                                 PropertyXIDNumber   = ID,                               &
                                 N_Field             = N_Field_,                         &
+                                UpscalingProp       = Upscaling_,                       &
                                 STAT                = STAT_CALL)                                         
                            
 cd2:        if (STAT_CALL == SUCCESS_) then
@@ -2703,9 +2697,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             
             Upscaling_ = .false.
             if (present(Upscaling)) Upscaling_ = Upscaling
-            
-            !Sobrinho - Acrescentar possibilidade de existirem mais propertyX com o mesmo nome
-            !Acrescentar nova searchproperty_upscaling
 
             nullify(PropertyX)
             call SearchProperty(PropertyX           = PropertyX,                        &

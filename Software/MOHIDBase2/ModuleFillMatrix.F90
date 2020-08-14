@@ -610,8 +610,8 @@ Module ModuleFillMatrix
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ConstructFillMatrix2D(PropertyID, EnterDataID, TimeID,                   &
-                                     HorizontalGridID, GeometryID, HorizontalMapID,     &
-                                     MapID, TwoWayID, ExtractType, PointsToFill2D,      &
+                                     HorizontalGridID, GeometryID, TwoWayID, ExtractType, &
+                                     PointsToFill2D,      &
                                      Matrix2D, TypeZUV, Matrix2DInputRef, FileNameHDF,  &    
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
@@ -630,8 +630,6 @@ Module ModuleFillMatrix
         type (T_PropertyID)                             :: PropertyID
         integer,      optional, intent(IN )             :: ClientID
         integer,      optional, intent(IN )             :: GeometryID
-        integer,      optional, intent(IN )             :: HorizontalMapID
-        integer,      optional, intent(IN )             :: MapID
         integer,      optional, intent(IN )             :: TwoWayID
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
@@ -696,9 +694,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             
             !Sobrinho Parent domain IDs
-            if (present(HorizontalMapID)) Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+
             if (present(GeometryID))      Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
-            if (present(MapID))           Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             ! JPW 2012-01-28: Use HorizontalGridSize to set size of the matrix.
@@ -1068,7 +1065,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !----------------------------------------------------------------------
 
     subroutine ConstructFillMatrix3D(PropertyID, EnterDataID, TimeID, HorizontalGridID, &
-                                     GeometryID, HorizontalMapID, MapID, TwoWayID,      &
+                                     GeometryID, TwoWayID,      &
                                      ExtractType, PointsToFill3D, Matrix3D, &
                                      TypeZUV, Matrix3DInputRef, FillMatrix, FileNameHDF,&
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
@@ -1088,8 +1085,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:, :, :), pointer, optional     :: Matrix3DInputRef    !original field (e.g. angle)
         integer                                         :: TypeZUV
         integer, optional, intent(IN)                   :: ClientID
-        integer,      optional, intent(IN )             :: HorizontalMapID!Sobrinho
-        integer,      optional, intent(IN )             :: MapID!Sobrinho
         integer,      optional, intent(IN )             :: TwoWayID!Sobrinho
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
@@ -1160,8 +1155,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             
             !Sobrinho Parent domain IDs
-            if (present(HorizontalMapID)) Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
-            if (present(MapID))           Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             ! JPW 2012-01-28: Use GeometrySize to set size of the matrix.

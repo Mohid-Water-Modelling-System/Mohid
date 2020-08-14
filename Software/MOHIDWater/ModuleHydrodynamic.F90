@@ -1809,9 +1809,9 @@ Module ModuleHydrodynamic
         real,   dimension(:,:,:), pointer   :: DecayTimeGeo         => null()
         logical                             :: BrFroceOnlyAssimil   = .false.
         real,   dimension(:,:  ), pointer   :: CoefWaveStress       => null()
-        real, dimension(:,:,:), allocatable :: Assim_VelModel
-        real, dimension(:,:,:), allocatable :: Assim_VelReference
-        real, dimension(:,:,:), allocatable :: Assim_VelReference_Upscale
+        real, dimension(:,:,:), allocatable :: Assim_ModelVel
+        real, dimension(:,:,:), allocatable :: Assim_RefVelocity
+        real, dimension(:,:,:), allocatable :: Assim_RefVelocity_Upscale
     endtype
 
     private :: T_SubModel
@@ -11835,7 +11835,7 @@ iStart: if (OutputOk) then
             !Gets a pointer to Bathymetry
             call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR10'
-
+            
             !Gets WaterPoints3D
             call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
@@ -12899,11 +12899,11 @@ cd2 :           if (IC3D(i,j,k)>0) then
             allocate (Me%Forces%Relax_Aceleration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR19")
 
-            allocate (Me%Relaxation%Assim_VelReference(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_VelReference")
+            allocate (Me%Relaxation%Assim_RefVelocity(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_RefVelocity")
 
-            allocate (Me%Relaxation%Assim_VelModel(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_VelModel")
+            allocate (Me%Relaxation%Assim_ModelVel(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_ModelVel")
 
             Me%Forces%Relax_Aceleration(:,:,:) = FillValueReal
         endif
@@ -12927,7 +12927,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
         !Sobrinho
         call GetData(Me%Relaxation%Upscaling,                             &
                     Me%ObjEnterData, iflag,                                       &
-                    keyword = 'Upscaling',                            &
+                    keyword = 'UPSCALING',                                        &
                     default = .false.,                                            &
                     SearchType = FromFile,                                        &
                     ClientModule ='ModuleHydrodynamic',                           &
@@ -12936,7 +12936,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
         
         !Sobrinho
         if (Me%Relaxation%Upscaling) then
-            allocate (Me%Relaxation%Assim_VelReference_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+            allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of VelReference_Upscale")
         endif
 
@@ -20803,7 +20803,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             else if (Num_Discretization == Leendertse) then cd2
 
                 call Leendertse_Scheme
-
             else cd2
 
                 Stop 'Sub. MomentumMassConservation - ModuleHydrodynamic - Err01.'
@@ -23000,33 +22999,29 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Leendertse_Scheme")
 
         call MaintainDirection
-
+        
         call Explicit_Forces
-
+        
         call Compute_Velocity(PressureBackwardInTime = .true.)
         ! Water Flux must be consistent with the water level equation
         Me%WaterFluxes%New_Old = 0.
-
         call Modify_HorizontalWaterFlow
 
 
         !Same direction of the water level direction
 
         call ChangeDirection
-
         call Bottom_Boundary
 
         call Explicit_Forces
-
+        
         call Compute_WaterLevel
-
+        
         call Compute_Velocity(PressureBackwardInTime = .false.)
-
         ! Water Flux must be consistent with the water level equation
         Me%WaterFluxes%New_Old = 1.
 
         call Modify_HorizontalWaterFlow
-
 !        !Modify the Background velocity if the boundary relaxation scheme is ON
 !        if (Me%Relaxation%Velocity)                                  &
 !            call ModifyBackgroundVelocity
@@ -31401,12 +31396,10 @@ cd3:                   if (Manning) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Explicit_Forces")
 
 
-
         !Inertial aceleration
         if (Me%ComputeOptions%InertiaForces) then
             call Modify_InertiaForces
         endif
-
 
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
@@ -31436,10 +31429,10 @@ cd3:                   if (Manning) then
         !Baroclinic density gradient integral
         if (Me%ComputeOptions%Baroclinic)                                      &
             call Modify_ROX3  (Me%External_Var%SigmaDens, Me%Forces%Rox3XY)
-
+        
         !griflet: still needs to be parallelized
         call Modify_Horizontal_Transport
-
+        
 ! Modified by Matthias DELPEY - 15/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress  .or.   &
             Me%ComputeOptions%WaveForcing3D == GLM    ) then
@@ -38101,10 +38094,11 @@ do3:            do k = kbottom, KUB
         do iL = 1, NFieldsUV3D
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D)
         enddo
+        
         do iL = 1, NFieldsUV2D
             call GetAssimilationVectorFields(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D)
         enddo
-            
+        
         do iL = 1, NFieldsUV3D_Upscaling
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D_Upscaling(iL)%VelAssimilation3D, &
                                                 Upscaling = Upscaling)
@@ -38112,12 +38106,13 @@ do3:            do k = kbottom, KUB
         
         if (Downscaling) call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
         if (Upscaling) call GetTimeCoefs_2D (Vel_ID, CoefCold_Upscale, DecayTime_Upscale2D, Upscaling)
+        
 !------------------------------------------Finished initialization --------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
 
-        Me%Relaxation%Assim_VelReference(:,:,:) = 0.0
-        Me%Relaxation%Assim_VelModel(:,:,:) = 0.0
+        Me%Relaxation%Assim_RefVelocity(:,:,:) = 0.0
+        Me%Relaxation%Assim_ModelVel(:,:,:) = 0.0
 
         !Compute model velocity----------------------------------------------------------
         call Compute_ModelVelocity (Me%External_Var%ComputeFaces3D_UV, Me%External_Var%KFloor_UV, Velocity_UV_New, &
@@ -38125,57 +38120,53 @@ do3:            do k = kbottom, KUB
 
         !---------------------------------compute reference velocity-------------------------------------------------
         !Sobrinho - confirmar que isto passa no caso de só ter campos de Upscaling.
-        if (Me%Relaxation%BrFroceOnlyAssimil) then
+        if (Me%Relaxation%BrFroceOnlyAssimil    .or. &
+            LocalSolution == NoLocalSolution_   .or. &
+            LocalSolution == AssimilationField_ .or. &
+            LocalSolution == AssimilaGauge_) then
             do iL =1, NFieldsUV3D
-                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                      List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
             enddo
             do iL =1, NFieldsUV2D
-                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_RefVelocity, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                            List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
             enddo
             
         elseif (LocalSolution == AssimilaPlusSubModel_ .or. LocalSolution == AssimilaGaugeSubmodel_) then
 
             where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
-                    Me%Relaxation%Assim_VelReference(:,:,:) = SubModel_UV_New(:, :, :)
+                    Me%Relaxation%Assim_RefVelocity(:,:,:) = SubModel_UV_New(:, :, :)
 
             do iL =1, NFieldsUV3D
-                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                     List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
             enddo
             do iL =1, NFieldsUV2D
-                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_RefVelocity, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                            List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
             enddo
 
         elseif (LocalSolution == Submodel_ .or. LocalSolution == GaugePlusSubModel_) then
 
             where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
-                    Me%Relaxation%Assim_VelReference(:,:,:) = SubModel_UV_New(:, :, :)
+                    Me%Relaxation%Assim_RefVelocity(:,:,:) = SubModel_UV_New(:, :, :)
 
-        elseif (LocalSolution == NoLocalSolution_   .or. &
-                LocalSolution == AssimilationField_ .or. &
-                LocalSolution == AssimilaGauge_) then
-
-            do iL =1, NFieldsUV3D
-                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
-                                     List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
-            enddo
-            do iL =1, NFieldsUV2D
-                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
-                                           List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
-            enddo
         elseif (LocalSolution == Gauge_) then
             stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR10'
         endif
         
-        !Sobrinho - In case there is relaxation (flather for example) and Upscaling.
-        !           Placed the cycle here to avoid calling it for every elseif above
+        !Sobrinho
         if (Upscaling) then
-            Me%Relaxation%Assim_VelReference_Upscale(:,:,:) = 0.0
+            if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
+                write (*,*) 'Relaxation is activated and an upscaling field was found in assimilation.dat.'
+                write (*,*) 'to use upscaling, activate Keyword UPSCALING in Hydrodynamic.dat'
+                stop
+            endif
+            
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
             do iL =1, NFieldsUV3D_Upscaling
-                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                      List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
             enddo
         endif
@@ -38193,28 +38184,28 @@ do3:            do k = kbottom, KUB
 
         ! -------------------------------- Kill variables -------------------------------------------------------------
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
-
+        
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
         
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime_Upscale2D, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR25")
-
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
+        
         do iL =1, NFieldsUV3D
             call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
         enddo
-
+        
         do iL =1, NFieldsUV2D
             call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
         enddo
         
         do iL =1, NFieldsUV3D_Upscaling
             call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
         enddo
-
+        
         deallocate(List3D, List2D)
 
         if (NFieldsUV3D_Upscaling > 0) then
@@ -38451,7 +38442,7 @@ do3:            do k = kbottom, KUB
                     kbottom = KFloor_UV(I, J)
 
                     do K=kbottom, KUB
-                        Me%Relaxation%Assim_VelModel(i, j, k)  = Me%Relaxation%Assim_VelModel(i, j, k) &
+                        Me%Relaxation%Assim_ModelVel(i, j, k)  = Me%Relaxation%Assim_ModelVel(i, j, k) &
                                                                + Velocity_UV_New(i, j, k) &
                                                                * DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
                     enddo
@@ -38461,7 +38452,7 @@ do3:            do k = kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            Me%Relaxation%Assim_VelModel(:,:,:)  = Velocity_UV_New(:,:,:)
+            Me%Relaxation%Assim_ModelVel(:,:,:)  = Velocity_UV_New(:,:,:)
         endif
 
     end subroutine Compute_ModelVelocity
@@ -38482,6 +38473,7 @@ do3:            do k = kbottom, KUB
         real                                        :: Gradient, Gradient_Upscale
         real                                        :: Aceleration_Downscaling, Aceleration_Upscaling
         real                                        :: TimeCoef_Upscale, DecayTime_Upscale, TotalDecayTime
+        real                                        :: TimeCoef_Downscale, DecayTime_Downscale
         real                                        :: Fraction_Donwscaling, Fraction_Upscaling, Volume_Factor
         !Locals -----------------------------------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: Relax_Aceleration
@@ -38495,41 +38487,45 @@ do3:            do k = kbottom, KUB
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom, Gradient, Aceleration_Downscaling, Aceleration_Upscaling) &
         !$OMP PRIVATE(Gradient_Upscale, DecayTime_Upscale, TimeCoef_Upscale, TotalDecayTime, Volume_Factor) &
-        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling) &
+        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling, DecayTime_Downscale, TimeCoef_Downscale) &
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB
             if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered) then
                 kbottom = Me%External_Var%KFloor_UV(i, j)
-                DecayTime_Upscale = DecayTime_Upscale2D(i, j)
+                
+                DecayTime_Upscale    = DecayTime_Upscale2D(i, j)
+                DecayTime_Downscale  = DecayTime(i, j, KUB)
+                TimeCoef_Downscale   = CoefCold / DecayTime_Downscale
                     
                 if (DecayTime_Upscale == FillValueReal) then
                     !Only use downscaling vel reference (because current cell is not covered by an upscaling domain)
                     do K=kbottom, KUB
-                        ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
-                        Relax_Aceleration(i, j, k) = CoefCold * (Me%Relaxation%Assim_VelReference(i, j, k)  &
-                                                                -  Me%Relaxation%Assim_VelModel    (i, j, k)) &
-                                                    / DecayTime(i, j, k)
+                        ![m/s^2]                   = ([m/s] - [m/s]) * [1/s]
+                        Relax_Aceleration(i, j, k)  = (Me%Relaxation%Assim_RefVelocity(i, j, k)  &
+                                                    -  Me%Relaxation%Assim_ModelVel    (i, j, k)) &
+                                                    * TimeCoef_Downscale
                     enddo   
                 else
-                        
-                    TimeCoef_Upscale = CoefCold_Upscale / DecayTime_Upscale
+                    !Assuming a constant decaytime in the vertical coordinate(This should be done in fillmatrix)
+                    TimeCoef_Upscale     = CoefCold_Upscale / DecayTime_Upscale
+                    
+                    TotalDecayTime       = DecayTime_Downscale + DecayTime_Upscale
+
+                    Fraction_Donwscaling = 1 - DecayTime_Downscale / TotalDecayTime
+                    Fraction_Upscaling   = 1 - Fraction_Donwscaling
+                    
                     do K=kbottom, KUB
                         ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
-                        Gradient         = Me%Relaxation%Assim_VelReference        (i, j, k) &
-                                         - Me%Relaxation%Assim_VelModel            (i, j, k)
-                        Gradient_Upscale = Me%Relaxation%Assim_VelReference_Upscale(i, j, k) &
-                                         - Me%Relaxation%Assim_VelModel            (i, j, k)
-                            
-                        TotalDecayTime   = DecayTime(i, j, k) + DecayTime_Upscale
-                            
-                        Fraction_Donwscaling = 1 - DecayTime(i, j, k) / TotalDecayTime
-                        Fraction_Upscaling   = 1 - Fraction_Donwscaling
+                        Gradient         = Me%Relaxation%Assim_RefVelocity        (i, j, k) &
+                                         - Me%Relaxation%Assim_ModelVel            (i, j, k)
+                        Gradient_Upscale = Me%Relaxation%Assim_RefVelocity_Upscale(i, j, k) &
+                                         - Me%Relaxation%Assim_ModelVel            (i, j, k)
                             
                         Volume_Factor = SonVolInFather3D(i, j, k) / Me%External_Var%Volume_Z_New(i, j, k)
                         
-                        Aceleration_Downscaling = CoefCold         * Gradient         / DecayTime(i, j, k)
-                        Aceleration_Upscaling   = TimeCoef_Upscale * Gradient_Upscale * Volume_Factor
+                        Aceleration_Downscaling = TimeCoef_Downscale * Gradient
+                        Aceleration_Upscaling   = TimeCoef_Upscale   * Gradient_Upscale * Volume_Factor
                         
                         Relax_Aceleration(i, j, k) = Aceleration_Downscaling + Aceleration_Upscaling
                     enddo
@@ -38572,8 +38568,8 @@ do3:            do k = kbottom, KUB
                 kbottom = Me%External_Var%KFloor_UV(i, j)
                 do K=kbottom, KUB
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
-                    Relax_Aceleration(i, j, k) = CoefCold * (Me%Relaxation%Assim_VelReference(i, j, k)  &
-                                                          -  Me%Relaxation%Assim_VelModel    (i, j, k)) &
+                    Relax_Aceleration(i, j, k) = CoefCold * (Me%Relaxation%Assim_RefVelocity(i, j, k)  &
+                                                          -  Me%Relaxation%Assim_ModelVel    (i, j, k)) &
                                                 / DecayTime(i, j, k)
                 enddo
             endif
@@ -38615,8 +38611,8 @@ do3:            do k = kbottom, KUB
                 TimeCoef_Upscale = CoefCold_Upscale * DecayTime_Upscale2D(i, j)
                 do K=kbottom, KUB
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
-                    Relax_Aceleration(i, j, k) = (Me%Relaxation%Assim_VelReference(i, j, k)  &
-                                                -  Me%Relaxation%Assim_VelModel    (i, j, k)) * TimeCoef_Upscale
+                    Relax_Aceleration(i, j, k) = (Me%Relaxation%Assim_RefVelocity(i, j, k)  &
+                                                -  Me%Relaxation%Assim_ModelVel    (i, j, k)) * TimeCoef_Upscale
                 enddo
             endif
         enddo

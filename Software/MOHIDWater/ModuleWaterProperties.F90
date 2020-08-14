@@ -239,7 +239,7 @@ Module ModuleWaterProperties
                                           GetAssimilationCoef, UnGetAssimilation,               &
                                           KillAssimilation, GetAssimilationAltimetry,           &
                                           GetAssimilationAltimetryDT, ModifyAssimilation,       &
-                                          GetAltimetryDecayTime, GetNumberOfFields
+                                          GetAltimetryDecayTime, GetNumberOfFields, GetNumberOfUpscalingFields
     use ModuleAdvectionDiffusion,   only: StartAdvectionDiffusion, AdvectionDiffusion,          &
                                           GetAdvFlux, GetDifFlux, GetBoundaryConditionList,     &
                                           SetDischarges, UnSetDischarges,                       &
@@ -505,6 +505,12 @@ Module ModuleWaterProperties
     private ::              BivalveOutputBoxTimeSerie
     private ::      Partition_Processes
     private ::      DataAssimilationProcesses
+    private ::          GetNumberOfPropFields
+    private ::          FillAssimilationField
+    private ::          Get_Check_AssimilationCoef
+    private ::          Assimilation_Down_Up
+    private ::              Nudge_To_Ref
+    private ::              Nudge_AdvVert
     private ::      AltimAssimilationProcess
     private ::      CalculateAge
     private ::      ModifyDensity
@@ -513,7 +519,7 @@ Module ModuleWaterProperties
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
     private ::          ComputeSpecificHeatUNESCO
-    private ::      Upscaling
+    private ::      TwoWay_Upscaling
     private ::          Compute_wp_upscaling
     private ::      OutPut_Results_HDF
     private ::      OutPut_SurfaceResults_HDF
@@ -862,8 +868,10 @@ Module ModuleWaterProperties
 
     type       T_LocalAssimila
         real                                    :: scalar       = FillValueReal
-        real, pointer, dimension(:,:,:)         :: Field
-        real, pointer, dimension(:,:,:)         :: DecayTime
+        real, pointer       , dimension(:,:,:)  :: Field
+        real, allocatable   , dimension(:,:,:)  :: Field_Upscaling!Sobrinho
+        real, pointer       , dimension(:,:,:)  :: DecayTime
+        real, pointer       , dimension(:,:)    :: DecayTime2D !Sobrinho
         character(len=StringLength)             :: GroupOutPutName        
     end type T_LocalAssimila
 
@@ -4936,7 +4944,7 @@ do1 :   do while (associated(PropertyX))
                                        Me%ObjHorizontalMap,                             &
                                        Me%ObjMap,                                       &
                                        Me%ObjGeometry,                                  &
-                                       Me%ObjTwoWay,                                    &
+                                       Me%ObjTwoWay,                                    &!Sobrinho
                                        STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Sub_Modules - WaterProperties - ERR70')
 
@@ -12306,7 +12314,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             
             if (.not. associated (Me%Next))then
-                Call Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
+                Call TwoWay_Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
             endif
 
             if(Me%OutPut%Yes)                                 &
@@ -19150,7 +19158,7 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !>For each domain checks and starts twoway procedure
     !>@param[in] WaterPropertiesID, CurrentTime
-    subroutine Upscaling (WaterPropertiesID, CurrentTime)
+    subroutine TwoWay_Upscaling (WaterPropertiesID, CurrentTime)
     !External ----------------------------------------------------------------------------
     type (T_Property), pointer                  :: PropertyX
     type (T_Time)                               :: CurrentTime
@@ -19192,7 +19200,7 @@ do1 :   do while (associated(PropertyX))
 
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Upscaling")
 
-    end subroutine Upscaling
+    end subroutine TwoWay_Upscaling
 
     !--------------------------------------------------------------------------
 
@@ -20328,231 +20336,37 @@ dn:         do n=1, nCells
         !External--------------------------------------------------------------
         type (T_Property), pointer                  :: Property
         type (T_Time)                               :: Actual
-
         !Local -----------------------------------------------------------------
-        real,    pointer, dimension(:,:,:)          :: PropAssimilation
-        integer                                     :: ILB, IUB
-        integer                                     :: JLB, JUB
-        integer                                     :: KLB, KUB
-        integer                                     :: I, J, K, STAT_CALL, PropertyID
-        real                                        :: CoefCold, DTProp, ColdPeriod, ColdOrder, &
-                                                       DT_RunPeriod, AuxDecay
-        logical                                     :: SubModelON
-        integer                                     :: CHUNK
-        integer                                     :: N_Field, NumberOfFields
+        integer                                     :: PropertyID
+        integer                                     :: NumberOfFields, NumberOfFields_Upscaling
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
-        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
-
-        CHUNK = CHUNK_K(KLB, KUB)
         Property => Me%FirstProperty
 
         Actual = Me%ExternalVar%Now
 
-d1 :    do while (associated(Property))
+        do while (associated(Property))
 
-i1 :        if (Property%Evolution%DataAssimilation /= NoNudging) then
+            if (Property%Evolution%DataAssimilation /= NoNudging) then
 
-i2 :        if (Actual.GE.Property%Evolution%NextCompute) then
+                if (Actual.GE.Property%Evolution%NextCompute) then
 
-
-                if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
+                    if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR10')
+                
+                    !Sobrinho
+                    call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
+                    
+                    !DownsCaling + Upscaling
+                    call Assimilation_Down_Up(Property, PropertyID, Actual, NumberOfFields, NumberOfFields_Upscaling)
 
-                call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,            &
-                                       ID              = PropertyID,                    &
-                                       NumberOfFields  = NumberOfFields,                &
-                                       STAT            = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR15')
-                                       
-
-dnass :         do N_Field = 1, NumberOfFields
-
-                SubModelON = OFF
-
-i3 :            if (Property%Evolution%DataAssimilation == NudgingToRef .or.            &
-                    Property%Evolution%DataAssimilation == Hybrid) then
-
-i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
-
-                        PropAssimilation => Property%Assimilation%Field
-
-                        SubModelON = ON
-                        
-                    else i4
-
-                        SubModelON = OFF
-
-                        call GetAssimilationField(AssimilationID  = Me%ObjAssimilation, &
-                                                  ID              = PropertyID,         &
-                                                  N_Field         = N_Field,            &
-                                                  Field3D         = PropAssimilation,   &
-                                                  STAT            = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR20')
-                        
-                        
-                        call SetMatrixValue(Property%Assimilation%Field, Me%Size, PropAssimilation)
-
-
-                    end if i4
-
-                end if i3
-
-
-                 if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))              &
-                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR30')
-
-                call GetAssimilationCoef (AssimilationID  = Me%ObjAssimilation,             &
-                                          ID              = PropertyID,                     &
-                                          N_Field         = N_Field,                        &
-                                          ColdRelaxPeriod = ColdPeriod,                     &
-                                          ColdOrder       = ColdOrder,                      &
-                                          CoefField3D     = Property%Assimilation%DecayTime,&
-                                          STAT            = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR40')
-
-                if (ColdPeriod > 0. .and. Property%Old) then
-                    write(*,*) 'ColdRelaxPeriod is ON in a HOT START '
-                    write(*,*) 'Remove from Assimilation_x.dat the keyword COLD_RELAX_PERIOD'
-                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR50')
                 endif
 
-                DT_RunPeriod = Actual - Me%BeginTime
-
-                if (ColdPeriod > (Me%EndTime - Me%BeginTime) .and. Me%FirstIteration) then
-                    write(*,*) "DataAssimilationProcesses; WaterProperties. WRN50"
-                    write(*,*) trim(Property%ID%Name)
-                    write(*,*) "Cold Assimilation period larger than simulation period"
-                endif
-
-                if (ColdPeriod <= DT_RunPeriod) then
-                    CoefCold = 1.
-                else
-                    CoefCold = (DT_RunPeriod / ColdPeriod) ** ColdOrder
-                    if (CoefCold < 1.e-32) CoefCold = 1.e-32
-                endif
-
-                DTProp = Property%Evolution%DTInterval
-
-                if (MonitorPerformance) then
-                    call StartWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
-                endif
-
-i5  :           if (Property%Evolution%DataAssimilation == NudgingToRef) then
-
-                    !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-dok :               do k = KLB, KUB
-doj :               do j = JLB, JUB
-doi :               do i = ILB, IUB
-
-                        if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-
-                            if (Property%Assimilation%DecayTime(i, j, k)  < 0) then
-                                !$OMP CRITICAL (DAP1_ERR70)
-                                call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR70')
-                                !$OMP END CRITICAL (DAP1_ERR70)
-                            endif
-
-                            AuxDecay = DTProp / (Property%Assimilation%DecayTime(i, j, k))/ CoefCold
-
-                            ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
-                            Property%Concentration(i, j, k) = (Property%Concentration(i, j, k) + &
-                                                               PropAssimilation(i, j, k)       * &
-                                                               AuxDecay) / (1. + AuxDecay)
-                        endif
-
-
-                    enddo doi
-                    enddo doj
-                    enddo dok
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-
-i6 :                if(.not. SubModelON)then
-                        call UnGetAssimilation (Me%ObjAssimilation, PropAssimilation, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                              &
-                            call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR80')
-                    end if i6
-
-
-                else if (Property%Evolution%DataAssimilation == NudgingAdvVert) then i5
-
-                    !$OMP PARALLEL PRIVATE(i,j,k,AuxDecay)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-dj1 :               do j = JLB, JUB
-di1 :               do i = ILB, IUB
-
-                        !Upwelling
-i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0)  then
-
-                            do k = KLB, KUB
-
-                                if (Me%ExternalVar%OpenPoints3D (i, j, k  ) == OpenPoint .and.  &
-                                    Me%ExternalVar%OpenPoints3D (i, j, k-1) == OpenPoint) then
-
-                                    AuxDecay = DTProp / (CoefCold * Property%Assimilation%DecayTime(i, j, k))
-
-                                    ! C(t+dt,k) = (C(t,k) + C(t+dt,k-1)*dt/Tref) / (1 + dt / Tref)
-                                    ! Implicit vertical advection
-                                    Property%Concentration(i, j, k) = (Property%Concentration(i, j, k  ) + &
-                                                                       Property%Concentration(i, j, k-1) * &
-                                                                       AuxDecay) / (1. + AuxDecay)
-                                endif
-
-                            enddo
-
-                        !Downwelling
-                        else if (Property%Assimilation%DecayTime(i, j, KUB)  < 0)  then i7
-
-                            do k = KUB, KLB, -1
-
-                                if (Me%ExternalVar%OpenPoints3D (i, j, k  ) == OpenPoint .and.  &
-                                    Me%ExternalVar%OpenPoints3D (i, j, k+1) == OpenPoint) then
-
-                                    AuxDecay = DTProp / (CoefCold * abs(Property%Assimilation%DecayTime(i, j, k)))
-
-                                    ! C(t+dt,k) = (C(t,k) + C(t+dt,k+1)*dt/Tref) / (1 + dt / Tref)
-                                    !Implicit vertical advection
-                                    Property%Concentration(i, j, k) = (Property%Concentration(i, j, k  ) + &
-                                                                       Property%Concentration(i, j, k+1) * &
-                                                                       AuxDecay) / (1. + AuxDecay)
-                                endif
-                            enddo
-
-                        endif i7
-
-
-                    enddo di1
-                    enddo dj1
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-
-                end if i5
-
-                if (MonitorPerformance) then
-                    call StopWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
-                endif
-
-                call UnGetAssimilation(Me%ObjAssimilation, Property%Assimilation%DecayTime, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR90')
-
-
-            enddo dnass
-
-            endif i2
-
-            endif i1
+            endif
 
             Property => Property%Next
 
-        end do d1
+        end do
 
 
         nullify(Property)
@@ -20561,11 +20375,379 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
 
 
     end subroutine DataAssimilationProcesses
-
     !--------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets number of assimilation fields (Downcaling and upscaling for propertyID present in the assimilation module
+    !>@param[in] PropertyID, NumberOfFields, NumberOfFields_Upscaling
+    subroutine GetNumberOfPropFields (Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer, intent(INOUT)   :: Property
+        integer                   , intent(IN)      :: PropertyID
+        integer                   , intent(OUT)     :: NumberOfFields, NumberOfFields_Upscaling
+        !Local -----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        !Begin--------------------------------------------------------------------
+        call GetNumberOfFields          (AssimilationID = Me%ObjAssimilation,            &
+                                        ID              = PropertyID,                    &
+                                        NumberOfFields  = NumberOfFields,                &
+                                        STAT            = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('GetNumberOfPropFields; WaterProperties. ERR01')
+        
+        call GetNumberOfUpscalingFields (AssimilationID = Me%ObjAssimilation,            &
+                                        ID              = PropertyID,                    &
+                                        NumberOfFields  = NumberOfFields_Upscaling,      &
+                                        STAT            = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('GetNumberOfPropFields; WaterProperties. ERR02')
+        
+        if (NumberOfFields_Upscaling > 0) then
+            if (.not. allocated(Property%Assimilation%Field_Upscaling)) &
+            allocate(Property%Assimilation%Field_Upscaling( Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, &
+                                                            Me%Size%KLB:Me%Size%KUB))
+        endif
+        
+    end subroutine GetNumberOfPropFields
+    
+    !----------------------------------------------------------------------------------------
+    
+    !>@author Maretec
+    !>Edited by Joao Sobrinho - +Atlantic - 08/2020
+    !>@Brief
+    !>Assimilates external downscaling and upscaling fields
+    !>@param[in] Property, PropertyID, Actual, NumberOfFields, NumberOfFields_Upscaling
+    subroutine Assimilation_Down_Up(Property, PropertyID, Actual, NumberOfFields, NumberOfFields_Upscaling)
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer, intent(INOUT)   :: Property
+        integer                   , intent(IN)      :: PropertyID
+        type (T_Time)             , intent(IN)      :: Actual
+        integer                   , intent(IN)      :: NumberOfFields, NumberOfFields_Upscaling
+        !Local -----------------------------------------------------------------
+        real,    pointer, dimension(:,:,:)          :: PropAssimilation
+        integer                                     :: N_Field, STAT_CALL
+        real                                        :: CoefCold, DTProp
+        logical                                     :: SubModelON
+        !Begin--------------------------------------------------------------------
+        
+        !--------------------------------------------DOWNSCALING-----------------------------------------------
+        do N_Field = 1, NumberOfFields
+            !--------------------------------- Construct assimilation field -----------------------------------
+            call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation)
+                    
+            call Get_Check_AssimilationCoef(Property, PropertyID, N_Field, CoefCold, Actual)
+    
+            DTProp = Property%Evolution%DTInterval
+                    
+            !---------------------------------------  Assimilate field ----------------------------------------
+            if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Assimilation_Down_Up")
 
+            if (Property%Evolution%DataAssimilation == NudgingToRef) then
+                
+                call Nudge_To_Ref (Property, DTProp, PropAssimilation, CoefCold, SubModelON)
 
+            else if (Property%Evolution%DataAssimilation == NudgingAdvVert) then
+                
+                call Nudge_AdvVert (Property, DTProp, CoefCold)
 
+            end if
+            !---------------------------------------  Kill assimilation field ----------------------------------
+            if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Assimilation_Down_Up")
+
+            call UnGetAssimilation(Me%ObjAssimilation, Property%Assimilation%DecayTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Assimilation_Down_Up; WaterProperties. ERR90')
+
+        enddo
+        
+        !--------------------------------------------UPSCALING-------------------------------------------------
+        do N_Field = 1, NumberOfFields_Upscaling
+            !--------------------------------- Construct assimilation field -----------------------------------
+            call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, Upscaling = .True.)
+                    
+            call Get_Check_AssimilationCoef(Property, PropertyID, N_Field, CoefCold, Actual, Upscaling = .True.)
+    
+            DTProp = Property%Evolution%DTInterval
+                    
+            !---------------------------------------  Assimilate field ----------------------------------------
+
+            if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Assimilation_Down_Up")
+
+            if (Property%Evolution%DataAssimilation == NudgingToRef) then
+                
+                call Nudge_To_Ref (Property, DTProp, PropAssimilation, CoefCold, SubModelON, Upscaling = .true.)
+                
+            else if (Property%Evolution%DataAssimilation == NudgingAdvVert) then
+                call CloseAllAndStop ('Upscaling is not ready to be computed with hybrid assimilation')
+            end if
+            !---------------------------------------  Kill assimilation field ----------------------------------
+            if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Assimilation_Down_Up")
+
+            call UnGetAssimilation(Me%ObjAssimilation, Property%Assimilation%DecayTime2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Assimilation_Down_Up; WaterProperties. ERR90')
+
+        enddo
+    
+    end subroutine Assimilation_Down_Up
+    
+    !----------------------------------------------------------------------------------------
+    !>@author Maretec
+    !>Edited by Joao Sobrinho - +Atlantic - 08/2020
+    !>@Brief
+    !>Assimilates external downscaling or upscaling field
+    !>@param[in] Property, DTProp, PropAssimilation, CoefCold, SubModelON, Upscaling
+    subroutine Nudge_To_Ref(Property, DTProp, PropAssimilation, CoefCold, SubModelON, Upscaling)
+        !Arguments--------------------------------------------------------------
+        type (T_Property)     , pointer, intent(INOUT)  :: Property
+        real, dimension(:,:,:), pointer, intent(IN)     :: PropAssimilation
+        real                           , intent(IN)     :: CoefCold, DTProp
+        logical                        , intent(IN)     :: SubModelON
+        logical, optional              , intent(IN)     :: Upscaling
+        !Local -----------------------------------------------------------------
+        integer                                         :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        real                                            :: AuxDecay
+        integer                                         :: STAT_CALL, CHUNK
+        logical                                         :: Upscaling_
+        !Begin--------------------------------------------------------------------
+        Upscaling_ = .false.
+        if (present(Upscaling)) Upscaling_ = Upscaling
+        
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
+        CHUNK = CHUNK_K(KLB, KUB)
+        if (Upscaling_) then
+            !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                    
+                    AuxDecay = DTProp / (Property%Assimilation%DecayTime2D(i, j))/ CoefCold
+
+                    ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
+                    Property%Concentration(i, j, k) = (Property%Concentration(i, j, k)                        &
+                                                    +  PropAssimilation(i, j, k) * AuxDecay) / (1. + AuxDecay)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                    if (Property%Assimilation%DecayTime(i, j, k)  < 0) then
+                        !$OMP CRITICAL (DAP1_ERR70)
+                        call CloseAllAndStop ('Nudge_To_Ref; WaterProperties. ERR01')
+                        !$OMP END CRITICAL (DAP1_ERR70)
+                    endif
+                    AuxDecay = DTProp / (Property%Assimilation%DecayTime(i, j, k))/ CoefCold
+
+                    ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
+                    Property%Concentration(i, j, k) = (Property%Concentration(i, j, k)                        &
+                                                    +  PropAssimilation(i, j, k) * AuxDecay) / (1. + AuxDecay)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        endif
+        
+        if(.not. SubModelON)then
+            call UnGetAssimilation (Me%ObjAssimilation, PropAssimilation, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Nudge_To_Ref; WaterProperties. ERR02')
+        end if
+    end subroutine Nudge_To_Ref
+    
+    !----------------------------------------------------------------------------------------
+    !>@author Maretec
+    !>Edited by Joao Sobrinho - +Atlantic - 08/2020
+    !>@Brief
+    !>Assimilates external downscaling field with implicit vertical advection
+    !>@param[in] Property, DTProp, PropAssimilation, CoefCold, SubModelON
+    subroutine Nudge_AdvVert(Property, DTProp, CoefCold)
+        !Arguments--------------------------------------------------------------
+        type (T_Property)     , pointer, intent(INOUT)  :: Property
+        real                           , intent(IN)     :: CoefCold, DTProp
+        !Local -----------------------------------------------------------------
+        integer                                         :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        real                                            :: AuxDecay
+        integer                                         :: CHUNK
+        !Begin--------------------------------------------------------------------
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
+        CHUNK = CHUNK_K(KLB, KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxDecay)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            !Upwelling
+            if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0)  then
+                        
+                do k = KLB, KUB
+                    if (Me%ExternalVar%OpenPoints3D (i, j, k  ) == OpenPoint .and.  &
+                        Me%ExternalVar%OpenPoints3D (i, j, k-1) == OpenPoint) then
+
+                        AuxDecay = DTProp / (CoefCold * Property%Assimilation%DecayTime(i, j, k))
+
+                        ! C(t+dt,k) = (C(t,k) + C(t+dt,k-1)*dt/Tref) / (1 + dt / Tref)
+                        ! Implicit vertical advection
+                        Property%Concentration(i, j, k) = (Property%Concentration(i, j, k  )             &
+                                                        +  Property%Concentration(i, j, k-1) * AuxDecay) &
+                                                        / (1. + AuxDecay)
+                    endif
+                enddo
+            !Downwelling
+            else if (Property%Assimilation%DecayTime(i, j, KUB)  < 0)  then
+                        
+                do k = KUB, KLB, -1
+
+                    if (Me%ExternalVar%OpenPoints3D (i, j, k  ) == OpenPoint .and.  &
+                        Me%ExternalVar%OpenPoints3D (i, j, k+1) == OpenPoint) then
+
+                        AuxDecay = DTProp / (CoefCold * abs(Property%Assimilation%DecayTime(i, j, k)))
+
+                        ! C(t+dt,k) = (C(t,k) + C(t+dt,k+1)*dt/Tref) / (1 + dt / Tref)
+                        !Implicit vertical advection
+                        Property%Concentration(i, j, k) = (Property%Concentration(i, j, k  )             &
+                                                        +  Property%Concentration(i, j, k+1) * AuxDecay) &
+                                                        / (1. + AuxDecay)
+                    endif
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine Nudge_AdvVert
+    !----------------------------------------------------------------------------------------
+    !>@author Maretec
+    !>Edited by Joao Sobrinho - +Atlantic- 08/2020
+    !>@Brief
+    !>Fills PropAssimilation matrix according to implementation options
+    !>@param[in] Property, PropertyID, N_Field, SubModelON, PropAssimilation
+    subroutine FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, Upscaling)
+        !Arguments--------------------------------------------------------------
+        type (T_Property)     , pointer, intent(INOUT)   :: Property
+        integer                        , intent(IN)      :: N_Field, PropertyID
+        logical                        , intent(OUT)     :: SubModelON
+        real, dimension(:,:,:), pointer, intent(OUT)     :: PropAssimilation
+        logical, optional              , intent(IN)      :: Upscaling
+        !Locals-------------------------------------------------------------------
+        logical                                          :: Upscaling_
+        integer                                          :: STAT_CALL
+        !Begin--------------------------------------------------------------------
+        SubModelON = OFF
+        
+        Upscaling_ = .false.
+        if (present(Upscaling)) Upscaling_ = Upscaling
+        
+        if (Upscaling_) then
+            call GetAssimilationField(  AssimilationID  = Me%ObjAssimilation, &
+                                        ID              = PropertyID,         &
+                                        N_Field         = N_Field,            &
+                                        Field3D         = PropAssimilation,   &
+                                        Upscaling       = Upscaling,          &
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('FillAssimilationField; WaterProperties. ERR10')
+                             
+            Property%Assimilation%Field_Upscaling(:,:,:) = PropAssimilation(:,:,:)
+        else
+            if (Property%Evolution%DataAssimilation == NudgingToRef .or.            &
+                Property%Evolution%DataAssimilation == Hybrid) then
+
+                if (Property%SubModel%ON .and. N_Field == 1) then
+
+                    PropAssimilation => Property%Assimilation%Field
+                    SubModelON = ON    
+                else
+                    SubModelON = OFF
+                    call GetAssimilationField(  AssimilationID  = Me%ObjAssimilation, &
+                                                ID              = PropertyID,         &
+                                                N_Field         = N_Field,            &
+                                                Field3D         = PropAssimilation,   &
+                                                STAT            = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('FillAssimilationField; WaterProperties. ERR20')
+                             
+                    call SetMatrixValue(Property%Assimilation%Field, Me%Size, PropAssimilation)
+                end if
+            end if  
+        endif
+            
+    end subroutine FillAssimilationField
+
+    !---------------------------------------------------------------------------------
+    !>@author Maretec
+    !>Edited by Joao Sobrinho - +Atlantic- 08/2020
+    !>@Brief
+    !>Gets assimilation coef and checks for inconsistencies
+    !>@param[in] Property, PropertyID, N_Field, CoefCold, Actual
+    subroutine Get_Check_AssimilationCoef (Property, PropertyID, N_Field, CoefCold, Actual, Upscaling)
+        !Arguments----------------------------------------------------------------------
+        type (T_Property), pointer, intent(INOUT)   :: Property
+        integer                   , intent(IN)      :: N_Field, PropertyID
+        real                      , intent(INOUT)   :: CoefCold
+        type (T_Time)             , intent(IN)      :: Actual
+        logical, optional         , intent(IN)      :: Upscaling
+        !Locals-------------------------------------------------------------------
+        logical                                     :: Upscaling_
+        integer                                     :: STAT_CALL
+        real                                        :: DT_RunPeriod, ColdPeriod, ColdOrder
+        !Begin--------------------------------------------------------------------------
+        
+        Upscaling_ = .false.
+        if (present(Upscaling)) Upscaling_ = Upscaling
+        
+        if (Upscaling_) then
+            call GetAssimilationCoef (  AssimilationID  = Me%ObjAssimilation,             &
+                                        ID              = PropertyID,                     &
+                                        N_Field         = N_Field,                        &
+                                        ColdRelaxPeriod = ColdPeriod,                     &
+                                        ColdOrder       = ColdOrder,                      &
+                                        CoefField2D     = Property%Assimilation%DecayTime2D,&
+                                        Upscaling       = Upscaling_,                     &
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Get_Check_AssimilationCoef; WaterProperties. ERR01')
+        else
+            call GetAssimilationCoef (  AssimilationID  = Me%ObjAssimilation,             &
+                                        ID              = PropertyID,                     &
+                                        N_Field         = N_Field,                        &
+                                        ColdRelaxPeriod = ColdPeriod,                     &
+                                        ColdOrder       = ColdOrder,                      &
+                                        CoefField3D     = Property%Assimilation%DecayTime,&
+                                        Upscaling       = Upscaling_,                     &
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Get_Check_AssimilationCoef; WaterProperties. ERR02')
+        endif
+
+        if (ColdPeriod > 0. .and. Property%Old) then
+            write(*,*) 'ColdRelaxPeriod is ON in a HOT START '
+            write(*,*) 'Remove from Assimilation_x.dat the keyword COLD_RELAX_PERIOD'
+            call CloseAllAndStop ('Get_Check_AssimilationCoef; WaterProperties. ERR02')
+        endif
+
+        DT_RunPeriod = Actual - Me%BeginTime
+
+        if (ColdPeriod > (Me%EndTime - Me%BeginTime) .and. Me%FirstIteration) then
+            write(*,*) "Cold Assimilation period larger than simulation period for property : ", trim(Property%ID%Name)
+        endif
+
+        if (ColdPeriod <= DT_RunPeriod) then
+            CoefCold = 1.
+        else
+            CoefCold = (DT_RunPeriod / ColdPeriod) ** ColdOrder
+            if (CoefCold < 1.e-32) CoefCold = 1.e-32
+        endif
+    end subroutine Get_Check_AssimilationCoef
+    
+    
+    !---------------------------------------------------------------------------------
     subroutine ModifyNoFluxMapping
 
         !Local -----------------------------------------------------------------
@@ -22304,9 +22486,17 @@ sp:                     if (.not. SimpleOutPut) then
                                                       STAT            = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) then
-                                write(*,*) 'Property name: ', trim(PropertyX%ID%Name)
-                                write(*,*) 'OutPut_Results_HDF - ModuleWaterProperties - ERR105'
-                                call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
+                                call GetAssimilationField(AssimilationID  = Me%ObjAssimilation,                     &
+                                                          ID              = PropertyX%ID%IDNumber,                  &
+                                                          N_Field         = 1,                                      &
+                                                          GroupOutPutName = PropertyX%Assimilation%GroupOutPutName, &
+                                                          Upscaling       = .true.,                                 &
+                                                          STAT            = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) then 
+                                    write(*,*) 'Cannot find Property name: ', trim(PropertyX%ID%Name)
+                                    write(*,*) 'in module assimilation'
+                                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
+                                endif
                             endif
                         end if i4                    
                     

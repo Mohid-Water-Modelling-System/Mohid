@@ -630,7 +630,7 @@ Module ModuleTwoWay
             if (present(Matrix2D)) nullify(Matrix2D)
             if (present(Matrix3D)) nullify(Matrix3D)
             
-            call Read_UnLock(mMAP_, Me%InstanceID, "UnGetSonVolInFather")
+            call Read_UnLock(mTwoWay_, Me%InstanceID, "UnGetSonVolInFather")
             
             STAT_ = SUCCESS_
         else
@@ -832,7 +832,7 @@ Module ModuleTwoWay
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
 
-            call GetGeometryKFloor(GeometryID = Me%Father%ObjMap, U = Me%Father%External_Var%KFloor_U, &
+            call GetGeometryKFloor(GeometryID = Me%Father%ObjGeometry, U = Me%Father%External_Var%KFloor_U, &
                                    V = Me%Father%External_Var%KFloor_V,                                &
                                    Z = Me%Father%External_Var%KFloor_Z, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
