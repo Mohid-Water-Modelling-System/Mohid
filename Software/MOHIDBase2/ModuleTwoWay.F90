@@ -451,6 +451,8 @@ Module ModuleTwoWay
                 Me%Father%TotSonIn_2D(:,:) = 0.0
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
+                
+                call ConstructP2C_Avrg(FatherTwoWayID, TwoWayID)
             else
                 call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
 
@@ -783,8 +785,8 @@ Module ModuleTwoWay
     !>@param[in] SonID, CallerID, STAT
     subroutine PrepTwoWay (SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, CallerID
-        integer, optional, intent(IN)               :: STAT
+        integer,           intent(IN)               :: SonID 
+        integer, optional, intent(IN)               :: CallerID,  STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_, CallerID_
         !Begin------------------------------------------------------------------
@@ -1394,13 +1396,13 @@ Module ModuleTwoWay
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
             if (VelocityID == VelocityU_) then
-                call ComputeDischargeVolumeU(FatherU_old = Father_old, FatherU = Father, AreaU = Me%Father%External_Var%AreaU, &
-                                            UpscaleFlow = Me%Father%DischargeCells%Flow, &
-                                            DischargeConnection = Me%Father%DischargeCells%Z)
+                call DischargeFluxU(FatherU_old = Father_old, FatherU = Father, AreaU = Me%Father%External_Var%AreaU, &
+                                    UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                    DischargeConnection = Me%Father%DischargeCells%Z)
             elseif (VelocityID == VelocityV_) then
-                call ComputeDischargeVolumeV(FatherV_old = Father_old, FatherV = Father, AreaV = Me%Father%External_Var%AreaV, &
-                                            UpscaleFlow = Me%Father%DischargeCells%Flow, &
-                                            DischargeConnection = Me%Father%DischargeCells%Z)
+                call DischargeFluxV(FatherV_old = Father_old, FatherV = Father, AreaV = Me%Father%External_Var%AreaV, &
+                                    UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                    DischargeConnection = Me%Father%DischargeCells%Z)
             else
                 Write(*,*) 'Variable ID does not exist', VelocityID
                 stop 'UpscaleDischarge - ModuleTwoWay'
@@ -1476,6 +1478,112 @@ Module ModuleTwoWay
 
     end subroutine UpscaleDischarge_WP
 
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Fills discharge flow matrix for an offline upscaling discharge
+    !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, STAT
+    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, STAT)
+        !Arguments--------------------------------------------------------------
+        integer,                            intent(IN   ) :: TwoWayID
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
+        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon
+        real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
+        real                              , intent(IN   ) :: CoefCold
+        integer                           , intent(IN   ) :: Vel_ID
+        integer, optional                 , intent(OUT  ) :: STAT
+        !Locals-----------------------------------------------------------------
+        integer, dimension(:,:  ), pointer                :: Connections
+        integer                                           :: STAT_CALL
+        real,    dimension(:,:  ), pointer,               :: AreaU, AreaV
+        type (T_TwoWay), pointer                          :: PreviousObjTwoWay, CurrentSonObj
+        !Begin------------------------------------------------------------------
+        
+        call Ready(TwoWayID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            CurrentSonObj => FirstObjTwoWay
+            do while (associated (CurrentSonObj))
+                !if current object is a son domain then update discharge flow
+                if (CurrentSonObj%Father%InstanceID == TwoWayID) then
+                    
+                    Call GetGeometryAreas(GeometryID = Me%ObjGeometry, AreaU = AreaU, AreaV = AreaV, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Could not get Son AreaU or AreaV matrix'
+                    
+                    if (Vol_ID == Velocity_U) then
+                        
+                        call Offline_DischargeFluxU(UpscaleFlow         = Me%Father%DischargeCells%Flow,    &
+                                                    DischargeConnection = Me%Father%DischargeCells%Z,       &
+                                                    VelFather           = VelFather,                        &
+                                                    VelSon              = VelSon,                           &
+                                                    DecayTime           = DecayTime,                        &
+                                                    VelDT               = VelDT,                            &
+                                                    CoefCold            = CoefCold)
+                        
+                        
+                        MaxSize = size(UpscaleFlow)
+                        
+                        do line = 1, MaxSize
+                            i = DischargeConnection(line, 1)
+                            j = DischargeConnection(line, 2)
+                            k = DischargeConnection(line, 3)
+                        
+                            TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                            Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                            Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+
+                            F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                            F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+
+                            UpscaleFlow(line) = F_East + F_West
+                        enddo
+                    else
+                        
+                        call Offline_DischargeFluxV(UpscaleFlow         = Me%Father%DischargeCells%Flow,    &
+                                                    DischargeConnection = Me%Father%DischargeCells%Z,       &
+                                                    VelFather           = VelFather,                        &
+                                                    VelSon              = VelSon,                           &
+                                                    DecayTime           = DecayTime,                        &
+                                                    VelDT               = VelDT,                            &
+                                                    CoefCold            = CoefCold)
+                        do line = 1, MaxSize
+                            i = DischargeConnection(line, 1)
+                            j = DischargeConnection(line, 2)
+                            k = DischargeConnection(line, 3)
+                        
+                            TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                            Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
+                            Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
+
+                            F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                            F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+
+                            UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
+                        enddo  
+                    endif
+                    
+                    call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaU, STAT = status)
+                    if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
+                    call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaV, STAT = status)
+                    if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
+                    
+                    CurrentSonObj => CurrentSonObj%Next
+                endif
+                
+            enddo
+            
+            Me%DischargeCells%AuxFlow => Me%Father%DischargeCells%Flow
+            Me%DischargeCells%AuxConnections => Me%Father%DischargeCells%Z
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        endif
+
+        if (present(STAT)) STAT = STAT_
+    end subroutine Offline_Upscaling_Discharge
+    
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief

@@ -360,8 +360,8 @@ Module ModuleFunctions
     !Upscaling routines
     public  :: SearchDischargeFace
     public  :: ComputeUpscalingVelocity
-    public  :: ComputeDischargeVolumeU
-    public  :: ComputeDischargeVolumeV
+    public  :: DischargeFluxU
+    public  :: DischargeFluxV
     public  :: UpdateDischargeConnections
     private :: SearchFace
     private :: Update_n_Z
@@ -13685,7 +13685,7 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
-    subroutine ComputeDischargeVolumeU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
+    subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
@@ -13706,13 +13706,13 @@ D2:     do I=imax-1,2,-1
 
             UpscaleFlow(line) = F_East + F_West
         enddo
-    end subroutine ComputeDischargeVolumeU
+    end subroutine DischargeFluxU
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
-    subroutine ComputeDischargeVolumeV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
+    subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherV, AreaV
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherV_old
@@ -13733,7 +13733,7 @@ D2:     do I=imax-1,2,-1
 
             UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
         enddo
-    end subroutine ComputeDischargeVolumeV
+    end subroutine DischargeFluxV
 
     !>@author Joao Sobrinho Maretec
     !>@Brief

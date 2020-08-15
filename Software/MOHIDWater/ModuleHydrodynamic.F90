@@ -150,10 +150,12 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea, GetConnections, &
                                        GetCornersCoordinates
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges, UpscaleDischarge, &
+                                       AllocateTwoWayAux, PrepTwoWay,                    &
+                                       UngetTwoWayExternal_Vars, &
+                                       ConstructUpscalingDischarges, UpscaleDischarge,   &
                                        GetUpscalingDischarge, UpscalingVolumeVariation,  &
-                                       GetSonVolInFather, UnGetSonVolInFather
+                                       GetSonVolInFather, UnGetSonVolInFather,           &
+                                       Offline_Upscaling_Discharge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -441,6 +443,7 @@ Module ModuleHydrodynamic
     private ::                  Compute_BoundaryVertFlux
 
     private ::          ModifyWaterDischarges
+    private ::              Modify_Upscaling_Discharges
 
     private ::      ComputeResidualFlowProperties
     private ::      ComputeEmersionTime
@@ -2582,6 +2585,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadLock_ModuleMap
 
         call ReadLock_ModuleGeometry
+        !Sobrinho
         call ModifyWaterDischarges
         call ReadUnLock_ModuleGeometry
 
@@ -38099,16 +38103,16 @@ do3:            do k = kbottom, KUB
         endif
 
         do iL = 1, NFieldsUV3D
-            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D)
+            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D, Vel_ID = Vel_ID)
         enddo
 
         do iL = 1, NFieldsUV2D
-            call GetAssimilationVectorFields(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D)
+            call GetAssimilationVectorFields(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D, Vel_ID = Vel_ID)
         enddo
 
         do iL = 1, NFieldsUV3D_Upscaling
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D_Upscaling(iL)%VelAssimilation3D, &
-                                                Upscaling = Upscaling)
+                                                Vel_ID = Vel_ID, Upscaling = Upscaling)
         enddo
 
         if (Downscaling) call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
@@ -38257,11 +38261,11 @@ do3:            do k = kbottom, KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets assimilation components of vector fields from the assimilation module
-    subroutine GetAssimilationVectorFields(iL, VelAssimilation2D, VelAssimilation3D, Upscaling)
+    subroutine GetAssimilationVectorFields(iL, VelAssimilation2D, VelAssimilation3D, Vel_ID, Upscaling)
         !Arguments---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer, optional, intent(OUT) :: VelAssimilation3D
         real,    dimension(:,:  ), pointer, optional, intent(OUT) :: VelAssimilation2D
-        integer, intent(IN)                                       :: iL
+        integer, intent(IN)                                       :: iL, Vel_ID
         logical, optional, intent(IN)                             :: Upscaling
         !Local-------------------------------------------------------------------------
         integer                                                   :: status
@@ -38270,7 +38274,7 @@ do3:            do k = kbottom, KUB
         Upscaling_ = .false.
         if (present(Upscaling)) Upscaling_ = Upscaling
 
-        if (Me%Direction%XY == DirectionX_) then
+        if (Vel_ID == Velocity_U) then
             !It is important to read vector fields in agreggated way to allow the
             !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
             if (present(VelAssimilation3D)) then
@@ -38291,7 +38295,7 @@ do3:            do k = kbottom, KUB
                                                  Upscaling      = Upscaling_, STAT = status)
                 if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Failed to get Assim BarVelocityX vectors")
             endif
-        else
+        elseif (Vel_ID == Velocity_U) then
 
             if (present(VelAssimilation3D)) then
                 call GetAssimilationVectorField (AssimilationID = Me%ObjAssimilation,           &
@@ -38615,7 +38619,7 @@ do3:            do k = kbottom, KUB
             if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered ) then
 
                 kbottom = Me%External_Var%KFloor_UV(i, j)
-                TimeCoef_Upscale = CoefCold_Upscale * DecayTime_Upscale2D(i, j)
+                TimeCoef_Upscale = CoefCold_Upscale / DecayTime_Upscale2D(i, j)
                 do K=kbottom, KUB
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
                     Relax_Aceleration(i, j, k) = (Me%Relaxation%Assim_RefVelocity(i, j, k)  &
@@ -47654,11 +47658,15 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20'
 
 do1:        do DischargeID = 1, DischargesNumber
-                if (IsUpscaling(Me%ObjDischarges, DischargeID))then
+                if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling)then
                     call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle
+                elseif (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling)
+                    call Modify_Upscaling_Discharges !Sobrinho
+                    cycle
                 endif
+                
 
                 call GetDischargeON(Me%ObjDischarges,DischargeID, IgnoreOK, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
@@ -47947,8 +47955,98 @@ do5:            do i = ILB, IUB
     end subroutine ModifyWaterDischarges
 
     !End------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Modifies discharge flow from offline upscaling fields
+    subroutine Modify_Upscaling_Discharges
+        !Local---------------------------------------------------------------------
+        type T_Matrix3D
+            real,    dimension(:,:,:), pointer       :: VelAssimilation3D_U
+            real,    dimension(:,:,:), pointer       :: VelAssimilation3D_V
+        end type T_Matrix3D
+        
+        type (T_Matrix3D), dimension(:)    , pointer :: List3D
 
+        real,              dimension(:,:)  , pointer :: DecayTime
+        real                                         :: CoefCold
+        integer                                      :: Vel_ID, iL, NFieldsUV3D_Upscaling, status, STAT_CALL
+        !-----------------------------------initialization-------------------------------------------------------
+        
+        call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
 
+        if (NFieldsUV3D_Upscaling == 0) stop 'Offline upscaling discharge without an upscaling assimilation field'
+        
+        if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
+            stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
+        endif
+        
+        allocate(List3D_Upscaling(NFieldsUV3D_Upscaling))
+
+        do iL = 1, NFieldsUV3D_Upscaling
+            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
+                                                Vel_ID = Velocity_U, Upscaling = .true.)
+            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
+                                                Vel_ID = Velocity_V, Upscaling = .true.)
+        enddo
+
+        call GetTimeCoefs_2D (Vel_ID, CoefCold, DecayTime, Upscaling = .true.)
+
+        !---------------------------------------Finished initialization ------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+        
+        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
+        
+        do iL =1, NFieldsUV3D_Upscaling
+            
+            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
+                                    List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
+                
+            call Offline_Upscaling_Discharge(   FatherTwoWayID  = Me%ObjTwoWay,                         &
+                                                Flow            = Me%WaterFluxes%Discharges,            &
+                                                Father_U        = Me%Velocity%Horizontal%U%New,         &
+                                                Son_U)          = List3D(iL)%VelAssimilation3D_U,       &
+                                                DecayTime       = DecayTime,                            &
+                                                CoefCold        = CoefCold,                             &
+                                                Vel_ID          = Velocity_U, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
+                
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
+                
+            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
+                                    List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V)
+                
+            call Offline_Upscaling_Discharge(   FatherTwoWayID  = Me%ObjTwoWay,                         &
+                                                Flow            = Me%WaterFluxes%Discharges,            &
+                                                Father_V        = Me%Velocity%Horizontal%V%New,         &
+                                                Son_V)          = List3D(iL)%VelAssimilation3D_V,       &
+                                                DecayTime       = DecayTime,                            &
+                                                CoefCold        = CoefCold,                             &
+                                                Vel_ID          = Velocity_V, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
+        enddo
+        
+        ! -------------------------------- Kill variables -------------------------------------------------------------
+        
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+        
+        call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
+        if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
+
+        do iL =1, NFieldsUV3D_Upscaling
+            call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D_U, STAT = status)
+            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
+            call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
+        enddo
+
+        deallocate(List3D_Upscaling)
+        nullify(Velocity_U_New, Velocity_V_New)
+
+    end subroutine Modify_Upscaling_Discharges
+
+    !End------------------------------------------------------------------------------
     subroutine Hydrodynamic_OutPut
 
 
