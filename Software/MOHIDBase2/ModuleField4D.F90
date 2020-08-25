@@ -319,6 +319,7 @@ Module ModuleField4D
         real                                        :: DefaultValue         = null_real
         real                                        :: PredictedDT          = -null_real
         real                                        :: DTForNextEvent       = -null_real
+        logical                                     :: Upscaling            = .false.
         type(T_PropField), pointer                  :: Next                 => null()    
     end type T_PropField            
 
@@ -650,13 +651,36 @@ wwd:            if (Me%WindowWithData) then
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110'
             
+            if (Me%Upscaling) then
+                if (present(MapID)) then
+                    nUsers =  DeassociateInstance (mMAP_,  Me%ObjMap)
+                    if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR120'
+                endif
+                if (present(BathymetryID)) then
+                    nUsers =  DeassociateInstance (mGRIDDATA_,  Me%ObjBathymetry)
+                    if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR130'
+                endif
+                if (present(GeometryID)) then
+                    nUsers =  DeassociateInstance (mGEOMETRY_,  Me%ObjGeometry)
+                    if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR140'
+                endif
+                if (present(HorizontalMapID)) then
+                    nUsers =  DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
+                    if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR150' 
+                endif
+                if (present(HorizontalGridID)) then
+                    nUsers =  DeassociateInstance (mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
+                    if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR160' 
+                endif
+            endif
+            
             !Returns ID
             Field4DID = Me%InstanceID
 
             STAT_ = SUCCESS_
 
         else cd0
-            stop 'ConstructField4D - ModuleField4D - ERR120' 
+            stop 'ConstructField4D - ModuleField4D - ERR170' 
         end if cd0
 
         if (present(STAT)) STAT = STAT_
@@ -1982,6 +2006,8 @@ wwd1:       if (Me%WindowWithData) then
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR330' 
+        
+        if (Me%Upscaling) PropField%Upscaling = .true.
         
         
 
@@ -6939,12 +6965,12 @@ wwd:            if (Me%WindowWithData) then
                         endif                    
                           
                     endif
-                
+                    
                     if (Me%ObjMap /= 0) then
                         if (Me%BuildMap) then
                             call KillMap(Me%ObjMap, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR60'
-                        else
+                        elseif (.not. Me%Upscaling) then
                             nUsers =  DeassociateInstance (mMAP_,  Me%ObjMap)
                             if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR70'
                         endif
@@ -6955,7 +6981,7 @@ wwd:            if (Me%WindowWithData) then
                         if (Me%BuildGeometry) then
                             call KillGeometry(Me%ObjGeometry, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR80'
-                        else                
+                        elseif (.not. Me%Upscaling) then               
                             nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
                             if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR90'
                         endif
@@ -6965,7 +6991,7 @@ wwd:            if (Me%WindowWithData) then
                         if (Me%BuildHorizontalMap) then
                             call KillHorizontalMap(Me%ObjHorizontalMap, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR100'
-                        else                  
+                        elseif (.not. Me%Upscaling) then                  
                             nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
                             if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR110'                          
                         endif
@@ -6975,7 +7001,7 @@ wwd:            if (Me%WindowWithData) then
                         if (Me%BuildBathymetry) then
                             call KillGridData(Me%ObjBathymetry, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR120'
-                        else                   
+                        elseif (.not. Me%Upscaling) then                  
                             nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjBathymetry)
                             if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR130'
                         endif
@@ -6985,7 +7011,7 @@ wwd:            if (Me%WindowWithData) then
                         if (Me%BuildHorizontalGrid) then
                             call KillHorizontalGrid(Me%ObjHorizontalGrid, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillField4D - ModuleField4D - ERR140'
-                        else 
+                        elseif (.not. Me%Upscaling) then 
                             nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
                             if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR150'
                         endif

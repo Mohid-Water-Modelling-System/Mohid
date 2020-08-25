@@ -374,6 +374,7 @@ Module ModuleWaterProperties
     private ::          CoupleHydroIntegration
     private ::          ConstructPartition
     private ::          ConstructAltimAssimilation
+    private ::          CheckOfflineUpscaling
     private ::          ConstructHybridWeights
     private ::          StartOutputBoxFluxes
     private ::          Construct_Time_Serie
@@ -519,7 +520,7 @@ Module ModuleWaterProperties
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
     private ::          ComputeSpecificHeatUNESCO
-    private ::      TwoWay_Upscaling
+    private ::      Modify_TwoWay_Upscaling
     private ::          Compute_wp_upscaling
     private ::      OutPut_Results_HDF
     private ::      OutPut_SurfaceResults_HDF
@@ -864,6 +865,7 @@ Module ModuleWaterProperties
         logical                                 :: NoAdvFluxCells       = .false.
         logical                                 :: NoDifFluxCells       = .false.
         logical                                 :: SetLimitsTrigger     = .false.
+        logical                                 :: Upscaling            = .false.
     end type T_Evolution
 
     type       T_LocalAssimila
@@ -1057,6 +1059,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: Discharges
          type(T_Coupling)                       :: DischargesTracking
          type(T_Coupling)                       :: UpscalingDischarge
+         type(T_Coupling)                       :: OfflineUpscalingDischarge
          type(T_Coupling)                       :: HydroIntegration
          type(T_Coupling)                       :: DataAssimilation
          type(T_Coupling)                       :: AltimetryAssimilation ! nogueira e guillaume
@@ -4955,7 +4958,8 @@ do1 :   do while (associated(PropertyX))
             end if
 
             Me%Coupled%DataAssimilation%NextCompute = Me%ExternalVar%Now
-
+            
+            call CheckOfflineUpscaling !Sobrinho
 
         endif
 
@@ -10620,6 +10624,38 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
     end subroutine ConstructAltimAssimilation
 
     !--------------------------------------------------------------------------
+    
+    subroutine CheckOfflineUpscaling
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        !Local -----------------------------------------------------------------
+        integer                                     :: PropertyID
+        integer                                     :: NumberOfFields_Upscaling, NumberOfFields
+        !Begin--------------------------------------------------------------------
+        Property => Me%FirstProperty
+
+        do while (associated(Property))
+            if (Property%Evolution%DataAssimilation /= NoNudging) then
+
+                if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
+                call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR01')
+                
+                !Sobrinho
+                call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
+                    
+                if (NumberOfFields_Upscaling > 0) then
+                    Property%Evolution%Upscaling = .true.
+                    Me%Coupled%OfflineUpscalingDischarge%Yes = .true.
+                endif
+                
+            endif
+            Property => Property%Next
+        end do
+        nullify(Property)
+        
+    end subroutine CheckOfflineUpscaling
+    
+    !--------------------------------------------------------------------------
 
     subroutine ConstructHybridWeights
 
@@ -12314,7 +12350,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
             if (.not. associated (Me%Next))then
-                Call TwoWay_Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
+                Call Modify_TwoWay_Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
             endif
 
             if(Me%OutPut%Yes)                                 &
@@ -19158,7 +19194,7 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !>For each domain checks and starts twoway procedure
     !>@param[in] WaterPropertiesID, CurrentTime
-    subroutine TwoWay_Upscaling (WaterPropertiesID, CurrentTime)
+    subroutine Modify_TwoWay_Upscaling (WaterPropertiesID, CurrentTime)
     !External ----------------------------------------------------------------------------
     type (T_Property), pointer                  :: PropertyX
     type (T_Time)                               :: CurrentTime
@@ -19200,7 +19236,7 @@ do1 :   do while (associated(PropertyX))
 
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Upscaling")
 
-    end subroutine TwoWay_Upscaling
+    end subroutine Modify_TwoWay_Upscaling
 
     !--------------------------------------------------------------------------
 
@@ -20013,12 +20049,11 @@ do3:            do k = kbottom, KUB
 
         !For all Discharges
 dd:     do dis = 1, Me%Discharge%Number
-            !Sobrinho - AQUI
-            if (IsUpscaling(Me%ObjDischarges, dis))then
-                !Do nothing, as module twoway will be the one managing this discharge
+            !Sobrinho
+            if (IsUpscaling(Me%ObjDischarges, dis) .and. .not. Me%Coupled%OfflineUpscalingDischarge%Yes ) then
+                
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
                                               VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
-
                 if (STAT_CALL/=SUCCESS_)                                                     &
                 call CloseAllAndStop ('WaterPropDischarges - Failed GetDischargeFlowDistribuiton in upscaling')
                 ! skips adresses correspondent to upscaling discharges
@@ -20358,7 +20393,7 @@ dn:         do n=1, nCells
                     !Sobrinho
                     call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
 
-                    !DownsCaling + Upscaling
+                    !Downscaling + Upscaling
                     call Assimilation_Down_Up(Property, PropertyID, Actual, NumberOfFields, NumberOfFields_Upscaling)
 
                 endif

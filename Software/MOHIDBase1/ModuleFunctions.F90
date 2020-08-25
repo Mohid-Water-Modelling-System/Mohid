@@ -362,6 +362,8 @@ Module ModuleFunctions
     public  :: ComputeUpscalingVelocity
     public  :: DischargeFluxU
     public  :: DischargeFluxV
+    public  :: Offline_DischargeFluxU
+    public  :: Offline_DischargeFluxV
     public  :: UpdateDischargeConnections
     private :: SearchFace
     private :: Update_n_Z
@@ -13685,17 +13687,17 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
-    subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
+    subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
-        real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
+        real(8),    dimension(:)            , intent(INOUT)  :: Flow
         integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
         real                                                 :: F_East, F_West
         !------------------------------------------------------------------------------------
-        MaxSize = size(UpscaleFlow)
+        MaxSize = size(Flow)
         do line = 1, MaxSize
             i = DischargeConnection(line, 1)
             j = DischargeConnection(line, 2)
@@ -13704,25 +13706,25 @@ D2:     do I=imax-1,2,-1
             F_West =  (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
             F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
 
-            UpscaleFlow(line) = F_East + F_West
+            Flow(line) = F_East + F_West
         enddo
     end subroutine DischargeFluxU
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Computes volume to be added or removed due to upscaling discharge
-    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
-    subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
+    !> Computes flow to be added or removed due to upscaling discharge
+    !>@param[in] FatherU_old, FatherU, AreaU, Flow, DischargeConnection
+    subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherV, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherV_old
-        real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
-        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        real,    dimension(:, :, :), pointer    , intent(IN)     :: FatherV, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: FatherV_old
+        real(8),    dimension(:)                , intent(INOUT)  :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
-        integer                                              :: line, i, j, k, MaxSize
-        real                                                 :: F_South, F_North
+        integer                                                  :: line, i, j, k, MaxSize
+        real                                                     :: F_South, F_North
         !------------------------------------------------------------------------------------
-        MaxSize = size(UpscaleFlow)
+        MaxSize = size(Flow)
         do line = 1, MaxSize
             i = DischargeConnection(line, 1)
             j = DischargeConnection(line, 2)
@@ -13731,9 +13733,118 @@ D2:     do I=imax-1,2,-1
             F_South =  (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
             F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
 
-            UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
+            Flow(line) = Flow(line) + F_South + F_North
         enddo
     end subroutine DischargeFluxV
+    
+    !---------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes flow to be added or removed due to offline upscaling discharge - V direction
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
+    subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU
+        real(8),    dimension(:)                , intent(INOUT)  :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        real                                , intent(IN)         :: VelDT, CoefCold
+        !Local-------------------------------------------------------------------------------
+        integer                                                  :: line, i, j, k, MaxSize
+        real                                                     :: F_West, F_East, TimeCoef
+        real                                                     :: Est_VelFather_East, Est_VelFather_West
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        
+        if (CoefCold < 1) then
+                        
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+
+                Flow(line) = F_East + F_West
+            enddo
+        else
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = VelDT / DecayTime(i, j)
+                Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+
+                Flow(line) = F_East + F_West
+            enddo   
+        endif
+        
+    end subroutine Offline_DischargeFluxU
+    
+    !---------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes flow to be added or removed due to offline upscaling discharge - U direction
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
+    subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
+        real(8),    dimension(:)            , intent(OUT)    :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        real                                , intent(IN)     :: VelDT, CoefCold
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize
+        real                                                 :: F_North, F_South, TimeCoef
+        real                                                 :: Est_VelFather_South, Est_VelFather_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        
+        if (CoefCold < 1) then
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
+                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
+
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+
+                Flow(line) = Flow(line) + F_South + F_North
+            enddo
+        else
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = VelDT / DecayTime(i, j)
+                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
+                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
+
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+
+                Flow(line) = Flow(line) + F_South + F_North
+            enddo
+        endif
+        
+    end subroutine Offline_DischargeFluxV
 
     !>@author Joao Sobrinho Maretec
     !>@Brief

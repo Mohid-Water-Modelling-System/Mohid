@@ -807,6 +807,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20'
             
+            if (.not. Me%NewDomain .and. (present(TwoWayID))) then
+                nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
+                if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+            endif
+            
+            if (.not. Me%NewDomain .and. (present(GeometryID))) then
+                nUsers = DeassociateInstance(mGEOMETRY_, Me%ObjGeometry)
+                if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+            endif
+            
             PropertyID%SolutionFromFile  = .true.
             if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
 
@@ -1257,6 +1267,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+            
+            if (.not. Me%NewDomain .and. (present(TwoWayID))) then
+                nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
+                if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+            endif
             
             PropertyID%SolutionFromFile  = .true.
             if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
@@ -13082,8 +13097,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                 deallocate(CurrentHDF%FileNameList)
                             endif
                             
-                            if (CurrentHDF%Upscaling) then
-                                call KillTwoWay     (CurrentHDF%ObjTwoWay,          STAT = STAT_CALL)
+                            if (CurrentHDF%Upscaling .and. CurrentHDF%ObjTwoWay /= 0) then
+                                call KillTwoWay(CurrentHDF%ObjTwoWay, STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR25'
                             endif
 
@@ -13123,19 +13138,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
                 if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR80'
                 
-                if (Me%ObjTwoWay /= 0) then
-                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjTwoWay)
-                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR90'
-                endif
-                
-                if (Me%ObjHorizontalMap /= 0) then
-                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjHorizontalMap)
-                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR100'
-                endif
-                
-                if (Me%ObjMap /= 0) then
-                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjMap)
-                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR110'
+                if (Me%ObjTwoWay /= 0 .and. Me%NewDomain) then
+                    nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
+                    if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR90'
                 endif
                 
                 !Deallocates Instance

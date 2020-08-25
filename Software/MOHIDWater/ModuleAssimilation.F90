@@ -1778,20 +1778,35 @@ cd2 :           if (BlockFound) then
         call SetMappingAndMatrix2D(NewProperty, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
                                    WaterFaces2D_V, Matrix2D)
 
-        call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
-                                    EnterDataID          = Me%ObjEnterData,          &
-                                    TimeID               = Me%ObjTime,               &
-                                    HorizontalGridID     = Me%ObjHorizontalGrid,     &
-                                    GeometryID           = Me%ObjGeometry,           &
-                                    TwoWayID             = Me%ObjTwoWay,             &
-                                    ExtractType          = FromBlockInBlock,         &
-                                    PointsToFill2D       = PointsToFill2D,           &
-                                    Matrix2D             = Matrix2D,                 &
-                                    TypeZUV              = NewProperty%Field%TypeZUV,&
-                                    ClientID             = ClientNumber,             &
-                                    NewDomain            = NewDomain_,               &
-                                    STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
+        if (NewProperty%Upscaling) then
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                        EnterDataID          = Me%ObjEnterData,          &
+                                        TimeID               = Me%ObjTime,               &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                        GeometryID           = Me%ObjGeometry,           &
+                                        TwoWayID             = Me%ObjTwoWay,             &
+                                        ExtractType          = FromBlockInBlock,         &
+                                        PointsToFill2D       = PointsToFill2D,           &
+                                        Matrix2D             = Matrix2D,                 &
+                                        TypeZUV              = NewProperty%Field%TypeZUV,&
+                                        ClientID             = ClientNumber,             &
+                                        NewDomain            = NewDomain_,               &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
+        else
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                        EnterDataID          = Me%ObjEnterData,          &
+                                        TimeID               = Me%ObjTime,               &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                        ExtractType          = FromBlockInBlock,         &
+                                        PointsToFill2D       = PointsToFill2D,           &
+                                        Matrix2D             = Matrix2D,                 &
+                                        TypeZUV              = NewProperty%Field%TypeZUV,&
+                                        ClientID             = ClientNumber,             &
+                                        NewDomain            = NewDomain_,               &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR35'
+        endif
 
         call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%CoefField%DefaultValue, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR40'
@@ -5477,12 +5492,17 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
 
                 nullify   (PropertyX%Field%R3D)
 
+                if (PropertyX%Upscaling) then
+                    deallocate(PropertyX%CoefField%R2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR04')
+                else   
+                    deallocate(PropertyX%CoefField%R3D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR05') 
 
-                deallocate(PropertyX%CoefField%R3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR04') 
-
-                nullify   (PropertyX%CoefField%R3D)
+                    nullify   (PropertyX%CoefField%R3D)
+                endif
 
 
             endif cd1
@@ -5491,7 +5511,7 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
 
                 call KillFillMatrix(PropertyX%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR05') 
+                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR06') 
 
             end if
 
@@ -5499,7 +5519,7 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
 
                 call KillFillMatrix(PropertyX%CoefID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR06') 
+                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR07') 
 
             end if
 

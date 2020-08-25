@@ -155,7 +155,7 @@ Module ModuleHydrodynamic
                                        ConstructUpscalingDischarges, UpscaleDischarge,   &
                                        GetUpscalingDischarge, UpscalingVolumeVariation,  &
                                        GetSonVolInFather, UnGetSonVolInFather,           &
-                                       Offline_Upscaling_Discharge
+                                       Offline_Upscaling_Discharge, GetUpscalingIDs
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -525,6 +525,7 @@ Module ModuleHydrodynamic
     private ::          ReadUnLockSon
     private ::      ActualizeSon3DWithFather3D
     private ::      Set_Upscaling_Discharges
+    private ::      Build_Upscaling_Discharge
     public  :: SetHydrodynamicManning
     public  :: SetHydrodynamicChezy
     public  :: SetHydrodynamicRugosityMatrix
@@ -10387,8 +10388,7 @@ n1:                         do nC =1, nCells
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR380'
 
                 call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_Z, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                              &
-                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
 
             else  i2
                 Me%ObjDischarges = AssociateInstance (mDISCHARGES_, DischargesID)
@@ -10429,6 +10429,8 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
 
         endif i8
 
+        if (Me%Relaxation%Upscaling .and. Me%ComputeOptions%UpscalingDischarge) &
+            call Build_Upscaling_Discharge
 
         call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
 
@@ -10480,17 +10482,52 @@ i7:             if (.not. ContinuousGOTM)  then
 
     end subroutine Construct_Sub_Modules
     !------------------------------------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Builds upscaling discharges by getting all son IDs and calling set_upscaling_discharges
+    subroutine Build_Upscaling_Discharge
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                             :: SonTwoWayID, SonHorizontalGridID, SonHorizontalMapID
+        logical                             :: FoundSonDomain
+        integer                             :: STAT_CALL, LastID
+        !----------------------------------------------------------------------
+        FoundSonDomain = .true.
+        LastID = 1
+        do while (FoundSonDomain)
+            !All son IDs were set in the assimilation module
+            call GetUpscalingIDs (  FatherTwoWayID      = Me%ObjTwoWay,                 &
+                                    TwoWayID            = SonTwoWayID,                  &
+                                    HorizontalGridID    = SonHorizontalGridID,          &
+                                    HorizontalMapID     = SonHorizontalMapID,           &
+                                    LastID              = LastID,                       &
+                                    FoundDomain         = FoundSonDomain, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Build_Upscaling_Discharge - Failed to get Upscaling IDs' 
+            
+            if (FoundSonDomain) then
+                call Set_Upscaling_Discharges(  Me, SonTwoWayID, &
+                                                SonHorizontalGridID = SonHorizontalGridID, &
+                                                SonHorizontalMapID  = SonHorizontalMapID)                
+            endif
+
+        enddo
+        
+    end subroutine Build_Upscaling_Discharge
+    !------------------------------------------------------------------------------------------------------------------
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of type "Upscaling" and constructs it
     !>@param[in] ObjFather, SonID
-    subroutine Set_Upscaling_Discharges(ObjFather, SonID)
+    subroutine Set_Upscaling_Discharges(ObjFather, SonID, SonHorizontalGridID, SonHorizontalMapID)
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: SonID
+        integer,                        intent(IN)  :: SonID
+        integer,           optional,    intent(IN)  :: SonHorizontalGridID, SonHorizontalMapID
         type (T_Hydrodynamic), pointer, intent(IN)  :: ObjFather
         !Local-----------------------------------------------------------------
         integer                                     :: DischargeID, I, J, DischargesNumber, STAT_CALL
-        integer                                     :: Task
+        integer                                     :: Task, HorizontalGridID, HorizontalMapID
         integer,  dimension(:,:), pointer           :: Connections, SonWaterPoints2D, FatherWaterPoints2D
         integer, dimension(:,:), pointer            :: IZ, JZ
         logical                                     :: FoundDischarge
@@ -10498,16 +10535,22 @@ i7:             if (.not. ContinuousGOTM)  then
 
         Task = 1 !Flag to indicate that the code should only find the matrixes size for allocation
         FoundDischarge = .false.
+        
+        HorizontalGridID = Me%ObjHorizontalGrid
+        if (present(SonHorizontalGridID)) HorizontalGridID = SonHorizontalGridID
+        
+        HorizontalMapID = Me%ObjHorizontalGrid
+        if (present(SonHorizontalMapID)) HorizontalMapID = SonHorizontalMapID
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
-        call GetConnections(Me%ObjHorizontalGrid, Connections_Z = Connections, STAT = STAT_CALL)
+        call GetConnections(HorizontalGridID, Connections_Z = Connections, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Connections matrix'
-        call GetWaterPoints2D(Me%ObjHorizontalMap, SonWaterPoints2D, STAT = STAT_CALL)
+        call GetWaterPoints2D(HorizontalMapID, SonWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Son waterpoints'
         call GetWaterPoints2D(ObjFather%ObjHorizontalMap, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
-        call GetHorizontalGrid (HorizontalGridID = Me%ObjHorizontalGrid, ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
+        call GetHorizontalGrid (HorizontalGridID, ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get ILinkZ or JLinkZ'
 
         do DischargeID = 1, DischargesNumber
@@ -10549,15 +10592,15 @@ i7:             if (.not. ContinuousGOTM)  then
 
         enddo
 
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,    Connections,         STAT = STAT_CALL)
+        call UnGetHorizontalGrid(HorizontalGridID,    Connections,         STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget Connections matrix'
-        call UnGetHorizontalMap (Me%ObjHorizontalMap,    SonWaterPoints2D,    STAT = STAT_CALL)
+        call UnGetHorizontalMap (HorizontalMapID,    SonWaterPoints2D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D'
         call UnGetHorizontalMap (ObjFather%ObjHorizontalMap, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid,    IZ,                  STAT = STAT_CALL)
+        call UngetHorizontalGrid(HorizontalGridID,    IZ,                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget ILinkZ'
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid,    JZ,                  STAT = STAT_CALL)
+        call UngetHorizontalGrid(HorizontalGridID,    JZ,                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget JLinkZ'
 
     end subroutine Set_Upscaling_Discharges
@@ -38274,7 +38317,7 @@ do3:            do k = kbottom, KUB
         Upscaling_ = .false.
         if (present(Upscaling)) Upscaling_ = Upscaling
 
-        if (Vel_ID == Velocity_U) then
+        if (Vel_ID == VelocityU_) then
             !It is important to read vector fields in agreggated way to allow the
             !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
             if (present(VelAssimilation3D)) then
@@ -38295,7 +38338,7 @@ do3:            do k = kbottom, KUB
                                                  Upscaling      = Upscaling_, STAT = status)
                 if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Failed to get Assim BarVelocityX vectors")
             endif
-        elseif (Vel_ID == Velocity_U) then
+        elseif (Vel_ID == VelocityV_) then
 
             if (present(VelAssimilation3D)) then
                 call GetAssimilationVectorField (AssimilationID = Me%ObjAssimilation,           &
@@ -38361,12 +38404,12 @@ do3:            do k = kbottom, KUB
                                   CoefField3D     = DecayTime,                          &
                                   ColdRelaxPeriod = ColdPeriod,                         &
                                   ColdOrder       = ColdOrder, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetTimeCoefs - Hydrodynamic - ERR20")
 
         DT_RunPeriod = CurrentTime - BeginTime
 
         if (ColdPeriod > (EndTime - BeginTime) .and. Me%FirstIteration) then
-            write(*,*) "ModifyRelaxAceleration - Hydrodynamic - WRN30"
+            write(*,*) "GetTimeCoefs - Hydrodynamic - WRN30"
             write(*,*) "Cold Relaxation Aceleration period larger than simulation period"
         endif
 
@@ -38409,12 +38452,12 @@ do3:            do k = kbottom, KUB
                                   ColdRelaxPeriod = ColdPeriod,                         &
                                   ColdOrder       = ColdOrder,                          &
                                   Upscaling       = Upscaling_, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetTimeCoefs_2D - Hydrodynamic - ERR20")
 
         DT_RunPeriod = CurrentTime - BeginTime
 
         if (ColdPeriod > (EndTime - BeginTime) .and. Me%FirstIteration) then
-            write(*,*) "ModifyRelaxAceleration - Hydrodynamic - WRN30"
+            write(*,*) "GetTimeCoefs_2D - Hydrodynamic - WRN30"
             write(*,*) "Cold Relaxation Aceleration period larger than simulation period"
         endif
 
@@ -47658,11 +47701,12 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20'
 
 do1:        do DischargeID = 1, DischargesNumber
-                if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling)then
+                if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling) then
                     call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle
-                elseif (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling)
+                elseif (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling) then
+                    !Discharge computed from offline upscaling field
                     call Modify_Upscaling_Discharges !Sobrinho
                     cycle
                 endif
@@ -47981,16 +48025,16 @@ do5:            do i = ILB, IUB
             stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
         endif
         
-        allocate(List3D_Upscaling(NFieldsUV3D_Upscaling))
+        allocate(List3D(NFieldsUV3D_Upscaling))
 
         do iL = 1, NFieldsUV3D_Upscaling
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
-                                                Vel_ID = Velocity_U, Upscaling = .true.)
+                                                Vel_ID = VelocityU_, Upscaling = .true.)
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
-                                                Vel_ID = Velocity_V, Upscaling = .true.)
+                                                Vel_ID = VelocityV_, Upscaling = .true.)
         enddo
 
-        call GetTimeCoefs_2D (Vel_ID, CoefCold, DecayTime, Upscaling = .true.)
+        call GetTimeCoefs_2D (VelocityU_, CoefCold, DecayTime, Upscaling = .true.)
 
         !---------------------------------------Finished initialization ------------------------------------------
 
@@ -48003,13 +48047,14 @@ do5:            do i = ILB, IUB
             call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
                                     List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
                 
-            call Offline_Upscaling_Discharge(   FatherTwoWayID  = Me%ObjTwoWay,                         &
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                         &
                                                 Flow            = Me%WaterFluxes%Discharges,            &
-                                                Father_U        = Me%Velocity%Horizontal%U%New,         &
-                                                Son_U)          = List3D(iL)%VelAssimilation3D_U,       &
+                                                VelFather       = Me%Velocity%Horizontal%U%New,         &
+                                                VelSon          = List3D(iL)%VelAssimilation3D_U,       &
                                                 DecayTime       = DecayTime,                            &
                                                 CoefCold        = CoefCold,                             &
-                                                Vel_ID          = Velocity_U, STAT = STAT_CALL)
+                                                VelID           = VelocityU_,                           &
+                                                VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
                 
             Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
@@ -48017,13 +48062,14 @@ do5:            do i = ILB, IUB
             call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
                                     List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V)
                 
-            call Offline_Upscaling_Discharge(   FatherTwoWayID  = Me%ObjTwoWay,                         &
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                         &
                                                 Flow            = Me%WaterFluxes%Discharges,            &
-                                                Father_V        = Me%Velocity%Horizontal%V%New,         &
-                                                Son_V)          = List3D(iL)%VelAssimilation3D_V,       &
+                                                VelFather       = Me%Velocity%Horizontal%V%New,         &
+                                                VelSon          = List3D(iL)%VelAssimilation3D_V,       &
                                                 DecayTime       = DecayTime,                            &
                                                 CoefCold        = CoefCold,                             &
-                                                Vel_ID          = Velocity_V, STAT = STAT_CALL)
+                                                VelID           = VelocityV_,                           &
+                                                VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
         enddo
         
@@ -48035,14 +48081,13 @@ do5:            do i = ILB, IUB
         if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
 
         do iL =1, NFieldsUV3D_Upscaling
-            call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D_U, STAT = status)
+            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_U, STAT = status)
             if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
-            call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D_V, STAT = status)
+            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
         enddo
 
-        deallocate(List3D_Upscaling)
-        nullify(Velocity_U_New, Velocity_V_New)
+        deallocate(List3D)
 
     end subroutine Modify_Upscaling_Discharges
 

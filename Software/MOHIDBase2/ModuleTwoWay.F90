@@ -52,6 +52,7 @@ Module ModuleTwoWay
     public  :: GetUpscalingDischarge
     public  :: GetSonVolInFather
     public  :: UnGetSonVolInFather
+    public  :: GetUpscalingIDs
     !Modifier
     public  :: ModifyTwoWay
     private ::  ComputeAuxMatrixes
@@ -64,6 +65,7 @@ Module ModuleTwoWay
     public  :: UngetTwoWayExternal_Vars
     public  :: UpscaleDischarge
     public  :: UpscaleDischarge_WP
+    public  :: Offline_Upscaling_Discharge
 
     !Destructor
     public  :: KillTwoWay
@@ -229,11 +231,15 @@ Module ModuleTwoWay
             call AllocateInstance
 
             if (present(ModelName)) Me%ModelName = ModelName
-
-            Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
-            Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
-            Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
-            Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+            
+            if (Me%ObjHorizontalGrid == 0) &
+                Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
+            if (Me%ObjGeometry == 0) &
+                Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+            if (Me%ObjMap == 0) &
+                Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            if (Me%ObjHorizontalMap == 0) &
+                Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             !Returns ID
             TwoWayID          = Me%InstanceID
 
@@ -468,6 +474,55 @@ Module ModuleTwoWay
     end subroutine AllocateTwoWayAux
 
     ! ------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches for next son domain IDs
+    !>@param[in] FatherTwoWayID, TwoWayID, HorizontalGridID, HorizontalMapID, LastID, FoundDomain, STAT
+    subroutine GetUpscalingIDs (FatherTwoWayID, TwoWayID, HorizontalGridID, HorizontalMapID, LastID, FoundDomain, STAT)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                 :: FatherTwoWayID
+        integer, intent(INOUT)              :: LastID
+        integer, intent(OUT)                :: TwoWayID, HorizontalGridID, HorizontalMapID, STAT
+        logical, intent(OUT)                :: FoundDomain
+        !Local-----------------------------------------------------------------
+        integer                             :: ready_
+        type (T_TwoWay), pointer            :: SonObj
+        !----------------------------------------------------------------------
+        STAT = UNKNOWN_
+        
+        call Ready(FatherTwoWayID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            SonObj => FirstObjTwoWay
+            
+            do while (associated(SonObj))
+                
+                if (SonObj%InstanceID <= LastID) then
+                    !Skip
+                elseif (SonObj%Father%InstanceID == FatherTwoWayID) then
+                    HorizontalGridID    = SonObj%ObjHorizontalGrid
+                    HorizontalMapID     = SonObj%ObjHorizontalMap
+                    TwoWayID            = SonObj%InstanceID
+                    
+                    FoundDomain         = .true.
+                    LastID              = SonObj%InstanceID
+                    exit
+                endif
+                
+                SonObj => SonObj%Next
+            enddo
+            
+            if (.not. associated(SonObj)) FoundDomain = .false.
+            
+            STAT = SUCCESS_
+        else
+            STAT = ready_
+        end if
+        
+    end subroutine GetUpscalingIDs
+    ! ------------------------------------------------------------------------
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Searches and sets discharge faces of father cell, and finds son cells to use in upscaling
@@ -786,7 +841,8 @@ Module ModuleTwoWay
     subroutine PrepTwoWay (SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
         integer,           intent(IN)               :: SonID 
-        integer, optional, intent(IN)               :: CallerID,  STAT
+        integer, optional, intent(IN)               :: CallerID
+        integer, optional, intent(OUT)              :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_, CallerID_
         !Begin------------------------------------------------------------------
@@ -1397,11 +1453,11 @@ Module ModuleTwoWay
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
             if (VelocityID == VelocityU_) then
                 call DischargeFluxU(FatherU_old = Father_old, FatherU = Father, AreaU = Me%Father%External_Var%AreaU, &
-                                    UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                    Flow = Me%Father%DischargeCells%Flow, &
                                     DischargeConnection = Me%Father%DischargeCells%Z)
             elseif (VelocityID == VelocityV_) then
                 call DischargeFluxV(FatherV_old = Father_old, FatherV = Father, AreaV = Me%Father%External_Var%AreaV, &
-                                    UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                    Flow = Me%Father%DischargeCells%Flow, &
                                     DischargeConnection = Me%Father%DischargeCells%Z)
             else
                 Write(*,*) 'Variable ID does not exist', VelocityID
@@ -1483,98 +1539,80 @@ Module ModuleTwoWay
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
     !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, STAT
-    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, STAT)
+    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
         real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon
         real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
-        real                              , intent(IN   ) :: CoefCold
-        integer                           , intent(IN   ) :: Vel_ID
+        real                              , intent(IN   ) :: CoefCold, VelDT
+        integer                           , intent(IN   ) :: VelID
         integer, optional                 , intent(OUT  ) :: STAT
         !Locals-----------------------------------------------------------------
-        integer, dimension(:,:  ), pointer                :: Connections
-        integer                                           :: STAT_CALL
-        real,    dimension(:,:  ), pointer,               :: AreaU, AreaV
-        type (T_TwoWay), pointer                          :: PreviousObjTwoWay, CurrentSonObj
+        integer                                           :: line, i, j, k, STAT_CALL, STAT_, status, ready_
+        real,    dimension(:,:,:), pointer                :: AreaU, AreaV
+        type (T_TwoWay), pointer                          :: SonObj
+        integer                                           :: MaxSize
         !Begin------------------------------------------------------------------
         
         call Ready(TwoWayID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            CurrentSonObj => FirstObjTwoWay
-            do while (associated (CurrentSonObj))
+            SonObj => FirstObjTwoWay
+            do while (associated (SonObj))
                 !if current object is a son domain then update discharge flow
-                if (CurrentSonObj%Father%InstanceID == TwoWayID) then
+                if (SonObj%Father%InstanceID == TwoWayID) then
                     
-                    Call GetGeometryAreas(GeometryID = Me%ObjGeometry, AreaU = AreaU, AreaV = AreaV, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Could not get Son AreaU or AreaV matrix'
+                    Call GetGeometryAreas(  GeometryID  = SonObj%ObjGeometry, AreaU = AreaU, AreaV = AreaV, &
+                                            STAT        = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Offline_Upscaling_Discharge - failed get Son AreaU/V matrix'
                     
-                    if (Vol_ID == Velocity_U) then
+                    if (VelID == VelocityU_) then
                         
-                        call Offline_DischargeFluxU(UpscaleFlow         = Me%Father%DischargeCells%Flow,    &
-                                                    DischargeConnection = Me%Father%DischargeCells%Z,       &
-                                                    VelFather           = VelFather,                        &
-                                                    VelSon              = VelSon,                           &
-                                                    DecayTime           = DecayTime,                        &
-                                                    VelDT               = VelDT,                            &
+                        call Offline_DischargeFluxU(Flow                = SonObj%Father%DischargeCells%Flow,    &
+                                                    DischargeConnection = SonObj%Father%DischargeCells%Z,       &
+                                                    VelFather           = VelFather,                            &
+                                                    VelSon              = VelSon,                               &
+                                                    AreaU               = AreaU,                                &
+                                                    DecayTime           = DecayTime,                            &
+                                                    VelDT               = VelDT,                                &
                                                     CoefCold            = CoefCold)
-                        
-                        
-                        MaxSize = size(UpscaleFlow)
-                        
-                        do line = 1, MaxSize
-                            i = DischargeConnection(line, 1)
-                            j = DischargeConnection(line, 2)
-                            k = DischargeConnection(line, 3)
-                        
-                            TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
-                            Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
-                            Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
-
-                            F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
-                            F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
-
-                            UpscaleFlow(line) = F_East + F_West
-                        enddo
                     else
                         
-                        call Offline_DischargeFluxV(UpscaleFlow         = Me%Father%DischargeCells%Flow,    &
-                                                    DischargeConnection = Me%Father%DischargeCells%Z,       &
-                                                    VelFather           = VelFather,                        &
-                                                    VelSon              = VelSon,                           &
-                                                    DecayTime           = DecayTime,                        &
-                                                    VelDT               = VelDT,                            &
+                        call Offline_DischargeFluxV(Flow                = SonObj%Father%DischargeCells%Flow,    &
+                                                    DischargeConnection = SonObj%Father%DischargeCells%Z,       &
+                                                    VelFather           = VelFather,                            &
+                                                    VelSon              = VelSon,                               &
+                                                    AreaV               = AreaV,                                &
+                                                    DecayTime           = DecayTime,                            &
+                                                    VelDT               = VelDT,                                &
                                                     CoefCold            = CoefCold)
-                        do line = 1, MaxSize
-                            i = DischargeConnection(line, 1)
-                            j = DischargeConnection(line, 2)
-                            k = DischargeConnection(line, 3)
-                        
-                            TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
-                            Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
-                            Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
-
-                            F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
-                            F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
-
-                            UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
-                        enddo  
                     endif
                     
-                    call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaU, STAT = status)
-                    if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
-                    call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaV, STAT = status)
-                    if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
+                    !---------------------- Update Father discharge matrix --------------------------------------------
+                    MaxSize = Size(SonObj%Father%DischargeCells%Flow)
+                    do line = 1, MaxSize
+                        i = SonObj%Father%DischargeCells%Z(line, 1)
+                        j = SonObj%Father%DischargeCells%Z(line, 2)
+                        k = SonObj%Father%DischargeCells%Z(line, 3)
+
+                        Flow(i, j, k) = SonObj%Father%DischargeCells%Flow(line)
+                    enddo
+                    !---------------------- Finish Update Father discharge matrix -------------------------------------
                     
-                    CurrentSonObj => CurrentSonObj%Next
+                    call UnGetGeometry(SonObj%ObjGeometry, AreaU, STAT = status)
+                    if (status /= SUCCESS_) stop 'Offline_Upscaling_Discharge-TwoWay-ERR01.'
+                    call UnGetGeometry(SonObj%ObjGeometry, AreaV, STAT = status)
+                    if (status /= SUCCESS_) stop 'Offline_Upscaling_Discharge-TwoWay-ERR02.'
+                    
                 endif
+                
+                SonObj => SonObj%Next
                 
             enddo
             
-            Me%DischargeCells%AuxFlow => Me%Father%DischargeCells%Flow
-            Me%DischargeCells%AuxConnections => Me%Father%DischargeCells%Z
+            nullify (SonObj)
             
             STAT_ = SUCCESS_
         else
