@@ -365,6 +365,7 @@ Module ModuleFunctions
     public  :: Offline_DischargeFluxU
     public  :: Offline_DischargeFluxV
     public  :: UpdateDischargeConnections
+    public  :: DischargeIsAssociated
     private :: SearchFace
     private :: Update_n_Z
 
@@ -13765,8 +13766,8 @@ D2:     do I=imax-1,2,-1
                 k = DischargeConnection(line, 3)
                         
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
-                Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
-                Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
 
                 F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
                 F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
@@ -13780,8 +13781,8 @@ D2:     do I=imax-1,2,-1
                 k = DischargeConnection(line, 3)
                         
                 TimeCoef = VelDT / DecayTime(i, j)
-                Est_VelFather_East = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
-                Est_VelFather_West = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
 
                 F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
                 F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
@@ -13886,7 +13887,30 @@ D2:     do I=imax-1,2,-1
             Matrix(CurrentZ, 3) = k
         enddo
     end subroutine UpdateDischargeConnections
+    !------------------------------------------------------------------------------
+    
+    logical function DischargeIsAssociated (Connections, IFather, JFather)
+        !Arguments------------------------------------------------------------------
+        integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections
+        !Local-----------------------------------------------------------------------
+        Logical                                          :: Found
+        integer                                          :: MaxSize, i
+        !Begin-----------------------------------------------------------------------
+        MaxSize = size(Connections, 1)
+        found = .false.
+        do i = 1, MaxSize
+            if (Connections(i, 1) == IFather)then
+                if (Connections(i, 2) == JFather)then
+                    Found = .true.
+                    exit
+                endif
+            endif
+        enddo
 
+        DischargeIsAssociated = Found
+
+    end function DischargeIsAssociated
     !------------------------------------------------------------------------------
 
     integer function WriteEsriGrid(UnitOut, ILB, IUB, JLB, JUB, OriginX, OriginY,       &

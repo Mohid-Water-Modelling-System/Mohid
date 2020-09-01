@@ -265,7 +265,7 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer
+                                          GetPointer, DischargeIsAssociated
 
     use mpi
 #else _USE_MPI
@@ -280,7 +280,7 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer
+                                          GetPointer, DischargeIsAssociated
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -288,7 +288,7 @@ Module ModuleWaterProperties
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
-                                          GetVelocityModulus, GetPointDischargesState
+                                          GetVelocityModulus, GetPointDischargesState, CheckOfflineUpscalingDisch
 
 
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
@@ -296,7 +296,8 @@ Module ModuleWaterProperties
                                           UpdateBivalvePropertyList, UnGetBivalve
 
     use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay,  &
-                                          UpscaleDischarge_WP, GetUpscalingDischarge
+                                          UpscaleDischarge_WP, GetUpscalingDischarge, &
+                                          Offline_Upscaling_Discharge_WP
 
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -463,6 +464,7 @@ Module ModuleWaterProperties
     private ::      ModifyPropertiesFromFile
     private ::      HydroIntegration_Processes
     private ::      WaterPropDischarges
+    private ::          Modify_Upscaling_Discharges
     private ::      UpdateHybridReferenceField
     private ::      ModifyNoFluxMapping
     private ::      Advection_Diffusion_Processes
@@ -9504,7 +9506,6 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
         endif
 
-
     end subroutine ReadSubModelOptions
 
 
@@ -10624,31 +10625,52 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
     end subroutine ConstructAltimAssimilation
 
     !--------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Checks whether a discharge needs to be implemented for an upscaling domain present in assimilation.dat
     subroutine CheckOfflineUpscaling
         !External--------------------------------------------------------------
         type (T_Property), pointer                  :: Property
         !Local -----------------------------------------------------------------
-        integer                                     :: PropertyID
+        integer                                     :: PropertyID, STAT_CALL
         integer                                     :: NumberOfFields_Upscaling, NumberOfFields
+        logical                                     :: FoundDischarge
         !Begin--------------------------------------------------------------------
+        FoundDischarge = .false.
+        
+        call CheckOfflineUpscalingDisch (Me%ObjHydrodynamic, FoundDischarge, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CheckOfflineUpscaling - ModuleWaterProperties - ERR01.')
+        
+        if (FoundDischarge) Me%Coupled%OfflineUpscalingDischarge%Yes = .true.
+        
         Property => Me%FirstProperty
-
+        
         do while (associated(Property))
+            if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
+            call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR02')
+            !Sobrinho
+            call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
+            
             if (Property%Evolution%DataAssimilation /= NoNudging) then
 
-                if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
-                call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR01')
-                
-                !Sobrinho
-                call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
-                    
-                if (NumberOfFields_Upscaling > 0) then
-                    Property%Evolution%Upscaling = .true.
-                    Me%Coupled%OfflineUpscalingDischarge%Yes = .true.
+                if (FoundDischarge .and. (NumberOfFields_Upscaling == 0)) then
+                    write (*,*) 'Found an offline upscaling discharge but no upscaling field in assimilation.dat'
+                    call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR03')
                 endif
                 
+                if (NumberOfFields_Upscaling > 0) then
+                    Property%Evolution%Upscaling = .true.
+                endif
+            else
+                if (NumberOfFields_Upscaling == 0 .and. Me%Coupled%OfflineUpscalingDischarge%Yes &
+                    .and. Property%Evolution%Discharges) then
+                    write (*,*) 'Found an offline upscaling discharge but no upscaling field in assimilation.dat'
+                    write (*,*) 'Also, DATA_ASSIMILATION must be ON in waterproperties.dat : ', trim(Property%ID%Name)
+                    call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR04') 
+                endif
+            
             endif
+            
             Property => Property%Next
         end do
         nullify(Property)
@@ -20050,7 +20072,7 @@ do3:            do k = kbottom, KUB
         !For all Discharges
 dd:     do dis = 1, Me%Discharge%Number
             !Sobrinho
-            if (IsUpscaling(Me%ObjDischarges, dis) .and. .not. Me%Coupled%OfflineUpscalingDischarge%Yes ) then
+            if (IsUpscaling(Me%ObjDischarges, dis)) then
                 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
                                               VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
@@ -20060,7 +20082,7 @@ dd:     do dis = 1, Me%Discharge%Number
 
                 if (Me%FirstIteration)then
                     Aux = AuxCell + 1
-                    if (AuxCell == 0)Aux = 1
+                    if (AuxCell == 0)Aux = 1 !is this needed ??
 
                     !need to get i, j , k for adv dif.
                     do n = Aux, nCells + AuxCell
@@ -20071,6 +20093,12 @@ dd:     do dis = 1, Me%Discharge%Number
                         Me%Discharge%kmin   (n) = kmin
                         Me%Discharge%kmax   (n) = kmax
                     enddo
+                endif
+                
+                if (Me%Coupled%OfflineUpscalingDischarge%Yes) then
+                    
+                    call Modify_Upscaling_Discharges(VectorI, VectorJ, VectorK, kmin, kmax, AuxCell, nCells)
+                   
                 endif
 
                 AuxCell = AuxCell + nCells
@@ -20366,6 +20394,69 @@ dn:         do n=1, nCells
     end subroutine WaterPropDischarges
 
     !--------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Updates the discharges associated with upscaling domains
+    !>@param[in] VectorI, VectorJ, VectorK
+    subroutine Modify_Upscaling_Discharges (VectorI, VectorJ, VectorK, kmin, kmax, AuxCell, nCells)
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:    ), pointer, intent(IN)  :: VectorI, VectorJ, VectorK
+        integer                           , intent(IN)  :: AuxCell, nCells, kmin, kmax
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                      :: Property
+        type (T_Time)                                   :: Actual
+        !Local -----------------------------------------------------------------
+        integer                                         :: PropertyID
+        integer                                         :: NumberOfFields, NumberOfFields_Upscaling
+        real,    pointer, dimension(:,:,:)              :: PropAssimilation, DischargeFlow
+        integer                                         :: N_Field, STAT_CALL
+        logical                                         :: SubModelON
+        !Begin --------------------------------------------------------------------------------------------
+        
+            !Get matrix from hydrodynamic module
+            call GetDischargesFluxes(Me%ObjHydrodynamic, Discharges = DischargeFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - failed getdischargeFluxes matrix'
+            
+            Property => Me%FirstProperty
+            Actual = Me%ExternalVar%Now
+
+            do while (associated(Property))
+
+                if (Property%Evolution%DataAssimilation /= NoNudging) then
+                    if (Actual.GE.Property%Evolution%NextCompute) then
+                        
+                        if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
+                        call CloseAllAndStop ('Modify_Upscaling_Discharges; WaterProperties. ERR10')
+                        
+                        call GetNumberOfPropFields(Property, PropertyID, NumberOfFields, NumberOfFields_Upscaling)
+                        
+                        do N_Field = 1, NumberOfFields_Upscaling
+                            
+                            SubModelON = .false.
+                            
+                            call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, Upscaling = .True.)
+                            
+                            call Offline_Upscaling_Discharge_WP(FatherID = Me%ObjTwoWay,                              &
+                                                PropAssimilation = PropAssimilation, Prop = Property%Concentration,   &
+                                                PropVector = Property%DischConc,       &
+                                                Flow = DischargeFlow, FlowVector = Me%Discharge%Flow,                 &
+                                                dI = Me%Discharge%i, dJ = Me%Discharge%j, dK = Me%Discharge%k,        &
+                                                Kmin = Me%Discharge%kmin, Kmax = Me%Discharge%kmin, AuxKmin = Kmin,   &
+                                                AuxKmax = Kmax, CellID = AuxCell, nCells = nCells, VectorI = VectorI, &
+                                                VectorJ = VectorJ, VectorK = VectorK)
+                        enddo
+                    endif
+                endif
+                Property => Property%Next
+            end do
+            
+            call unGetHydrodynamic(Me%ObjHydrodynamic,DischargeFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call CloseAllAndStop ('Modify_Upscaling_Discharges - ModuleWaterProperties - ERR20')
+            
+    end subroutine Modify_Upscaling_Discharges
+    !--------------------------------------------------------------------------
 
     subroutine DataAssimilationProcesses
 
@@ -20464,15 +20555,13 @@ dn:         do n=1, nCells
         real                                        :: CoefCold, DTProp
         logical                                     :: SubModelON
         !Begin--------------------------------------------------------------------
-
+        DTProp = Property%Evolution%DTInterval
         !--------------------------------------------DOWNSCALING-----------------------------------------------
         do N_Field = 1, NumberOfFields
             !--------------------------------- Construct assimilation field -----------------------------------
             call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation)
 
             call Get_Check_AssimilationCoef(Property, PropertyID, N_Field, CoefCold, Actual)
-
-            DTProp = Property%Evolution%DTInterval
 
             !---------------------------------------  Assimilate field ----------------------------------------
             if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Assimilation_Down_Up")
@@ -20500,8 +20589,6 @@ dn:         do n=1, nCells
             call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, Upscaling = .True.)
 
             call Get_Check_AssimilationCoef(Property, PropertyID, N_Field, CoefCold, Actual, Upscaling = .True.)
-
-            DTProp = Property%Evolution%DTInterval
 
             !---------------------------------------  Assimilate field ----------------------------------------
 
@@ -20551,6 +20638,7 @@ dn:         do n=1, nCells
 
         CHUNK = CHUNK_K(KLB, KUB)
         if (Upscaling_) then
+            !Need to find a way to get connection matrix in order to reduce number of iterations. (carefull with MPI)
             !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLB, KUB

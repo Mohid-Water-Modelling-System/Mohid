@@ -46,7 +46,6 @@ Module ModuleTwoWay
     public  :: AllocateTwoWayAux
     public  :: ConstructUpscalingDischarges
     public  :: Fill_Upscaling_DecayTime
-    private :: DischargeIsAssociated
 
     !Selector
     public  :: GetUpscalingDischarge
@@ -66,6 +65,7 @@ Module ModuleTwoWay
     public  :: UpscaleDischarge
     public  :: UpscaleDischarge_WP
     public  :: Offline_Upscaling_Discharge
+    public  :: Offline_Upscaling_Discharge_WP
 
     !Destructor
     public  :: KillTwoWay
@@ -591,29 +591,6 @@ Module ModuleTwoWay
 
     end subroutine ConstructUpscalingDischarges
 
-    !-------------------------------------------------------------------------
-    logical function DischargeIsAssociated (Connections, IFather, JFather)
-        !Arguments------------------------------------------------------------------
-        integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
-        integer,  dimension(:,:), pointer, intent(IN)    :: Connections
-        !Local-----------------------------------------------------------------------
-        Logical                                          :: Found
-        integer                                          :: MaxSize, i
-        !Begin-----------------------------------------------------------------------
-        MaxSize = size(Connections, 1)
-        found = .false.
-        do i = 1, MaxSize
-            if (Connections(i, 1) == IFather)then
-                if (Connections(i, 2) == JFather)then
-                    Found = .true.
-                    exit
-                endif
-            endif
-        enddo
-
-        DischargeIsAssociated = Found
-
-    end function DischargeIsAssociated
 
     !-------------------------------------------------------------------------
 
@@ -1538,7 +1515,7 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
-    !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, STAT
+    !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT
     subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
@@ -1564,7 +1541,7 @@ Module ModuleTwoWay
                 !if current object is a son domain then update discharge flow
                 if (SonObj%Father%InstanceID == TwoWayID) then
                     
-                    Call GetGeometryAreas(  GeometryID  = SonObj%ObjGeometry, AreaU = AreaU, AreaV = AreaV, &
+                    Call GetGeometryAreas(  GeometryID  = Me%ObjGeometry, AreaU = AreaU, AreaV = AreaV, &
                                             STAT        = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Offline_Upscaling_Discharge - failed get Son AreaU/V matrix'
                     
@@ -1601,9 +1578,9 @@ Module ModuleTwoWay
                     enddo
                     !---------------------- Finish Update Father discharge matrix -------------------------------------
                     
-                    call UnGetGeometry(SonObj%ObjGeometry, AreaU, STAT = status)
+                    call UnGetGeometry(Me%ObjGeometry, AreaU, STAT = status)
                     if (status /= SUCCESS_) stop 'Offline_Upscaling_Discharge-TwoWay-ERR01.'
-                    call UnGetGeometry(SonObj%ObjGeometry, AreaV, STAT = status)
+                    call UnGetGeometry(Me%ObjGeometry, AreaV, STAT = status)
                     if (status /= SUCCESS_) stop 'Offline_Upscaling_Discharge-TwoWay-ERR02.'
                     
                 endif
@@ -1621,6 +1598,76 @@ Module ModuleTwoWay
 
         if (present(STAT)) STAT = STAT_
     end subroutine Offline_Upscaling_Discharge
+    
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Fills discharge flow matrix for an offline upscaling discharge
+    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, STAT
+    subroutine Offline_Upscaling_Discharge_WP (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, &
+    dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, VectorK, STAT)
+        !Arguments--------------------------------------------------------------
+        integer,                            intent(IN )     :: FatherID, CellID, nCells
+        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation
+        real,    dimension(:    ), pointer, intent(INOUT)     :: FlowVector, PropVector
+        integer, dimension(:    ), pointer, intent(INOUT)     :: Kmin, Kmax
+        integer, dimension(:    ), pointer, intent(IN )     :: VectorI, VectorJ, VectorK
+        integer,                            intent(IN )     :: AuxKmin, AuxKmax
+        integer, dimension(:    ), pointer, intent(INOUT)     :: dI, dJ, dK
+        integer, optional                 , intent(OUT)     :: STAT
+        !Locals-----------------------------------------------------------------
+        integer                                             :: i, STAT_CALL, STAT_, ready_
+        type (T_TwoWay), pointer                            :: SonObj
+        integer                                             :: Aux
+        integer, dimension(:,: ), pointer                   :: Connections_Z
+        !Begin------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+        
+        call Ready(FatherID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            SonObj => FirstObjTwoWay
+            do while (associated (SonObj))
+                !if current object is a son domain then update discharge flow
+                if (SonObj%Father%InstanceID == FatherID) then
+                    
+                    call GetConnections(SonObj%ObjHorizontalGrid, Connections_Z = Connections_Z, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Failed to get Connections matrix'
+                    !Cheks if current discharge is inside current upscaling domain
+                    if (DischargeIsAssociated(Connections_Z, VectorI(1), VectorJ(1))) then
+                        
+                        Aux = CellID + 1
+                        if (CellID == 0) Aux = 1
+
+                        do i = Aux, nCells + CellID
+                            dI        (i) = VectorI(i)
+                            dJ        (i) = VectorJ(i)
+                            dK        (i) = VectorK(i)
+                            Kmin      (i) = AuxKmin
+                            Kmax      (i) = AuxKmax
+                            FlowVector(i) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                        
+                            if (FlowVector(i) >= 0) then
+                                PropVector(i) = PropAssimilation(VectorI(i), VectorJ(i), VectorK(i))
+                            else
+                                PropVector(i) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                            endif
+                        enddo
+                    endif
+                endif
+                SonObj => SonObj%Next
+            enddo
+            nullify (SonObj)
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        endif
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine Offline_Upscaling_Discharge_WP
     
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
