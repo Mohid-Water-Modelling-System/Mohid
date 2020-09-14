@@ -1310,8 +1310,8 @@ cd2 :           if (BlockFound) then
             if (Me%ExistVerticalZ) then
                                                 
                 call HDF5WriteData(HDF5ID       = Me%ObjStatHDF5,                               &
-                                   GroupName    = "/Grid/"//trim(GetPropertyName(VerticalZ_)),  &
-                                   Name         = trim(GetPropertyName(VerticalZ_)),            &
+                                   GroupName    = "/Grid/VerticalZ",                            &
+                                   Name         = "Vertical",                                   &
                                    units        = "m",                                          & 
                                    Array3D      = Me%VerticalZ,                                 &
                                    OutputNumber = 1,                                            &
