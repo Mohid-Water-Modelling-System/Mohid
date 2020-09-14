@@ -1295,7 +1295,7 @@ cd2 :           if (BlockFound) then
         if (Me%File3D) then 
             call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,        &
                                Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
-                               Me%WorkSize%KLB, Me%WorkSize%KUB,                        &
+                               Me%WorkSize%KLB-1, Me%WorkSize%KUB,                        &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &      
             stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR09'
