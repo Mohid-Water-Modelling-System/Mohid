@@ -458,7 +458,7 @@ Module ModuleTwoWay
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
                 
-                call ConstructP2C_Avrg(FatherTwoWayID, TwoWayID)
+                call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
             else
                 call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
 
