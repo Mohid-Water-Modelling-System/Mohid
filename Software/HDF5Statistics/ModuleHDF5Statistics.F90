@@ -1295,7 +1295,7 @@ cd2 :           if (BlockFound) then
         if (Me%File3D) then 
             call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,        &
                                Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
-                               Me%WorkSize%KLB-1, Me%WorkSize%KUB,                        &
+                               Me%WorkSize%KLB, Me%WorkSize%KUB,                        &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &      
             stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR09'
@@ -1308,7 +1308,14 @@ cd2 :           if (BlockFound) then
             stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
             
             if (Me%ExistVerticalZ) then
-                                                
+                !added set limits to represent all vertical layers (needed the Me%WorkSize%KLB-1)
+                call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,        &
+                                   Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+                                   Me%WorkSize%KLB-1, Me%WorkSize%KUB,                      &
+                                   STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &      
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR11'
+                
                 call HDF5WriteData(HDF5ID       = Me%ObjStatHDF5,                               &
                                    GroupName    = "/Grid/VerticalZ",                            &
                                    Name         = "Vertical",                                   &
@@ -1317,7 +1324,7 @@ cd2 :           if (BlockFound) then
                                    OutputNumber = 1,                                            &
                                    STAT         = STAT_CALL)      
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR11'            
+                    stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR12'            
                 
             endif
             
@@ -1328,7 +1335,7 @@ cd2 :           if (BlockFound) then
                                    Me%WorkSize%JLB, Me%WorkSize%JUB,                    &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &      
-                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR09'
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR13'
 
                 call HDF5WriteData(Me%ObjStatHDF5, "/Grid",                             &
                                    trim(Me%Mapping%AditionalName),                      &
@@ -1336,7 +1343,7 @@ cd2 :           if (BlockFound) then
                                    Array2D      = Me%Mapping%IntegerValues2D,           &
                                    STAT         = STAT_CALL)      
                 if (STAT_CALL /= SUCCESS_)                                              &
-                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR14'
 
             endif 
             
@@ -1346,7 +1353,7 @@ cd2 :           if (BlockFound) then
                                Array2D      = Me%Mapping%IntegerValues2D,               &
                                STAT         = STAT_CALL)    
             if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR11'
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR15'
         endif
 
         
@@ -1360,18 +1367,18 @@ cd2 :           if (BlockFound) then
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR12'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR16'
 
         call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                                   &
                  "Time", "YYYY/MM/DD HH:MM:SS",                                         &
                  Array1D = TimePtr,                                                     &
                  OutputNumber = 1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR13'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR17'
 
 
         call HDF5FlushMemory(Me%ObjStatHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR14'      
+        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR18'      
 
         
         call ExtractDate   (Me%LastStatHDF5File%EndFieldTime,                                    &
@@ -1382,18 +1389,18 @@ cd2 :           if (BlockFound) then
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR12'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR19'
 
         call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                                   &
                  "Time", "YYYY/MM/DD HH:MM:SS",                                         &
                  Array1D = TimePtr,                                                     &
                  OutputNumber = 2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR13'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR20'
         ! ----- \\\\ //// ------
 
         call HDF5FlushMemory(Me%ObjStatHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR14'      
+        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR21'      
 
 
         call KillGridFields
