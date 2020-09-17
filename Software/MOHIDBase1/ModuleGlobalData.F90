@@ -778,6 +778,8 @@ Module ModuleGlobalData
     integer, parameter ::  WindSea_SignificantWaveHeight_  = 3544
     integer, parameter ::  WindSea_WavePeriod_             = 3545
     integer, parameter ::  WindSea_WaveDirection_          = 3546
+    
+    integer, parameter ::  PeakWaveLength_                 = 3547
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1638,6 +1640,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_DirectionEnergyTransport = 'direction energy transport'
     character(StringLength), private, parameter :: Char_SmoothedPeakPeriod       = 'smoothed peak period'
     character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
+    character(StringLength), private, parameter :: Char_PeakWaveLength           = 'peak wave length'
 
     character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
     character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
@@ -3164,6 +3167,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (DirectionEnergyTransport_, Char_DirectionEnergyTransport,  ListNumber)
             call AddPropList (SmoothedPeakPeriod_,      Char_SmoothedPeakPeriod,         ListNumber)
             call AddPropList (MeanAbsoluteWavePeriod_,  Char_MeanAbsoluteWavePeriod,     ListNumber)
+            call AddPropList (PeakWaveLength_,          Char_PeakWaveLength,             ListNumber)
             
             call AddPropList (Swell01_SignificantWaveHeight_, Char_Swell01_SignificantWaveHeight, ListNumber)
             call AddPropList (Swell01_WavePeriod_,            Char_Swell01_WavePeriod,            ListNumber)

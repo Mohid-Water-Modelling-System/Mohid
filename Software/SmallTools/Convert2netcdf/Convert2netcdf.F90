@@ -1947,7 +1947,9 @@ program Convert2netcdf
                                                  MinValue, MaxValue, MissingValue,      &
                                                  Int2D = Me%Int2DOut)
 
+                            if (trim(NCDFName) /= "mask") then
                             call CheckAndCorrectVarName(obj_name, NCDFName)
+                            endif
 
                             call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                                                   Name          = trim(NCDFName),           &
@@ -2045,7 +2047,7 @@ program Convert2netcdf
         real,                               optional        :: Multiply_Factor
 
         !Local-----------------------------------------------------------------
-        integer                                             :: i, j, k
+        integer                                             :: i, j, k, KUBout
         real                                                :: Add_Factor_
         real                                                :: Multiply_Factor_
         character(len=StringLength)                         :: Units_
@@ -2062,6 +2064,13 @@ program Convert2netcdf
         else
             Multiply_Factor_      = 1.
         endif
+
+        if (Me%DepthLayersON) then
+            KUBout = Me%DepthLayers   
+        else
+            KUBout = Me%HDFFile%Size%KUB
+        endif          
+        
 
         select case(trim(adjustl(Name)))
 
@@ -2549,7 +2558,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
-            do k = 1, Me%HDFFile%Size%KUB
+            do k = 1, KUBout
                 Float3D(j,i,k) = Float3D(j, i, k) * Multiply_Factor_ + Add_Factor_
 
                 if(Float3D(j,i,k) .gt. FillValueReal/2. .and. Float3D(j,i,k) .lt.  Min .and. &

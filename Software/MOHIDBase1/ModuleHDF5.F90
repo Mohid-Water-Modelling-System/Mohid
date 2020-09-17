@@ -7501,6 +7501,8 @@ if11 :              if (size == 8) then
                 
                 allocate(ValueOut(1))
                 
+                ValueOut(1) = 0.
+                
                 
                 NumType = H5T_NATIVE_REAL
 
