@@ -157,6 +157,12 @@ Module ModuleValida4D
 
         logical                                     :: ComputeD          = .false.
         
+        logical                                     :: Filter_Trajectory = .false. 
+        
+        real                                        :: DT_Filter         = FillValueReal
+        
+        real                                        :: DX_Filter         = FillValueReal        
+        
         integer                                     :: ObjTime           = 0
         integer                                     :: ObjEnterData      = 0
         integer                                     :: ObjEnterDataTable = 0        
@@ -495,6 +501,41 @@ Module ModuleValida4D
         
         
 
+        call GetData(Me%Filter_Trajectory,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'FILTER_TRAJECTORY',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR260'      
+        
+        if (Me%Filter_Trajectory) then
+            
+            if (.not. Me%Field4D) then
+                stop 'ReadOptions - ModuleValida4D - ERR270'      
+            endif
+        
+            call GetData(Me%DT_Filter,                                                  &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DT_FILTER',                                    &
+                         default      = FillValueReal,                                  &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR280'
+        
+            call GetData(Me%DX_Filter,                                                  &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DX_FILTER',                                    &
+                         default      = FillValueReal,                                  &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR290'
+            
+        endif
+        
     end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
@@ -1625,7 +1666,11 @@ do1 :                   do i = 2, iLength
 
         !Interpolate the input table values from hdf5 files
         if (Me%Field4D) then
+            if (Me%Filter_Trajectory) then
+                call GenerateFilterTrajectory
+            else
             call GenerateNewTableField4D
+            endif
         else
             call GenerateNewTable
         endif
@@ -1725,6 +1770,100 @@ do4:                do iH = 1, Me%HDF5Number
     end subroutine GenerateNewTableField4D        
     
     !--------------------------------------------------------------------------    
+    
+
+    subroutine GenerateFilterTrajectory()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real,    dimension(:),   pointer  :: Matrix1DX, Matrix1DY, Matrix1DZ
+        real,    dimension(:),   pointer  :: Prop1D
+        logical, dimension(:),   pointer  :: NoData
+        type (T_Time)                     :: CurrentTime
+        real                              :: DX, DY, DT
+        integer                           :: iV, iP, iH, iStart, nPoints, STAT_CALL, nP
+        !----------------------------------------------------------------------
+        
+        allocate(Matrix1DX(1), Matrix1DY(1), Matrix1DZ(1),  Prop1D(1)) 
+        allocate(NoData   (1))        
+    
+        iStart  = 1
+        
+diV:    do iV = 1, Me%TableValues       
+
+            CurrentTime = Me%InitialDate + Me%T(iStart)
+            
+            Matrix1DX(1) = Me%X(iStart)
+            Matrix1DY(1) = Me%Y(iStart)
+            if (Me%Zcolumn > FillValueInt) then
+                Matrix1DZ(1) = Me%Z(iStart)
+            else
+                Matrix1DZ(1) = 0.
+            endif            
+            
+            DT          =     Me%T(iStart+1) - Me%T(iStart)
+            DX          = abs(Me%X(iStart+1) - Me%X(iStart))
+            DY          = abs(Me%Y(iStart+1) - Me%Y(iStart))
+            
+
+            nPoints = 1
+            
+            do while (DX < Me%DX_Filter .or. DY < Me%DX_Filter .or. DT < Me%DT_Filter)
+                
+                nPoints = nPoints + 1
+                
+                if (iStart+nPoints <= Me%TableValues ) then 
+                    DT          =     Me%T(iStart+nPoints) - Me%T(iStart)
+                    DX          = abs(Me%X(iStart+nPoints) - Me%X(iStart))
+                    DY          = abs(Me%Y(iStart+nPoints) - Me%Y(iStart))
+                else
+                    exit
+                endif
+            enddo
+            
+                         
+do3:        do  iP = 1, Me%PropNumber
+
+do4:            do iH = 1, Me%HDF5Number
+
+                    NoData   (1) = .true.
+                    Prop1D   (1) = FillValueReal
+
+                    call ModifyField4DXYZ(Field4DID             = Me%Properties(iP)%Field(iH)%ID,   &
+                                          PropertyIDNumber      = Me%Properties(iP)%ID%IDNumber,    &
+                                          CurrentTime           = CurrentTime,          &
+                                          X                     = Matrix1DX,            &
+                                          Y                     = Matrix1DY,            &
+                                          Z                     = Matrix1DZ,            &
+                                          Field                 = Prop1D,               &
+                                          NoData                = NoData,               &
+                                          STAT                  = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'GenerateNewTableField4D - ModuleValida4D - ERR10' 
+                    endif                            
+                
+                    do nP = 0, nPoints-1
+                        if (.not. NoData(1)) then
+                            Me%Properties(iP)%ValueHDF5(iStart + nP) = Prop1D(1)
+                        endif
+                    enddo
+                enddo do4
+            enddo do3 
+            
+            iStart = iStart + nPoints
+            
+            if (iStart >= Me%TableValues) exit
+
+        enddo diV            
+
+                
+        deallocate(Matrix1DX, Matrix1DY, Matrix1DZ, Prop1D, NoData)
+            
+    end subroutine GenerateFilterTrajectory        
+    
+    !--------------------------------------------------------------------------    
+    
 
     subroutine GenerateNewTable()
 
