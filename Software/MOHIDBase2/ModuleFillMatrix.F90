@@ -72,7 +72,8 @@ Module ModuleFillMatrix
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
-                                       GetHDF5GroupExist, GetHDF5DataSetExist
+                                       GetHDF5GroupExist, GetHDF5DataSetExist,          &
+                                       GetHDF5AllDataSetsOK
                                        
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
                                        GetField4DInstant, ModifyField4D,                &
@@ -557,6 +558,8 @@ Module ModuleFillMatrix
         
         logical                                     :: CheckDates = .true.
         character(len=PathLength)                   :: SpongeFILE_DT    = null_str
+
+        logical                                     :: CheckHDF5_File   = .false. 
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -5817,6 +5820,14 @@ if4D:       if (CurrentHDF%Field4D) then
                 call ConstructHDF5 (CurrentHDF%ObjHDF5, trim(CurrentHDF%FileName), HDF5_READ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
 
+                if (Me%CheckHDF5_File) then
+        
+                    call GetHDF5AllDataSetsOK (HDF5ID   = CurrentHDF%ObjHDF5,           &
+                                               STAT     = STAT_CALL)                                      
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR185'
+            
+                endif                
+
                 call GetHDF5GroupNumberOfItems(CurrentHDF%ObjHDF5, "/Time", &
                                                CurrentHDF%NumberOfInstants, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
@@ -5999,7 +6010,7 @@ i0:     if(Me%Dim == Dim2D)then
 !        !interpolation of angles is not done
 !        if (Me%PropertyID%IDNumber == WindDirection_) then 
 !            write(*,*) 'Trying to construct an HDF for property wind direction. Not available option.'
-!            stop 'ConstructHDFInput - ModuleFillMatrix - ERR10'              
+!            stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR10'              
 !        endif
         
         !Always search for one filename
@@ -6011,14 +6022,14 @@ i0:     if(Me%Dim == Dim2D)then
                             keyword      = 'FILENAME',                                     &
                             ClientModule = 'ModuleFillMatrix',                             &
                             STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR20'            
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR20'            
 
             if (iflag==0)then
                 
                 !need to have defined file
                 if (.not. Me%VectorialProp) then                                
                     write(*,*)'HDF filename not given for property '//trim(Me%PropertyID%Name)
-                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR30'
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR30'
                 
                 !If not one file, search foreach file for each component
                 else
@@ -6029,15 +6040,15 @@ i0:     if(Me%Dim == Dim2D)then
                                  keyword      = 'FILENAME_X',                                &
                                  ClientModule = 'ModuleFillMatrix',                          &
                                  STAT         = STAT_CALL)                                      
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR40'              
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR40'              
                     if (iflag==0)then
                         write(*,*) 'HDF FILENAME_X keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                        stop       'ConstructHDFInput - ModuleFillMatrix - ERR50'                
+                        stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR50'                
                     endif
                     inquire (file=trim(FileName(1)), exist = exist)
                     if (.not. exist) then
                         write(*,*)'Could not find file '//trim(FileName(1))
-                        stop 'ConstructHDFInput - ModuleFillMatrix - ERR60'
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR60'
                     endif    
                     
                     call GetData(FileName(2),                                                &
@@ -6046,15 +6057,15 @@ i0:     if(Me%Dim == Dim2D)then
                                  keyword      = 'FILENAME_Y',                                &
                                  ClientModule = 'ModuleFillMatrix',                          &
                                  STAT         = STAT_CALL)                                      
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR70'     
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR70'     
                     if (iflag==0)then
                         write(*,*) 'HDF FILENAME_Y keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                        stop       'ConstructHDFInput - ModuleFillMatrix - ERR80'                
+                        stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR80'                
                     endif                                
                     inquire (file=trim(FileName(2)), exist = exist)
                     if (.not. exist) then
                         write(*,*)'Could not find file '//trim(FileName(2))
-                        stop 'ConstructHDFInput - ModuleFillMatrix - ERR90'
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR90'
                     endif  
                     
                     if (Me%Dim == Dim3D) then                        
@@ -6064,15 +6075,15 @@ i0:     if(Me%Dim == Dim2D)then
                                      keyword      = 'FILENAME_Z',                                &
                                      ClientModule = 'ModuleFillMatrix',                          &
                                      STAT         = STAT_CALL)                                      
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR02g'     
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR02g'     
                         if (iflag==0)then
                             !write(*,*) 'HDF FILENAME_Z keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                            !stop       'ConstructHDFInput - ModuleFillMatrix - ERR02h'                
+                            !stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR02h'                
                         else                                
                             inquire (file=trim(FileName(3)), exist = exist)
                             if (.not. exist) then
                                 write(*,*)'Could not find file '//trim(FileName(3))
-                                stop 'ConstructHDFInput - ModuleFillMatrix - ERR100'
+                                stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR100'
                             endif    
                         endif
                     endif
@@ -6083,7 +6094,7 @@ i0:     if(Me%Dim == Dim2D)then
                 inquire (file=trim(FileName(1)), exist = exist)
                 if (.not. exist) then
                     write(*,*)'Could not find file '//trim(FileName(1))
-                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR110'
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR110'
                 endif                 
             
             endif
@@ -6106,10 +6117,10 @@ i0:     if(Me%Dim == Dim2D)then
                          keyword      = 'HDF_FIELD_NAME_X',                          &
                          ClientModule = 'ModuleFillMatrix',                          &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR120'              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR120'              
             if (iflag==0)then
                 write(*,*) 'HDF HDF_FIELD_NAME_X keyword not given not given for vectorial property '//trim(Me%PropertyID%Name) 
-                stop       'ConstructHDFInput - ModuleFillMatrix - ERR04b'                
+                stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04b'                
             endif
             
             call GetData(FieldName(2),                                               &
@@ -6118,10 +6129,10 @@ i0:     if(Me%Dim == Dim2D)then
                          keyword      = 'HDF_FIELD_NAME_Y',                          &
                          ClientModule = 'ModuleFillMatrix',                          &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR130'     
             if (iflag==0)then
                 write(*,*) 'HDF HDF_FIELD_NAME_Y keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                stop       'ConstructHDFInput - ModuleFillMatrix - ERR04d'                
+                stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04d'                
             endif            
             
             if (Me%Dim == Dim3D) then
@@ -6132,7 +6143,7 @@ i0:     if(Me%Dim == Dim2D)then
                              keyword      = 'HDF_FIELD_NAME_Z',                          &
                              ClientModule = 'ModuleFillMatrix',                          &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'     
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR140'     
                 if (iflag==0)then
                     Me%UseZ = .false.
                     !write(*,*) 'HDF HDF_FIELD_NAME_Z keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
@@ -6142,7 +6153,7 @@ i0:     if(Me%Dim == Dim2D)then
                 !verify that user provided W omponent
                 if (Me%UseZ .and. .not. associated(Me%Matrix3DW)) then
                     write(*,*) 'Constructing vectorial property that needs W component to be given'
-                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'            
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR150'            
                 endif                  
                 
             endif
@@ -6167,10 +6178,18 @@ i0:     if(Me%Dim == Dim2D)then
                          default      = trim(Me%PropertyID%Name),                           &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR160' 
             
         endif
             
+        call GetData(Me%CheckHDF5_File,                                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'CHECK_HDF5_FILE',                                  &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR165'         
         
         do i = 1, nHDFs
 
@@ -6198,7 +6217,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR170'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR170'
 
 
             if (CurrentHDF%Generic4D%ON) call Generic4thDimension(ExtractType, CurrentHDF)
@@ -6211,7 +6230,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = "/Results",                                         &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR180'
 
             call GetData(CurrentHDF%MultiplyingFactor,                                      &
                          Me%ObjEnterData , iflag,                                           &
@@ -6220,7 +6239,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = 1.,                                                 &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR190'
         
             if (iflag == 1)then
                 CurrentHDF%HasMultiplyingFactor = .true.
@@ -6233,7 +6252,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = 0.,                                                 &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR200'
         
             if (iflag == 1)then
                 CurrentHDF%HasAddingFactor = .true.
@@ -6247,7 +6266,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .true.,                                             &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR230'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR230'
 
             if (LastGroupEqualField)                                                        &
                 CurrentHDF%VGroupPath=trim(CurrentHDF%VGroupPath)//"/"//trim(CurrentHDF%FieldName)
@@ -6262,13 +6281,13 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR240'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
            
         
             call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
                                                   MasterOrSlave    = MasterOrSlave,        &
                                                   STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR260'        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR260'        
 
 
             call GetData(CurrentHDF%Field4D,                                                    &
@@ -6278,7 +6297,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR270'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
             
             call GetData(CurrentHDF%From2Dto3D,                                             &
                          Me%ObjEnterData , iflag,                                           &
@@ -6287,12 +6306,12 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR240'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
             
             if (CurrentHDF%From2Dto3D .and. .not. CurrentHDF%Field4D) then
         
                 allocate(CurrentHDF%ReadField3D(ILB:IUB, JLB:JUB, 0:2), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ConstructHDFInput - ModuleFillMatrix - ERR250'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR250'
              
                 CurrentHDF%ReadField3D(:,:,:) = FillValueReal  
             
@@ -6307,7 +6326,7 @@ d1:     do while (associated(CurrentHDF))
                              default      = .false.,                                        &
                              ClientModule = 'ModuleFillMatrix',                             &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR280'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
 
                 !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
                 call GetData(CurrentHDF%ExtrapolateMethod,                              &
@@ -6317,11 +6336,11 @@ d1:     do while (associated(CurrentHDF))
                              default      = ExtrapolAverage_,                           &
                              ClientModule = 'ModuleFillMatrix',                         &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR290'  
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR290'  
                 
                 if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
                     CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
-                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR300'  
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR300'  
                 endif        
                     
                 if     (ExtractType == FromBlock)        then
@@ -6346,7 +6365,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR310'    
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR310'    
             
             if (CurrentHDF%HarmonicsON) then
         
@@ -6359,10 +6378,10 @@ d1:     do while (associated(CurrentHDF))
                                 default      =  900.,                                       &
                                 ClientModule = 'ModuleField4D',                             &
                                 STAT         = STAT_CALL)                                      
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR315'   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR315'   
                 
                 call GetComputeTimeStep(TimeID = Me%ObjTime, DT = DT, STAT = STAT_CALL)                                      
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR317' 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR317' 
                 
                 if (CurrentHDF%HarmonicsDT < DT) then
                     CurrentHDF%HarmonicsDT = DT
@@ -6377,7 +6396,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR320'        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'        
             
             CurrentHDF%InterpolOnlyVertically = .false. 
             
@@ -6390,7 +6409,7 @@ d1:     do while (associated(CurrentHDF))
                              default      = .false.,                                        &
                              ClientModule = 'ModuleFillMatrix',                             &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR330'              
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR330'              
         
             endif
             
@@ -6401,7 +6420,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR340'  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR340'  
         
             if (CurrentHDF%GenericYear) then
                 CurrentHDF%CyclicTimeON = .true. 
@@ -6595,6 +6614,7 @@ ifMS:       if (MasterOrSlave) then
                                   PropertyID        = Me%PropertyID,                    &                                  
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
+                                  CheckHDF5_File    = Me%CheckHDF5_File,                &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BuildField4D - ModuleFillMatrix - ERR40'
         
@@ -7266,6 +7286,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
+                                  CheckHDF5_File    = Me%CheckHDF5_File,                &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'        
         
@@ -7286,6 +7307,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
+                                  CheckHDF5_File    = Me%CheckHDF5_File,                &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
         endif

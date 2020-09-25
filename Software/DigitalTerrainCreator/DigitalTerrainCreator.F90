@@ -294,6 +294,7 @@ program DigitalTerrainCreator
         type(T_Polygon),pointer                     :: SectionAreas
         logical                                     :: CreateMarginPoints
         integer                                     :: MarginPointsToAdd
+        logical                                     :: ExportXYZ
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -1080,6 +1081,15 @@ i2:         if      (trim(AuxChar) == 'j') then
             
         endif
         
+
+        call GetData(Me%ExportXYZ,                                                      &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='EXPORT_XYZ',                                        &
+                     Default      = .false.,                                            &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR110'
 
     end subroutine ConstructGlobalOptions
 
@@ -2072,10 +2082,71 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                            GridData2D_Real  = Me%Depth,                         &
                            STAT             = STAT_CALL) 
 
+            if (Me%ExportXYZ) then
+                
+                call Export_To_XYZ(Me%Depth, Me%LandPoint, Me%BatimFilePathOut)
+                
+            endif 
+                        
+
     end subroutine WriteDigitalTerrain
     
     
     !--------------------------------------------------------------------------
+    subroutine Export_To_XYZ(Depth, LandPoint, Filename)
+
+        !Arguments---------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Depth
+        real                                            :: LandPoint
+        character(len=*)                                :: Filename        
+        !Local-------------------------------------------------------------------
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY
+        type (T_Size2D)                                 :: WorkSize
+        integer                                         :: i, j, STAT_CALL, Unit, SplitByExtension
+      
+        
+        !------------------------------------------------------------------------
+
+        write(*,*)"Writing MOHID .xyz file..."
+
+        call GetZCoordinates(Me%ObjGrid, CoordX, CoordY)
+        
+        call GetHorizontalGridSize(Me%ObjGrid, WorkSize = WorkSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - DigitalTerrainTool - ERR10'
+              
+        SplitByExtension = scan(trim(Filename),'.',Back = .true.)
+        
+        call UnitsManager (Unit, OPEN_FILE, STAT = STAT_CALL)        
+                    
+        open(   Unit   = Unit,                                                          &
+                File   = trim(Filename(1:SplitByExtension-1)//'.xyz'),                  &
+                Form   = 'FORMATTED',                                                   &
+                STATUS = 'UNKNOWN',                                                     &
+                Action = 'WRITE',                                                       &
+                IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - DigitalTerrainTool - ERR20'
+                    
+        write(Unit,*)'<begin_xyz>'
+        
+        do i = WorkSize%ILB, WorkSize%IUB
+            do j = WorkSize%JLB, WorkSize%JUB
+                if (Depth(i,j) == FillValueReal) then
+                    write(Unit,*)CoordX(i, j), CoordY(i, j), LandPoint
+                else
+                    write(Unit,*)CoordX(i, j), CoordY(i, j), Depth(i,j)
+                endif
+            enddo
+        enddo
+        
+        write(Unit,*)'<end_xyz>'
+                        
+        call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - DigitalTerrainTool - ERR30'
+        
+    end subroutine Export_To_XYZ
+ 
+    !--------------------------------------------------------------------------
+    
 
     !--------------------------------------------------------------------------
     

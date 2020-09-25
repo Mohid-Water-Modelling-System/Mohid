@@ -479,17 +479,21 @@ Module ModuleHDF5Extractor
                          SearchType   = FromFile,                               &
                          ClientModule = 'HDF5Extractor',                        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+            
+            if (iflag == 0) then
                 
                 call GetData(Me%StartTime, Me%ObjEnterData, iflag,                  &
                              keyword      = 'START',                           &
                              SearchType   = FromFile,                               &
                              ClientModule = 'HDF5Extractor',                        &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR160a'
+                endif
             else
+                if (STAT_CALL /= SUCCESS_) then    
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR160b'  
+            endif
             endif
             
             ! End Time 
@@ -498,16 +502,19 @@ Module ModuleHDF5Extractor
                          SearchType   = FromFile,                               &
                          ClientModule = 'HDF5Extractor',                        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+            if (iflag == 0) then
                 call GetData(Me%EndTime,   Me%ObjEnterData, iflag,                  &
                              keyword      = 'END',                             &
                              SearchType   = FromFile,                               &
                              ClientModule = 'HDF5Extractor',                        &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)  then
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR170a'
+                endif
             else
+                if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR170b'       
+            endif
             endif
             
             ! Verifies Time Variables

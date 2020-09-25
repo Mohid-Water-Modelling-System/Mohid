@@ -879,6 +879,25 @@ Module ModuleHydrodynamic
         !logical                            :: SZZGrad               = .false.
     end type T_NonHydrostatic
 
+    private :: T_HighLowTide
+    type T_HighLowTide
+        logical                         :: ON                   =  .false.
+        real, dimension (:, :), pointer :: SeaLevel             => null()
+        real, dimension (:, :), pointer :: Instant              => null()
+        character (len=PathLength)      :: FileRefGauge         =  null_str
+        integer                         :: ObjTimeSerieRef      =  null_int
+        integer                         :: DataColumn           =  null_int 
+        character (len=PathLength)      :: FilenameOut          =  null_str  
+        integer                         :: ObjHDF5              =  null_int        
+        type(T_Time)                    :: StartWindow      
+        type(T_Time)                    :: EndWindow              
+        type(T_Time)                    :: RefGaugeTime
+        real                            :: BackwardDT           =  null_real
+        real                            :: ForwardDT            =  null_real
+        integer                         :: NextOuput            =  null_int
+        logical                         :: HighTide             = .false. 
+    end type T_HighLowTide    
+
     private :: T_WaterLevel
     type T_WaterLevel
         type(T_PropertyID)              :: ID
@@ -1958,6 +1977,8 @@ Module ModuleHydrodynamic
 
         type(T_WaveStress    ) :: WaveStress
 
+        type(T_HighLowTide   ) :: HighLowTide
+
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -2351,6 +2372,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !endif
 
         call ConstructTsunami
+
+        call ConstructHighLowTideOutput        
 
         !call External Modules
         call ReadLock_External_Modules
@@ -4523,7 +4546,189 @@ i2:     if (Me%Tsunami%ON) then
 
     end subroutine ConstructTsunami
 
+    !--------------------------------------------------------------------------
 
+    subroutine ConstructHighLowTideOutput
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:), pointer     :: Bathymetry
+        integer,    dimension(:,:), pointer     :: WaterPoints2D
+        type (T_Time)                           :: Time1, Time2
+        real                                    :: Value1, Value2
+        integer                                 :: STAT_CALL, iflag, HDF5_CREATE
+        logical                                 :: TimeCycle
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: FileNameLength
+        character(len=5)                        :: Extension        
+
+        !----------------------------------------------------------------------    
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB        
+        
+        call GetData(Me%HighLowTide%ON,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'HIGH_LOW_TIDE_OUTPUT',                           &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleHydrodynamic',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR10'
+
+i1:     if (Me%HighLowTide%ON) then        
+            
+             call GetData(Me%HighLowTide%FileRefGauge,                                  &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'REFERENCE_GAUGE_FILENAME',                   &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR40'
+            if (iflag     == 0       ) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR50'  
+            
+             call GetData(Me%HighLowTide%DataColumn,                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'REFERENCE_GAUGE_DATA_COLUMN',                &
+                         SearchType     = FromFile,                                     &
+                         Default        = 2,                                            &   
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR60'
+
+             call GetData(Me%HighLowTide%BackwardDT,                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'REFERENCE_GAUGE_BACKWARD_DT',                &
+                         !-3h to reference gauge  
+                         Default        = 10800.,                                       &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR70'
+
+             call GetData(Me%HighLowTide%ForwardDT,                                     &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'REFERENCE_GAUGE_FORWARD_DT',                 &
+                         !+3h to reference gauge  
+                         Default        = 10800.,                                       &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR80'   
+            
+            FileNameLength              = len_trim(Me%Files%OutPutFields) + 1
+            Extension                   = trim(Me%Files%OutPutFields(FileNameLength-4:FileNameLength))
+            Extension(5:5)              = "5"
+            Me%HighLowTide%FilenameOut  = Me%Files%OutPutFields(1:FileNameLength-5)//"_HighLowTide"//trim(Extension)            
+            
+            
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+            Me%HighLowTide%ObjHDF5 = 0            
+            
+            !Opens HDF File
+            call ConstructHDF5 (HDF5ID     = Me%HighLowTide%ObjHDF5,                    &
+                                FileName   = trim(Me%HighLowTide%FilenameOut),          &
+                                Access     = HDF5_CREATE,                               &        
+                                STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR90'     
+
+
+            !Write the Horizontal Grid
+            call WriteHorizontalGrid(HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                                     ObjHDF5            = Me%HighLowTide%ObjHDF5,       &
+                                     WorkSize           = Me%WorkSize2D,                &
+                                     STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR100'
+            
+            !Gets a pointer to Bathymetry
+            call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR110'
+
+            !Gets WaterPoints2D
+            call GetWaterPoints2D   (Me%ObjMap, WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR120'
+
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%HighLowTide%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR130'
+
+
+            !Writes the Grid
+            call HDF5WriteData   (Me%HighLowTide%ObjHDF5, "/Grid", "Bathymetry", "m",   &
+                                  Array2D = Bathymetry,                                 &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR140'
+
+            call HDF5WriteData   (Me%HighLowTide%ObjHDF5, "/Grid", "WaterPoints2D", "-",&
+                                  Array2D = WaterPoints2D,                              &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR150'
+
+
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%HighLowTide%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR160'
+
+
+            !Ungets the Bathymetry
+            call UngetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR170'
+
+            !Ungets the WaterPoints
+            call UnGetHorizontalMap (Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR180'
+
+            
+            Me%HighLowTide%ObjTimeSerieRef = 0
+                                                                                                                    
+            call StartTimeSerieInput(TimeSerieID        = Me%HighLowTide%ObjTimeSerieRef,   &
+                                     TimeSerieDataFile  = trim(Me%HighLowTide%FileRefGauge),&
+                                     STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR190'
+            
+            call GetTimeSerieValue(TimeSerieID      = Me%HighLowTide%ObjTimeSerieRef,   &
+                                   CurrentTime      = Me%CurrentTime,                   &        
+                                   DataColumn       = Me%HighLowTide%DataColumn,        &
+                                   Time1            = Time1,                            &
+                                   Value1           = Value1,                           &
+                                   Time2            = Time2,                            &
+                                   Value2           = Value2,                           &
+                                   TimeCycle        = TimeCycle,                        &    
+                                   STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR200'
+            
+            Me%HighLowTide%RefGaugeTime = Time2
+            
+            if   (Value2 > Value1)    then
+                Me%HighLowTide%HighTide = .true.
+            else 
+                Me%HighLowTide%HighTide = .false.
+            endif
+            
+            
+            Me%HighLowTide%StartWindow = Me%HighLowTide%RefGaugeTime - Me%HighLowTide%BackwardDT
+            Me%HighLowTide%EndWindow   = Me%HighLowTide%RefGaugeTime + Me%HighLowTide%ForwardDT              
+            
+            Me%HighLowTide%NextOuput = 1
+
+            allocate(Me%HighLowTide%SeaLevel(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%HighLowTide%Instant (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            
+            if  (Me%HighLowTide%HighTide)    then                
+                Me%HighLowTide%SeaLevel(:, :) =  FillValueReal
+            else
+                Me%HighLowTide%SeaLevel(:, :) = -FillValueReal
+            endif
+
+            Me%HighLowTide%Instant (:, :) = FillValueReal            
+            
+        endif i1
+
+    end subroutine ConstructHighLowTideOutput        
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -16336,6 +16541,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
 
             call Hydrodynamic_OutPut
+
+            call WriteHighLowTideOutput
 
             !Records results to binary file
             if (Me%ComputeOptions%Recording) then
@@ -53694,6 +53901,151 @@ do5:            do i = ILB, IUB
 
     !End------------------------------------------------------------------------------
 
+    
+    !--------------------------------------------------------------------------
+
+    subroutine WriteHighLowTideOutput
+
+        !Local-----------------------------------------------------------------
+        type(T_Time)                            :: Time1, Time2
+        real                                    :: Value1, Value2
+        real                                    :: n1, n2
+        real, dimension(6), target              :: AuxTime
+        real, dimension(:), pointer             :: TimePtr
+        integer                                 :: STAT_CALL, i, j, Index
+        integer                                 :: ILB, IUB, JLB, JUB
+        logical                                 :: TimeCycle
+
+
+        !---------------------------------------------------------------------- 
+        
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+
+i1:     if (Me%HighLowTide%ON) then        
+           
+            if (Me%CurrentTime >  Me%HighLowTide%EndWindow) then
+                
+                !write(*,*) objhdf5
+                !Writes current time
+                call ExtractDate   (Me%HighLowTide%RefGaugeTime,                        &
+                                    AuxTime(1), AuxTime(2), AuxTime(3),                 &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+                TimePtr => AuxTime
+                
+                Index = Me%HighLowTide%NextOuput
+                
+                call HDF5SetLimits  (Me%HighLowTide%ObjHDF5, 1, 6, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR10'
+
+                call HDF5WriteData  (Me%HighLowTide%ObjHDF5, "/Time", "Time",           &
+                                     "YYYY/MM/DD HH:MM:SS", Array1D = TimePtr,          &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR20'    
+                
+                call HDF5SetLimits  (Me%HighLowTide%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR10'
+                
+                call HDF5WriteData  (Me%HighLowTide%ObjHDF5,                            &
+                                     "/Results/"//trim(GetPropertyName (WaterLevel_)),  &
+                                     trim(GetPropertyName (WaterLevel_)), "m",          &
+                                     Array2D = Me%HighLowTide%SeaLevel,                 &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR30'    
+                
+                call HDF5WriteData  (Me%HighLowTide%ObjHDF5,                            &
+                                     "/Results/"//"Phase_Delay",                        &
+                                     "Phase_Delay", "s",                                &
+                                     Array2D = Me%HighLowTide%Instant,                  &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR40'  
+                
+                
+                
+                call GetTimeSerieValue(TimeSerieID = Me%HighLowTide%ObjTimeSerieRef,    &
+                                       CurrentTime = Me%CurrentTime,                    &        
+                                       DataColumn  = Me%HighLowTide%DataColumn,         &
+                                       Time1       = Time1,                             &
+                                       Value1      = Value1,                            &
+                                       Time2       = Time2,                             &
+                                       Value2      = Value2,                            &
+                                       TimeCycle   = TimeCycle,                         &    
+                                       STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR50' 
+            
+                Me%HighLowTide%RefGaugeTime = Time2
+                
+                if   (Value2 > Value1)    then
+                    Me%HighLowTide%HighTide = .true.
+                else 
+                    Me%HighLowTide%HighTide = .false.
+                endif                
+                
+                Me%HighLowTide%StartWindow = Me%HighLowTide%RefGaugeTime - Me%HighLowTide%BackwardDT
+                Me%HighLowTide%EndWindow   = Me%HighLowTide%RefGaugeTime + Me%HighLowTide%ForwardDT       
+                
+            
+                Me%HighLowTide%NextOuput = Me%HighLowTide%NextOuput + 1
+                
+                if     (Me%HighLowTide%HighTide)    then                
+                    Me%HighLowTide%SeaLevel(:, :) =  FillValueReal
+                else
+                    Me%HighLowTide%SeaLevel(:, :) = -FillValueReal
+                endif
+                
+                Me%HighLowTide%Instant (:, :) = FillValueReal  
+                
+            endif
+
+            if (Me%CurrentTime >= Me%HighLowTide%StartWindow .and.                      &
+                Me%CurrentTime <= Me%HighLowTide%EndWindow        ) then
+
+                do  j = JLB, JUB
+                do  i = ILB, IUB
+                    
+                    n1 = Me%WaterLevel%New(i, j)
+                    n2 = Me%HighLowTide%SeaLevel(i, j)                    
+
+                    if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered) then
+                        
+                        if     (Me%HighLowTide%HighTide)    then
+                            if (n1 > n2) then
+                                Me%HighLowTide%SeaLevel(i, j) = n1
+                                Me%HighLowTide%Instant (i, j) = Me%CurrentTime - Me%HighLowTide%RefGaugeTime
+                            endif
+                        else
+                            if      (n1 <  n2) then
+                                Me%HighLowTide%SeaLevel(i, j) = n1
+                                Me%HighLowTide%Instant (i, j) = Me%CurrentTime - Me%HighLowTide%RefGaugeTime
+                            elseif  (n1 == n2) then
+                                Me%HighLowTide%SeaLevel(i, j) = FillValueReal
+                                Me%HighLowTide%Instant (i, j) = FillValueReal    
+                            endif
+                        endif
+                    else
+                        if  (n1 == n2 .or. n2 == -FillValueReal) then
+                            Me%HighLowTide%SeaLevel(i, j) = FillValueReal
+                            Me%HighLowTide%Instant (i, j) = FillValueReal    
+                        endif
+                    endif
+                    
+                    
+                    
+                enddo
+                enddo                
+                            
+            endif    
+            
+        endif i1
+
+    end subroutine WriteHighLowTideOutput      
+    
+    !End------------------------------------------------------------------------------    
+    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks and starts TwoWay nesting
@@ -56973,6 +57325,8 @@ cd3:            if (Me%OutPut%hdf5ON) then
                     call Kill_Imposed_Solution
                 endif
 
+                call KillHighLowTideOutput
+
 #ifdef _ENABLE_CUDA
                 !Kills ModuleCuda
                 call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
@@ -59767,6 +60121,35 @@ cd2:    if (Me%SubModel%DeadZone) then
     End Subroutine KillSubModel
 
     !--------------------------------------------------------------------------
+
+    subroutine KillHighLowTideOutput
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !----------------------------------------------------------------------    
+
+
+i1:     if (Me%HighLowTide%ON) then          
+            
+            deallocate(Me%HighLowTide%SeaLevel)
+            deallocate(Me%HighLowTide%Instant )
+            
+            !Kill HDF File
+            call KillHDF5 (HDF5ID     = Me%HighLowTide%ObjHDF5,                         &
+                           STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'KillHighLowTideOutput - ModuleHydrodynamic - ERR10'     
+
+                                                                                                                    
+            call KillTimeSerie(TimeSerieID        = Me%HighLowTide%ObjTimeSerieRef,     &
+                               STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'KillHighLowTideOutput - ModuleHydrodynamic - ERR20'
+            
+        endif i1
+
+    end subroutine KillHighLowTideOutput        
+
+    !--------------------------------------------------------------------------    
 
     Subroutine DeallocateVariables
 

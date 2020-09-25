@@ -1955,7 +1955,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
             Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
         endif
 
-        if (Me%Evolution%EndRun .and. Me%Port%Number > 1) then
+        if (Me%Port%Number > 1) then
             call RANDOM_NUMBER(AuxRand)
             AuxRand = (AuxRand - 0.5) * Me%Port%OutfallLength
             AuxRandX = AuxRand * cos(Me%Port%OutfallAngle)

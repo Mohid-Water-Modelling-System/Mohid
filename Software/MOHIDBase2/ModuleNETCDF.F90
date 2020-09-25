@@ -801,19 +801,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(2)%ID%Name), Me%Dims(2)%UB, Me%Dims(2)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR02'
             
+            if (.not. SimpleGrid_) then  
+            
             !define the four horizontal cell vertices as a dimension
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(5)%ID%Name), Me%Dims(5)%UB, Me%Dims(5)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR04'
             
+            endif
             
             if(KUB > 0)then
                 !define layers as dimension
                 STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(3)%ID%Name), Me%Dims(3)%UB, Me%Dims(3)%ID%Number)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
                 
+                if (.not. SimpleGrid_) then  
                 !define the two layers vertices as a dimension                
                 STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(6)%ID%Name), Me%Dims(6)%UB, Me%Dims(6)%ID%Number)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
+                endif
                 
             end if
 

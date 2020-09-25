@@ -105,6 +105,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleNETCDF.F90">
 			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleOutputGrid.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleTwoWay.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
