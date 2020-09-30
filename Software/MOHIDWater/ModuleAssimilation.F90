@@ -2321,8 +2321,6 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         integer, dimension(:,:,:), pointer      :: PointsToFill3D
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, k, ILB, JLB, KLB, IUB, JUB, KUB 
-        type(T_Size3D)                          :: Size
-        type(T_Size3D)                          :: WorkSize
         !----------------------------------------------------------------------
      
         ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
