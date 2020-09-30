@@ -324,6 +324,7 @@ Module ModuleGeometry
         logical                                 :: NonHydrostatic   = .false.
         real                                    :: BathymTopoFactor = 1.0
         logical                                 :: StopOnBathymetryChange = .true.
+        logical                                 :: LagrangianTracers = .false.
         real, dimension(:,:,:), pointer         :: DecayTime        => null()
     end type T_External
 
@@ -389,7 +390,7 @@ Module ModuleGeometry
     subroutine ConstructGeometryV1(GeometryID, GridDataID, HorizontalGridID,            &
                                    HorizontalMapID, ActualTime,                         &
                                    NewDomain, SurfaceElevation, BathymTopoFactor,       &
-                                   STAT, StopOnBathymetryChange)
+                                   STAT, LagrangianTracers, StopOnBathymetryChange)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
@@ -401,6 +402,7 @@ Module ModuleGeometry
         real, dimension(:,:), pointer, optional     :: SurfaceElevation
         real,              intent(IN), optional     :: BathymTopoFactor
         logical,           intent(IN), optional     :: StopOnBathymetryChange
+        logical,           intent(IN), optional     :: LagrangianTracers
         integer,  intent(OUT),         optional     :: STAT
 
         !Local-----------------------------------------------------------------
@@ -445,6 +447,10 @@ Module ModuleGeometry
                 Me%ExternalVar%StopOnBathymetryChange = StopOnBathymetryChange
             else
                 Me%ExternalVar%StopOnBathymetryChange = .true.
+            endif
+            
+            if (present(LagrangianTracers))then
+                Me%ExternalVar%LagrangianTracers = LagrangianTracers
             endif
 
             !Construct the variable common to all module
@@ -779,6 +785,8 @@ Module ModuleGeometry
         !Local-----------------------------------------------------------------
         integer                         :: STATUS
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        logical                         :: Lagrangian
+        type (T_Domain), pointer        :: CurrentDomain
 
 
 
@@ -869,13 +877,15 @@ Module ModuleGeometry
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR150'
         Me%Distances%DZE = FillValueReal
 
-        allocate (Me%Distances%DWZ_Xgrad(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
-        if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR160'
-        Me%Distances%DWZ_Xgrad = FillValueReal
-
-        allocate (Me%Distances%DWZ_Ygrad(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
-        if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR170'
-        Me%Distances%DWZ_Ygrad = FillValueReal
+        if (Me%ExternalVar%LagrangianTracers) then
+            allocate (Me%Distances%DWZ_Xgrad(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
+            if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR160'
+            Me%Distances%DWZ_Xgrad = FillValueReal
+            
+            allocate (Me%Distances%DWZ_Ygrad(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
+            if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR170'
+            Me%Distances%DWZ_Ygrad = FillValueReal
+        endif
 
         !Allocate T_KFloor
         allocate (Me%KFloor%Z(ILB:IUB, JLB:JUB), stat = STATUS)
@@ -910,9 +920,20 @@ Module ModuleGeometry
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR250'
         Me%KTop%Z(:,:) = FillValueInt
 
-        allocate (Me%NearbyAvgVel_Z(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS) !Joao Sobrinho
-        if (STATUS /= SUCCESS_) stop "AllocateVariables - Geometry - ERR255"
-        Me%NearbyAvgVel_Z(:, :, :) = FillValueInt
+        Lagrangian = .false.
+        CurrentDomain => Me%FirstDomain
+        do while (associated(CurrentDomain))
+            if(CurrentDomain%IsLagrangian) then
+                Lagrangian = .true.
+            endif
+            CurrentDomain => CurrentDomain%Next
+        enddo
+        
+        if (Lagrangian)then
+            allocate (Me%NearbyAvgVel_Z(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
+            if (STATUS /= SUCCESS_) stop "AllocateVariables - Geometry - ERR255"
+            Me%NearbyAvgVel_Z(:, :, :) = FillValueInt
+        endif
 
     end subroutine AllocateVariables
 
@@ -2729,6 +2750,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
         integer                             :: i, j, Kmin, KLB_Max, KUB_Max
         type (T_Domain), pointer            :: CurrentDomain 
         integer                             :: KLD_New, KUD_New, KLD, KUD, KminAux
+        logical                             :: Lagrangian
 
         !Begin-----------------------------------------------------------------
 
@@ -2918,28 +2940,39 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                                       KLB_Max   = KLB_Max ,                             &
                                       KUB_Max   = KUB_Max )   
         
-        !DWZ_Xgrad
-        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Xgrad,               &
-                                      Matrix3D  = Matrix3D,                             &
-                                      KLB       = KLB     ,                             &
-                                      KUB       = KUB     ,                             &
-                                      KLB_Max   = KLB_Max ,                             &
-                                      KUB_Max   = KUB_Max )           
-        !DWZ_Ygrad
-        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Ygrad,               &
-                                      Matrix3D  = Matrix3D,                             &
-                                      KLB       = KLB     ,                             &
-                                      KUB       = KUB     ,                             &
-                                      KLB_Max   = KLB_Max ,                             &
-                                      KUB_Max   = KUB_Max )         
+        if (Me%ExternalVar%LagrangianTracers) then
+            !DWZ_Xgrad
+            call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Xgrad,               &
+                                          Matrix3D  = Matrix3D,                             &
+                                          KLB       = KLB     ,                             &
+                                          KUB       = KUB     ,                             &
+                                          KLB_Max   = KLB_Max ,                             &
+                                          KUB_Max   = KUB_Max )           
+            !DWZ_Ygrad
+            call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Ygrad,               &
+                                          Matrix3D  = Matrix3D,                             &
+                                          KLB       = KLB     ,                             &
+                                          KUB       = KUB     ,                             &
+                                          KLB_Max   = KLB_Max ,                             &
+                                          KUB_Max   = KUB_Max )         
+        endif
         
-        !NearbyAvgVel_Z
-        call Reallocate3DGeometryProp(GeoProp3D = Me%NearbyAvgVel_Z,                    &
-                                      Matrix3D  = Matrix3D,                             &
-                                      KLB       = KLB     ,                             &
-                                      KUB       = KUB     ,                             &
-                                      KLB_Max   = KLB_Max ,                             &
-                                      KUB_Max   = KUB_Max )          
+        Lagrangian = .false.
+        CurrentDomain => Me%FirstDomain
+        do while (associated(CurrentDomain))
+            if (CurrentDomain%IsLagrangian) Lagrangian = .true.
+            CurrentDomain => CurrentDomain%Next 
+        enddo
+        
+        if (Lagrangian)then
+            !NearbyAvgVel_Z
+            call Reallocate3DGeometryProp(GeoProp3D = Me%NearbyAvgVel_Z,                    &
+                                          Matrix3D  = Matrix3D,                             &
+                                          KLB       = KLB     ,                             &
+                                          KUB       = KUB     ,                             &
+                                          KLB_Max   = KLB_Max ,                             &
+                                          KUB_Max   = KUB_Max ) 
+        endif
         
         CurrentDomain => Me%FirstDomain
         do while (associated(CurrentDomain))
@@ -3667,9 +3700,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         DZI => Me%Distances%DZI
         DZE => Me%Distances%DZE
 
-        DWZ_Xgrad  => Me%Distances%DWZ_Xgrad
-        DWZ_Ygrad  => Me%Distances%DWZ_Ygrad
-
         FacesOption = Me%FacesOption
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeDistances")
@@ -3856,68 +3886,74 @@ cd1:    if (FacesOption == MinTickness) then
             stop 'ComputeDistances - Geometry - ERR04'
         
         
+        if (Me%ExternalVar%LagrangianTracers) then
+            DWZ_Xgrad  => Me%Distances%DWZ_Xgrad
+            DWZ_Ygrad  => Me%Distances%DWZ_Ygrad
+            !Computes DWZ_Xgrad = layer tickness gradient in the X diretion divided by the thickness 
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            do k = KLB  , KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB  , JUB
+            do i = ILB  , IUB
 
-!Computes DWZ_Xgrad = layer tickness gradient in the X diretion divided by the thickness 
-        !$OMP PARALLEL PRIVATE(i,j,k,aux)
-        do k = KLB  , KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = JLB  , JUB
-        do i = ILB  , IUB
+                if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
+                    WaterPoints3D(i, j    , k) == WaterPoint) then
 
-            if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
-                WaterPoints3D(i, j    , k) == WaterPoint) then
+                    if (DWZ(i, j, k) > 0. .and. DWZ(i, j-1, k) > 0.) then
+                        ![m]                    
+                        aux=(DWZ(i, j-1, k) + DWZ(i, j, k)) / 2.
+                         ![1/m] =  [m] /[m] / [m]
+                        DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) -  DWZ(i, j-1, k)) / aux / DZX(i, j-1)
+                    else
+                        DWZ_Xgrad(i, j, k) = 0.
+                    endif
 
-                if (DWZ(i, j, k) > 0. .and. DWZ(i, j-1, k) > 0.) then
-                    ![m]                    
-                    aux=(DWZ(i, j-1, k) + DWZ(i, j, k)) / 2.
-                     ![1/m] =  [m] /[m] / [m]
-                    DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) -  DWZ(i, j-1, k)) / aux / DZX(i, j-1)
-                else
-                    DWZ_Xgrad(i, j, k) = 0.
-                endif
-
-            else 
+                else 
                 
-                DWZ_Xgrad(i, j, k) =  0.
+                    DWZ_Xgrad(i, j, k) =  0.
 
-            endif
-
-        enddo
-        enddo
-        !$OMP END DO NOWAIT
-        enddo
-        !$OMP END PARALLEL
-
-!Computes DWZ_Ygrad = layer tickness gradient in the Y diretion divided by the thickness 
-        !$OMP PARALLEL PRIVATE(i,j,k,aux)
-        do k = KLB  , KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = JLB  , JUB
-        do i = ILB  , IUB
-
-            if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
-                WaterPoints3D(i    , j, k) == WaterPoint) then
-
-                if (DWZ(i, j, k) > 0. .and.  DWZ(i-1, j, k) > 0.) then
-                    ![m]
-                    aux= (DWZ(i, j, k) + DWZ(i-1, j, k)) / 2.                     
-                    ![1/m] =  [m] /[m] / [m]
-                    DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) -  DWZ(i-1, j, k))/  DZY(i-1, j) /aux
-                else
-                    DWZ_Ygrad(i, j, k) = 0.0
                 endif
 
-            else 
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            enddo
+            !$OMP END PARALLEL
 
-                DWZ_Ygrad(i, j, k) =  0.
+            !Computes DWZ_Ygrad = layer tickness gradient in the Y diretion divided by the thickness 
+            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            do k = KLB  , KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB  , JUB
+            do i = ILB  , IUB
 
-            endif
+                if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
+                    WaterPoints3D(i    , j, k) == WaterPoint) then
 
-        enddo
-        enddo
-        !$OMP END DO NOWAIT
-        enddo
-        !$OMP END PARALLEL
+                    if (DWZ(i, j, k) > 0. .and.  DWZ(i-1, j, k) > 0.) then
+                        ![m]
+                        aux= (DWZ(i, j, k) + DWZ(i-1, j, k)) / 2.                     
+                        ![1/m] =  [m] /[m] / [m]
+                        DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) -  DWZ(i-1, j, k))/  DZY(i-1, j) /aux
+                    else
+                        DWZ_Ygrad(i, j, k) = 0.0
+                    endif
+
+                else 
+
+                    DWZ_Ygrad(i, j, k) =  0.
+
+                endif
+
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            enddo
+            !$OMP END PARALLEL
+            
+        nullify(DWZ_Xgrad, DWZ_Ygrad)
+        
+        endif
         
         !Nullifies auxilary pointers
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DZX, STAT = STAT_CALL)
@@ -3932,7 +3968,7 @@ cd1:    if (FacesOption == MinTickness) then
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeDistances")
 
-        nullify(DWZ, DZZ, DUZ, DVZ, DZI, DZE, SZZ, DWZ_Xgrad, DWZ_Ygrad)
+        nullify(DWZ, DZZ, DUZ, DVZ, DZI, DZE, SZZ)
 
     end subroutine ComputeDistances
 
@@ -7391,7 +7427,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR230'
         endif
         
-        !Joao Sobrinho
+        !deallocate NearbyAvgVel_Z
         if (allocated(Me%NearbyAvgVel_Z)) then
             deallocate (Me%NearbyAvgVel_Z, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR240'            
