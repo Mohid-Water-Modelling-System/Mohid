@@ -48421,6 +48421,7 @@ do5:            do i = ILB, IUB
         integer                                           :: ready_, readyFather_, STAT_CALL, i
         integer                                           :: AuxHydrodynamicID
         logical                                           :: MakeCopy
+        type(T_Time)                                      :: CurrentTime
     !Begin----------------------------------------------------------------------------------
         if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
 
@@ -48435,7 +48436,14 @@ do5:            do i = ILB, IUB
 
                 call ReadyFather(AuxHydrodynamicID, ObjHydrodynamicFather, readyFather_) ! gets Father object
 
-                if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
+                if (i == HydrodynamicID) then
+                    CurrentTime = Me%CurrentTime
+                else
+                    CurrentTime = Me%LastIteration 
+                    !because Me%CurrentTime of precious domain was nullified and replaced by Me%LastIteration
+                endif
+                
+                if (ObjHydrodynamicFather%LastIteration == CurrentTime)then
 
                     AuxHydrodynamicID = i    !Changes back to Son ID
 

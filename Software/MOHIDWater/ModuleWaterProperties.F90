@@ -19251,7 +19251,7 @@ do1 :   do while (associated(PropertyX))
             FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
 
             ! ID = sonID ,  FatherWaterpropertiesID = FatherID
-            if (FatherWaterpropertiesID > 0) call Compute_wp_upscaling(ID, FatherWaterpropertiesID)
+            if (FatherWaterpropertiesID > 0) call Compute_wp_upscaling(ID, FatherWaterpropertiesID, WaterPropertiesID)
         enddo
         call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
     endif
@@ -19265,10 +19265,10 @@ do1 :   do while (associated(PropertyX))
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Prepares TwoWay external variables, then for each property calls modify twoway
-    !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID
-    subroutine Compute_wp_upscaling(SonWaterPropertiesID, FatherWaterPropertiesID)
+    !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID, WaterPropertiesID
+    subroutine Compute_wp_upscaling(SonWaterPropertiesID, FatherWaterPropertiesID, WaterPropertiesID)
         !Arguments--------------------------------------------------------------------------------------------
-        integer, intent(IN)                     :: SonWaterPropertiesID, FatherWaterPropertiesID
+        integer, intent(IN)                     :: SonWaterPropertiesID, FatherWaterPropertiesID, WaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
         type (T_WaterProperties), pointer       :: ObjFather
         type (T_Property), pointer              :: PropertyX, PropertyFather
@@ -19276,12 +19276,19 @@ do1 :   do while (associated(PropertyX))
         integer, dimension(:,:  ), pointer      :: Connections
         integer                                 :: STAT_CALL
         logical                                 :: FirstTime
+        type(T_Time)                            :: CurrentTime
         !Begin------------------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
         FirstTime = .true.
 
         !Me% is pointing to Son domain!
         PropertyX => Me%FirstProperty
+        
+        if (SonWaterPropertiesID == WaterPropertiesID) then
+            CurrentTime =  PropertyX%Evolution%NextCompute
+        else
+            CurrentTime =  PropertyX%Evolution%LastCompute
+        endif
 
         call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
@@ -19307,7 +19314,7 @@ do1 :   do while (associated(PropertyX))
             endif
 
             if (PropertyX%Submodel%TwoWay)then
-                if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
+                if(CurrentTime == PropertyFather%Evolution%LastCompute)then
                 !Assimilation of son domain into father domain
                     !Account for change in concentration
                     if (PropertyX%UpscalingSinkSource) &
