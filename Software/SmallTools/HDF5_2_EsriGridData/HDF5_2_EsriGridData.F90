@@ -686,7 +686,7 @@ d11:    do l = 1, Me%FieldNumber
                     do j = JLBout, JUBout
                         if (Aux3DOut(i,j,k) <=Me%FillValue) Aux3DOut(i,j,k) = Me%FillValue
                     enddo
-                    write(Line,'(4000(f12.6,1x))') Aux3Dout(i,JLBout:JUBout,k)
+                    write(Line,'(4000(e12.6,1x))') Aux3Dout(i,JLBout:JUBout,k)
                     Line = adjustl(Line)
                     Found2Blanks = .true.
 
@@ -1060,7 +1060,11 @@ do2:    do l  = 1, Me%PropNumber
         
         do i = ILB, IUB
             do j = JLB, JUB
+                if (Aux3D(i,j,k) == FillValueReal) then
+                    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
+                else
                 write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
+                endif
             enddo
         enddo
         

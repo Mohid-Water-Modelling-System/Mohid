@@ -124,6 +124,7 @@ program Convert2netcdf
         real                                                :: ElapsedSeconds
         integer, dimension(8)                               :: F95Time
         logical                                             :: MohidStandardInOutUnits = .false. 
+        logical                                             :: OdysseaProject          = .false. 
                                                             
         integer                                             :: ObjEnterData     = 0
                                                             
@@ -704,6 +705,16 @@ program Convert2netcdf
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR510'        
                     
 
+        call GetData(Me%OdysseaProject,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ODYSSEA_PROJECT',                                  &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR520'        
+        
+
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR990'
 
@@ -882,11 +893,11 @@ program Convert2netcdf
         if (Me%DepthLayersON) then
             call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(Me%HDFFile%Size%IUB,4),int(Me%HDFFile%Size%JUB,4), &
                                      int(Me%DepthLayers,4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR20'
+            if (STAT_CALL .NE. SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR20'
         else
             call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(Me%HDFFile%Size%IUB,4), int(Me%HDFFile%Size%JUB,4),&
                                      int(Me%HDFFile%Size%KUB,4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR30'
+            if (STAT_CALL .NE. SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR30'
         endif        
         
         
@@ -965,13 +976,13 @@ program Convert2netcdf
             endif
         endif
 
-!        if (.not.Me%SimpleGrid) then
+        if (.not.Me%OdysseaProject) then
 
             call ReadWriteBathymetry
 
             call ReadMask
             
-!        endif                        
+        endif                        
 
     end subroutine ReadWriteGrid
 
@@ -1366,11 +1377,15 @@ program Convert2netcdf
                              STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteDepthLayers - Convert2netcdf - ERR10'
         
+        if (.not.Me%SimpleGrid) then
+        
         call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
                                  VertStag       = Vert1DStag,                           &
                                  STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteDepthLayers - Convert2netcdf - ERR20'                
 
+        endif 
+        
         deallocate(Vert1DStag)
         nullify   (Vert1DStag)
         
@@ -1529,10 +1544,12 @@ program Convert2netcdf
                              STAT             = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR05'
         
+        if (.not.Me%SimpleGrid) then        
+        
         call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
                                  VertStag       = Vert1DStag,                           &
                                  STAT           = STAT_CALL)
-        
+        endif
 
         deallocate(WaterPoints3D)
         nullify   (WaterPoints3D)
@@ -1584,11 +1601,15 @@ program Convert2netcdf
                              STAT             = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'WriteVerticalNullDepth - Convert2netcdf - ERR10'
         
+        if (.not.Me%SimpleGrid) then        
+        
         call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
                                  VertStag       = Vert1DStag,                           &
                                  STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'WriteVerticalNullDepth - Convert2netcdf - ERR20'                
 
+        endif
+        
         deallocate(Vert1D      )
         deallocate(Vert1DStag  )
         
@@ -1893,7 +1914,7 @@ program Convert2netcdf
                 !This isn't the right way to look for a Mask.
                 !The mask variable should be explicited in the configuration file.
                 !And the defaults should be WaterPoints2D and WaterPoints3D.
-                if(class_id == H5T_INTEGER_F) then
+                if(class_id == H5T_INTEGER_F .and. trim(obj_name)/= "Define Cells") then
                     Me%IsMapping = .true.
                 else
                     Me%IsMapping = .false.
@@ -1926,7 +1947,9 @@ program Convert2netcdf
                                                  MinValue, MaxValue, MissingValue,      &
                                                  Int2D = Me%Int2DOut)
 
+                            if (trim(NCDFName) /= "mask") then
                             call CheckAndCorrectVarName(obj_name, NCDFName)
+                            endif
 
                             call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                                                   Name          = trim(NCDFName),           &
@@ -2024,7 +2047,7 @@ program Convert2netcdf
         real,                               optional        :: Multiply_Factor
 
         !Local-----------------------------------------------------------------
-        integer                                             :: i, j, k
+        integer                                             :: i, j, k, KUBout
         real                                                :: Add_Factor_
         real                                                :: Multiply_Factor_
         character(len=StringLength)                         :: Units_
@@ -2041,6 +2064,13 @@ program Convert2netcdf
         else
             Multiply_Factor_      = 1.
         endif
+
+        if (Me%DepthLayersON) then
+            KUBout = Me%DepthLayers   
+        else
+            KUBout = Me%HDFFile%Size%KUB
+        endif          
+        
 
         select case(trim(adjustl(Name)))
 
@@ -2179,18 +2209,32 @@ program Convert2netcdf
                 ValidMax        = 200.
                 MissingValue    = Me%MissingValue                
             case("wind_velocity_X")
+                
+                if (Me%OdysseaProject) then
+                    NCDFName        = "grid_eastward_wind"
+                    LongName        = "grid_eastward_wind"
+                    StandardName    = "grid_eastward_wind"
+                else
                 NCDFName        = "x_wind"
                 LongName        = "x wind"
                 StandardName    = "x_wind"
+                endif
+                
                 Units_          = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
                 MissingValue    = Me%MissingValue
 
             case("wind_velocity_Y")
+                if (Me%OdysseaProject) then
+                    NCDFName        = "grid_northward_wind"
+                    LongName        = "grid_northward_wind"
+                    StandardName    = "grid_northward_wind"
+                else                
                 NCDFName        = "y_wind"
                 LongName        = "y wind"
                 StandardName    = "y_wind"
+                endif
                 Units_          = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
@@ -2514,7 +2558,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
-            do k = 1, Me%HDFFile%Size%KUB
+            do k = 1, KUBout
                 Float3D(j,i,k) = Float3D(j, i, k) * Multiply_Factor_ + Add_Factor_
 
                 if(Float3D(j,i,k) .gt. FillValueReal/2. .and. Float3D(j,i,k) .lt.  Min .and. &

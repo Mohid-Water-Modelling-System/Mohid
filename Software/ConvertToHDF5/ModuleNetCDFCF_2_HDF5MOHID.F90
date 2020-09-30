@@ -216,6 +216,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
         logical                                 :: ExtractLayer
         integer                                 :: LayerNumber
+        integer                                 :: LayerDim       
         logical                                 :: AverageInDepth, Wfp
         character(len=StringLength)             :: AverageInDepthName, WfpName
         logical                                 :: Reflectivity2Precipitation
@@ -3533,6 +3534,15 @@ BF:         if (BlockFound) then
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                      STAT         = STAT_CALL)        
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+                        
+                        call GetData(Me%Field(ip)%LayerDim,                                 &
+                                     Me%ObjEnterData, iflag,                                &
+                                     SearchType   = FromBlockInBlock,                       &
+                                     keyword      = 'LAYER_DIM',                            &
+                                     default      = 3,                                      &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR96'                        
                         
                     endif                        
                         
@@ -7144,7 +7154,7 @@ i2:                 if (Me%Depth%Interpolate) then
         real(8)                                 :: Aux
         
         !Local-----------------------------------------------------------------
-        integer                                 :: status, pn, numDims, Layer
+        integer                                 :: status, pn, numDims, Layer, LayerDim
         !Begin-----------------------------------------------------------------
         pn = 0
         write(*,*) '  Reading= ', trim(Me%Field(iP)%NetCDFName), inst
@@ -7193,7 +7203,8 @@ i2:                 if (Me%Depth%Interpolate) then
         else
             if (Me%Field(ip)%ExtractLayer) then
                 Layer = Me%Field(ip)%LayerNumber
-                call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer)         
+                LayerDim = Me%Field(ip)%LayerDim
+                call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer, LayerDim)         
             else
                 call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst)
             endif                
@@ -7825,18 +7836,21 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
     !------------------------------------------------------------------------
     
-    subroutine GetNetCDFMatrix(ncid, n, ValueIn, inst, layer)
+    subroutine GetNetCDFMatrix(ncid, n, ValueIn, inst, layer, layer_dim)
         !Arguments-------------------------------------------------------------        
         integer             :: ncid, n
         type(T_ValueIn)     :: ValueIn
         integer, optional   :: inst        
         integer, optional   :: layer
+        integer, optional   :: layer_dim
         !Local-----------------------------------------------------------------                
         real(8), dimension(:,:,:,:), pointer    :: AuxR8D4
         real(8), dimension(:,:,:,:), pointer    :: AuxR4D4        
         integer, dimension(nf90_max_var_dims)   :: dimIDs
         integer                                 :: Dim, DataTypeIn, status, xdim, ydim, zdim, tdim
         integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: Dim1, Dim2, Dim3, Dim4
+        integer                                 :: iSt1, iSt2, iSt3, iSt4
         
         !Begin-----------------------------------------------------------------        
         
@@ -7989,14 +8003,25 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     
                     if (present(layer)) then
 
-                        allocate(AuxR8D4(1:xdim,1:ydim,1:1,1:1))
+                        if      (layer_dim == 3) then
+                            iSt1 =    1; iSt2 =    1; iSt3 =layer; iSt4 = inst;
+                            Dim1 = xdim; Dim2 = ydim; Dim3 =    1; Dim4 =    1;
+                            
+                        elseif  (layer_dim == 4) then
+                            iSt1 =    1; iSt2 =    1; iSt3 =inst;  iSt4 = layer;
+                            Dim1 = xdim; Dim2 = ydim; Dim3 =    1; Dim4 =     1;
+                        else
+                            stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR196'
+                        endif                            
+                        
+                        allocate(AuxR8D4(1:Dim1,1:Dim2,1:Dim3,1:Dim4))
                         
                         status = nf90_get_var(ncid,n,AuxR8D4,                           &
-                                start = (/    1,    1, layer, inst /),                  &
-                                count = (/ xdim, ydim,     1,    1 /))                
+                                start = (/ iSt1, iSt2, iSt3,  iSt4 /),                  &
+                                count = (/ Dim1, Dim2, Dim4,  Dim4 /))                
                         if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR200'                
                         
-                        ValueIn%R84D(JLB:JUB,ILB:IUB,1:1,1:1) = AuxR8D4(1:xdim,1:ydim,1:1,1:1)
+                        ValueIn%R84D(JLB:JUB,ILB:IUB,1:1,1:1) = AuxR8D4(1:Dim1,1:Dim2,1:Dim3,1:Dim4)
                     
                         deallocate(AuxR8D4)                    
                     

@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  97
+    integer, parameter  :: MaxModules           =  98
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -778,6 +778,8 @@ Module ModuleGlobalData
     integer, parameter ::  WindSea_SignificantWaveHeight_  = 3544
     integer, parameter ::  WindSea_WavePeriod_             = 3545
     integer, parameter ::  WindSea_WaveDirection_          = 3546
+    
+    integer, parameter ::  PeakWaveLength_                 = 3547
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1638,6 +1640,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_DirectionEnergyTransport = 'direction energy transport'
     character(StringLength), private, parameter :: Char_SmoothedPeakPeriod       = 'smoothed peak period'
     character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
+    character(StringLength), private, parameter :: Char_PeakWaveLength           = 'peak wave length'
 
     character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
     character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
@@ -1975,6 +1978,7 @@ Module ModuleGlobalData
     integer, parameter ::  mTURBINE_                = 95
     integer, parameter ::  mLitter_                 = 96
     integer, parameter ::  mTwoWay_                 = 97
+    integer, parameter ::  mOutputGrid_             = 98
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2096,7 +2100,8 @@ Module ModuleGlobalData
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
         T_Module(mIrrigation_            , "Irrigation"         ),   T_Module(mTURBINE_                , "Turbine"       ),        &
-        T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        )/)
+        T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        ),        &
+        T_Module(mOutputGrid_            , "OuputGrid"          )/)
         
 
     !Variables
@@ -3162,6 +3167,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (DirectionEnergyTransport_, Char_DirectionEnergyTransport,  ListNumber)
             call AddPropList (SmoothedPeakPeriod_,      Char_SmoothedPeakPeriod,         ListNumber)
             call AddPropList (MeanAbsoluteWavePeriod_,  Char_MeanAbsoluteWavePeriod,     ListNumber)
+            call AddPropList (PeakWaveLength_,          Char_PeakWaveLength,             ListNumber)
             
             call AddPropList (Swell01_SignificantWaveHeight_, Char_Swell01_SignificantWaveHeight, ListNumber)
             call AddPropList (Swell01_WavePeriod_,            Char_Swell01_WavePeriod,            ListNumber)
