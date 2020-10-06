@@ -10621,7 +10621,7 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
                                        Me%ObjHorizontalMap,                              &
                                        Me%ObjMap,                                        &
                                        Me%ObjGeometry,                                   &
-                                       Me%ObjTwoWay,                                     &
+                                       TwoWayID = Me%ObjTwoWay,                          &
                                        Hydro_Relaxation_HorAdv = Me%Relaxation%HorizAdv, &
                                        STAT = STAT_CALL)
                 !Sobrinho - adicionei a hor_adv para nao estar a calcular o minimum coef no assimilation, que só é necessário caso

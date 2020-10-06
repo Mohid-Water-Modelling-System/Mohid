@@ -358,7 +358,7 @@ Module ModuleAssimilation
         integer                                         :: HorizontalMapID
         integer                                         :: MapID
         integer                                         :: GeometryID
-        integer                                         :: TwoWayID
+        integer,                  optional, intent(IN)  :: TwoWayID
         integer,                 optional, intent(OUT)  :: STAT     
         logical,                 optional, intent(IN)   :: Hydro_Relaxation_HorAdv
 
@@ -392,7 +392,8 @@ Module ModuleAssimilation
             Me%ObjHorizontalGrid  = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID  )
             Me%ObjGeometry        = AssociateInstance (mGEOMETRY_,       GeometryID        )
             Me%ObjMap             = AssociateInstance (mMAP_,            MapID             )
-            Me%ObjTwoWay          = AssociateInstance (mTwoWay_,         TwoWayID          )
+            
+            if (present(TwoWayID)) Me%ObjTwoWay          = AssociateInstance (mTwoWay_,         TwoWayID          )
 
             if (present(Hydro_Relaxation_HorAdv)) Me%Relaxation_HorAdv = Hydro_Relaxation_HorAdv
 
