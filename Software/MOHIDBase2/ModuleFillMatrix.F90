@@ -7337,7 +7337,7 @@ ifMS:       if (MasterOrSlave) then
         !AQUI
         call ReadHDF5Values2D(CurrentHDF%PreviousInstant, CurrentHDF%PreviousField2D, CurrentHDF)
         !Sobrinho
-        !Isto j� � a matriz com as dimensoes do Pai devolvida ao Assimilation. chamar modifytwoway aqui dentro
+        !Isto j? ? a matriz com as dimensoes do Pai devolvida ao Assimilation. chamar modifytwoway aqui dentro
         call ReadHDF5Values2D(CurrentHDF%NextInstant,     CurrentHDF%NextField2D,     CurrentHDF)
 
         !limit maximum values
@@ -8492,7 +8492,7 @@ if4D:   if (CurrentHDF%Field4D) then
                                            CurrentHDF       = CurrentHDF,               &
                                            Instant          = Instant)
             else
-                !Sobrinho - enviei para aqui pq s� quero interpolar no tempo.Field j� est� nas dim do pai
+                !Sobrinho - enviei para aqui pq s? quero interpolar no tempo.Field j? est? nas dim do pai
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           &
                                    CurrentTime      = CurrentTime,                      &
@@ -13296,5 +13296,5 @@ end module ModuleFillMatrix
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T?cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
