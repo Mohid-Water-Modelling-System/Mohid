@@ -487,7 +487,7 @@ Module ModuleHDF5Extractor
                              SearchType   = FromFile,                               &
                              ClientModule = 'HDF5Extractor',                        &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_ .or. iflag == 0) &
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR160a'
                 endif
             else
@@ -508,7 +508,7 @@ Module ModuleHDF5Extractor
                              SearchType   = FromFile,                               &
                              ClientModule = 'HDF5Extractor',                        &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_ .or. iflag == 0) &
+                if (STAT_CALL /= SUCCESS_ .or. iflag == 0)  then
                 stop 'ReadKeywords - ModuleHDF5Extractor - ERR170a'
                 endif
             else

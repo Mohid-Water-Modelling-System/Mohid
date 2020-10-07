@@ -8,7 +8,7 @@
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : HIDROMOD
 ! DATE          : November 2011
-! REVISION      : Paulo Leit�o
+! REVISION      : Paulo Leitao
 ! DESCRIPTION   : Module to Read property fields from self describing files like NetCDF and HDF5
 !
 !------------------------------------------------------------------------------
@@ -7167,5 +7167,5 @@ end module ModuleField4D
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T?cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
