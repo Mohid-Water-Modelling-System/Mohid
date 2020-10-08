@@ -298,6 +298,15 @@ Module ModuleGeometry
                                                    Z    => null()                    !Former HT
         real                                    :: Zmin = FillValueReal !Former Hmin
     end type T_WaterColumn
+    
+    !Sobrinho
+    type T_FatherGrid
+        integer                            :: GridID = null_int
+        integer, dimension(:,:,:), pointer :: KLinkZ => null()
+        type (T_Size2D)                    :: MPI_Window
+        type (T_FatherGrid),     pointer   :: Next => null()
+        type (T_FatherGrid),     pointer   :: Prev => null()
+    end type T_FatherGrid
 
 #ifdef _USE_SEQASSIMILATION
     type T_StatePointer
@@ -353,7 +362,7 @@ Module ModuleGeometry
 
         character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
 
-        real, dimension(:,:,:), allocatable     :: NearbyAvgVel_Z ! Joao Sobrinho
+        real, dimension(:,:,:), allocatable     :: NearbyAvgVel_Z
         
         logical                                 :: RemoveLandBotLayersON
 
@@ -863,7 +872,7 @@ Module ModuleGeometry
 
         allocate (Me%Distances%InitialSZZ(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR120'
-        Me%Distances%SZZ = FillValueReal
+        Me%Distances%InitialSZZ = FillValueReal
 
         allocate (Me%Distances%ZCellCenter(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR130'
@@ -2632,6 +2641,91 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
     end subroutine ConstructKFloor
 
     !--------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Constructs vertical cell links between model domains
+    !>@param[in] GeometryID, GeometryFatherID, Window, STAT
+    subroutine ConstructFatherKGridLocation(GeometryID, GeometryFatherID, Window, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                   :: HorizontalGridID
+        integer                                   :: HorizontalGridFatherID
+        integer, optional,           intent (IN)  :: GridID
+        type (T_Size2D), optional                 :: Window
+        integer, optional,           intent (OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
+        type (T_FatherGrid), pointer              :: NewFatherGrid
+        integer                                   :: STAT_, ready_, GridID_
+        logical                                   :: OkZ_, OkU_, OkV_, OkCross_
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+            if (ready_ .EQ. IDLE_ERR_) then
+                
+                Me%Distances%ZCellCenter
+
+            allocate(NewFatherGrid)
+
+            nullify(ObjHorizontalGridFather)
+            call LocateObjFather        (ObjHorizontalGridFather, HorizontalGridFatherID)
+
+            if (present(Window)) then
+                NewFatherGrid%MPI_Window = Window
+            else
+                NewFatherGrid%MPI_Window = ObjHorizontalGridFather%WorkSize
+            endif
+            
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                ILinkZ, ILinkZ
+            enddo
+            enddo
+            enddo
+                            
+
+            call ConstructNewFatherGrid1D (ObjHorizontalGridFather, NewFatherGrid)
+
+            call Add_FatherGrid         (NewFatherGrid)
+
+            STAT_ = SUCCESS_
+
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine ConstructFatherKGridLocation
+    !-------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>This subroutine adds a new grid to the father grid List
+    !>@param[in] GeometryID, GeometryFatherID, Window, STAT
+    subroutine Add_FatherGrid(NewFatherGrid)
+        !Arguments-------------------------------------------------------------
+        type(T_FatherGrid),         pointer     :: NewFatherGrid
+        !----------------------------------------------------------------------
+        if (.not. associated(Me%FirstFatherGrid)) then
+
+            Me%FirstFatherGrid    => NewFatherGrid
+            Me%LastFatherGrid     => NewFatherGrid
+        else
+            NewFatherGrid%Prev     => Me%LastFatherGrid
+            Me%LastFatherGrid%Next => NewFatherGrid
+            Me%LastFatherGrid      => NewFatherGrid
+
+        end if
+    end subroutine Add_FatherGrid
     
     !--------------------------------------------------------------------------
     
