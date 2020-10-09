@@ -38788,7 +38788,7 @@ do3:            do k = kbottom, KUB
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom, Gradient, Aceleration_Downscaling, Aceleration_Upscaling) &
         !$OMP PRIVATE(Gradient_Upscale, DecayTime_Upscale, TimeCoef_Upscale, TotalDecayTime, Volume_Factor) &
-        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling, DecayTime_Downscale, TimeCoef_Downscale) &
+        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling, DecayTime_Downscale, TimeCoef_Downscale)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB
