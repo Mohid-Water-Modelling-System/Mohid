@@ -167,7 +167,8 @@ Module ModuleHydrodynamic
                                        ReadGeometryBin, ComputeInitialGeometry,          &
                                        ComputeVerticalGeometry, WriteGeometryBin,        &
                                        GetGeometryVolumes, GetGeometryAreas,             &
-                                       GetLayer4Level, WriteGeometryHDF, ReadGeometryHDF
+                                       GetLayer4Level, WriteGeometryHDF, ReadGeometryHDF, &
+                                       ConstructFatherKGridLocation
     use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,                &
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
                                        GetImposedNormalFaces, UnGetMap,                  &
@@ -15823,7 +15824,7 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         integer, dimension(:,:,:), pointer          :: Faces3D_UFather
         integer, dimension(:,:,:), pointer          :: Faces3D_VFather
         real                                        :: DT_Son
-        integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB
+        integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB, STAT_CALL
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "SetHydroFather")
@@ -15847,6 +15848,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
+                    
+                    call ConstructFatherKGridLocation(  Me%ObjGeometry,                    &
+                                                        ObjHydrodynamicFather%ObjGeometry, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'SetHydroFather - Failed to construct FatherKGridLocation'
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
                     if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         !Next if is here to prevent more than one allocation (when one parent domain has two or more son domains)
@@ -38788,7 +38793,7 @@ do3:            do k = kbottom, KUB
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom, Gradient, Aceleration_Downscaling, Aceleration_Upscaling) &
         !$OMP PRIVATE(Gradient_Upscale, DecayTime_Upscale, TimeCoef_Upscale, TotalDecayTime, Volume_Factor) &
-        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling, DecayTime_Downscale, TimeCoef_Downscale) &
+        !$OMP PRIVATE(Fraction_Donwscaling, Fraction_Upscaling, DecayTime_Downscale, TimeCoef_Downscale)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB

@@ -69,7 +69,8 @@ Module ModuleFillMatrix
                                        GetTimeSerieTimeOfDataset,                       &
                                        GetTimeSerieDataValues,GetTimeSerieValueForIndex,&
                                         KillTimeSerie
-    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry, GetGeometrySize
+    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry, GetGeometrySize, &
+                                       ConstructFatherKGridLocation
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
@@ -7116,6 +7117,9 @@ d1:     do while (associated(CurrentHDF))
                                             OkCross = .false., OkZ = .true., OkU = .false., OkV = .false.,  &
                                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Failed to construct FatherGridLocation - Build_Upscaling - Module FillMatrix'
+        
+        call ConstructFatherKGridLocation(Me%PropertyID%ObjGeometry, Me%ObjGeometry, STAT = STAT_CALL)!Sobrinho
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 
         call AllocateTwoWayAux(Me%ObjTwoWay, Me%PropertyID%ObjTwoWay)
 

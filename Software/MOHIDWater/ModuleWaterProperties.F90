@@ -19281,14 +19281,7 @@ do1 :   do while (associated(PropertyX))
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
         FirstTime = .true.
 
-        !Me% is pointing to Son domain!
-        PropertyX => Me%FirstProperty
-        
-        if (SonWaterPropertiesID == WaterPropertiesID) then
-            CurrentTime =  PropertyX%Evolution%NextCompute
-        else
-            CurrentTime =  PropertyX%Evolution%LastCompute
-        endif
+        PropertyX => Me%FirstProperty    
 
         call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
@@ -19306,7 +19299,14 @@ do1 :   do while (associated(PropertyX))
 
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
-
+            !Next if is here because the property from the current nested domain needs to use NextCompute, 
+            !but the property in any other nested domain has already been computed and thus needs to use lastcompute
+            if (SonWaterPropertiesID == WaterPropertiesID) then
+                CurrentTime =  PropertyX%Evolution%NextCompute
+            else
+                CurrentTime =  PropertyX%Evolution%LastCompute
+            endif
+            
             call Search_PropertyFather(ObjFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)then
                 write(*,*)'Cant find property in submodel for the 2way algorithm', trim(PropertyX%ID%Name)

@@ -19,7 +19,7 @@ Module ModuleTwoWay
 
     use ModuleGlobalData
     use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize, GetGeometryAreas, &
-                                       GetGeometryKFloor
+                                       GetGeometryKFloor, GetGeometryKLink
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetConnections, &
                                        UnGetConnections, ConstructP2C_IWD, ConstructP2C_Avrg, GetGridCellArea
 
@@ -98,6 +98,7 @@ Module ModuleTwoWay
         integer, dimension(:, :   ), pointer        :: JU               => null()
         integer, dimension(:, :   ), pointer        :: IZ               => null()
         integer, dimension(:, :   ), pointer        :: JZ               => null()
+        integer, dimension(:, :, :), pointer        :: KZ               => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeU          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeV          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
@@ -202,7 +203,7 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Contructs TwoWay global pointer structure.
-    !>@param[in] ModelName, ObjTwoWayID
+    !>@param[in] ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, IntMethod, STAT
     subroutine ConstructTwoWay(ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, IntMethod, &
     STAT)
         !Arguments---------------------------------------------------------------
@@ -329,7 +330,7 @@ Module ModuleTwoWay
 
             if (.not. allocated(Me%IgnoreOBCells)) &
                 call Compute_MatrixFilterOB (NumCellsToIgnore, Me%External_Var%BoundaryPoints2D)
-
+            
             call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR02'
 
@@ -457,7 +458,7 @@ Module ModuleTwoWay
                 Me%Father%TotSonIn_2D(:,:) = 0.0
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
-                
+
                 call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
             else
                 call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
@@ -770,18 +771,20 @@ Module ModuleTwoWay
                         !Type_U
                         call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeU, InterpolMethod = InterpolMethod,&
                                                  Ilink = Me%External_Var%IU, Jlink = Me%External_Var%JU, &
-                                                 VelocityID = VelocityID, Offline = Offline)
+                                                 Klink = Me%External_Var%KZ, VelocityID = VelocityID,    &
+                                                 Offline = Offline)
                     else
                         !Type_V
                         call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeV, InterpolMethod = InterpolMethod,&
-                                                 Ilink = Me%External_Var%IV, Jlink = Me%External_Var%JV, &
-                                                 VelocityID = VelocityID, Offline = Offline)
+                                                 Ilink = Me%External_Var%IV, Jlink = Me%External_Var%JV,              &
+                                                 Klink = Me%External_Var%KZ, VelocityID = VelocityID,                 &
+                                                 Offline = Offline)
                     endif
                 else
                     !Type Z
                     call ComputeAuxMatrixes     (Volume_3D = Me%External_Var%VolumeZ, InterpolMethod = InterpolMethod,&
                                                  Ilink = Me%External_Var%IZ, Jlink = Me%External_Var%JZ, &
-                                                 Offline = Offline)
+                                                 Klink = Me%External_Var%KZ, Offline = Offline)
                 endif
             else
                 !if a 2D matrix was sent (specific for waterLevel - at least for MohidWater).
@@ -842,6 +845,9 @@ Module ModuleTwoWay
                                    ILinkU = Me%External_Var%IU, JLinkU = Me%External_Var%JU, &
                                    ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
+            
+            call GetGeometryKLink(GeometryID = Me%ObjGeometry, KLinkZ = Me%External_Var%KZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father Klink matrix'
 
             Call GetGeometryAreas(GeometryID = Me%ObjGeometry, AreaU = Me%External_Var%AreaU, &
                                   AreaV = Me%External_Var%AreaV, STAT = STAT_CALL)
@@ -996,12 +1002,13 @@ Module ModuleTwoWay
     !>@Brief
     !>Computes auxiliar matrixes for the feedback
     !>@param[in] Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Offline
-    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Offline)
+    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Klink, Offline)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                        :: interpolMethod
         real(8), dimension(:, :, :), pointer, optional, intent(IN) :: Volume_3D
         real(8), dimension(:, :),    pointer, optional, intent(IN) :: Volume_2D
-        integer, dimension(:, :), pointer, intent(IN)              :: Ilink, Jlink
+        integer, dimension(:, :),    pointer, intent(IN)           :: Ilink, Jlink
+        integer, dimension(:, :, :), pointer, optional, intent(IN) :: Klink
         integer, optional,                              intent(IN) :: VelocityID
         logical,                                        intent(IN) :: Offline
         !Local-----------------------------------------------------------------
@@ -1014,14 +1021,15 @@ Module ModuleTwoWay
                 ! Volume Weighted average
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_)then
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink,&
                                                    SonComputeFaces = Me%External_Var%ComputeFaces3D_U, Offline=Offline)
                     else
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink,&
                                                    SonComputeFaces = Me%External_Var%ComputeFaces3D_V, Offline=Offline)
                     endif
                 else
-                    call ComputeSonVolInFather   (Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Offline=Offline)
+                    call ComputeSonVolInFather   (Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink, &
+                                                  Offline = Offline)
                 endif
             else
                 Me%Father%IWDNom = 0.0
@@ -1048,32 +1056,36 @@ Module ModuleTwoWay
     !>@Brief
     !>Computes Son cells volume inside each father cell
     !>@param[in] Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces
-    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces, Offline)
+    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, Klink, SonComputeFaces, Offline)
         !Arguments--------------------------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, optional :: Volume_3D
         real(8), dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer              :: Ilink, Jlink
-        integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
+        integer, dimension(:, :, :), pointer, optional :: SonComputeFaces, Klink
         logical,                            intent(IN) :: Offline
         !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k, ifather, jfather, kfather, k_difference, CHUNK, Flag
+        integer                                 :: i, j, k, ifather, jfather, kfather, CHUNK, Flag
         !Begin------------------------------------------------------------------------------------
 
-        if (Offline) call ComputeSonVolInFather_offline(Volume_3D, Volume_2D, Ilink, Jlink)
+        if (Offline) then
+            if (present(Klink)) then
+                call ComputeSonVolInFather_offline(Volume_3D, Volume_2D, Ilink, Jlink, Klink = Klink)
+            else
+                stop 'ComputeSonVolInFather - ModuleTwoWay - Klink matrix not present'
+            endif
+        endif
 
         if (present(Volume_3D) .and. .not. offline) then
-            !account for different amount of vertical layers between domains.
-            k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+            !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
             if (present(SonComputeFaces))then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j) + SonComputeFaces(i, j, k)
-                    if (Flag == 3) then
-                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
+                    if ((Flag == 3) .and. Klink(i, j, k) /= FillValueInt) then
+                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
                         Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
                                                                         + Volume_3D(i, j, k)
                     endif
@@ -1087,8 +1099,8 @@ Module ModuleTwoWay
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j)
-                    if (Flag == 2) then
-                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
+                    if (Flag == 2 .and. Klink(i, j, k) /= FillValueInt) then
+                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
                         Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
                                                                         + Volume_3D(i, j, k)
                     endif
@@ -1117,30 +1129,32 @@ Module ModuleTwoWay
     !>@Brief
     !>Computes Son cells volume inside each father cell for offline simulations
     !>@param[in] Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces
-    subroutine ComputeSonVolInFather_offline (Volume_3D, Volume_2D, Ilink, Jlink)
+    subroutine ComputeSonVolInFather_offline (Volume_3D, Volume_2D, Ilink, Jlink, Klink)
         !Arguments--------------------------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, optional :: Volume_3D
         real(8), dimension(:, :),    pointer, optional :: Volume_2D
-        integer, dimension(:, :), pointer              :: Ilink, Jlink
+        integer, dimension(:, :),    pointer           :: Ilink, Jlink
+        integer, dimension(:, :, :), pointer, optional :: Klink
         !Local variables--------------------------------------------------------------------------
-        integer                                        :: i, j, k, ifather, jfather, kfather, k_difference, KLB, KUB
+        integer                                        :: i, j, k, ifather, jfather, kfather, KLB, KUB
         integer                                        :: CHUNK
         !Begin------------------------------------------------------------------------------------
         KLB = Me%WorkSize%KLB; KUB = Me%WorkSize%KUB
 
         if (present(Volume_3D)) then
-            !account for different amount of vertical layers between domains.
-            k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+            !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
-                Me%Father%TotSonIn(ifather,jfather,kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
-                                                            + Volume_3D(i, j, k) * Me%External_Var%WaterPoints3D(i,j,k)
+                if (Klink(i, j, k) /= FillValueInt) then
+                    ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
+                    Me%Father%TotSonIn(ifather,jfather,kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                + Volume_3D(i, j, k)                            &
+                                                                * Me%External_Var%WaterPoints3D(i,j,k)
+                endif
             enddo
             enddo
             enddo
@@ -1188,6 +1202,7 @@ Module ModuleTwoWay
                                            SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IU,                      &
                                            Jlink                = Me%External_Var%JU,                      &
+                                           Klink                = Me%External_Var%KZ,                       &
                                            DecayTime            = TimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
                                            SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
@@ -1207,6 +1222,7 @@ Module ModuleTwoWay
                                            SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IV,                      &
                                            Jlink                = Me%External_Var%JV,                      &
+                                           Klink                = Me%External_Var%KZ,                       &
                                            DecayTime            = TimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
                                            SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
@@ -1225,6 +1241,7 @@ Module ModuleTwoWay
                                       SizeSon          = Me%WorkSize,                     &
                                       Ilink            = Me%External_Var%IZ,               &
                                       Jlink            = Me%External_Var%JZ,               &
+                                      Klink            = Me%External_Var%KZ,                       &
                                       DecayTime        = TimeDecay,                  &
                                       DT               = Me%Hydro%DT,                     &
                                       SonVolInFather   = GetPointer(Me%Father%TotSonIn),           &
@@ -1284,6 +1301,7 @@ Module ModuleTwoWay
                                     SizeSon          = Me%WorkSize,                         &
                                     Ilink            = Me%External_Var%IZ,                  &
                                     Jlink            = Me%External_Var%JZ,                  &
+                                    Klink            = Me%External_Var%KZ,                  &
                                     VolumeSon        = Me%External_Var%VolumeZ,             &
                                     TotSonIn         = GetPointer(Me%Father%TotSonIn))
 
@@ -1766,71 +1784,76 @@ Module ModuleTwoWay
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR40'
             call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%JZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR50'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeU,     STAT = status)
+            
+            call UngetGeometry(Me%ObjGeometry, Me%External_Var%KZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR60'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR70'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR80'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR90'
-            call UnGetMap(Me%ObjMap, Me%External_Var%Open3D,           STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR100'
-            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
-            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
             call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaU, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110.'
             call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaV, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR123'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120.'
+            
+            call UnGetMap(Me%ObjMap, Me%External_Var%Open3D,           STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
             call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR124'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'            
+
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
 
             if (Me%Hydro%InterpolationMethod == 2) then
                 call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_U, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_V, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_Z, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_U, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_V, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_Z, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR180'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR190'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR200'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_U, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR210'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR220'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR230'
             endif
 
             !Unget father
             call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%Open3D,                STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR190'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR200'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR210'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR220'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR230'
-            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_U,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR240'
-            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_V,      STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR250'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeU,     STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeV,     STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280'
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_U,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290'
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_V,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR300'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaU,       STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR310.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaV,       STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR320.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_U,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR330.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_V,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR340.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_Z,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR285.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR350.'
             call UnGetHorizontalGrid(Me%Father%ObjHorizontalGrid, Me%Father%External_Var%AreaZ, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR360.'
 
             STAT_ = SUCCESS_
         else

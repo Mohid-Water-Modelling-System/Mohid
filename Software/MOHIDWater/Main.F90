@@ -79,7 +79,6 @@ program MohidWater
                                        ConstructFatherGridLocation,                      &
                                        GetGridFileName, GetHorizontalGridSize,           &
                                        GetNotDefinedCells, GetSonWindow
-    !use ModuleGeometry          only : ConstructFatherKGridLocation
 #ifdef OVERLAP
     use ModuleModel,            only : ConstructModel, UpdateTimeAndMapping,             &
                                        RunModel, KillModel, GetModelTimeStep,            &
@@ -143,6 +142,7 @@ program MohidWater
         integer                                             :: HorizontalGridID     = 0
         integer                                             :: HydrodynamicID       = 0
         integer                                             :: WaterpropertiesID    = 0
+        integer                                             :: GeometryID           = 0
         type (T_Time)                                       :: CurrentTime
         type (T_Time)                                       :: StartIteration
         type (T_Time)                                       :: StartFatherIteration
@@ -308,7 +308,7 @@ program MohidWater
                                            HorizontalGridID  = CurrentModel%HorizontalGridID, &
                                            HydrodynamicID    = CurrentModel%HydrodynamicID,   &
                                            WaterpropertiesID = CurrentModel%WaterpropertiesID,&
-                                           !GeometryID        = CurrentModel%GeometryID,       &
+                                           GeometryID        = CurrentModel%GeometryID,       &
                                            STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR30'
 
@@ -383,13 +383,6 @@ program MohidWater
                                                  Window = CurrentModel%FatherLink%Window,   &
                                                  STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
-                
-                !Sobrinho
-                !call ConstructFatherKGridLocation(CurrentModel%GeometryID,                  &
-                !                                 CurrentModel%FatherModel%GeometryID, &
-                !                                 Window = CurrentModel%FatherLink%Window,   &
-                !                                 STAT = STAT_CALL)
-                !if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 
             endif
             CurrentModel => CurrentModel%Next

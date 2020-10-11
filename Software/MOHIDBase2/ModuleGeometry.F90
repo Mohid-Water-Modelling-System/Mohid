@@ -99,7 +99,9 @@ Module ModuleGeometry
     private ::      ConstructKFloor
     private ::          RemoveLandBottomLayers
     private ::              Reallocate3DGeometryProp    
-    private ::              Reallocate3DGeometryPropR8    
+    private ::              Reallocate3DGeometryPropR8
+    
+    public  :: ConstructFatherKGridLocation
 
 #ifdef _USE_SEQASSIMILATION
     !Subroutine to point to memory space of geometry variables
@@ -151,6 +153,7 @@ Module ModuleGeometry
     public  :: GetGeometryMinWaterColumn
     public  :: GetLayer4Level
     public  :: UnGetGeometry
+    public  :: GetGeometryKLink
 
 #ifdef _USE_SEQASSIMILATION
     !Set subroutines usable to point variables to external variables/memory space
@@ -167,6 +170,7 @@ Module ModuleGeometry
     public  :: KillGeometry
     private ::      DeallocateInstance
     private ::      DeallocateVariables
+    private ::      KillFatherGridList
 
 #ifdef _USE_SEQASSIMILATION
     !Subroutine to point to memory space of geometry properties
@@ -176,6 +180,7 @@ Module ModuleGeometry
     !Management
     private ::      Ready
     private ::          LocateObjGeometry
+    private ::          LocateObjFather
 
     !Interfaces----------------------------------------------------------------
 
@@ -184,12 +189,14 @@ Module ModuleGeometry
     private :: UnGetGeometry3Dreal4
     private :: UnGetGeometry3Dreal8
     private :: UnGetGeometry2Dinteger
+    private :: UnGetGeometry3Dinteger
     interface  UnGetGeometry
         module procedure UnGetGeometry2Dreal4
         module procedure UnGetGeometry2Dreal8
         module procedure UnGetGeometry3Dreal4
         module procedure UnGetGeometry3Dreal8
         module procedure UnGetGeometry2Dinteger
+        module procedure UnGetGeometry3Dinteger
     end interface  UnGetGeometry
 
     private :: ConstructGeometryV1
@@ -301,9 +308,7 @@ Module ModuleGeometry
     
     !Sobrinho
     type T_FatherGrid
-        integer                            :: GridID = null_int
         integer, dimension(:,:,:), pointer :: KLinkZ => null()
-        type (T_Size2D)                    :: MPI_Window
         type (T_FatherGrid),     pointer   :: Next => null()
         type (T_FatherGrid),     pointer   :: Prev => null()
     end type T_FatherGrid
@@ -353,6 +358,9 @@ Module ModuleGeometry
         type (T_Time)                           :: ActualTime
         type (T_Size3D)                         :: Size
         type (T_Size3D)                         :: WorkSize
+        
+        type (T_FatherGrid),     pointer        :: FirstFatherGrid => null()
+        type (T_FatherGrid),     pointer        :: LastFatherGrid  => null()
 
         logical                                 :: IsWindow                 = .false. !initialization: Jauch
 
@@ -2645,52 +2653,73 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Constructs vertical cell links between model domains
-    !>@param[in] GeometryID, GeometryFatherID, Window, STAT
-    subroutine ConstructFatherKGridLocation(GeometryID, GeometryFatherID, Window, STAT)
-
+    !>@param[in] GeometryID, GeometryFatherID, STAT
+    subroutine ConstructFatherKGridLocation(GeometryID, GeometryFatherID, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID
-        integer                                   :: HorizontalGridFatherID
-        integer, optional,           intent (IN)  :: GridID
-        type (T_Size2D), optional                 :: Window
+        integer                                   :: GeometryID
+        integer                                   :: GeometryFatherID
         integer, optional,           intent (OUT) :: STAT
-
         !Local-----------------------------------------------------------------
-        type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
+        type (T_Geometry), pointer                :: ObjGeometryGridFather
         type (T_FatherGrid), pointer              :: NewFatherGrid
-        integer                                   :: STAT_, ready_, GridID_
-        logical                                   :: OkZ_, OkU_, OkV_, OkCross_
+        real                                      :: SZZ_bottom, SZZ_top
+        integer                                   :: ILB, IUB, JLB, JUB, KLB, KUB, KLB_Father, KUB_Father
+        integer                                   :: ifather, jfather, kfather, i, j, k
+        integer, dimension(:, :   ), pointer      :: IZ, JZ, WaterPoints2D
+        integer                                   :: STAT_, ready_, STAT_CALL
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)
+        call Ready(GeometryID, ready_)
 
-            if (ready_ .EQ. IDLE_ERR_) then
-                
-                Me%Distances%ZCellCenter
-
-            allocate(NewFatherGrid)
-
-            nullify(ObjHorizontalGridFather)
-            call LocateObjFather        (ObjHorizontalGridFather, HorizontalGridFatherID)
-
-            if (present(Window)) then
-                NewFatherGrid%MPI_Window = Window
-            else
-                NewFatherGrid%MPI_Window = ObjHorizontalGridFather%WorkSize
-            endif
+        if (ready_ .EQ. IDLE_ERR_) then
             
-            do k = KLB, KUB
+            ILB = Me%WorkSize%ILB  ; JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+            IUB = Me%WorkSize%IUB  ; JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+            
+            allocate(NewFatherGrid)
+            allocate(NewFatherGrid%KLinkZ(ILB:IUB, JLB:JUB, KLB:KUB))
+            NewFatherGrid%KLinkZ(:,:,:) = FillValueInt
+        
+            nullify(ObjGeometryGridFather)
+            call LocateObjFather (ObjGeometryGridFather, GeometryFatherID)
+            
+            KLB_Father = ObjGeometryGridFather%WorkSize%KLB
+            KUB_Father = ObjGeometryGridFather%WorkSize%KUB
+            
+            call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                   ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherKGridLocation - Failed to get Son-Father link matrixes'
+            
+            call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherKGridLocation - Failed to get WaterPoints2D'
+            
             do j = JLB, JUB
             do i = ILB, IUB
-                ILinkZ, ILinkZ
+                ifather = IZ(i, j)
+                jfather = JZ(i, j)
+                do k = KLB, KUB
+                    !Parent SZZ cell top face
+                    SZZ_bottom = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, KLB_father - 1)
+                    
+                    do kfather = KLB_Father, KUB_Father
+                        !Parent SZZ bottom face  
+                        SZZ_top = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, kfather)
+                        !Check if son cell k is inside parent k
+                        if (  Me%Distances%ZCellCenter(i, j, k) > -SZZ_bottom &
+                        .and. Me%Distances%ZCellCenter(i, j, k) < -SZZ_top) then
+                        
+                            NewFatherGrid%KLinkZ(i, j, k) = kfather
+                            exit
+                        else
+                            SZZ_bottom = SZZ_top
+                            !continue search
+                        endif
+                    enddo
+                enddo
             enddo
             enddo
-            enddo
-                            
-
-            call ConstructNewFatherGrid1D (ObjHorizontalGridFather, NewFatherGrid)
 
             call Add_FatherGrid         (NewFatherGrid)
 
@@ -2698,19 +2727,24 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
 
         else
             STAT_ = ready_
-        end if cd1
-
+        end if
 
         if (present(STAT)) STAT = STAT_
-
-
+    
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, IZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherKGridLocation - Failed to unget Son-Father U link matrix'
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, JZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherKGridLocation - Failed to unget Son-Father V link matrix'
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherKGridLocation - Failed to unget WaterPoints2D'
+    
     end subroutine ConstructFatherKGridLocation
     !-------------------------------------------------------------------------
     
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>This subroutine adds a new grid to the father grid List
-    !>@param[in] GeometryID, GeometryFatherID, Window, STAT
+    !>@param[in] NewFatherGrid
     subroutine Add_FatherGrid(NewFatherGrid)
         !Arguments-------------------------------------------------------------
         type(T_FatherGrid),         pointer     :: NewFatherGrid
@@ -6865,7 +6899,42 @@ i1:             if      (DepthLevel < Array1D(KUB)) then
 
     end function GetLayer4Level
 
-        !----------------------------------------------------------------------
+    !----------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>This subroutine gets KLinkZ connection matrix between child and parent domain
+    !>@param[in] GeometryID, KlinkZ, STAT
+    subroutine GetGeometryKLink (GeometryID, KlinkZ, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                        :: GeometryID
+        integer, dimension(:, :, :), pointer, optional :: KlinkZ
+        integer, optional,  intent(OUT)                :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                        :: STAT_, ready_
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GeometryID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !Klink
+            if (present(KlinkZ)) then
+                KlinkZ => Me%LastFatherGrid%KLinkZ
+                call Read_Lock(mGEOMETRY_, Me%InstanceID)
+            endif
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+    end subroutine GetGeometryKLink
+    
+    !----------------------------------------------------------------------------
 
     subroutine UnGetGeometry2Dinteger(GeometryID, Array, STAT)
 
@@ -6902,7 +6971,41 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UnGetGeometry2Dinteger
 
     !--------------------------------------------------------------------------
+    subroutine UnGetGeometry3Dinteger(GeometryID, Array, STAT)
 
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GeometryID
+        integer, pointer, dimension(:,:,:)          :: Array
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GeometryID, ready_)
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dinteger")
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine UnGetGeometry3Dinteger
+    
+    !--------------------------------------------------------------------------
     subroutine UnGetGeometry2Dreal4(GeometryID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -7333,6 +7436,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 endif
 
+                call KillFatherGridList
+                
                 call DeallocateInstance
 
                 GeometryID = 0
@@ -7590,6 +7695,35 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     end subroutine DeleteDomain
 
+    !-------------------------------------------------------------------------
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Kills father grids
+    !>@param[in] GeometryID, GeometryFatherID, Window, STAT
+    subroutine KillFatherGridList
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        type (T_FatherGrid)    , pointer    :: FatherGrid
+        integer                             :: status
+        !Begin-----------------------------------------------------------------
+        FatherGrid => Me%FirstFatherGrid
+
+        do while(associated(FatherGrid))
+            
+            if (associated(FatherGrid%KLinkZ)) then
+                deallocate(FatherGrid%KLinkZ, STAT = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; Geometry. ERR112") 
+                nullify   (FatherGrid%KLinkZ)
+            endif
+
+            FatherGrid => FatherGrid%Next
+        end do
+
+        nullify   (Me%FirstFatherGrid,Me%LastFatherGrid)
+
+    end subroutine KillFatherGridList
+
 #ifdef _USE_SEQASSIMILATION
 
     !--------------------------------------------------------------------------
@@ -7659,6 +7793,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine NullifyGeometryStatePointer
+    !---------------------------------------------------------------------------
 
 #endif _USE_SEQASSIMILATION
 
@@ -7713,6 +7848,26 @@ cd1:    if (ObjGeometry_ID > 0) then
     end subroutine LocateObjGeometry
 
     !--------------------------------------------------------------------------
+    subroutine LocateObjFather (ObjGeometry, ObjGeometryID)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Geometry), pointer            :: ObjGeometry
+        integer                               :: ObjGeometryID
+
+        !Local-----------------------------------------------------------------
+
+        ObjGeometry => FirstGeometry
+        do while (associated (ObjGeometry))
+            if (ObjGeometry%InstanceID == ObjGeometryID) exit
+            ObjGeometry => ObjGeometry%Next
+        enddo
+
+        if (.not. associated(ObjGeometry)) then
+            stop 'Geometry - LocateObjFather - ERR01'
+        endif
+
+    end subroutine LocateObjFather
+    !----------------------------------------------------------------------------
 
 end module ModuleGeometry
 

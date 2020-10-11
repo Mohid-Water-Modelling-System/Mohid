@@ -209,7 +209,6 @@ Module ModuleFunctions
     
     public  :: Upscaling_Avrg_WL
     !public  :: FeedBack_Avrg_WL
-    public  :: Mass_In_Father_Avrg_UV
     !public  :: FeedBack_Avrg_UV
     public  :: Upscaling_Avrg
     !public  :: FeedBack_Avrg
@@ -6456,8 +6455,74 @@ d5:     do k = klast + 1,KUB
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
     !>           SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
+    !subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
+    !                            SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, KLink, DecayTime, DT,       &
+    !                            SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+    !    !Arguments---------------------------------------------------------------------------------
+    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
+    !    real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
+    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, KLink
+    !    integer, dimension(:,:,:), pointer, intent(IN)    :: FatherComputeFaces3D, SonComputeFaces3D
+    !    real,    intent (IN)                              :: DecayTime, DT
+    !    real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
+    !    !Local variables -----------------------------------------------------------------------------
+    !    integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+    !                                                         KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+    !                                                         k_difference, CHUNK, Flag
+    !    real                                              :: DecayFactor
+    !    !Begin----------------------------------------------------------------------------------------
+    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+    !    !adjust to number of layers of son domain
+    !    k_difference = SizeFather%KUB - KUBSon
+    !    KLBFather = SizeFather%KLB + k_difference !Sobrinho
+    !    KUBFather = SizeFather%KUB
+    !
+    !    CHUNK = CHUNK_K(KLBSon, KUBSon)
+    !    !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+    !    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    !    do k = KLBSon, KUBSon
+    !    do j = JLBSon, JUBSon
+    !    do i = ILBSon, IUBSon
+    !        !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+    !        Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
+    !        if (Flag == 3) then
+    !            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+    !            AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
+    !                                                   SonMatrix(i, j, k) * VolumeSon(i, j, k)
+    !        endif
+    !    enddo
+    !    enddo
+    !    enddo
+    !    !$OMP END DO
+    !    !$OMP END PARALLEL
+    !
+    !    DecayFactor = DT / DecayTime
+    !
+    !    do k = KLBFather, KUBFather
+    !    do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+    !    do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+    !        Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
+    !        if (Flag == 2) then
+    !            if (SonVolInFather(i, j, k) > 0.1) then
+    !                ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+    !                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+    !                                      + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+    !                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+    !            endif
+    !        endif
+    !    enddo
+    !    enddo
+    !    enddo
+    !
+    !end subroutine FeedBack_Avrg_UV
+    !-------------------------------------------------------------------------------------
+                                
     subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
-                                SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,              &
+                                SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, KLink, DecayTime, DT,       &
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
@@ -6465,33 +6530,28 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
-        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, KLink
         integer, dimension(:,:,:), pointer, intent(IN)    :: FatherComputeFaces3D, SonComputeFaces3D
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
-                                                             k_difference, CHUNK, Flag
+                                                             KUBSon, ifather, jfather, kfather, CHUNK, Flag
         real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-        !adjust to number of layers of son domain
-        k_difference = SizeFather%KUB - KUBSon
-        KLBFather = SizeFather%KLB + k_difference !Sobrinho
-        KUBFather = SizeFather%KUB
     
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
-            if (Flag == 3) then
-                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+            if ((Flag == 3) .and. (KLink(i, j, k) /= FillValueInt)) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
@@ -6503,7 +6563,7 @@ d5:     do k = klast + 1,KUB
     
         DecayFactor = DT / DecayTime
     
-        do k = KLBFather, KUBFather
+        do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
@@ -6520,94 +6580,104 @@ d5:     do k = klast + 1,KUB
         enddo
     
     end subroutine FeedBack_Avrg_UV
-    !-------------------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Computes son volume in father cells using an volume weighted average method. routine for U/V types
-    !>@param[in] MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
-    !>ILink, JLink, VolumeSon, IgnoreOBCells
-    subroutine Mass_In_Father_Avrg_UV(MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
-        ILink, JLink, VolumeSon)
-        !Arguments---------------------------------------------------------------------------------
-        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
-        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
-        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
-        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DSon, SonComputeFaces3D
-        real,    dimension(:,:,:), pointer, intent(OUT)   :: MassInFather
-        !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
-                                                             k_difference, CHUNK, Flag
-        !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
-        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-        !adjust to number of layers of son domain
-        k_difference = SizeFather%KUB - KUBSon
-        KLBFather = SizeFather%KLB + k_difference !Sobrinho
-        KUBFather = SizeFather%KUB
-    
-        CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do k = KLBSon, KUBSon
-        do j = JLBSon, JUBSon
-        do i = ILBSon, IUBSon
-            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k)
-            if (Flag == 2) then
-                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
-                MassInFather(ifather, jfather, kfather) = MassInFather(ifather, jfather, kfather) +     &
-                                                          SonMatrix(i, j, k) * VolumeSon(i, j, k)
-            endif
-        enddo
-        enddo
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-    end subroutine Mass_In_Father_Avrg_UV
-    !!-------------------------------------------------------------------------------------
-    !           
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using an volume weighted average method. routine for Z types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, JLink, DecayTime, &
     !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
-    subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
-                             JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+    !subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, JLink, &
+    !                         KLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+    !    !Arguments---------------------------------------------------------------------------------
+    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
+    !    real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
+    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, KLink
+    !    real,    intent (IN)                              :: DecayTime, DT
+    !    real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
+    !    !Local variables -----------------------------------------------------------------------------
+    !    integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+    !                                                         KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+    !                                                         k_difference, CHUNK, Flag
+    !    real                                              :: DecayFactor
+    !    !Begin----------------------------------------------------------------------------------------
+    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+    !    !adjust to number of layers of son domain
+    !    k_difference = SizeFather%KUB - KUBSon
+    !    KLBFather = SizeFather%KLB + k_difference !Sobrinho
+    !    KUBFather = SizeFather%KUB
+    !
+    !    CHUNK = CHUNK_K(KLBSon, KUBSon)
+    !    !$OMP PARALLEL PRIVATE(i,j,k, Flag)
+    !    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    !    do k = KLBSon, KUBSon
+    !    do j = JLBSon, JUBSon
+    !    do i = ILBSon, IUBSon
+    !        !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+    !        Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
+    !        if (Flag == 2) then
+    !            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+    !            AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
+    !                                                   SonMatrix(i, j, k) * VolumeSon(i, j, k)
+    !        endif
+    !    enddo
+    !    enddo
+    !    enddo
+    !    !$OMP END DO
+    !    !$OMP END PARALLEL
+    !
+    !    DecayFactor = DT / DecayTime
+    !    do k = KLBFather, KUBFather
+    !    do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+    !    do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+    !        if (Open3DFather(i, j, k) == 1) then
+    !            if (SonVolInFather(i, j, k) > 0.1) then
+    !                ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
+    !                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+    !                                      + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+    !                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+    !            endif
+    !        endif
+    !    enddo
+    !    enddo
+    !    enddo
+    !
+    !end subroutine FeedBack_Avrg
+    !-------------------------------------------------------------------------------------
+
+
+    subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, JLink, &
+                             KLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
         real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
-        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, KLink
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
-                                                             k_difference, CHUNK, Flag
+                                                             KUBSon, ifather, jfather, kfather, CHUNK, Flag
         real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-        !adjust to number of layers of son domain
-        k_difference = SizeFather%KUB - KUBSon
-        KLBFather = SizeFather%KLB + k_difference !Sobrinho
-        KUBFather = SizeFather%KUB
-    
+        
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k, Flag)
+        !$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
-            if (Flag == 2) then
-                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+            if ((Flag == 2) .and. (KLink(i, j, k) /= FillValueInt)) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
@@ -6618,7 +6688,7 @@ d5:     do k = klast + 1,KUB
         !$OMP END PARALLEL
     
         DecayFactor = DT / DecayTime
-        do k = KLBFather, KUBFather
+        do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             if (Open3DFather(i, j, k) == 1) then
@@ -6633,16 +6703,16 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
     
-    end subroutine FeedBack_Avrg
-    !-------------------------------------------------------------------------------------
+   end subroutine FeedBack_Avrg
+    !---------------------------------------------------------------------------------------------
                              
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes son mass in each father cell. routine for Z types
     !>@param[in] SonMassInFather, SonMatrix, Open3DSon, SizeFather, SizeSon, ILink, &
-    !>JLink, VolumeSon, IgnoreOBCells
+    !>JLink, KLink, VolumeSon, IgnoreOBCells
     subroutine Upscaling_Avrg(FatherMatrix, SonMatrix, SonMask, SizeFather, SizeSon, ILink, &
-    JLink, VolumeSon, TotSonIn)
+    JLink, KLink, VolumeSon, TotSonIn)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
@@ -6650,16 +6720,13 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:,:), pointer, intent(IN)    :: TotSonIn
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
-        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask
+        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask, KLink
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, ifather, jfather, kfather, &
-                                                             k_difference, CHUNK
+                                                             KUBSon, ifather, jfather, kfather, CHUNK
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-        !adjust to number of layers of son domain
-        k_difference = SizeFather%KUB - KUBSon
     
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
@@ -6668,11 +6735,11 @@ d5:     do k = klast + 1,KUB
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            !Using multiplication instead of if because I am assuming most applications will involve using the most
-            !part of the son domain
-            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
-            FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+            if (KLink(i, j, k) /= FillValueInt) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
+                FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
+                                                            SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+            endif
         enddo
         enddo
         enddo
@@ -6698,7 +6765,7 @@ d5:     do k = klast + 1,KUB
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
     !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
     subroutine FeedBack_IWD (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, ILink, JLink, Connections, &
-                             Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+    Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
 
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
@@ -6747,7 +6814,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-                             end subroutine FeedBack_IWD
+    end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6757,8 +6824,7 @@ d5:     do k = klast + 1,KUB
     !>                         SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
     !>                           IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
-                                SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
-                                IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+    SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
         real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
@@ -6812,7 +6878,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-                                end subroutine FeedBack_IWD_UV
+    end subroutine FeedBack_IWD_UV
     !-------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -6820,7 +6886,7 @@ d5:     do k = klast + 1,KUB
     !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
     !>                         Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
-                                Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+    Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
         real,    dimension(:,:  ), pointer, intent(IN)    :: SonMatrix2D
