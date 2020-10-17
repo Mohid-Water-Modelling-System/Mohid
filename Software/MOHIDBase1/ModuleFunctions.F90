@@ -6483,7 +6483,7 @@ d5:     do k = klast + 1,KUB
         KUBFather = SizeFather%KUB
     
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
@@ -6548,7 +6548,7 @@ d5:     do k = klast + 1,KUB
         KUBFather = SizeFather%KUB
     
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
@@ -6599,7 +6599,7 @@ d5:     do k = klast + 1,KUB
         KUBFather = SizeFather%KUB
     
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k, Flag)
+        !$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon

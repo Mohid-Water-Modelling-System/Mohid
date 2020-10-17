@@ -1065,7 +1065,7 @@ Module ModuleTwoWay
             !account for different amount of vertical layers between domains.
             k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+            !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
             if (present(SonComputeFaces))then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -1133,7 +1133,7 @@ Module ModuleTwoWay
             k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+            !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
