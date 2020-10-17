@@ -1809,7 +1809,7 @@ diV:    do iV = 1, Me%TableValues
 
             nPoints = 1
             
-            do while (DX < Me%DX_Filter .or. DY < Me%DX_Filter .or. DT < Me%DT_Filter)
+            do while ((DX < Me%DX_Filter .or. DY < Me%DX_Filter) .or. DT < Me%DT_Filter)
                 
                 nPoints = nPoints + 1
                 

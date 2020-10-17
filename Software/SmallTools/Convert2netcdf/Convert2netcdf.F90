@@ -157,6 +157,7 @@ program Convert2netcdf
         real,   dimension(:), pointer                       :: DepthVector      => null()
         integer                                             :: DepthLayers      =  FillValueInt
         logical                                             :: DepthLayersON    = .false. 
+        logical                                             :: DepthInterpol    = .false. 
         
         real                                                :: Add_Factor       = FillValueReal
         real                                                :: Multiply_Factor  = FillValueReal        
@@ -164,6 +165,7 @@ program Convert2netcdf
         logical                                             :: SimpleGrid       = .false. 
         
         real                                                :: MissingValue     = FillValueReal
+        real                                                :: MissingValueIn   = FillValueReal        
 
     end type T_Conv2netcdf
 
@@ -648,6 +650,14 @@ program Convert2netcdf
             Me%DepthLayers          = iflag    
             Me%DepthLayersON        = .true.            
             
+            call GetData(Me%DepthInterpol,                                              &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DEPTH_LAYERS_INTERPOL',                        &
+                         default      = .true.,                                         & 
+                         ClientModule = 'Convert2netcdf',                               &
+                         STAT         = STAT_CALL)       
+            
         else
             Me%DepthLayersON        = .false.
         endif            
@@ -694,6 +704,15 @@ program Convert2netcdf
                      Default      = FillValueReal,                                      &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR500'
+        
+        call GetData(Me%MissingValueIn,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MISSING_VALUE_IN',                                 &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = FillValueReal,                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR505'        
         
         call GetData(Me%MohidStandardInOutUnits,                                        &
                      Me%ObjEnterData,iflag,                                             &
@@ -980,9 +999,9 @@ program Convert2netcdf
 
             call ReadWriteBathymetry
 
-            call ReadMask
-            
         endif                        
+
+        call ReadMask
 
     end subroutine ReadWriteGrid
 
@@ -1028,7 +1047,16 @@ program Convert2netcdf
         allocate(Me%Int2DOut  (1:dims(2), 1:dims(1)))
         allocate(Me%Float2DOut(1:dims(2), 1:dims(1)))
         
-        if (Me%DepthLayersON) then        
+        if (Me%DepthLayersON .and. .not. Me%DepthInterpol) then     
+            if (Me%DepthLayers /= dims(3)) then
+                write (*,*) 'Me%DepthLayersON = ON'
+                write (*,*) 'Me%DepthInterpol = ON'
+                write(*,*) 'It mandatory that Me%DepthLayers = Me%HDFFile%Size%KUB'
+                stop 'ReadSetDimensions - Convert2netcdf - ERR20'  
+            endif
+        endif
+        
+        if (Me%DepthLayersON .and. Me%DepthInterpol) then        
             allocate(Me%Float3DOut(1:dims(2), 1:dims(1), 1:Me%DepthLayers))        
             allocate(Me%Int3DOut  (1:dims(2), 1:dims(1), 1:Me%DepthLayers))
             allocate(Me%Depth3DIN (1:dims(1), 1:dims(2), 1:dims(3)))                    
@@ -1719,6 +1747,8 @@ program Convert2netcdf
                     enddo                
                     enddo
             
+                    if (.not.Me%OdysseaProject) then
+            
                     call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                          LongName, StandardName,                                &
                                          Units, ValidMin, ValidMax,                             &
@@ -1738,9 +1768,10 @@ program Convert2netcdf
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
                     
+                    endif
                 else
                 
-                    if (Me%DepthLayersON) then
+                    if (Me%DepthLayersON .and. Me%DepthInterpol) then
                     
                         call ReadDepthIn3D(1)
                     
@@ -1778,6 +1809,8 @@ program Convert2netcdf
                         enddo                    
                     endif
                     
+                    if (.not.Me%OdysseaProject) then
+                    
                     call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                          LongName, StandardName,                                &
                                          Units, ValidMin, ValidMax,                             &
@@ -1797,6 +1830,7 @@ program Convert2netcdf
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
                 
+                    endif                
                 
                 endif                    
 
@@ -1820,6 +1854,8 @@ program Convert2netcdf
                 enddo                
                 enddo                
 
+                if (.not.Me%OdysseaProject) then
+
                 call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName, LongName,          &
                                      StandardName, Units, ValidMin, ValidMax,               &
                                      MinValue, MaxValue, MissingValue, Int2D = Me%Int2DOut)
@@ -1838,6 +1874,7 @@ program Convert2netcdf
                                       STAT          = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR90'
 
+            endif
             endif
 
         else
@@ -2543,12 +2580,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                 endif
                 
-                if(Float2D(j,i) < FillValueReal/2.) then
+                !if(Float2D(j,i) < FillValueReal/2.) then
+                if(Float2D(j,i) == Me%MissingValueIn) then
                     Float2D(j,i) = Me%MissingValue
                 endif
                 
                 if (Me%HDFFile%ImposeMask .or. Me%IsMapping) then
-                    if (Me%Int2DOut(j,i) == 0) Float2D(j,i) = Me%MissingValue             
+                    if (Me%Int2DOut(j,i) == 0) then
+                        Float2D(j,i) = Me%MissingValue             
+                    endif
                 endif                    
 
             enddo
@@ -2575,12 +2615,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 endif
                 
                 
-                if(Float3D(j,i,k) < FillValueReal/2.) then
+                !if(Float3D(j,i,k) < FillValueReal/2.) then
+                if(Float3D(j,i,k) == Me%MissingValueIn) then
                     Float3D(j,i,k) = Me%MissingValue
                 endif
                 
                 if (Me%HDFFile%ImposeMask .or. Me%IsMapping) then
-                    if (Me%Int3DOut(j,i,k) == 0) Float3D(j,i,k) = Me%MissingValue             
+                    if (Me%Int3DOut(j,i,k) == 0) then
+                        Float3D(j,i,k) = Me%MissingValue             
+                    endif
                 endif                                    
 
             enddo
@@ -2954,6 +2997,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               ValidMax      = ValidMax,                 &
                                               MinValue      = MinValue,                 &
                                               MaxValue      = MaxValue,                 &
+                                              MissingValue  = MissingValue,             &
                                               OutputNumber  = item,                     &
                                               Array2D       = Me%Float2DOut,            &
                                               STAT          = STAT_CALL)
@@ -2972,6 +3016,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               ValidMax      = ValidMax,                 &
                                               MinValue      = MinValue,                 &
                                               MaxValue      = MaxValue,                 &
+                                              MissingValue  = MissingValue,             &
                                               Array2D       = Me%Float2DOut,            &
                                               STAT          = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) then
@@ -2988,7 +3033,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     endif                     
                     
 
-                    if (Me%DepthLayersON) then                       
+                    if (Me%DepthLayersON  .and. Me%DepthInterpol) then                       
                     
                         call ReadDepthIn3D(item)
                         
@@ -3085,6 +3130,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               ValidMax      = ValidMax,                 &
                                               MinValue      = MinValue,                 &
                                               MaxValue      = MaxValue,                 &
+                                              MissingValue  = MissingValue,             &
                                               OutputNumber  = item,                     &
                                               Array3D       = Me%Float3DOut,            &
                                               STAT          = STAT_CALL)
@@ -3103,6 +3149,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               ValidMax      = ValidMax,                 &
                                               MinValue      = MinValue,                 &
                                               MaxValue      = MaxValue,                 &
+                                              MissingValue  = MissingValue,             &
                                               Array3D       = Me%Float3DOut,            &
                                               STAT          = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) then

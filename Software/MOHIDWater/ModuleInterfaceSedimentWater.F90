@@ -83,7 +83,7 @@
 !   UNITS                       : char              -           !Property units
 !   DESCRIPTION                 : char              -           !Small description of the property
 !   See module FillMatrix       : -                 -           !Initialization of concentration values
-!                                                               !NOTE: Dissolved properties don�t have mass available
+!                                                               !NOTE: Dissolved properties don?t have mass available
 !   MASS_LIMITATION             : 0/1               -           !Property mass is finite
 !   MASS_MIN                    : real         [1e-6 kg/m2]     !Minimum mass allowed
 !   PARTICULATE                 : 0/1              [0]          !Property physical state: 0 - Dissolved ; 1 - Particulate
@@ -5209,9 +5209,9 @@ do1 :       do while (associated(Property))
 
                 !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                ! Se alisa cantos com terra. Aumenta artificialmente a tens�o de corte
+                ! Se alisa cantos com terra. Aumenta artificialmente a tens?o de corte
                 ! nos cantos com terra para evitar que estes se tornem em zonas
-                ! de deposi��o acentuada
+                ! de deposi??o acentuada
                 do j = JLB, JUB
                 do i = ILB, IUB
 
@@ -5520,9 +5520,9 @@ do2:            do i = ILB, IUB
 
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        ! Se alisa cantos com terra. Aumenta artificialmente a tens�o de corte
+        ! Se alisa cantos com terra. Aumenta artificialmente a tens?o de corte
         ! nos cantos com terra para evitar que estes se tornem em zonas
-        ! de deposi��o acentuada
+        ! de deposi??o acentuada
         do j = JLB, JUB
         do i = ILB, IUB
 
@@ -10488,5 +10488,5 @@ end module ModuleInterfaceSedimentWater
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T?cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------

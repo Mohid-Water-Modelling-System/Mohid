@@ -206,13 +206,13 @@ Module ModuleFunctions
     public  :: FeedBack_IWD
     public  :: FeedBack_IWD_UV
     public  :: FeedBack_IWD_WL
-    
+
     public  :: Upscaling_Avrg_WL
     !public  :: FeedBack_Avrg_WL
     !public  :: FeedBack_Avrg_UV
     public  :: Upscaling_Avrg
     !public  :: FeedBack_Avrg
-    
+
 
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -6427,7 +6427,7 @@ d5:     do k = klast + 1,KUB
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
         KUBSon = SizeSon%KUB
-    
+
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             ifather = ILink(i, j) ; jfather = JLink(i, j)
@@ -6435,7 +6435,7 @@ d5:     do k = klast + 1,KUB
                                              + SonMatrix2D(i, j) * VolumeSon2D(i, j) * SonMask(i, j, KUBSon)
         enddo
         enddo
-        
+
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             if (TotSonIn2D(i, j) > 0) then
@@ -6444,9 +6444,9 @@ d5:     do k = klast + 1,KUB
             endif
         enddo
         enddo
-        
+
     end subroutine Upscaling_Avrg_WL
-                                
+
 
     !--------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6520,7 +6520,7 @@ d5:     do k = klast + 1,KUB
     !
     !end subroutine FeedBack_Avrg_UV
     !-------------------------------------------------------------------------------------
-                                
+
     subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
                                 SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, KLink, DecayTime, DT,       &
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
@@ -6541,7 +6541,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-    
+
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6560,9 +6560,9 @@ d5:     do k = klast + 1,KUB
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-    
+
         DecayFactor = DT / DecayTime
-    
+
         do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
@@ -6578,7 +6578,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-    
+
     end subroutine FeedBack_Avrg_UV
 
     !>@author Joao Sobrinho Maretec
@@ -6667,7 +6667,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-        
+
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6686,7 +6686,7 @@ d5:     do k = klast + 1,KUB
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-    
+
         DecayFactor = DT / DecayTime
         do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -6702,10 +6702,10 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-    
+
    end subroutine FeedBack_Avrg
     !---------------------------------------------------------------------------------------------
-                             
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes son mass in each father cell. routine for Z types
@@ -6727,7 +6727,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-    
+
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -6745,7 +6745,7 @@ d5:     do k = klast + 1,KUB
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-        
+
         do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
@@ -6758,7 +6758,7 @@ d5:     do k = klast + 1,KUB
         enddo
     end subroutine Upscaling_Avrg
     !---------------------------------------------------------------------------------------------------
-                             
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
@@ -13637,7 +13637,7 @@ D2:     do I=imax-1,2,-1
             dj      = 1
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
         endif
-        
+
         call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
 
     end subroutine SearchDischargeFace
@@ -13668,9 +13668,9 @@ D2:     do I=imax-1,2,-1
                 endif
             endif
         enddo
-        
+
         if (StartIndex /= 0) then
-            
+
             if (di /=0) IJFather = IFather ! means we are searching the north/South direction
             if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
             Aux2 = Aux
@@ -13698,7 +13698,7 @@ D2:     do I=imax-1,2,-1
     end subroutine SearchFace
 
     !-------------------------------------------------------------------------------------
-    
+
     !-------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -13803,9 +13803,9 @@ D2:     do I=imax-1,2,-1
             Flow(line) = Flow(line) + F_South + F_North
         enddo
     end subroutine DischargeFluxV
-    
+
     !---------------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - V direction
@@ -13823,14 +13823,14 @@ D2:     do I=imax-1,2,-1
         real                                                     :: Est_VelFather_East, Est_VelFather_West
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
-        
+
         if (CoefCold < 1) then
-                        
+
             do line = 1, MaxSize
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-                        
+
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
                 Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
                 Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
@@ -13845,7 +13845,7 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-                        
+
                 TimeCoef = VelDT / DecayTime(i, j)
                 Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
                 Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
@@ -13854,17 +13854,17 @@ D2:     do I=imax-1,2,-1
                 F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
 
                 Flow(line) = F_East + F_West
-            enddo   
+            enddo
         endif
-        
+
     end subroutine Offline_DischargeFluxU
-    
+
     !---------------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - U direction
-    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
@@ -13878,13 +13878,13 @@ D2:     do I=imax-1,2,-1
         real                                                 :: Est_VelFather_South, Est_VelFather_North
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
-        
+
         if (CoefCold < 1) then
             do line = 1, MaxSize
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-                        
+
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
                 Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
                 Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
@@ -13899,7 +13899,7 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-                        
+
                 TimeCoef = VelDT / DecayTime(i, j)
                 Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
                 Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
@@ -13910,7 +13910,7 @@ D2:     do I=imax-1,2,-1
                 Flow(line) = Flow(line) + F_South + F_North
             enddo
         endif
-        
+
     end subroutine Offline_DischargeFluxV
 
     !>@author Joao Sobrinho Maretec
@@ -13954,7 +13954,7 @@ D2:     do I=imax-1,2,-1
         enddo
     end subroutine UpdateDischargeConnections
     !------------------------------------------------------------------------------
-    
+
     logical function DischargeIsAssociated (Connections, IFather, JFather)
         !Arguments------------------------------------------------------------------
         integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
