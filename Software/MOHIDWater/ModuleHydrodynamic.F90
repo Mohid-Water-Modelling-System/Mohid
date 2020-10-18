@@ -373,8 +373,14 @@ Module ModuleHydrodynamic
     private ::              Compute_Velocity
     private ::                  Velocity_ExplicitForces
     private ::                      AddBarotropicForce
-    private ::                      AddWaterPressure_acceleration_S !South direction
+    private ::                      AddWaterPressure_acceleration_S ! South direction
     private ::                      AddWaterPressure_acceleration_W ! West direction
+    private ::                      WatPress_TidePot_AtmPress_S ! South direction
+    private ::                      WatPress_TidePot_S ! South direction
+    private ::                      WatPress_AtmPress_S ! South direction
+    private ::                      WatPress_TidePot_AtmPress_W ! West direction
+    private ::                      WatPress_TidePot_W ! West direction
+    private ::                      WatPress_AtmPress_W ! West direction
     private ::                      AddTidePotential
     private ::                      AddAtmPressure
     private ::                  Velocity_VerticalAdvection
@@ -43586,14 +43592,26 @@ dok:            do k = kbottom + 1, KUB
         !Begin---------------------------------------------------------------------
 
         if (Me%Direction%di == 1)then
-            call AddWaterPressure_acceleration_S (PressureBackwardInTime)
+            if (Me%TidePotential%Compute .and. Me%ComputeOptions%AtmPressure) then
+                call WatPress_TidePot_AtmPress_S (PressureBackwardInTime)
+            elseif (Me%TidePotential%Compute) then
+                call WatPress_TidePot_S (PressureBackwardInTime)
+            elseif (Me%ComputeOptions%AtmPressure) then
+                call WatPress_AtmPress_S (PressureBackwardInTime)
+            else
+                call AddWaterPressure_acceleration_S (PressureBackwardInTime)
+            endif
         else
-            call AddWaterPressure_acceleration_W (PressureBackwardInTime)
+            if (Me%TidePotential%Compute .and. Me%ComputeOptions%AtmPressure) then
+                call WatPress_TidePot_AtmPress_W (PressureBackwardInTime)
+            elseif (Me%TidePotential%Compute) then
+                call WatPress_TidePot_W (PressureBackwardInTime)
+            elseif (Me%ComputeOptions%AtmPressure) then
+                call WatPress_AtmPress_W (PressureBackwardInTime)
+            else
+                call AddWaterPressure_acceleration_W (PressureBackwardInTime)
+            endif
         endif
-
-        if (Me%TidePotential%Compute) call AddTidePotential
-
-        if (Me%ComputeOptions%AtmPressure) call AddAtmPressure
 
     end subroutine AddBarotropicForce
 
@@ -43609,7 +43627,7 @@ dok:            do k = kbottom + 1, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient, WaterPressure_Velocity, Alpha
+        real                               :: WaterPressure_Acceleration, DT_Velocity, Alpha
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -43638,7 +43656,7 @@ dok:            do k = kbottom + 1, KUB
 
         if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
 
-            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
@@ -43648,18 +43666,18 @@ dok:            do k = kbottom + 1, KUB
 
                         !Aceleration due to barotropic water Pressure
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        WaterPressure_Aceleration  = Gravity * (WaterLevel_New(i - 1, j) - &
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - &
                                                         WaterLevel_New(i, j)) / DZX_ZY(i - 1, j)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m]
-                        WaterPressure_Aceleration = WaterPressure_Aceleration +                               &
+                        WaterPressure_Acceleration = WaterPressure_Acceleration +                               &
                                                 (PressureCorrect(i - 1, j, k) - PressureCorrect(i , j , k)) / &
                                                 DZX_ZY(i - 1, j)
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                     enddo
                 endif
             enddo
@@ -43668,24 +43686,24 @@ dok:            do k = kbottom + 1, KUB
             !$OMP END PARALLEL
         else
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient, WaterPressure_Velocity)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
 
-                        SurfaceGradient = WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)
                         !Aceleration due to barotropic water Pressure
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i - 1, j)
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                              / DZX_ZY(i - 1, j)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Velocity  = Alpha * WaterPressure_Aceleration * DT_Velocity
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
                         kbottom = KFloor_UV(i, j)
 
                         do  k = kbottom, KUB
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + WaterPressure_Velocity
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                         enddo
                     endif
                 enddo
@@ -43693,21 +43711,21 @@ dok:            do k = kbottom + 1, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k, WaterPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
-                        SurfaceGradient = WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)
                         !Aceleration due to barotropic water Pressure
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i - 1, j)
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                              / DZX_ZY(i - 1, j)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                     endif
                 enddo
                 enddo
@@ -43720,7 +43738,382 @@ dok:            do k = kbottom + 1, KUB
         nullify(TiCoef_3D, WaterLevel_New, PressureCorrect, ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
 
     end subroutine AddWaterPressure_acceleration_S
+    !------------------------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds water pressure, tide potential and atmospheric pressure forces to TiCoef_3D - direction North-South
+    subroutine WatPress_TidePot_AtmPress_S (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, TidePotentialLevel, AtmPressure
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, TidePotential_Acceleration, &
+                                              AtmPressure_Acceleration, Barotropic_Acceleration, &
+                                              DT_Velocity, AtmGradient, Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        TidePotentialLevel      => Me%Forces%TidePotentialLevel
+        AtmPressure             => Me%External_Var%AtmosphericPressure
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        DT_Velocity = Me%Velocity%DT
+        Alpha = Me%TidePotential%Alpha
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i-1, j) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                    !Atmospheric pressure gradient
+                    !M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i - 1, j, k) - PressureCorrect(i , j , k))   &
+                                                    / DZX_ZY(i - 1, j)
+
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration &
+                                                + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                
+                    WaterPressure_Acceleration = WaterPressure_Acceleration * Alpha
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i-1, j) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                    !Atmospheric pressure gradient
+                    !M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                
+                    do  k = kbottom, KUB
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration &
+                                                + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+        
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, TidePotentialLevel, AtmPressure)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+        
+    end subroutine WatPress_TidePot_AtmPress_S
+    !---------------------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds water pressure and tide potential pressure forces to TiCoef_3D - direction North-South
+    Subroutine WatPress_TidePot_S (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, TidePotentialLevel
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, Barotropic_Acceleration, Barotropic_Velocity, &
+                                              TidePotential_Acceleration, DT_Velocity, Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        TidePotentialLevel      => Me%Forces%TidePotentialLevel
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        DT_Velocity = Me%Velocity%DT
+        Alpha = Me%TidePotential%Alpha
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1,  j)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i-1, j) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i - 1, j, k) - PressureCorrect(i , j , k))   &
+                                                    / DZX_ZY(i - 1, j)
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, Barotropic_Velocity)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration   = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                
+                    WaterPressure_Acceleration   = WaterPressure_Acceleration * Alpha
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i-1, j) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                    
+                    Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration
+                    
+                    Barotropic_Velocity = DT_Velocity * Barotropic_Acceleration
+                    
+                    kbottom = KFloor_UV(i, j)
+                    do  k = kbottom, KUB
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + Barotropic_Velocity
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, TidePotentialLevel)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+
+    end subroutine WatPress_TidePot_S
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds water pressure and atmospheric pressure forces to TiCoef_3D - direction North-Soouth
+    subroutine WatPress_AtmPress_S (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, AtmPressure
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, AtmPressure_Acceleration, &
+                                              Barotropic_Acceleration, DT_Velocity, AtmGradient, &
+                                              Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        AtmPressure             => Me%External_Var%AtmosphericPressure
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        DT_Velocity = Me%Velocity%DT
+        Alpha = Me%TidePotential%Alpha
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration,  Barotropic_Acceleration, &
+            !$OMP                  AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Atmospheric pressure gradient
+                    !M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i - 1, j, k) - PressureCorrect(i , j , k))   &
+                                                    / DZX_ZY(i - 1, j)
+
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, Barotropic_Acceleration, &
+            !$OMP                  AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration   = Gravity * (WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i - 1, j)
+                
+                    WaterPressure_Acceleration = WaterPressure_Acceleration * Alpha
+                    
+                    !Atmospheric pressure gradient [M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                
+                    do  k = kbottom, KUB
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+        
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, AtmPressure)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+        
+    end subroutine WatPress_AtmPress_S
+    !----------------------------------------------------------------------------------------
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Adds AddWaterPressure_acceleration to TiCoef_3D - direction East-West
@@ -43733,7 +44126,7 @@ dok:            do k = kbottom + 1, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient, WaterPressure_Velocity, Alpha
+        real                               :: WaterPressure_Acceleration, DT_Velocity, Alpha
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -43760,28 +44153,28 @@ dok:            do k = kbottom + 1, KUB
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
-            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 kbottom = KFloor_UV(i, j)
                 if (ComputeFaces3D_UV(i, j, KUB) == 1) then
                     do  k = kbottom, KUB
-
-                        SurfaceGradient = WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)
+                        
                         !Aceleration due to barotropic water Pressure
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                             / DZX_ZY(i, j - 1)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m]
-                        WaterPressure_Aceleration = WaterPressure_Aceleration +                               &
-                                                (PressureCorrect(i, j - 1, k) - PressureCorrect(i , j, k)) / &
-                                                DZX_ZY(i, j - 1)
+                        WaterPressure_Acceleration = WaterPressure_Acceleration &
+                                                  + (PressureCorrect(i, j - 1, k) - PressureCorrect(i , j, k)) &
+                                                  / DZX_ZY(i, j - 1)
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                     enddo
                 endif
             enddo
@@ -43790,26 +44183,23 @@ dok:            do k = kbottom + 1, KUB
             !$OMP END PARALLEL
         else
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient, WaterPressure_Velocity)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
 
-                        SurfaceGradient = WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)
-
                         !Aceleration due to barotropic water Pressure
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                             / DZX_ZY(i, j - 1)
 
-                        !Deformation "crosta terrestre" - Tide Potential
-                        ![m/s]                     =                                     [m/s^2]        *    s
-                        WaterPressure_Velocity  = Alpha * WaterPressure_Aceleration * DT_Velocity
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
                         kbottom = KFloor_UV(i, j)
 
                         do  k = kbottom, KUB
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + WaterPressure_Velocity
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                         enddo
                     endif
                 enddo
@@ -43817,23 +44207,22 @@ dok:            do k = kbottom + 1, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k, WaterPressure_Aceleration, SurfaceGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k, WaterPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
 
-                            SurfaceGradient = WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)
+                        !Aceleration due to barotropic water Pressure
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                                / DZX_ZY(i, j - 1)
 
-                            !Aceleration due to barotropic water Pressure
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
+                        !Deformation "crosta terrestre" - Tide Potential
+                        WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
 
-                            !Deformation "crosta terrestre" - Tide Potential
-                            WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
-
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Acceleration
                     endif
                 enddo
                 enddo
@@ -43850,6 +44239,380 @@ dok:            do k = kbottom + 1, KUB
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
+    !> Adds water pressure, tide potential and atmospheric pressure forces to TiCoef_3D - direction West-East
+    subroutine WatPress_TidePot_AtmPress_W (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, TidePotentialLevel, AtmPressure
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, TidePotential_Acceleration, &
+                                              AtmPressure_Acceleration, Barotropic_Acceleration, &
+                                              DT_Velocity, AtmGradient, Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        TidePotentialLevel      => Me%Forces%TidePotentialLevel
+        AtmPressure             => Me%External_Var%AtmosphericPressure
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        DT_Velocity = Me%Velocity%DT
+        Alpha = Me%TidePotential%Alpha
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i, j-1) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i, j-1)
+                    !Atmospheric pressure gradient
+                    !M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i,  j - 1) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i,  j - 1, k) - PressureCorrect(i , j , k))   &
+                                                    / DZX_ZY(i,  j - 1)
+
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i,  j - 1))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration &
+                                                + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration   = Gravity * (WaterLevel_New(i,  j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+                
+                    WaterPressure_Acceleration = WaterPressure_Acceleration * Alpha
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i, j-1) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+                    
+                    !Atmospheric pressure gradient [M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i,  j - 1) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                
+                    do  k = kbottom, KUB
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i,  j - 1))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration &
+                                                + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+        
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, TidePotentialLevel, AtmPressure)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+        
+    end subroutine WatPress_TidePot_AtmPress_W
+    !--------------------------------------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds water pressure and tide potential forces to TiCoef_3D - direction West-East
+    Subroutine WatPress_TidePot_W (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, TidePotentialLevel
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, Barotropic_Acceleration, Barotropic_Velocity, &
+                                              TidePotential_Acceleration, DT_Velocity, Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+        
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        TidePotentialLevel      => Me%Forces%TidePotentialLevel
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        Alpha = Me%TidePotential%Alpha 
+        DT_Velocity = Me%Velocity%DT
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i, j-1) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i, j-1)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i,  j - 1, k) - PressureCorrect(i , j , k))  &
+                                                    / DZX_ZY(i,  j - 1)
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, TidePotential_Acceleration, &
+            !$OMP                   Barotropic_Acceleration, Barotropic_Velocity)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration   = Gravity * (WaterLevel_New(i,  j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+                
+                    WaterPressure_Acceleration   = WaterPressure_Acceleration * Alpha
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotential_Acceleration  = - Gravity * (TidePotentialLevel(i, j-1) - TidePotentialLevel(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+                    
+                    Barotropic_Acceleration = WaterPressure_Acceleration + TidePotential_Acceleration
+                    
+                    Barotropic_Velocity = DT_Velocity * Barotropic_Acceleration
+                    
+                    kbottom = KFloor_UV(i, j)
+                    do  k = kbottom, KUB
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + Barotropic_Velocity
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, TidePotentialLevel)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+        
+    end subroutine WatPress_TidePot_W
+    !------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds water pressure and atmospheric pressure forces to TiCoef_3D - direction West-East
+    subroutine WatPress_AtmPress_W (PressureBackwardInTime)
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, PressureCorrect
+        real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New, AtmPressure
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+        real                               :: WaterPressure_Acceleration, AtmPressure_Acceleration, &
+                                              Barotropic_Acceleration, DT_Velocity, AtmGradient, &
+                                              Alpha
+        integer                            :: I, J, K, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !$ integer                            :: CHUNK
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+
+        TiCoef_3D               => Me%Coef%D3%Ti
+        WaterLevel_New          => Me%WaterLevel%New
+        AtmPressure             => Me%External_Var%AtmosphericPressure
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+        
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        
+        DT_Velocity = Me%Velocity%DT
+        Alpha = Me%TidePotential%Alpha
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration,  Barotropic_Acceleration, &
+            !$OMP                  AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration  = Gravity * (WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Acceleration  = Alpha * WaterPressure_Acceleration
+                    
+                    !Atmospheric pressure gradient
+                    !M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i,  j - 1) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                    
+                    do  k = kbottom, KUB
+                        ![m/s^2]                    = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Acceleration  = WaterPressure_Acceleration                                    &
+                                                    + (PressureCorrect(i,  j - 1, k) - PressureCorrect(i , j , k))   &
+                                                    / DZX_ZY(i,  j - 1)
+
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i,  j - 1))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Acceleration, Barotropic_Acceleration, &
+            !$OMP                  AtmPressure_Acceleration, AtmGradient)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                    !Aceleration due to barotropic water Pressure
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Acceleration   = Gravity * (WaterLevel_New(i,  j - 1) - WaterLevel_New(i, j)) &
+                                                / DZX_ZY(i,  j - 1)
+                
+                    WaterPressure_Acceleration = WaterPressure_Acceleration * Alpha
+                    
+                    !Atmospheric pressure gradient [M*m/s^2/m^2]
+                    AtmGradient = AtmPressure(i,  j - 1) - AtmPressure(i, j)
+                
+                    kbottom = KFloor_UV(i, j)
+                
+                    do  k = kbottom, KUB
+                        !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
+                        AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i,  j - 1))
+                            
+                        AtmPressure_Acceleration = AtmPressure_Acceleration * Me%ComputeOptions%AtmosphereCoef
+                        
+                        Barotropic_Acceleration = WaterPressure_Acceleration + AtmPressure_Acceleration
+                        
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Acceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+        
+        nullify(TiCoef_3D)
+        nullify(WaterLevel_New, AtmPressure)
+        nullify(PressureCorrect)
+        nullify(ComputeFaces3D_UV, KFloor_UV, DZX_ZY)
+        
+    end subroutine WatPress_AtmPress_W
+    !----------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
     !> Adds TidePotential to TiCoef_3D
     Subroutine AddTidePotential
         !Arguments------------------------------------------------------------
@@ -43858,7 +44621,7 @@ dok:            do k = kbottom + 1, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, TidePotentialLevel
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: DT_Velocity, TidePotentialAceleration, TPGradient
+        real                               :: DT_Velocity, TidePotential_Acceleration
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -43880,42 +44643,41 @@ dok:            do k = kbottom + 1, KUB
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotential_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
 
                         kbottom = KFloor_UV(i, j)
-
-                        TPGradient = TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)
                         !Aceleration due the tide potential
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        TidePotentialAceleration = - Gravity * TPGradient / DZX_ZY(i - 1, j)
-                        TidePotentialAceleration = TidePotentialAceleration * DT_Velocity
+                        TidePotential_Acceleration = - Gravity &
+                                                 * (TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)) &
+                                                 / DZX_ZY(i - 1, j)
 
                         do  k = kbottom, KUB
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + TidePotentialAceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotential_Acceleration
                         enddo
-
                     endif
                 enddo
                 enddo
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k,TidePotential_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
-                            TPGradient = TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)
-                            !Aceleration due the tide potential
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i - 1, j)
+                        !Aceleration due the tide potential
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        TidePotential_Acceleration = - Gravity &
+                                                  * (TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)) &
+                                                  / DZX_ZY(i - 1, j)
 
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotentialAceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotential_Acceleration
                     endif
                 enddo
                 enddo
@@ -43926,20 +44688,21 @@ dok:            do k = kbottom + 1, KUB
 
         else
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotential_Acceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
                         kbottom = KFloor_UV(i, j)
 
-                        TPGradient = TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)
                         !Aceleration due the tide potential
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i, j - 1)
-                        TidePotentialAceleration   = TidePotentialAceleration * DT_Velocity
+                        TidePotential_Acceleration   = - Gravity &
+                                                    * (TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)) &
+                                                    / DZX_ZY(i, j - 1)
+                        
                         do  k = kbottom, KUB
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) +  TidePotentialAceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotential_Acceleration
                         enddo
                     endif
                 enddo
@@ -43947,19 +44710,20 @@ dok:            do k = kbottom + 1, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k, TidePotential_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
 
-                        TPGradient = TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)
                         !Aceleration due the tide potential
                         ![m/s^2]                   = [m/s^2] * [m] / [m]
-                        TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i, j - 1)
+                        TidePotential_Acceleration   = - Gravity &
+                                                    * (TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)) &
+                                                    / DZX_ZY(i, j - 1)
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotentialAceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotential_Acceleration
                     endif
                 enddo
                 enddo
@@ -43985,7 +44749,7 @@ dok:            do k = kbottom + 1, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, AtmPressure
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: DT_Velocity, AtmosphericPressure_Aceleration, AtmGradient, Aux
+        real                               :: DT_Velocity, AtmPressure_Acceleration, AtmGradient
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         !$ integer                            :: CHUNK
@@ -44007,23 +44771,23 @@ dok:            do k = kbottom + 1, KUB
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmPressure_Acceleration, AtmGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        
                         AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
+                        
                         do  k = kbottom, KUB
-                            Aux         = Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j)
-                        !Aceleration due to Atmospheric Pressure
+                            !Aceleration due to Atmospheric Pressure
                             ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
-                            AtmosphericPressure_Aceleration = AtmGradient / Aux
+                            AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
 
-                            AtmosphericPressure_Aceleration = Me%ComputeOptions%AtmosphereCoef * &
-                                                                AtmosphericPressure_Aceleration
+                            AtmPressure_Acceleration = Me%ComputeOptions%AtmosphereCoef * AtmPressure_Acceleration
 
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmosphericPressure_Aceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmPressure_Acceleration
                         enddo
                     endif
                 enddo
@@ -44031,22 +44795,20 @@ dok:            do k = kbottom + 1, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
-                        AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
-                        Aux         = Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j)
                         !Aceleration due to Atmospheric Pressure
                         ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
-                        AtmosphericPressure_Aceleration = AtmGradient / Aux
+                        AtmPressure_Acceleration = (AtmPressure(i - 1, j) - AtmPressure(i, j)) &
+                                                        / (Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j))
 
-                        AtmosphericPressure_Aceleration = Me%ComputeOptions%AtmosphereCoef * &
-                                                            AtmosphericPressure_Aceleration
+                        AtmPressure_Acceleration = Me%ComputeOptions%AtmosphereCoef * AtmPressure_Acceleration
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmosphericPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmPressure_Acceleration
                     endif
                 enddo
                 enddo
@@ -44057,7 +44819,7 @@ dok:            do k = kbottom + 1, KUB
 
         else
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmPressure_Acceleration, AtmGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -44065,16 +44827,14 @@ dok:            do k = kbottom + 1, KUB
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
                         AtmGradient = AtmPressure(i, j - 1) - AtmPressure(i, j)
                         do  k = kbottom, KUB
-                            Aux = Me%FaceDensity(i, j, k) * DZX_ZY(i, j - 1)
 
                         !Aceleration due to Atmospheric Pressure
                             ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m]
-                            AtmosphericPressure_Aceleration = AtmGradient / Aux
+                            AtmPressure_Acceleration = AtmGradient / (Me%FaceDensity(i, j, k) * DZX_ZY(i, j - 1))
 
-                            AtmosphericPressure_Aceleration = Me%ComputeOptions%AtmosphereCoef * &
-                                                                AtmosphericPressure_Aceleration
+                            AtmPressure_Acceleration = Me%ComputeOptions%AtmosphereCoef * AtmPressure_Acceleration
 
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmosphericPressure_Aceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmPressure_Acceleration
                         enddo
                     endif
                 enddo
@@ -44082,23 +44842,20 @@ dok:            do k = kbottom + 1, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmPressure_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (ComputeFaces3D_UV(i, j, k) == 1) then
-                        AtmGradient = AtmPressure(i, j - 1) - AtmPressure(i, j)
-                        Aux = Me%FaceDensity(i, j, k) * DZX_ZY(i, j - 1)
-
                         !Aceleration due to Atmospheric Pressure
                         ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m]
-                        AtmosphericPressure_Aceleration = AtmGradient / Aux
+                        AtmPressure_Acceleration = (AtmPressure(i, j - 1) - AtmPressure(i, j)) &
+                                                        / (Me%FaceDensity(i, j, k) * DZX_ZY(i, j - 1))
 
-                        AtmosphericPressure_Aceleration = Me%ComputeOptions%AtmosphereCoef * &
-                                                            AtmosphericPressure_Aceleration
+                        AtmPressure_Acceleration = Me%ComputeOptions%AtmosphereCoef * AtmPressure_Acceleration
 
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmosphericPressure_Aceleration
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * AtmPressure_Acceleration
                     endif
                 enddo
                 enddo

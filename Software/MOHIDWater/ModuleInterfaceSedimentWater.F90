@@ -8670,7 +8670,8 @@ subroutine BenthicEcology_Processes
                                                                   PropertyX%Evolution%DTInterval)
 
                                     call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                                    if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                                    if(STAT_CALL .ne. SUCCESS_) &
+                                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
 
                                    endif
                             end if
