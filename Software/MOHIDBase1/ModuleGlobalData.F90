@@ -1801,6 +1801,7 @@ Module ModuleGlobalData
     !Interpolation 2D
     integer, parameter                                      :: Bilinear2D_         = 1
     integer, parameter                                      :: NearestNeighbor2D_  = 2
+    integer, parameter                                      :: NoInterpolation2D_  = 3 
     
     !Extrapolation parameters
     integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
