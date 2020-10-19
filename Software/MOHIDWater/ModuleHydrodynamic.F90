@@ -44688,7 +44688,7 @@ dok:            do k = kbottom + 1, KUB
 
         else
             if (Me%Docycle_method == 1) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotential_Acceleration, TPGradient)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotential_Acceleration)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
