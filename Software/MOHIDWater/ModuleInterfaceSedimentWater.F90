@@ -1292,30 +1292,28 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             inquire(File = trim(Me%Files%Initial), Exist = FileExist)
             
-            if (.not.FileExist) then
-                write(*,*) 'Do not exist file =',trim(Me%Files%Initial)
-                call SetError (FATAL_, INTERNAL_,'ConstructShearStressResidual; ModuleInterfaceSedimentWater. ERR45.')
-            endif
+            if (FileExist) then
+                
+                !Gets File Access Code
+                call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
-            !Gets File Access Code
-            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-            !Opens HDF5 File
-            call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR50'
-
-            call GetHDF5GroupExist (ObjHDF5, "Residual", CheckResidual, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR60'
-
-            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR70'
-
-            if (CheckResidual) then
-
-                call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_X, "Residual",     &
-                                            GetPropertyName(ShearStressX_))
-                call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_Y, "Residual",     &
-                                            GetPropertyName(ShearStressY_))
+                !Opens HDF5 File
+                call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR50'
+                
+                call GetHDF5GroupExist (ObjHDF5, "Residual", CheckResidual, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR60'                
+                
+                call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR70'
+                
+                if (CheckResidual) then
+            
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_X, "Residual",     &
+                                                GetPropertyName(ShearStressX_))
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_Y, "Residual",     &
+                                                GetPropertyName(ShearStressY_))            
+                endif
             endif
         endif
 
@@ -8670,7 +8668,8 @@ subroutine BenthicEcology_Processes
                                                                   PropertyX%Evolution%DTInterval)
 
                                     call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                                    if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                                    if(STAT_CALL .ne. SUCCESS_) &
+                                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
 
                                    endif
                             end if

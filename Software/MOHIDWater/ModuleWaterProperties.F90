@@ -20442,7 +20442,8 @@ dn:         do n=1, nCells
                             
                             SubModelON = .false.
                             
-                            call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, Upscaling = .True.)
+                            call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, &
+                                                        Upscaling = .True.)
                             
                             call Offline_Upscaling_Discharge_WP(FatherID = Me%ObjTwoWay,                              &
                                                 PropAssimilation = PropAssimilation, Prop = Property%Concentration,   &

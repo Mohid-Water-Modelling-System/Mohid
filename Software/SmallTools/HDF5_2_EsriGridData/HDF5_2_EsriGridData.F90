@@ -81,6 +81,7 @@ Program HDF5_2_EsriGridData
         logical                                             :: NoNegativeValues    
         logical                                             :: TransferToOutGrid
         logical                                             :: ExportXYZ    
+        logical                                             :: ExportXY_Vector
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -779,8 +780,10 @@ d11:    do l = 1, Me%FieldNumber
                     do i = ILB, IUB
                         do j = JLB, JUB
                             call GetXYCellZ(Me%ObjHorizontalGridOut, CoordX(i, j), CoordY(i, j), iout,jout)
+                            if (iout > 0 .and. jout>0) then
                             Aux2DOut(iout,jout)   = Aux3D(i,j,k)
                             Aux3DOut(iout,jout,k) = Aux3D(i,j,k)
+                            endif
                         enddo
                     enddo
                     
