@@ -316,6 +316,10 @@ Module ModuleField4D
         real, dimension(:,:,:), pointer             :: PreviousField3D      => null()
         real, dimension(:,:,:), pointer             :: NextField3D          => null()
 
+        logical                                     :: DynamicMappingOn     = .false. 
+        integer, dimension(:,:), pointer            :: DynamicMapping       => null()
+        
+        
         real                                        :: MinForDTDecrease     = AllmostZero
         real                                        :: DefaultValue         = null_real
         real                                        :: PredictedDT          = -null_real
@@ -1979,7 +1983,7 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR280'
 
-        !Bilinear2D_         = 1, NearestNeighbor2D_  = 2
+        !Bilinear2D_         = 1, NearestNeighbor2D_  = 2, NoInterpolation2D_ = 3
         call GetData(PropField%InterpolMethod,                                          &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -1990,7 +1994,8 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR290'
 
         if (PropField%InterpolMethod /= Bilinear2D_ .and.                               &
-            PropField%InterpolMethod /= NearestNeighbor2D_) then
+            PropField%InterpolMethod /= NearestNeighbor2D_ .and.                        &
+            PropField%InterpolMethod /= NoInterpolation2D_) then
             stop 'ReadOptions - ModuleField4D - ERR300'
         endif
 
@@ -2013,7 +2018,14 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR320'
 
-
+        call GetData(PropField%DynamicMappingOn,                                        &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'DYNAMIC_MAPPING',                                  &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR330'     
 
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
@@ -2906,6 +2918,11 @@ it:     if (NewPropField%ChangeInTime) then
 
             end if i4
 
+            if (NewPropField%DynamicMappingOn) then
+                call ReadDynamicMap(NewPropField, Previous = .true. )
+                call ReadDynamicMap(NewPropField, Previous = .false.)
+            endif                
+
         endif it
 
     end subroutine ConstructPropertyField
@@ -3644,6 +3661,139 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
         nullify(Field)
     end subroutine ReadValues3D
+
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine ReadDynamicMap(NewPropField, Previous)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+        logical                                 :: Previous
+       
+        !Local-----------------------------------------------------------------
+        integer                                 :: Instant
+        integer, dimension(:,:,:), pointer      :: Field
+        integer                                 :: Imax, Jmax, Kmax
+        integer                                 :: STAT_CALL, i, j, k
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: Obj, iaux
+
+        !Begin-----------------------------------------------------------------
+        
+        if (.not. associated(NewPropField%DynamicMapping)) then
+            allocate(NewPropField%DynamicMapping(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB))
+        endif
+        
+        allocate(Field(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))
+        
+        if (NewPropField%Generic4D%InstantON) then
+            Instant = NewPropField%Generic4D%Instant
+        else
+            if (Previous) then
+                Instant =  NewPropField%PreviousInstant        
+            else
+                Instant =  NewPropField%NextInstant
+            endif   
+        endif
+        
+
+        ILB = Me%WorkSize3D%ILB; JLB = Me%WorkSize3D%JLB
+        IUB = Me%WorkSize3D%IUB; JUB = Me%WorkSize3D%JUB
+        KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+        
+
+
+        if      (Me%File%Form == HDF5_  ) then
+
+            if (Me%File%FileListON) then
+                Obj  = Me%File%ObjListInst(Instant)
+                iaux = Me%File%ListInst   (Instant)
+            else
+
+                Obj  = Me%File%Obj
+                iaux = Instant
+            endif                         
+        
+            call GetHDF5ArrayDimensions(Obj, trim(NewPropField%VGroupPath),             &
+                              trim(NewPropField%FieldName), OutputNumber = iaux,        &
+                              Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadDynamicMap - ModuleField4D - ERR010'
+#ifndef _NO_NETCDF
+        else if (Me%File%Form == NetCDF_) then
+        
+            call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
+#endif
+        endif   
+        
+        if ((Imax < IUB - ILB + 1) .or.                                                &
+            (Jmax < JUB - JLB + 1) .or.                                                &
+            (Kmax < KUB - KLB + 1)) then
+            
+            write (*,*) trim(NewPropField%FieldName)
+            write (*,*) 'miss match between the input file and model domain'
+            stop 'ReadDynamicMap - ModuleField4D - ERR020'                                   
+
+        endif        
+        
+        if      (.not. Me%File%Form == HDF5_  .and. NewPropField%From3Dto2D) then
+            stop 'ReadDynamicMap - ModuleField4D - ERR030'
+        endif
+        
+        if      (Me%File%Form == HDF5_  ) then
+        
+            call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadDynamicMap - ModuleField4D - ERR040'
+            
+            call HDF5ReadWindow(HDF5ID        = Obj,                                    &
+                                GroupName     = "/Grid/OpenPoints",                     &
+                                Name          = "OpenPoints",                           &
+                                Array3D       = Field,                                  &
+                                OutputNumber  = iaux,                                   &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)then
+                write(*,*) "Can not read OpenPoints, instant number = iaux"
+                stop 'ReadDynamicMap - ModuleField4D - ERR050'
+            endif
+
+#ifndef _NO_NETCDF                                                   
+        else if (Me%File%Form == NetCDF_) then
+        
+            call NETCDFReadData(NCDFID   = Me%File%Obj,                                 &
+                                Array3D  = Field,                                       &
+                                Name     = trim(NewPropField%FieldName),                &
+                                nInstant = Instant,                                     &
+                                ILB      = ILB, IUB = IUB,                              &
+                                JLB      = JLB, JUB = JUB,                              &
+                                KLB      = KLB, KUB = KUB,                              &
+                                STAT            = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_)stop 'ReadDynamicMap - ModuleField4D - ERR060'            
+#endif            
+        endif
+        
+        if (Previous) then
+            NewPropField%DynamicMapping(:,:)  = Field(:,:,KUB)
+        else
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (NewPropField%DynamicMapping(i,j) == 1 .and. Field(i,j,KUB) == 1) then
+                    NewPropField%DynamicMapping(i,j)  = 1
+                else
+                    NewPropField%DynamicMapping(i,j)  = 0
+                endif
+            enddo
+            enddo
+            enddo
+        endif
+        
+        deallocate(Field)
+        nullify   (Field)
+        
+    end subroutine ReadDynamicMap
 
 
     !--------------------------------------------------------------------------
@@ -5044,6 +5194,11 @@ d2:     do N =1, NW
                 Me%CurrentTimeInt = Me%CurrentTimeExt
             endif
 
+            if (PropField%DynamicMappingOn) then
+                call ReadDynamicMap (PropField, Previous = .false.)
+            endif                        
+            
+
             if (PropField%Generic4D%ON) then
 
                 if (present(Instant)) then
@@ -5110,7 +5265,7 @@ d2:     do N =1, NW
                     if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
 
                     call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
                 else
                     Matrix2D(:,:) = Me%Matrix2D(:,:)
                 endif
@@ -5340,6 +5495,11 @@ d2:     do N =1, NW
                 else
                     Me%CurrentTimeInt = Me%CurrentTimeExt
                 endif
+
+                if (PropField%DynamicMappingOn) then
+                    call ReadDynamicMap (PropField, Previous = .false.)
+                endif                        
+                
 
 ifG4D:          if (PropField%Generic4D%ON) then
 
@@ -5581,6 +5741,25 @@ dnP:    do nP = 1,nPoints
                 call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
 
+                if (PropField%InterpolMethod == NoInterpolation2D_) then
+
+                    if (Me%ExternalVar%Waterpoints2D(i, j) == WaterPoint) then
+                        Field(nP) = Me%Matrix2D(i, j)
+                        NoData(nP) = .false.
+                        if (PropField%DynamicMappingOn) then
+                            if (PropField%DynamicMapping(i, j) == 0) then
+                                Field (nP) = FillValueReal
+                                NoData(nP) = .true.
+                            endif
+                        endif
+                    else
+                        Field(nP)  = FillValueReal
+                        NoData(nP) = .true.
+                    endif
+                
+                    cycle
+                endif                                    
+                
 
                 if (PercJ > 0.5) then
                     jW = j
@@ -5651,10 +5830,12 @@ dnP:    do nP = 1,nPoints
                                      Field(nP) =  ValueNE
                                 endif
                             endif
+                        
                         endif
 
                     endif
 
+                    
                 else
 
                     if (ValueSW < FillValueReal/1e4) ValueSW = 0.
@@ -5827,6 +6008,26 @@ dnP:    do nP = 1,nPoints
                 call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleValida4D - ERR20'
 
+
+                if (PropField%InterpolMethod == NoInterpolation2D_) then
+
+                    if (Me%ExternalVar%Waterpoints3D(i, j, KUB) == WaterPoint) then
+                        Field(nP) = Me%Matrix3D(i, j, KUB)
+                        NoData(nP) = .false.
+                        if (PropField%DynamicMappingOn) then
+                            if (PropField%DynamicMapping(i, j) == 0) then
+                                Field (nP) = FillValueReal
+                                NoData(nP) = .true.
+                            endif
+                        endif
+                    else
+                        Field(nP)  = FillValueReal
+                        NoData(nP) = .true.
+                    endif
+                
+                    cycle
+                endif                    
+                
 
                 if (PercJ > 0.5) then
                     jW = j
@@ -6276,6 +6477,8 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
         real(8),    dimension(:),   pointer                 :: Depth1D, Matrix1D
         real                                                :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
         integer                                             :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS
+        real                                                :: Value
+        integer                                             :: Mask                                                    
         real                                                :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ
         integer                                             :: STAT_CALL, nPoints, nP, k
         integer                                             :: jW, jE, iS, iN, i, j
@@ -6302,6 +6505,33 @@ dnP:    do nP = 1,nPoints
                 call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR50'
 
+                if (PropField%InterpolMethod == NoInterpolation2D_) then
+                    
+                    Depth1D (KLB:KUB) = Depth3D   (i, j, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (i, j, KLB:KUB)
+                    Mask              = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)                    
+                    
+                    Matrix1D(KLB:KUB) = Matrix3D  (i, j, KLB:KUB)
+                    Value             = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)                    
+
+                    if (Mask == WaterPoint) then
+                        Field(nP) = Value
+                        NoData(nP) = .false.
+                        if (PropField%DynamicMappingOn) then
+                            if (PropField%DynamicMapping(i, j) == 0) then
+                                Field (nP) = FillValueReal
+                                NoData(nP) = .true.
+                            endif
+                        endif
+                    else
+                        Field(nP)  = FillValueReal
+                        NoData(nP) = .true.
+                    endif
+                
+                    cycle
+                endif                    
+                
+                
                 if (PercJ > 0.5) then
                     jW = j
                     jE = j+1
@@ -6956,6 +7186,10 @@ wwd:            if (Me%WindowWithData) then
                                 nullify   (PropField%Harmonics%Residual2D)
                             end if
 
+                            if (associated(PropField%DynamicMapping)) then
+                                deallocate(PropField%DynamicMapping)
+                            endif                        
+                            
                             PropField => PropField%Next
 
                         enddo
