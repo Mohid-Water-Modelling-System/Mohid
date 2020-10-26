@@ -1801,6 +1801,7 @@ Module ModuleGlobalData
     !Interpolation 2D
     integer, parameter                                      :: Bilinear2D_         = 1
     integer, parameter                                      :: NearestNeighbor2D_  = 2
+    integer, parameter                                      :: NoInterpolation2D_  = 3 
     
     !Extrapolation parameters
     integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
@@ -2031,6 +2032,12 @@ Module ModuleGlobalData
         character(StringLength) :: Description       = null_str
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
+        integer                 :: ObjHorizontalGrid = null_int !Sobrinho
+        integer                 :: ObjHorizontalMap  = null_int !Sobrinho
+        integer                 :: ObjGeometry       = null_int !Sobrinho
+        integer                 :: ObjMap            = null_int !Sobrinho
+        integer                 :: ObjTwoWay         = null_int !Sobrinho
+        integer                 :: ObjBathymetry     = null_int !Sobrinho
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
         logical                 :: IsParticulate     = OFF

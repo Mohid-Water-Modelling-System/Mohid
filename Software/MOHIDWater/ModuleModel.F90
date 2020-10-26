@@ -673,6 +673,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,   &
                                          ActualTime       = Me%CurrentTime,              &
                                          StopOnBathymetryChange = Me%StopOnBathymetryChange, &
+                                         LagrangianTracers= Me%RunLagrangian,            &
                                          STAT             = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR180'
 
@@ -825,6 +826,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          GridDataID       = Me%Water%ObjBathymetry,     &
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
                                          TimeID           = Me%ObjTime,                 &
+                                         Lagrangian       = Me%RunLagrangian,           &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
             
