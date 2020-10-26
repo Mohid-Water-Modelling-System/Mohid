@@ -1231,8 +1231,7 @@ iIC:                    if (IsolatedCell) then
 
             !Gets KFloorZ
             call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateComputeFacesW - ModuleMap - ERR10'
-
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateUnsaturatedComputeFaces3D - ModuleMap - ERR10'
 
             !ComputeFacesU / ComputeFacesV            
             do j = JLB+1, JUB
@@ -1270,7 +1269,7 @@ iIC:                    if (IsolatedCell) then
             enddo
 
             call UnGetGeometry     (Me%ObjGeometry, KFloorZ, STAT = STAT_CALL)       
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateComputeFacesW - ModuleMap - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateUnsaturatedComputeFaces3D - ModuleMap - ERR20'
 
             !Updates all points which have at least one Computeface
             call UpdateOpenPoints3D()
@@ -1798,8 +1797,25 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO
 
-        !obtain the U WetFaces
+        !obtain the U WetFaces !Joao sobrinho
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        !do j = JLB+1, JUB
+        !do i = ILB, IUB
+        !    if (Me%OpenPoints3D(i, j, k) == 1 .or. Me%OpenPoints3D(i, j-1, k) == 1) then
+        !        Me%WetFaces%U(i, j, k) = 1
+        !    else
+        !        Me%WetFaces%U(i, j, k) = 0       
+        !    endif
+        !
+        !    if (Me%OpenPoints3D(i, JLB, k) == 1) then
+        !        Me%WetFaces%U(i, JLB, k) = 1
+        !    else
+        !        Me%WetFaces%U(i, JLB, k) = 0       
+        !    endif
+        !enddo
+        !enddo
+        
         do j = JLB+1, JUB
         do i = ILB, IUB
             if (Me%OpenPoints3D(i, j, k) == 1 .or. Me%OpenPoints3D(i, j-1, k) == 1) then
@@ -1807,12 +1823,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             else
                 Me%WetFaces%U(i, j, k) = 0       
             endif
-        
-            if (Me%OpenPoints3D(i, JLB, k) == 1) then
-                Me%WetFaces%U(i, JLB, k) = 1
-            else
-                Me%WetFaces%U(i, JLB, k) = 0       
-            endif
+            Me%WetFaces%U(i, JLB, k) = Me%OpenPoints3D(i, JLB, k)
         enddo
         enddo
         !$OMP END DO
@@ -1827,12 +1838,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%WetFaces%V(i, j, k) = 0       
             endif
         enddo
-        
-        if (Me%OpenPoints3D(ILB, j, k) == 1) then
-            Me%WetFaces%V(ILB, j, k) = 1
-        else
-            Me%WetFaces%V(ILB, j, k) = 0       
-        endif
+            Me%WetFaces%V(ILB, j, k) = Me%OpenPoints3D(ILB, j, k)
         enddo
         !$OMP END DO
     

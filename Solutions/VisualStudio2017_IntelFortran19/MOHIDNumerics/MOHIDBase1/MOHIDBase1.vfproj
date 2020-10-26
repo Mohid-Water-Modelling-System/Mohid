@@ -149,7 +149,9 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleVoronoi3D.f"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleVoronoi3D.f">
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWWTPQ.F90"/>
 		<File RelativePath="..\..\..\..\ExternalLibs\MPI_x64\Microsoft\mpi.f90"/>

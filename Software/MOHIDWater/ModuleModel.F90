@@ -268,6 +268,8 @@ Module ModuleModel
 #endif _USE_SEQASSIMILATION
 
         !$ logical                              :: FatherModelFlag = .false.
+        
+        integer                                 :: DoCycle_method = 1
 
         !Instance of other Modules
         integer                                 :: ObjTime                      = 0
@@ -324,7 +326,7 @@ Module ModuleModel
     !In this subroutine is read the model structure (number of parallel models and their sub-models)
     ! and the necessary memory is allocate and store in a structure of pointer lists
 
-    subroutine ConstructModel (LagInstance, ModelNames, ModelPaths, NumberOfModels,		&
+    subroutine ConstructModel (LagInstance, ModelNames, ModelPaths, NumberOfModels,     &
                                ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
                                MPI_ID, MasterID, LastSlaveID, ModelPath, STAT)
 
@@ -632,6 +634,17 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
             !!$    endif
             !$ endif
+            
+            !keyword to diferentiate do cycle implementations. 1 - DoJDoIDoK. 2 - DoK,DoJ,DoI
+            !use 2: when the domain has many landpoints - however, not sure if it loses efficiency as the number of processors grow
+            ! This is mostly applied to Vertical processes.
+            call GetData         (Me%DoCycle_method, ObjEnterData, flag,                 &
+                                  SearchType    =  FromFile,                            &
+                                  keyword       = 'DOCYCLE_METHOD',                      &
+                                  default       = 1,                                    &
+                                  ClientModule  = 'ModuleModel',                        &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - failed to get OPENMP_METHOD'
                   
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
@@ -660,6 +673,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,   &
                                          ActualTime       = Me%CurrentTime,              &
                                          StopOnBathymetryChange = Me%StopOnBathymetryChange, &
+                                         LagrangianTracers= Me%RunLagrangian,            &
                                          STAT             = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR180'
 
@@ -812,6 +826,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          GridDataID       = Me%Water%ObjBathymetry,     &
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
                                          TimeID           = Me%ObjTime,                 &
+                                         Lagrangian       = Me%RunLagrangian,           &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
             
@@ -838,6 +853,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          DischargesID     = Me%ObjDischarges,           &
                                          WavesID          = Me%ObjWaves,                &
                                          TwoWayID         = Me%ObjTwoWay,               &
+                                         DoCycle_method   = Me%DoCycle_method,          &
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
@@ -873,6 +889,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
                                            TurbGOTMID       = Me%ObjTurbGOTM,           &
                                            TwoWayID         = Me%ObjTwoWay,             &
+                                           DoCycle_method   = Me%DoCycle_method,        &
+                                            
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA
@@ -1042,6 +1060,7 @@ il:         if (Me%RunLagrangian) then
             write(*,*)
 
 #endif
+
 
 #ifdef _USE_SEQASSIMILATION
             !Sequential data assimilation (Ang)

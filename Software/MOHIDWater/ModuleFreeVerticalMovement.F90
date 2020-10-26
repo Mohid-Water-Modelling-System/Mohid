@@ -54,7 +54,7 @@
 Module ModuleFreeVerticalMovement
 
     use ModuleGlobalData
-    use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
+    use ModuleFunctions,        only: THOMASZ, THOMASZ_NewType2, ConstructPropertyID, SettlingVelocity, &
                                       SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW,                &
                                       T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier,    &
                                       SettlingVelPrimaryClarifier, InterpolateValueInTime
@@ -1496,11 +1496,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !              Me%VECG,                           &
             !              Me%VECW)
             !griflet: new call
-            CALL THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,  &
+            CALL THOMASZ_NewType2(Me%WorkSize%ILB, Me%WorkSize%IUB,  &
                          Me%WorkSize%JLB, Me%WorkSize%JUB,  &
                          Me%WorkSize%KLB, Me%WorkSize%KUB,  &
                          Me%THOMAS,                         &
-                         Me%ExternalVar%Concentration       &
+                         Me%ExternalVar%Concentration, Me%ExternalVar%WaterPoints3D &
 #ifdef _ENABLE_CUDA
             ! Use CUDA to solve Thomas
                          , Me%ObjCuda,                      &

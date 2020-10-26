@@ -32,7 +32,8 @@ Module ModuleAdvectionDiffusion
                                     
     use ModuleGlobalData
     use ModuleFunctions     , only : OrlanskiCelerity2D, THOMAS_3D, THOMASZ, ComputeAdvection1D_V2,     &
-                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad
+                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad, &
+                                     ComputeAdvection1D_TVD_SuperBee_2, THOMASZ_NewType2
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
                                      operator (.eq.), operator (.ne.)
@@ -79,10 +80,14 @@ Module ModuleAdvectionDiffusion
     public  :: AdvectionDiffusion                                                
     private ::      Set_Internal_State          
     private ::      Convert_Dif_Vertical
+    
+    private ::      Compute_DifH_Constants
+    private ::      Compute_DifV_Constants
 
     private ::      AdvectionDiffusionIteration
 
-    private ::          Convert_Visc_Dif_Horizontal                                      
+    private ::          Convert_Visc_Dif_Horizontal
+    private ::          Convert_Visc_Dif_Horizontal_opt
 
     private ::          VolumeVariation                     !OK
 
@@ -90,24 +95,36 @@ Module ModuleAdvectionDiffusion
 
     private ::          HorizontalDiffusion                 !OK                                         
     private ::              HorizontalDiffusionXX           !OK                             
-    private ::                  CalcHorizontalDifFluxXX     !OK                                     
+    private ::                  CalcHorizontalDifFluxXX     !OK
+    private ::              HorizontalDiffusionXX2           !OK
+    private ::                  CalcHorizontalDifFluxXX2
     private ::              HorizontalDiffusionYY           !OK
-    private ::                  CalcHorizontalDifFluxYY     !OK                                     
+    private ::                  CalcHorizontalDifFluxYY     !OK
+    private ::              HorizontalDiffusionYY2           !OK
+    private ::                  CalcHorizontalDifFluxYY2     !OK
                                       
     private ::          OpenBoundaryCondition                                                     
     private ::              FluxAtOpenBoundary                                               
 
     private ::          HorizontalAdvection                                             
-    private ::              HorizontalAdvectionXX                                      
-    private ::                  CalcHorizontalAdvFluxXX                                         
-    private ::              HorizontalAdvectionYY                                      
-    private ::                  CalcHorizontalAdvFluxYY                                         
+    private ::              HorizontalAdvectionXX
+    private ::              HorizontalAdvectionXX_Explicit
+    private ::                  CalcHorizontalAdvFluxXX
+    private ::                  CalcHorizontalAdvFluxXX_opt
+    private ::              HorizontalAdvectionYY
+    private ::              HorizontalAdvectionYY_Explicit
+    private ::                  CalcHorizontalAdvFluxYY
+    private ::                  CalcHorizontalAdvFluxYY_opt
     private ::          HorizontalAdvectionUpwindExplict
     
-    private ::          VerticalDiffusion                                                 
-    private ::              CalcVerticalDifFlux                                              
-    private ::          VerticalAdvection      
-    private ::              CalcVerticalAdvFlux                                             
+    private ::          VerticalDiffusion  
+    private ::          VerticalDiffusion2
+    private ::              CalcVerticalDifFlux 
+    private ::              CalcVerticalDifFlux2
+    private ::          VerticalAdvection
+    private ::              VerticalAdvection_ExplicitScheme
+    private ::              CalcVerticalAdvFlux
+    private ::              CalcVerticalAdvFlux_opt
 
     private ::      FinishAdvectionDiffusionIt                            
 
@@ -188,9 +205,12 @@ Module ModuleAdvectionDiffusion
         integer, pointer, dimension(:,:,:) :: ComputeFacesW3D   => null()
         integer, pointer, dimension(:,:,:) :: LandPoints3D      => null()
         integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null()
+        integer, pointer, dimension(:,:,:) :: WaterPoints3D     => null()
         integer, pointer, dimension(:,:  ) :: BoundaryPoints2D  => null()
                                                                 
         integer, pointer, dimension(:,:  ) :: KFloorZ           => null()
+        integer, pointer, dimension(:,:  ) :: KFloorU           => null()
+        integer, pointer, dimension(:,:  ) :: KFloorV           => null()
         real(8), pointer, dimension(:,:,:) :: VolumeZ           => null()
         real(8), pointer, dimension(:,:,:) :: VolumeZOld        => null()
         real,    pointer, dimension(:,:  ) :: DUX               => null()
@@ -267,6 +287,13 @@ Module ModuleAdvectionDiffusion
         integer, dimension(:,:,:), pointer :: NoFluxU       => null()
         integer, dimension(:,:,:), pointer :: NoFluxV       => null()
         integer, dimension(:,:,:), pointer :: NoFluxW       => null()
+        
+        !Optimizations
+        logical                            :: Optimize = .false.
+        logical                            :: Optimize_AdvH = .false.
+        logical                            :: Optimize_DifH = .false.
+        logical                            :: Optimize_AdvV = .false.
+        logical                            :: Optimize_DifV = .false.
 
 
     end type T_External
@@ -283,6 +310,8 @@ Module ModuleAdvectionDiffusion
         real , dimension(:,:,:), pointer        :: Diffusion_CoeficientX    => null()
         real , dimension(:,:,:), pointer        :: Diffusion_CoeficientY    => null()
         real , dimension(:,:,:), pointer        :: Diffusion_CoeficientZ    => null()
+        real(8), dimension(:,:,:), allocatable  :: Diff_H_Const_U, Diff_H_Const_V
+        real(8), dimension(:,:,:), allocatable  :: Diff_V_Const
         type(T_CellFluxes)                      :: Fluxes
         !Former DCOEF3  ECOEF3  FCOEF3
         type(T_D_E_F)                           :: COEF3                    
@@ -321,6 +350,10 @@ Module ModuleAdvectionDiffusion
 
         logical                                 :: Vertical1D           = .false.
         logical                                 :: XZFlow               = .false.
+        logical                                 :: FirstTime            = .true.
+        logical                                 :: FirstProperty        = .false.
+        
+        integer                                 :: Docycle_method = 1
     
         type(T_DDecomp   )                      :: DDecomp
    
@@ -369,6 +402,7 @@ Module ModuleAdvectionDiffusion
                                        TimeID,                                          &
                                        Vertical1D,                                      &
                                        XZFlow,                                          &
+                                       Docycle_method,                                  &
 #ifdef _ENABLE_CUDA
                                        ObjCudaID,                                       &
 #endif    
@@ -385,7 +419,8 @@ Module ModuleAdvectionDiffusion
 #ifdef _ENABLE_CUDA
         integer                             :: ObjCudaID
 #endif
-        integer, optional, intent(OUT)      :: STAT     
+        integer, optional, intent(OUT)      :: STAT
+        integer                             :: Docycle_method
 
         !External--------------------------------------------------------------
 
@@ -431,7 +466,7 @@ cd0 :   if (ready_ == OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'StartAdvectionDiffusion - ModuleAdvectionDiffusion - ERR01'
 
-
+            Me%Docycle_method = Docycle_method
             !Allocates variables
             call AllocateVariables
 
@@ -1093,6 +1128,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   ComputeFacesW3D,                              &
                                   Visc_H, Diff_V,                               &
                                   CellFluxes,                                   &
+                                  WaterPoints3D,                                &
                                   ReferenceProp,                                &
                                   BoundaryCondition,                            &
                                   DecayTime,                                    &
@@ -1104,6 +1140,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   NoFluxU,                                      &
                                   NoFluxV,                                      &
                                   NoFluxW,                                      &
+                                  Optimize, FirstProperty,                      &
                                   STAT)
 
         !Arguments-------------------------------------------------------------
@@ -1123,6 +1160,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
         real,                          pointer, dimension(:,:,:) :: Visc_H
         real,                          pointer, dimension(:,:,:) :: Diff_V
         integer, dimension(:, :, :), pointer                     :: OpenPoints3D
+        integer, dimension(:, :, :), pointer, optional           :: WaterPoints3D
         integer, dimension(:, :, :), pointer                     :: LandPoints3D
         integer, dimension(:, :, :), pointer                     :: ComputeFacesU3D
         integer, dimension(:, :, :), pointer                     :: ComputeFacesV3D
@@ -1147,11 +1185,11 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                                                             ! and Advective fluxes among cells.
 
         integer, optional, intent(IN )     :: BoundaryCondition             !State variable to impose
-                                                                            ! boundary conditions 
+                                                                            ! boundary conditions
 
         logical, dimension(:, : ), pointer, optional :: SmallDepths
         
-        logical, optional, intent(IN )     :: NoAdvFlux
+        logical, optional, intent(IN )     :: NoAdvFlux, Optimize, FirstProperty
         logical, optional, intent(IN )     :: NoDifFlux        
 
         integer, dimension(:,:,:), pointer, optional :: NoFluxU, NoFluxV, NoFluxW
@@ -1184,14 +1222,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_)                                        &
                 stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR01'
 
-            ILB = Me%Size%ILB
-            IUB = Me%Size%IUB
-
-            JLB = Me%Size%JLB 
-            JUB = Me%Size%JUB
-
-            KLB = Me%Size%KLB
-            KUB = Me%Size%KUB
+            ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
+            IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
 
             if ((ImpExp_AdvXX == ImplicitScheme .or. ImpExp_AdvYY == ImplicitScheme) .and.  &
                 (AdvMethodH   == UpwindOrder2   .or. AdvMethodH   == UpwindOrder3  )) then
@@ -1246,7 +1278,9 @@ cd99 :      if (present(NumericStability)) then
             Me%ExternalVar%ComputeFacesU3D    => ComputeFacesU3D
             Me%ExternalVar%ComputeFacesV3D    => ComputeFacesV3D
             Me%ExternalVar%ComputeFacesW3D    => ComputeFacesW3D
-
+            
+            if (present(WaterPoints3D)) Me%ExternalVar%WaterPoints3D => WaterPoints3D
+            
             if (present(SmallDepths)) then
                 Me%ExternalVar%SmallDepthsPresent = .true.
                 Me%ExternalVar%SmallDepths        => SmallDepths
@@ -1297,6 +1331,8 @@ cd111:      if (present(NoDifFlux)) then
             if (present(NoFluxV)) Me%ExternalVar%NoFluxV => NoFluxV
             if (present(NoFluxW)) Me%ExternalVar%NoFluxW => NoFluxW
             
+            if (present(Optimize))      Me%ExternalVar%Optimize = Optimize
+            if (present(FirstProperty)) Me%FirstProperty        = FirstProperty
 
 cd7 :       if (ImpExp_DifH  /= 0.0) then    !0 = Explicit
                 write(*,*) 'Horizontal Diffusion must be explicit.'
@@ -1331,26 +1367,27 @@ cd66 :      if (ImpExp_AdvXX == ImplicitScheme .and. ImpExp_AdvYY == ImplicitSch
 
 
             !BoundaryPoints2D
-            call GetBoundaries(Me%ObjHorizontalMap,                                     &
-                               Me%ExternalVar%BoundaryPoints2D,                         &  
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR05'
+            call GetBoundaries(Me%ObjHorizontalMap, Me%ExternalVar%BoundaryPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR05'
 
             !KFloorZ
-            call GetGeometryKFloor(Me%ObjGeometry,                                      &
-                                   Z = Me%ExternalVar%KFloorZ,                          &
-                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
+            call GetGeometryKFloor(Me%ObjGeometry, Z = Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
+            
+            !KFloorU
+            call GetGeometryKFloor(Me%ObjGeometry, U = Me%ExternalVar%KFloorU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
+            
+            !KFloorV
+            call GetGeometryKFloor(Me%ObjGeometry, V = Me%ExternalVar%KFloorV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06c'
 
             !AreaU, AreaV
             call GetGeometryAreas(Me%ObjGeometry,                     &
                                   AreaU = Me%ExternalVar%AreaU,       &
                                   AreaV = Me%ExternalVar%AreaV,       &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
 
             !DZZ, DWZ
             call GetGeometryDistances(Me%ObjGeometry,                 &
@@ -1378,23 +1415,40 @@ cd11 :      if (present(CellFluxes)) then
             Me%ExternalVar%Schmidt_H           = Schmidt_H
             Me%ExternalVar%DTProp              = DTProp
             
+            if(Me%Vertical1D) Me%ExternalVar%Optimize = .false.
+            
             if (Me%State%VertDif) then
-                call Convert_Dif_Vertical()
+                if (Me%ExternalVar%Optimize) then
+                    if (Me%FirstProperty) call Convert_Dif_Vertical()
+                else
+                    call Convert_Dif_Vertical()
+                endif
             endif
 
             if (Me%State%HorDif) then
-                call Convert_Visc_Dif_Horizontal()
+                if (Me%ExternalVar%Optimize) then
+                    if (Me%FirstProperty) call Convert_Visc_Dif_Horizontal_opt() 
+                else
+                    call Convert_Visc_Dif_Horizontal()   
+                endif
             endif
 
 cd8 :       if (Me%State%VertAdv) then
 
                 Me%ExternalVar%AdvMethodV       = AdvMethodV
                 Me%ExternalVar%TVDLimitationV   = TVDLimitationV
-
-                call SetMatrixValue (Me%COEF3_VertAdv%C_flux, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3_VertAdv%F_flux, Me%Size, 0.0)
+                
+                if (Me%ExternalVar%Optimize) then
+                    if (Me%FirstProperty) then
+                        call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
+                        call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
+                    endif
+                else
+                    call SetMatrixValue (Me%COEF3_VertAdv%C_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_VertAdv%F_flux, Me%Size, 0.0)
+                endif
                     
             end if cd8
 
@@ -1411,7 +1465,21 @@ cd5 :       if (Me%State%CellFluxes) then
                 call SetMatrixValue (Me%Fluxes%DifFluxZ, Me%Size, dble(0.0))
 
             end if cd5
-
+            
+            if (Me%ExternalVar%Optimize) then
+                if (Me%FirstTime) then
+                    allocate(Me%Diff_H_Const_U(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                    allocate(Me%Diff_H_Const_V(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                    
+                    allocate(Me%Diff_V_Const  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                    Me%FirstTime = .false.
+                endif
+                
+                if (Me%FirstProperty) then
+                    call Compute_DifH_Constants
+                    call Compute_DifV_Constants
+                endif
+            endif
 
             call AdvectionDiffusionIteration(ImpExp_AdvXX, ImpExp_AdvYY)                     !AdvectionDiffusion main cycle
 
@@ -1438,9 +1506,116 @@ cd5 :       if (Me%State%CellFluxes) then
     end subroutine AdvectionDiffusion
 
     !--------------------------------------------------------------------------
+                                  
+    !-----------------------------------------------------------------------
+    subroutine Compute_DifH_Constants
+        !Arguments-------------------------------------------------------------
 
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: CHUNK
 
+        !----------------------------------------------------------------------
+        CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        
+        ILB = Me%Size%ILB ; JLB = Me%Size%JLB ; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB ; JUB = Me%Size%JUB ; KUB = Me%Size%KUB 
+        
+        !$OMP PARALLEL PRIVATE(i,j,k) 
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExternalVar%ComputeFacesV3D(i, j, k) == 1) then
+                
+                Me%Diff_H_Const_V(i, j, k) = Me%Diffusion_CoeficientY (i,j,k) * Me%ExternalVar%AreaV(i  ,j,k) / &
+                                                                                Me%ExternalVar%DZY  (i-1,j  )
 
+            endif
+        end do
+        end do
+        end do
+        !$OMP END DO
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
+                
+                Me%Diff_H_Const_U(i, j, k) = Me%Diffusion_CoeficientX (i,j,k) * Me%ExternalVar%AreaU(i,j  ,k) / &
+                                                                                Me%ExternalVar%DZX  (i,j-1  )
+
+            endif
+        end do
+        end do
+        end do
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
+    end subroutine Compute_DifH_Constants
+
+    !--------------------------------------------------------------------------
+    
+    subroutine Compute_DifV_Constants
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real(8)                                     :: AuxK
+        integer                                     :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+        CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        
+        ILB = Me%WorkSize%ILB ; JLB = Me%WorkSize%JLB ; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB ; JUB = Me%WorkSize%JUB ; KUB = Me%WorkSize%KUB
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxK) 
+        
+        if (Me%ExternalVar%SmallDepthsPresent) then
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
+                    if (.not. Me%ExternalVar%SmallDepths(i,j)) then
+                        
+                        AuxK  =  Me%Diffusion_CoeficientZ (i,j,k  )                              &
+                                * Me%ExternalVar%DUX      (i,j    )                              &
+                                * Me%ExternalVar%DVY      (i,j    )
+                        ! [m^2/s * m * m / m]
+                        Me%Diff_V_Const(i, j, k) = AuxK / Me%ExternalVar%DZZ (i,j,k-1)
+                    endif
+                endif
+            end do
+            end do
+            end do
+            !$OMP END DO
+        else
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
+                
+                    AuxK  =  Me%Diffusion_CoeficientZ (i,j,k  )                              &
+                            * Me%ExternalVar%DUX      (i,j    )                              &
+                            * Me%ExternalVar%DVY      (i,j    )
+                
+                    Me%Diff_V_Const(i, j, k) = AuxK / Me%ExternalVar%DZZ (i,j,k-1)
+
+                endif
+            end do
+            end do
+            end do
+            !$OMP END DO
+        endif
+        !$OMP END PARALLEL
+        
+    end subroutine Compute_DifV_Constants
+
+    
     !--------------------------------------------------------------------------
 
     subroutine AdvectionDiffusionIteration(ImpExp_AdvXX, ImpExp_AdvYY)
@@ -1451,8 +1626,7 @@ cd5 :       if (Me%State%CellFluxes) then
         !Local-----------------------------------------------------------------
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: i, j, k, di, dj
-        integer                             :: CHUNK
+        integer                             :: di, dj
         integer                             :: STAT_CALL
 
         !----------------------------------------------------------------------
@@ -1480,23 +1654,43 @@ cd5 :       if (Me%State%CellFluxes) then
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
 
         !Inicializacao dos coeficientes DCOEF3,ECOEF3,FCOEF3 e independent term
-        call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
-        call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
-        call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+        if (Me%ExternalVar%Optimize) then
+            if (Me%FirstProperty) then
+                call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
+            endif
+            call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
+            
+        else
+            call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
+            call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
+            call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+        endif
+        
      
 cd2 :   if (Me%State%HorAdv) then
+            
+            if (Me%ExternalVar%Optimize) then
+                 if (Me%FirstProperty) then
+                    call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
 
-            call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+                 endif   
+            else
+                call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
 
-            call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
-            call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)
-
+                call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)
+            endif
         end if cd2
 
         ! evolutive term + Volume Variation
@@ -1518,7 +1712,7 @@ cd2 :   if (Me%State%HorAdv) then
                       
             !else
             
-                call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
+            call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
                 
             !endif                
 
@@ -1526,7 +1720,12 @@ cd2 :   if (Me%State%HorAdv) then
 
 
         if (KUBWS > 1) then
-            call VerticalDiffusion ()
+            if (Me%ExternalVar%Optimize) then
+                call VerticalDiffusion2 ()
+            else
+                call VerticalDiffusion ()
+            endif
+            
             if (.not. Me%ExternalVar%AdvectionNudging) then
                 if (.not. Me%Vertical1D) call VerticalAdvection()
             else
@@ -1545,32 +1744,10 @@ cd2 :   if (Me%State%HorAdv) then
             call OpenBoundaryCondition() 
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
-
-        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
-
-        CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k)
-
-        ! At this stage the variable TICOEF3 have null values in the land points
-        ! We want that all proprieties in land points have the value of Null_Real.
-dok7 :  do k = KLB, KUB
-        !$OMP DO SCHEDULE (DYNAMIC,CHUNK)
-doj7 :  do j = JLB, JUB
-doi7 :  do i = ILB, IUB
-
-            if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
-                Me%TICOEF3(i,j,k)= Null_Real
-            endif
-
-                 
-        end do doi7
-        end do doj7
-        !$OMP END DO NOWAIT
-        end do dok7
-
-        !$OMP END PARALLEL
-
-        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
+        
+!        ! At this stage the variable TICOEF3 have null values in the land points
+!        ! We want that all proprieties in land points have the value of Null_Real.
+        call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
 
@@ -1664,11 +1841,21 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
             ! compute the vertical diffusion  implicitly
             
-            call THOMASZ(ILBWS, IUBWS,                                                  &
+!            call THOMASZ(ILBWS, IUBWS,                                                  &
+!                         JLBWS, JUBWS,                                                  &
+!                         KLBWS, KUBWS,                                                  &
+!                         Me%THOMAS,                                                     &
+!                         Me%ExternalVar%PROP                                            &
+!#ifdef _ENABLE_CUDA
+!                         , Me%ObjCuda,                                                  &
+!                         .FALSE.                                                        &
+!#endif _ENABLE_CUDA
+!                        )
+            call THOMASZ_NewType2(ILBWS, IUBWS,                                         &
                          JLBWS, JUBWS,                                                  &
                          KLBWS, KUBWS,                                                  &
                          Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP                                            &
+                         Me%ExternalVar%PROP, Me%ExternalVar%WaterPoints3D             &
 #ifdef _ENABLE_CUDA
                          , Me%ObjCuda,                                                  &
                          .FALSE.                                                        &
@@ -1692,20 +1879,35 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
 
 
 cd5 :   if (Me%State%CellFluxes) then
-            if (Me%ExternalVar%ImpExp_AdvV > 0.0 .and. KUBWS > 1)                       &
-                call CalcVerticalAdvFlux(Me%ExternalVar%ImpExp_AdvV)
+            if (Me%ExternalVar%Optimize) then
+                
+                if (Me%ExternalVar%ImpExp_AdvV > 0.0 .and. KUBWS > 1)                       &
+                    call CalcVerticalAdvFlux_opt(Me%ExternalVar%ImpExp_AdvV)
+
+                if (Me%ExternalVar%ImpExp_DifV > 0.0 .and. KUBWS > 1) then
+                    call CalcVerticalDifFlux2 (Me%ExternalVar%ImpExp_DifV )
+                endif
+
+                if (Me%ExternalVar%ImpExp_AdvXX == ImplicitScheme)                          &
+                    call CalcHorizontalAdvFluxXX_opt(Me%ExternalVar%ImpExp_AdvXX)
+
+                if (Me%ExternalVar%ImpExp_AdvYY == ImplicitScheme)                          &
+                    call CalcHorizontalAdvFluxYY_opt(Me%ExternalVar%ImpExp_AdvYY)
+            else
+                if (Me%ExternalVar%ImpExp_AdvV > 0.0 .and. KUBWS > 1)                       &
+                    call CalcVerticalAdvFlux(Me%ExternalVar%ImpExp_AdvV)
+
+                if (Me%ExternalVar%ImpExp_DifV > 0.0 .and. KUBWS > 1)                       &
+                    call CalcVerticalDifFlux (Me%ExternalVar%ImpExp_DifV )
 
 
-            if (Me%ExternalVar%ImpExp_DifV > 0.0 .and. KUBWS > 1)                       &
-                call CalcVerticalDifFlux (Me%ExternalVar%ImpExp_DifV )
+                if (Me%ExternalVar%ImpExp_AdvXX == ImplicitScheme)                          &
+                    call CalcHorizontalAdvFluxXX(Me%ExternalVar%ImpExp_AdvXX)
 
-
-            if (Me%ExternalVar%ImpExp_AdvXX == ImplicitScheme)                          &
-                call CalcHorizontalAdvFluxXX(Me%ExternalVar%ImpExp_AdvXX)
-
-            if (Me%ExternalVar%ImpExp_AdvYY == ImplicitScheme)                          &
-                call CalcHorizontalAdvFluxYY(Me%ExternalVar%ImpExp_AdvYY)
-
+                if (Me%ExternalVar%ImpExp_AdvYY == ImplicitScheme)                          &
+                    call CalcHorizontalAdvFluxYY(Me%ExternalVar%ImpExp_AdvYY)  
+            endif
+            
 
         end if cd5
 
@@ -2113,7 +2315,16 @@ do8:            do k=kbottom, KUB
                            Me%ExternalVar%KFloorZ, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'FinishAdvectionDiffusionIt - ModuleAdvectionDiffusion - ERR12'
+        
+        call UnGetGeometry(Me%ObjGeometry,                                              &
+                           Me%ExternalVar%KFloorU, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'FinishAdvectionDiffusionIt - ModuleAdvectionDiffusion - ERR13'
 
+        call UnGetGeometry(Me%ObjGeometry,                                              &
+                           Me%ExternalVar%KFloorV, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'FinishAdvectionDiffusionIt - ModuleAdvectionDiffusion - ERR14'
         !LandPoints3D
 !        call UngetMap(Me%AppMap,                                      &
 !                      Me%ExternalVar%LandPoints3D, STAT = STAT_CALL) 
@@ -2380,6 +2591,86 @@ nulldif:If (Me%ExternalVar%NullDif) Then
     end subroutine Convert_Visc_Dif_Horizontal
 
     !--------------------------------------------------------------------------
+    subroutine Convert_Visc_Dif_Horizontal_opt()
+
+        !External--------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------
+        
+        integer :: ILB, IUB 
+        integer :: JLB, JUB 
+        integer :: KLB, KUB
+        integer :: i, j, k
+        integer :: CHUNK
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "Convert_Visc_Dif_Horizontal_opt")
+
+        CHUNK = CHUNK_J(JLB, JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+
+        do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
+ 
+                Me%Diffusion_CoeficientX(i, j, k) =                  &
+                        Me%ExternalVar%Schmidt_H                     &
+                        * (Me%ExternalVar%Visc_H(i,j,  k)            &
+                        *  Me%ExternalVar%DUX(i,j-1)                 &
+                        +  Me%ExternalVar%Visc_H(i,j-1,k)            &
+                        *  Me%ExternalVar%DUX(i,j  ))                &
+                        / (Me%ExternalVar%DUX(i,j    )               &
+                        +  Me%ExternalVar%DUX(i,j-1))     
+                              
+            endif
+
+        enddo
+        enddo
+        !$OMP END DO NOWAIT
+        enddo
+
+        do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            If (Me%ExternalVar%ComputeFacesV3D(i, j, k) == 1) then
+
+                Me%Diffusion_CoeficientY(i,j,k)  =                    &
+                            Me%ExternalVar%Schmidt_H                  &
+                         * (Me%ExternalVar%Visc_H(i,  j,k)            &
+                         *  Me%ExternalVar%DVY(i-1,j)                 &
+                         +  Me%ExternalVar%Visc_H(i-1,j,k)            &
+                         *  Me%ExternalVar%DVY(i,  j))                &
+                         / (Me%ExternalVar%DVY(i,j)                   &
+                         +  Me%ExternalVar%DVY(i-1,j))
+
+            Endif
+        
+        enddo
+        enddo
+        !$OMP END DO
+        enddo
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "Convert_Visc_Dif_Horizontal_opt")
+        !----------------------------------------------------------------------
+
+    end subroutine Convert_Visc_Dif_Horizontal_opt
+    
+    !-----------------------------------------------------------------------------
 
 
     logical function SmallDepthCell (i, j) 
@@ -2401,7 +2692,7 @@ nulldif:If (Me%ExternalVar%NullDif) Then
         
         !--------------------------------------------------------------------------
 
-    end function SmallDepthCell 
+    end function SmallDepthCell
 
     !--------------------------------------------------------------------------
     !
@@ -2490,82 +2781,260 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine VerticalAdvection()
+    Subroutine VerticalDiffusion2()
+
+        !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------               
-        real(8)             :: AdvFluxZ, DT1, DT2
-        integer             :: i, j, k  
-        integer             :: CHUNK                           
+        real(8) :: AuxK, Aux1, Aux2, VolumeBottomCell
+        real    :: PropBottomCell, Gradient
+        integer :: i, j, k, Kbottom
+        integer :: CHUNK
 
         !----------------------------------------------------------------------
         
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VerticalDiffusion2")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+      
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2, Kbottom, VolumeBottomCell, PropBottomCell, Gradient)
+        
+        if (Me%ExternalVar%ImpExp_DifV > 0.0) then
+            !Implicit calculation
+            
+            if (Me%Docycle_method == 1)then
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j, Me%WorkSize%KUB) == 1 .and. .not. SmallDepthCell (i, j))  then
+                        
+                        Kbottom = Me%ExternalVar%KFloorZ(i, j)
+                        VolumeBottomCell = Me%ExternalVar%VolumeZ(i, j, Kbottom) 
+                        
+                        do k = Kbottom + 1, Me%WorkSize%KUB
+
+                            AuxK  =  Me%Diff_V_Const (i, j, k) * dble(Me%ExternalVar%DTProp) 
+
+                            ![m^3/s * s / m^3]
+                            Aux1 = AuxK  / VolumeBottomCell
+                            Aux2 = AuxK  / Me%ExternalVar%VolumeZ(i, j, k) 
+
+                            VolumeBottomCell = Me%ExternalVar%VolumeZ(i, j, k)
+                            
+                            Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Aux2
+                            Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) + Aux2
+                            Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Aux1
+                            Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) - Aux1
+                        end do
+                    endif 
+                end do
+                end do
+                !$OMP END DO
+            else
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1 .and.                    &
+                        .not. SmallDepthCell (i, j))  then
+                
+                        AuxK  =  Me%Diff_V_Const (i, j, k) * dble(Me%ExternalVar%DTProp) 
+
+                        ![m^3/s * s / m^3]
+                        Aux1 = AuxK  / Me%ExternalVar%VolumeZ(i, j, k-1) 
+                        Aux2 = AuxK  / Me%ExternalVar%VolumeZ(i, j, k  ) 
+
+                        Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Aux2
+                        Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) + Aux2
+                        Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Aux1
+                        Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) - Aux1
+                    endif
+
+                end do
+                end do
+                !$OMP END DO
+                end do
+            endif
+            
+        else
+            !Explicit calculation
+            
+            if (Me%Docycle_method == 1)then
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j, Me%WorkSize%KUB) == 1 .and.                    &
+                        .not. SmallDepthCell (i, j))  then
+                        
+                        Kbottom          = Me%ExternalVar%KFloorZ(i, j)
+                        VolumeBottomCell = Me%ExternalVar%VolumeZ(i, j, Kbottom)
+                        PropBottomCell   = Me%ExternalVar%PROP   (i, j, Kbottom)
+                        
+                        do k = Kbottom + 1, Me%WorkSize%KUB
+                
+                            AuxK  =  Me%Diff_V_Const (i, j, k) * dble(Me%ExternalVar%DTProp) 
+
+                            ![m^3/s * s / m^3]
+                            Aux1     = AuxK  / VolumeBottomCell
+                            Aux2     = AuxK  / Me%ExternalVar%VolumeZ(i, j, k)
+                            VolumeBottomCell = Me%ExternalVar%VolumeZ(i, j, k)
+                            
+                            Gradient = Me%ExternalVar%PROP(i,j,k)- PropBottomCell
+        
+                            Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) - Aux2 * Gradient
+
+                            Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) + Aux1 * Gradient
+                            
+                            PropBottomCell = Me%ExternalVar%PROP(i,j,k)
+                        end do
+                    endif
+                end do
+                end do
+                !$OMP END DO  
+            else
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1 .and.                    &
+                        .not. SmallDepthCell (i, j))  then
+                
+                        AuxK  =  Me%Diff_V_Const (i, j, k) * dble(Me%ExternalVar%DTProp) 
+
+                        ![m^3/s * s / m^3]
+                        Aux1 = AuxK  / Me%ExternalVar%VolumeZ(i, j, k-1) 
+                        Aux2 = AuxK  / Me%ExternalVar%VolumeZ(i, j, k  ) 
+        
+                        Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) - Aux2 *                                  &
+                                             (Me%ExternalVar%PROP(i,j,k)-Me%ExternalVar%PROP(i,j,k-1))
+
+                        Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) + Aux1 *                                  &
+                                             (Me%ExternalVar%PROP(i,j,k)-Me%ExternalVar%PROP(i,j,k-1))
+
+                    endif
+                end do
+                end do
+                !$OMP END DO
+                end do 
+            endif
+        endif
+        !$OMP END PARALLEL
+
+        if (Me%State%CellFluxes .and. Me%ExternalVar%ImpExp_DifV < 1.)                              &
+            call CalcVerticalDifFlux2(1. - Me%ExternalVar%ImpExp_DifV)
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "VerticalDiffusion2")
+
+        !----------------------------------------------------------------------
+
+    End Subroutine VerticalDiffusion2
+    
+    !--------------------------------------------------------------------------
+
+    subroutine VerticalAdvection()
+
+        !Local-----------------------------------------------------------------               
+        real(8)             :: AdvFluxZ, DT1, DT2, Volume_BottomCell
+        integer             :: i, j, k, KLB_Aux, KUB_Aux, Kbottom
+        integer             :: CHUNK
+        !----------------------------------------------------------------------
+        
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VerticalAdvection")
+        
+        KLB_Aux = Me%WorkSize%KLB + 1
+        KUB_Aux = Me%WorkSize%KUB + 1
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2)
-
+        !$OMP PARALLEL PRIVATE(i,j,k)
 st:     if (Me%State%VertAdv) then
-
-            !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-        
-            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-
-j1:         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                if (Me%ExternalVar%OpenPoints3D (i,j,Me%WorkSize%KUB) == 1) then
-                    call ComputeAdvection1D_V2( Me%WorkSize%KLB+1,                          &
-                                                Me%WorkSize%KUB+1,                          &
+            
+             if (Me%ExternalVar%Optimize) then
+            
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                    if (Me%ExternalVar%OpenPoints3D (i,j,Me%WorkSize%KUB) == 1) then
+                        call ComputeAdvection1D_TVD_SuperBee_2( KLB_Aux, KUB_Aux,             &
                                                 Me%ExternalVar%DTProp,                      &
                                                 Me%ExternalVar%DWZ          (i,j,:),        &
                                                 Me%ExternalVar%PROP         (i,j,:),        &
                                                 Me%ExternalVar%Wflux_Z      (i,j,:),        &
                                                 Me%ExternalVar%VolumeZ      (i,j,:),        & 
                                                 Me%ExternalVar%OpenPoints3D (i,j,:),        &
-                                                Me%COEF3_VertAdv%C_flux     (i,j,:),        &
-                                                Me%COEF3_VertAdv%D_flux     (i,j,:),        &
-                                                Me%COEF3_VertAdv%E_flux     (i,j,:),        &
-                                                Me%COEF3_VertAdv%F_flux     (i,j,:),        &
-                                                Me%ExternalVar%AdvMethodV,                  &
-                                                Me%ExternalVar%TVDLimitationV,              &
-                                                Me%ExternalVar%VolumeRelMax,                &
-                                                Me%ExternalVar%Upwind2V)
+                                                Me%COEF3_VertAdv%D_flux (i,j,:),            &
+                                                Me%COEF3_VertAdv%E_flux(i,j,:))                                
+                    endif
+                end do
+                end do
+                !$OMP END DO
+            
+            else
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    j1:         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+    i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExternalVar%OpenPoints3D (i,j,Me%WorkSize%KUB) == 1) then
+                        call ComputeAdvection1D_V2( Me%WorkSize%KLB+1,                          &
+                                                    Me%WorkSize%KUB+1,                          &
+                                                    Me%ExternalVar%DTProp,                      &
+                                                    Me%ExternalVar%DWZ          (i,j,:),        &
+                                                    Me%ExternalVar%PROP         (i,j,:),        &
+                                                    Me%ExternalVar%Wflux_Z      (i,j,:),        &
+                                                    Me%ExternalVar%VolumeZ      (i,j,:),        & 
+                                                    Me%ExternalVar%OpenPoints3D (i,j,:),        &
+                                                    Me%COEF3_VertAdv%C_flux     (i,j,:),        &
+                                                    Me%COEF3_VertAdv%D_flux     (i,j,:),        &
+                                                    Me%COEF3_VertAdv%E_flux     (i,j,:),        &
+                                                    Me%COEF3_VertAdv%F_flux     (i,j,:),        &
+                                                    Me%ExternalVar%AdvMethodV,                  &
+                                                    Me%ExternalVar%TVDLimitationV,              &
+                                                    Me%ExternalVar%VolumeRelMax,                &
+                                                    Me%ExternalVar%Upwind2V)
                                                 
 
-                    if (Me%ExternalVar%NoAdvFlux) then
+                        if (Me%ExternalVar%NoAdvFlux) then
 
-                        do k=Me%ExternalVar%KFloorZ(i, j), Me%WorkSize%KUB
-                            if (Me%ExternalVar%NoFluxW(i, j, k)==1) then
-                                Me%COEF3_VertAdv%C_flux     (i,j,k) = 0.
-                                Me%COEF3_VertAdv%D_flux     (i,j,k) = 0. 
-                                Me%COEF3_VertAdv%E_flux     (i,j,k) = 0.
-                                Me%COEF3_VertAdv%F_flux     (i,j,k) = 0.
-                            endif
-                        enddo
-                    endif 
+                            do k=Me%ExternalVar%KFloorZ(i, j), Me%WorkSize%KUB
+                                if (Me%ExternalVar%NoFluxW(i, j, k)==1) then
+                                    Me%COEF3_VertAdv%C_flux     (i,j,k) = 0.
+                                    Me%COEF3_VertAdv%D_flux     (i,j,k) = 0. 
+                                    Me%COEF3_VertAdv%E_flux     (i,j,k) = 0.
+                                    Me%COEF3_VertAdv%F_flux     (i,j,k) = 0.
+                                endif
+                            enddo
+                        endif 
                                                                  
-                endif
+                    endif
 
-            end do i1
-            end do j1
+                end do i1
+                end do j1
             
-            !$OMP END DO
-            !! $OMP END PARALLEL
+                !$OMP END DO
+            endif
 
         endif st
-
-        
-
+        !$OMP END PARALLEL
 cd6:    if (Me%ExternalVar%ImpExp_AdvV == ExplicitScheme)  then !ExplicitScheme = 0
+    
+            if (Me%ExternalVar%Optimize) then
+                !optimized only for the TVD. also checks which docycle method the user wants to use.
+                !If anyone wants to add an optimized version for other methods, they can just create here another routine.
+                call VerticalAdvection_ExplicitScheme
+                
+            else
+                
+                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ)
+dok3 :          do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj3 :          do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi3 :          do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-dok3 :      do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-doj3 :      do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-doi3 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-            if (Me%ExternalVar%ComputeFacesW3D(i, j  , k) == 1) then
+                if (Me%ExternalVar%ComputeFacesW3D(i, j  , k) == 1) then
                 
                 AdvFluxZ =    (Me%COEF3_VertAdv%C_flux(i,   j,   k)                     &
                             *  Me%ExternalVar%PROP    (i,   j, k-2)                     &
@@ -2581,50 +3050,85 @@ doi3 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) + AdvFluxZ *                  &
                                       Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
 
-            endif
-
-            end do doi3
-            end do doj3
-            !$OMP END DO
-            end do dok3
-
-        else if (Me%ExternalVar%ImpExp_AdvV == ImplicitScheme) then cd6 !ImplicitScheme = 1
-
-dok4 :      do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-doj4 :      do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                if (Me%ExternalVar%ComputeFacesW3D(i, j  , k) == 1) then
-
-                    DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
-                    DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
-                    
-                    Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
-                    Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
-
-                    Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
-                    Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1
-                    
                 endif
 
-            end do doi4
-            end do doj4
-            !$OMP END DO           
-            end do dok4
+                end do doi3
+                end do doj3
+                !$OMP END DO
+                end do dok3
+                !$OMP END PARALLEL
+            endif
 
+        else if (Me%ExternalVar%ImpExp_AdvV == ImplicitScheme) then cd6 !ImplicitScheme = 1
+            
+            !$OMP PARALLEL PRIVATE(i,j,k,DT1,DT2, Kbottom, Volume_BottomCell)
+
+            if (Me%Docycle_method == 1)then
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j  , Me%WorkSize%KUB) == 1) then
+                        
+                        !Start at the first computefacesW3D
+                        Kbottom           = Me%ExternalVar%KFloorZ(i, j         )
+                        Volume_BottomCell = Me%ExternalVar%VolumeZ(i, j, Kbottom)
+                        
+                        do k = Kbottom + 1, Me%WorkSize%KUB
+
+                            DT1 = Me%ExternalVar%DTProp / Volume_BottomCell
+                            DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
+                            
+                            Volume_BottomCell = Me%ExternalVar%VolumeZ(i,j,k)
+                    
+                            Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
+                            Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
+
+                            Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
+                            Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1
+                        end do
+                    endif
+                end do
+                end do
+                !$OMP END DO  
+            else
+    dok4 :      do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    doj4 :      do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+    doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExternalVar%ComputeFacesW3D(i, j  , k) == 1) then
+
+                        DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
+                        DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
+                    
+                        Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
+                        Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
+
+                        Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
+                        Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1
+                    
+                    endif
+
+                end do doi4
+                end do doj4
+                !$OMP END DO           
+                end do dok4
+            endif
+            !$OMP END PARALLEL
         else cd6
 
             stop 'sub. VerticalAdvection - ModuleAdvectionDiffusion - ERR01'
         
         endif cd6
 
-        !$OMP END PARALLEL
-
         !Fluxes among cells
-        if (Me%State%CellFluxes .and. Me%ExternalVar%ImpExp_AdvV < 1.)    &
-            call CalcVerticalAdvFlux(1. - Me%ExternalVar%ImpExp_AdvV)
-
+        if (Me%State%CellFluxes .and. Me%ExternalVar%ImpExp_AdvV < 1.) then
+            if (Me%ExternalVar%Optimize)then
+                call CalcVerticalAdvFlux_opt(1. - Me%ExternalVar%ImpExp_AdvV)
+            else
+                call CalcVerticalAdvFlux(1. - Me%ExternalVar%ImpExp_AdvV)
+            endif
+        endif
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "VerticalAdvection")
 
         !----------------------------------------------------------------------
@@ -2632,6 +3136,71 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine VerticalAdvection
 
     !--------------------------------------------------------------------------
+    
+    subroutine VerticalAdvection_ExplicitScheme
+        !Local-----------------------------------------------------------------               
+        real(8)             :: AdvFluxZ, Volume_BottomCell
+        real                :: PROP_BottomCell
+        integer             :: i, j, k, Kbottom
+        integer             :: CHUNK
+        !----------------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,Kbottom, Volume_BottomCell, PROP_BottomCell)
+        if (Me%Docycle_method == 1)then
+                
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%ComputeFacesW3D(i, j  , Me%WorkSize%KUB) == 1) then
+                    !Start at the first computefacesW3D
+                    Kbottom = Me%ExternalVar%KFloorZ(i, j)
+                    Volume_BottomCell = Me%ExternalVar%VolumeZ(i, j, Kbottom)
+                    PROP_BottomCell   = Me%ExternalVar%PROP   (i, j, Kbottom)
+                        
+                    do k = Kbottom + 1, Me%WorkSize%KUB
+                        !                                               Me%ExternalVar%PROP(i, j, k - 1)
+                        AdvFluxZ = (Me%COEF3_VertAdv%D_flux(i, j, k) *  PROP_BottomCell                     &
+                                 +  Me%COEF3_VertAdv%E_flux(i, j, k) *  Me%ExternalVar%PROP(i, j, k    ))   &
+                                 *  Me%ExternalVar%DTProp
+                        
+                        PROP_BottomCell   = Me%ExternalVar%PROP   (i,j,k)
+                            
+                        Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) - AdvFluxZ / Volume_BottomCell
+                        Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) + AdvFluxZ / Me%ExternalVar%VolumeZ(i,j,k  )
+                    
+                        Volume_BottomCell = Me%ExternalVar%VolumeZ(i,j,k)
+                    end do
+                endif
+            end do
+            end do
+            !$OMP END DO
+        else
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%ComputeFacesW3D(i, j  , k) == 1) then
+                
+                    AdvFluxZ =    (Me%COEF3_VertAdv%D_flux(i,   j,   k)                     &
+                                *  Me%ExternalVar%PROP    (i,   j, k-1)                     &
+                                +  Me%COEF3_VertAdv%E_flux(i,   j,   k)                     &
+                                *  Me%ExternalVar%PROP    (i,   j,   k))                    &
+                                * Me%ExternalVar%DTProp
+
+                    Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) - AdvFluxZ / Me%ExternalVar%VolumeZ(i,j,k-1)
+                    Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) + AdvFluxZ / Me%ExternalVar%VolumeZ(i,j,k  )
+
+                endif
+            end do
+            end do
+            !$OMP END DO
+            end do
+        endif
+         !$OMP END PARALLEL
+        
+    end subroutine VerticalAdvection_ExplicitScheme
 
     !--------------------------------------------------------------------------
 
@@ -2651,8 +3220,6 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2)
 
 st:     if (Me%State%VertAdv) then
-
-            !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
         
             !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -2797,7 +3364,6 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcVerticalAdvFlux")
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-        
         !$OMP PARALLEL PRIVATE(k,j,i)
 
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -2835,6 +3401,76 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine CalcVerticalAdvFlux
 
     !--------------------------------------------------------------------------
+    
+    subroutine CalcVerticalAdvFlux_opt(Weigth)
+
+
+        !Arguments-------------------------------------------------------------
+        real, intent(IN)                            :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+        real                                        :: PROP_BottomCell
+        integer                                     :: i, j, k, kbottom  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcVerticalAdvFlux_opt")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(k,j,i, kbottom, PROP_BottomCell)
+        if (Me%Docycle_method == 1)then
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%ComputeFacesW3D(i, j, Me%WorkSize%KUB) == 1) then
+                
+                    kbottom         = Me%ExternalVar%KFloorZ(i, j)
+                    PROP_BottomCell = Me%ExternalVar%PROP   (i, j, kbottom)
+                    do k = kbottom + 1, Me%WorkSize%KUB
+
+                        Me%Fluxes%AdvFluxZ(i, j, k) = Me%Fluxes%AdvFluxZ(i, j, k)               &
+                                                    + Weigth                                    &
+                                                    *(Me%COEF3_VertAdv%D_flux(i,j,k) * PROP_BottomCell            &
+                                                    + Me%COEF3_VertAdv%E_flux(i,j,k) * Me%ExternalVar%PROP(i, j, k ))
+                        PROP_BottomCell = Me%ExternalVar%PROP(i, j, k)
+                    end do
+                endif
+            end do
+            end do
+            !$OMP END DO
+        else
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
+
+                Me%Fluxes%AdvFluxZ(i, j, k) =                                               &
+                              Me%Fluxes%AdvFluxZ(i, j, k)                                   &
+                            + Weigth                                                        &
+                            *(Me%COEF3_VertAdv%D_flux(i,j,k)                                &
+                            * Me%ExternalVar%PROP(i, j, k-1)                                &
+                            + Me%COEF3_VertAdv%E_flux(i,j,k)                                &
+                            * Me%ExternalVar%PROP(i, j, k))
+            endif
+
+            end do
+            end do
+            !$OMP END DO NOWAIT
+            end do 
+        endif
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcVerticalAdvFlux_opt")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcVerticalAdvFlux_opt
+    
+    !--------------------------------------------------------------------------
 
     subroutine CalcHorizontalAdvFluxXX(Weigth)
 
@@ -2853,7 +3489,6 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         !$OMP PARALLEL PRIVATE(i,j,k)
-
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -2888,7 +3523,44 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
+    subroutine CalcHorizontalAdvFluxXX_opt(Weigth)
+        !External--------------------------------------------------------------
+    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
 
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j,     k 
+        integer :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcHorizontalAdvFluxXX")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
+
+            Me%Fluxes%AdvFluxX(i, j, k) = Me%Fluxes%AdvFluxX(i, j, k)                   &
+                        + Weigth                                                        &
+                        * (Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i, j-1, k)                          &
+                        +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i,   j, k))
+
+        endif
+        end do
+        end do
+        !$OMP END DO NOWAIT
+        end do 
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcHorizontalAdvFluxXX")
+    end subroutine CalcHorizontalAdvFluxXX_opt
 
     !--------------------------------------------------------------------------
 
@@ -2943,6 +3615,51 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine CalcHorizontalAdvFluxYY
 
     !--------------------------------------------------------------------------
+    
+    subroutine CalcHorizontalAdvFluxYY_opt(Weigth)
+
+        !External--------------------------------------------------------------
+    
+        real, intent(IN) :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+
+        !Local-----------------------------------------------------------------
+
+        integer :: i,     j,     k
+        integer :: CHUNK
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcHorizontalAdvFluxYY_opt")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExternalVar%ComputeFacesV3D(i  , j, k) == 1) then
+            Me%Fluxes%AdvFluxY(i, j, k) = Me%Fluxes%AdvFluxY(i, j, k)                   &
+                        + Weigth                                                        &
+                        * (Me%COEF3_HorAdvYY%D_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i-1, j, k)                          &
+                        +  Me%COEF3_HorAdvYY%E_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i,   j, k))
+        endif
+        end do
+        end do
+        !$OMP END DO NOWAIT
+        end do
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcHorizontalAdvFluxYY_opt")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalAdvFluxYY_opt
+    
+    !--------------------------------------------------------------------------
 
     subroutine CalcVerticalDifFlux(Weigth)
 
@@ -2990,6 +3707,75 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine CalcVerticalDifFlux
 
     !--------------------------------------------------------------------------
+    
+    subroutine CalcVerticalDifFlux2(Weigth)
+
+        !Arguments-------------------------------------------------------------
+        real, intent(IN)                            :: Weigth !Refers to the wigth of Implicit-Explicit calculations
+
+        !Local-----------------------------------------------------------------
+        real                                        :: PropBottomCell
+        integer                                     :: i, j, k, Kbottom
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcVerticalDifFlux")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i, j, k, KBottom, PropBottomCell)
+        
+        if (Me%Docycle_method == 1)then
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+    doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%ComputeFacesW3D(i, j, Me%WorkSize%KUB) == 1) then
+                
+                Kbottom        = Me%ExternalVar%KFloorZ(i, j)
+                PropBottomCell = Me%ExternalVar%PROP   (i, j, Kbottom)
+                
+        dok1:   do k = Kbottom + 1, Me%WorkSize%KUB
+                    Me%Fluxes%DifFluxZ(i, j, k) = Me%Fluxes%DifFluxZ(i, j, k)               &
+                                                - Weigth                                    &
+                                                * Me%Diff_V_Const(i,j, k)                   &
+                                                *(Me%ExternalVar%PROP(i, j, k  ) - PropBottomCell)
+                    PropBottomCell = Me%ExternalVar%PROP(i, j, k)
+                end do dok1
+            endif
+            end do doi1
+            end do doj1
+            !$OMP END DO
+            
+        else
+    dok2:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    doj2:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+    doi2:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%ComputeFacesW3D(i, j, k  ) == 1) then
+                Me%Fluxes%DifFluxZ(i, j, k) =                                               &
+                              Me%Fluxes%DifFluxZ(i, j, k)                                   &
+                            - Weigth                                                        &
+                            * Me%Diff_V_Const(i,j, k)                                       &
+                            *(Me%ExternalVar%PROP(i, j, k  )                                &
+                            - Me%ExternalVar%PROP(i, j, k-1))
+            endif
+            end do doi2
+            end do doj2
+            !$OMP END DO NOWAIT
+            end do dok2 
+        endif
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcVerticalDifFlux")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcVerticalDifFlux2
+    
+    !-------------------------------------------------------------------------
 
     subroutine CalcHorizontalDifFluxXX()
 
@@ -3033,6 +3819,48 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------
 
     end subroutine CalcHorizontalDifFluxXX
+    
+    !--------------------------------------------------------------------------
+    subroutine CalcHorizontalDifFluxXX2()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+        
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcHorizontalDifFluxXX2")
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then                           
+                Me%Fluxes%DifFluxX(i, j, k) =                                           &
+                              Me%Fluxes%DifFluxX      (i,  j, k)                        &
+                            - Me%Diff_H_Const_U       (i,  j, k)                        &
+                            *(Me%ExternalVar%PROP     (i,  j, k)                        &
+                            - Me%ExternalVar%PROP     (i,j-1, k))
+
+            endif
+        end do doi1
+        end do doj1
+        !$OMP END DO NOWAIT
+        end do dok1
+
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcHorizontalDifFluxXX2")
+
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalDifFluxXX2
 
     !--------------------------------------------------------------------------
 
@@ -3077,6 +3905,49 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------
 
     end subroutine CalcHorizontalDifFluxYY
+    
+    subroutine CalcHorizontalDifFluxYY2()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+        real(8)                                     :: DTPropDouble
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "CalcHorizontalDifFluxYY2")
+        
+        DTPropDouble = dble(Me%ExternalVar%DTProp)
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+
+dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        if (Me%ExternalVar%ComputeFacesV3D(i  , j, k) == 1) then
+            Me%Fluxes%DifFluxY(i, j, k) =                                               &
+                          Me%Fluxes%DifFluxY      (i  , j, k)                           &
+                        - Me%Diff_H_Const_V       (i  , j, k)                           &
+                        *(Me%ExternalVar%PROP     (i  , j, k)                           &
+                        - Me%ExternalVar%PROP     (i-1, j, k))
+        endif
+        end do doi1
+        end do doj1
+        !$OMP END DO
+        end do dok1
+        
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "CalcHorizontalDifFluxYY")
+        
+        !----------------------------------------------------------------------
+
+    end subroutine CalcHorizontalDifFluxYY2
 
     !--------------------------------------------------------------------------
 
@@ -3102,8 +3973,9 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VolumeVariation")
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        
         !$OMP PARALLEL PRIVATE(i,j,k,DT_V) 
-
+        
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3111,25 +3983,19 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
 
-                Me%TICOEF3(i,j,k) =                                   &
-                                   Me%TICOEF3(i,j,k)                  &
-                                 + Me%ExternalVar%PROP(i,j,k)         &
-                                 * (Me%ExternalVar%VolumeZOld(i,j,k)  &
-                                 /  Me%ExternalVar%VolumeZ(i,j,k)   )
-
+                Me%TICOEF3(i,j,k) = Me%ExternalVar%PROP(i,j,k)         &
+                                  * (Me%ExternalVar%VolumeZOld(i,j,k)  &
+                                  /  Me%ExternalVar%VolumeZ(i,j,k)   )
                 
-
-                ! if WFLUX_Z(i,j,KUB+1) different from zero corrects the mass fluxes 
-                ! to maintain the global mass
-                !In the surface layer the follow is true:
-                ! Vreal = VolumeZ + dt*FluxZ(kub+1)
-                ! d(VC)/dt = (C(t+dt)*Vreal(t+dt) - C(t)*V(t))/ dt = (C(t+dt) * (VolumeZ + dt *FluxZ(kub+1)) -C(t)*V(t))/ dt 
-                ! C(t+dt)* (1 + dt * FluxZ(kub+1) / VolumeZ)  = C(t)*V(t) / VolumeZ + Transporte
-                if (k == Me%WorkSize%KUB)  then
+                if (k == Me%WorkSize%KUB) then
+                
                     DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
-                    Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k) + DT_V * Me%ExternalVar%Wflux_Z(i,j,Me%WorkSize%KUB+1)
+                    Me%COEF3%E(i,j,k) = dble(1.0) + DT_V * Me%ExternalVar%Wflux_Z(i,j, k + 1)
+                elseif (Me%ExternalVar%Optimize) then
+                    !Initialize so that the setmatrixvalue does not need to be called for every property
+                    Me%COEF3%E(i,j,k) = dble(1.0)
                 endif
-            
+                
             else cd1 !This is important for the tidal flats points to maintain 
                      !their concentration when they are not covered 
 
@@ -3196,8 +4062,6 @@ dnc:        do   nc = 1, Me%ExternalVar%DischnCells(dis)
                 do k=kmin, kmax
                     WaterColumn = WaterColumn + Me%ExternalVar%DWZ(i,j,k)
                 enddo
-                
-               
 
 dk:             do k=kmin, kmax
 
@@ -3262,35 +4126,21 @@ fl:                         if (Flow > 0.) then
 
         !Arguments-------------------------------------------------------------
         real                                :: ImpExp_AdvXX, ImpExp_AdvYY
-
         !Local-----------------------------------------------------------------
         integer                             :: di,    dj    
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
         integer                             :: STAT_CALL        
-
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvection")
 
-        ILBWS = Me%WorkSize%ILB
-        IUBWS = Me%WorkSize%IUB
+        ILBWS = Me%WorkSize%ILB;  JLBWS = Me%WorkSize%JLB;  KLBWS = Me%WorkSize%KLB
+        IUBWS = Me%WorkSize%IUB;  JUBWS = Me%WorkSize%JUB;  KUBWS = Me%WorkSize%KUB
 
-        JLBWS = Me%WorkSize%JLB
-        JUBWS = Me%WorkSize%JUB
-
-        KLBWS = Me%WorkSize%KLB
-        KUBWS = Me%WorkSize%KUB
-
-        ILB   = Me%Size%ILB
-        IUB   = Me%Size%IUB
-
-        JLB   = Me%Size%JLB 
-        JUB   = Me%Size%JUB
-
-        KLB   = Me%Size%KLB
-        KUB   = Me%Size%KUB
-                
+        ILB   = Me%Size%ILB;  JLB   = Me%Size%JLB;  KLB   = Me%Size%KLB
+        IUB   = Me%Size%IUB;  JUB   = Me%Size%JUB;  KUB   = Me%Size%KUB
+     
         if (.not. Me%ExternalVar%AdvectionNudging) then
             call HorizontalAdvectionXX(ImpExp_AdvXX)
         else
@@ -3305,15 +4155,11 @@ fl:                         if (Flow > 0.) then
             if (.not. Me%XZFlow) call HorizontalAdvectionYY(ImpExp_AdvYY)
         else
             if (.not. Me%XZFlow) call HorizontalAdvectionYY_Nudge(ImpExp_AdvYY)
-    endif
+        endif
 
 cd1:    if (ImpExp_AdvYY == ImplicitScheme .or. ImpExp_AdvXX == ImplicitScheme) then 
 
-
 cd3D:       if (KUBWS > 1) then
-
-                !if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorAdvection-THOMAS3D")
-
 
 cd2:            if (ImpExp_AdvXX == ImplicitScheme) then 
 
@@ -3398,18 +4244,6 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                 call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
                 call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
                 call SetMatrixValue (Me%TICOEF3, Me%Size, Me%ExternalVar%PROP)
-!dok6 :          do k = KLB, KUB 
-!doj6 :          do j = JLB, JUB
-!doi6 :          do i = ILB, IUB
-!                    Me%COEF3%D(i,j,k) = 0.0                                            
-!                    Me%COEF3%E(i,j,k) = 1.0  
-!                    Me%COEF3%F(i,j,k) = 0.0   
-!                    Me%TICOEF3(i,j,k) = Me%ExternalVar%PROP(i,j,k)
-!                end do doi6
-!                end do doj6
-!                end do dok6
-
-                !if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorAdvection-THOMAS3D")
 
             endif cd3D
      
@@ -3442,15 +4276,9 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionUpwindExplict")
 
-        ILB   = Me%WorkSize%ILB
-        IUB   = Me%WorkSize%IUB
+        ILB   = Me%WorkSize%ILB;  JLB   = Me%WorkSize%JLB;  KLB   = Me%WorkSize%KLB
+        IUB   = Me%WorkSize%IUB;  JUB   = Me%WorkSize%JUB;  KUB   = Me%WorkSize%KUB
                    
-        JLB   = Me%WorkSize%JLB 
-        JUB   = Me%WorkSize%JUB
-                   
-        KLB   = Me%WorkSize%KLB
-        KUB   = Me%WorkSize%KUB
-        
         CHUNK = ChunkJ        
 
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX, AdvFluxY)
@@ -3466,7 +4294,6 @@ doi1 :      do i = ILB, IUB
     
                 if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
                 
-                    
                     if (Me%ExternalVar%Wflux_X(i, j, k) > 0.) then
                         Me%COEF3_HorAdvXX%D_flux(i,   j, k) =   Me%ExternalVar%Wflux_X(i, j, k)
                     else
@@ -3542,119 +4369,134 @@ doi2 :  do i = ILB, IUB
         real(8) :: AdvFluxX, DT1, DT2
 
         integer :: i,     j,     k                             
-        integer :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer :: ILB, IUB, JLB, JUB, KLB, KUB, JLB_Aux, JUB_Aux
         integer :: CHUNK
         !----------------------------------------------------------------------
 
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        JLB_Aux = JLB + 1 ; JUB_Aux = JUB + 1
 
         CHUNK = CHUNK_I(ILB, IUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
+        !$OMP PARALLEL PRIVATE(i,j,k)
 
 st:     if (Me%State%HorAdv) then
             
-            !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+             if (Me%ExternalVar%Optimize) then
+                
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do i = ILB, IUB
+                
+                    call ComputeAdvection1D_TVD_SuperBee_2(JLB_Aux, JUB_Aux, Me%ExternalVar%DTProp,                 &
+                                            Me%ExternalVar%DUX          (i,:),                                    &
+                                            Me%ExternalVar%PROP         (i,:,k),                                  &
+                                            Me%ExternalVar%Wflux_X      (i,:,k),                                  &
+                                            Me%ExternalVar%VolumeZ      (i,:,k),                                  & 
+                                            Me%ExternalVar%OpenPoints3D (i,:,k),                                  &
+                                            Me%COEF3_HorAdvXX%D_flux(i,:,k), Me%COEF3_HorAdvXX%E_flux(i,:,k))
+                end do
+                !$OMP END DO
+                end do
 
-            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
-            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
-
-k1:         do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-i1:         do i = ILB, IUB
+            else
+    k1:         do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    i1:         do i = ILB, IUB
 
 
-                call ComputeAdvection1D_V2(JLB+1, JUB+1, Me%ExternalVar%DTProp,         &
-                                        Me%ExternalVar%DUX          (i,:),              &
-                                        Me%ExternalVar%PROP         (i,:,k),            &
-                                        Me%ExternalVar%Wflux_X      (i,:,k),            &
-                                        Me%ExternalVar%VolumeZ      (i,:,k),            & 
-                                        Me%ExternalVar%OpenPoints3D (i,:,k),            &
-                                        Me%COEF3_HorAdvXX%C_flux    (i,:,k),            &
-                                        Me%COEF3_HorAdvXX%D_flux    (i,:,k),            &
-                                        Me%COEF3_HorAdvXX%E_flux    (i,:,k),            &
-                                        Me%COEF3_HorAdvXX%F_flux    (i,:,k),            &
-                                        Me%ExternalVar%AdvMethodH,                      &
-                                        Me%ExternalVar%TVDLimitationH,                  &
-                                        Me%ExternalVar%VolumeRelMax,                    &
-                                        Me%ExternalVar%Upwind2H)
+                    call ComputeAdvection1D_V2(JLB+1, JUB+1, Me%ExternalVar%DTProp,         &
+                                            Me%ExternalVar%DUX          (i,:),              &
+                                            Me%ExternalVar%PROP         (i,:,k),            &
+                                            Me%ExternalVar%Wflux_X      (i,:,k),            &
+                                            Me%ExternalVar%VolumeZ      (i,:,k),            & 
+                                            Me%ExternalVar%OpenPoints3D (i,:,k),            &
+                                            Me%COEF3_HorAdvXX%C_flux    (i,:,k),            &
+                                            Me%COEF3_HorAdvXX%D_flux    (i,:,k),            &
+                                            Me%COEF3_HorAdvXX%E_flux    (i,:,k),            &
+                                            Me%COEF3_HorAdvXX%F_flux    (i,:,k),            &
+                                            Me%ExternalVar%AdvMethodH,                      &
+                                            Me%ExternalVar%TVDLimitationH,                  &
+                                            Me%ExternalVar%VolumeRelMax,                    &
+                                            Me%ExternalVar%Upwind2H)
 
-                    if (Me%ExternalVar%NoAdvFlux) then
-                        do j = JLB, JUB
-                            if (Me%ExternalVar%NoFluxU(i, j, k)==1) then
-                                Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
-                                Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
-                                Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
-                                Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
-                            endif
-                        enddo
-                    endif                                                
+                        if (Me%ExternalVar%NoAdvFlux) then
+                            do j = JLB, JUB
+                                if (Me%ExternalVar%NoFluxU(i, j, k)==1) then
+                                    Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
+                                    Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
+                                    Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
+                                    Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
+                                endif
+                            enddo
+                        endif                                                
                     
-            end do i1
-            !$OMP END DO
-            end do k1
-        
-        !! $OMP END PARALLEL
+                end do i1
+                !$OMP END DO
+                end do k1
+            endif
 
         endif st
-
+        !$OMP END PARALLEL
         CHUNK = CHUNK_K(KLB, KUB)
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
+    
+            if (Me%ExternalVar%Optimize) then
+                
+                call HorizontalAdvectionXX_Explicit
+                
+            else
+                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    dok3 :      do k = KLB, KUB
+    doj3 :      do j = JLB, JUB
+    doi3 :      do i = ILB, IUB
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-dok3 :      do k = KLB, KUB
-doj3 :      do j = JLB, JUB
-doi3 :      do i = ILB, IUB
+                if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
 
-            if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
+                    AdvFluxX =    (Me%COEF3_HorAdvXX%C_flux(i,   j, k)                          &
+                                *  Me%ExternalVar%PROP     (i, j-2, k)                          &
+                                +  Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
+                                *  Me%ExternalVar%PROP     (i, j-1, k)                          &
+                                +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
+                                *  Me%ExternalVar%PROP     (i,   j, k)                          &
+                                +  Me%COEF3_HorAdvXX%F_flux(i,   j, k)                          &
+                                *  Me%ExternalVar%PROP     (i, j+1, k))
 
-                AdvFluxX =    (Me%COEF3_HorAdvXX%C_flux(i,   j, k)                          &
-                            *  Me%ExternalVar%PROP     (i, j-2, k)                          &
-                            +  Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
-                            *  Me%ExternalVar%PROP     (i, j-1, k)                          &
-                            +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
-                            *  Me%ExternalVar%PROP     (i,   j, k)                          &
-                            +  Me%COEF3_HorAdvXX%F_flux(i,   j, k)                          &
-                            *  Me%ExternalVar%PROP     (i, j+1, k))
+                    Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+                    Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
 
-                Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
-                Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+                endif
 
+                end do doi3
+                end do doj3
+                end do dok3
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
             endif
 
-            end do doi3
-            end do doj3
-            end do dok3
-            !$OMP END DO NOWAIT 
+    else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+dok5 :  do k = KLB, KUB
+doj5 :  do j = JLB, JUB
+doi5 :  do i = ILB, IUB
 
-        else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
+        if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-dok4 :      do k = KLB, KUB
-doj4 :      do j = JLB, JUB
-doi4 :      do i = ILB, IUB
+            DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+            DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
 
+            Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
+            Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
 
-            if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
-
-                DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
-                DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
-
-                Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
-                Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
-
-                Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
-                Me%COEF3%F(i,j-1,k) = Me%COEF3%F(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+            Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
+            Me%COEF3%F(i,j-1,k) = Me%COEF3%F(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
 
 !The module advection is only able to compute tridiagonal linear systems 
 !
@@ -3664,32 +4506,74 @@ doi4 :      do i = ILB, IUB
 !                      The aux variables
 !                      Me%COEF3_VertAdv%C_flux and are not used Me%COEF3_VertAdv%G_flux
 
+        endif
 
-            endif
-
-
-            end do doi4
-            end do doj4
-            end do dok4
-            !$OMP END DO NOWAIT 
-
+        end do doi5
+        end do doj5
+        end do dok5
+        !$OMP END DO NOWAIT   
+        !$OMP END PARALLEL
         else cd6
 
             stop 'sub. HorizontalAdvectionXX - ModuleAdvectionDiffusion - ERR01'
         
         endif cd6
 
-        !$OMP END PARALLEL
-
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
-        if (Me%State%CellFluxes .and. ImpExp_AdvXX == ExplicitScheme)                   &
-            call CalcHorizontalAdvFluxXX(1. - ImpExp_AdvXX)
-
+        if (Me%State%CellFluxes .and. ImpExp_AdvXX == ExplicitScheme) then
+            if (Me%ExternalVar%Optimize)then
+                call CalcHorizontalAdvFluxXX_opt(1. - ImpExp_AdvXX)
+            else
+                call CalcHorizontalAdvFluxXX(1. - ImpExp_AdvXX)
+            endif
+        endif
         !----------------------------------------------------------------------
 
     end subroutine HorizontalAdvectionXX
 
+    !--------------------------------------------------------------------------
+    
+    subroutine HorizontalAdvectionXX_Explicit
+        !External--------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------               
+
+        real(8) :: AdvFluxX
+
+        integer :: i,     j,     k                             
+        integer :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer :: CHUNK
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+
+        CHUNK = CHUNK_K(KLB, KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
+
+                AdvFluxX =    (Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
+                            *  Me%ExternalVar%PROP     (i, j-1, k)                          &
+                            +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
+                            *  Me%ExternalVar%PROP     (i,   j, k))
+
+                Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+                Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+            endif
+
+        end do
+        end do
+        end do
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine HorizontalAdvectionXX_Explicit
+    
     !--------------------------------------------------------------------------
 
     subroutine HorizontalAdvectionXX_Nudge(ImpExp_AdvXX)
@@ -3710,24 +4594,13 @@ doi4 :      do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         CHUNK = CHUNK_I(ILB, IUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
 
 st:     if (Me%State%HorAdv) then
-            
-            !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
-
-            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
-            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3752,8 +4625,6 @@ i1:         do i = ILB, IUB
             end do i1
             !$OMP END DO
             end do k1
-        
-        !! $OMP END PARALLEL
 
         endif st
 
@@ -3866,108 +4737,117 @@ doi4 :      do i = ILB, IUB
         !Local-----------------------------------------------------------------               
         real(8)                             :: AdvFluxY, DT1, DT2
         integer                             :: i,     j,     k                             
-        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB, ILB_Aux, IUB_Aux
         integer                             :: CHUNK
 
         !----------------------------------------------------------------------
 
-        !if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionYY")
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB ; IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB ; JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB ; KUB = Me%WorkSize%KUB
+        
+        ILB_Aux = ILB + 1 ; IUB_Aux = IUB + 1
         
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionYY")
         
-        !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
         CHUNK = CHUNK_J(JLB, JUB)
       
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY,DT2,DT1)
 
-
 st:     if (Me%State%HorAdv) then
-        
-            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(J,K)
-            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
-
-k1:         do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-j1:         do j = JLB, JUB
-
-
-                call ComputeAdvection1D_V2(ILB+1, IUB+1, Me%ExternalVar%DTProp,         &
-                                        Me%ExternalVar%DVY          (:,j),              &
-                                        Me%ExternalVar%PROP         (:,j,k),            &
-                                        Me%ExternalVar%Wflux_Y      (:,j,k),            &
-                                        Me%ExternalVar%VolumeZ      (:,j,k),            & 
-                                        Me%ExternalVar%OpenPoints3D (:,j,k),            &
-                                        Me%COEF3_HorAdvYY%C_flux    (:,j,k),            &
-                                        Me%COEF3_HorAdvYY%D_flux    (:,j,k),            &
-                                        Me%COEF3_HorAdvYY%E_flux    (:,j,k),            &
-                                        Me%COEF3_HorAdvYY%F_flux    (:,j,k),            &
-                                        Me%ExternalVar%AdvMethodH,                      &
-                                        Me%ExternalVar%TVDLimitationH,                  &
-                                        Me%ExternalVar%VolumeRelMax,                    &
-                                        Me%ExternalVar%Upwind2H)
-
-
-
-                    if (Me%ExternalVar%NoAdvFlux) then
-                        do i = ILB, IUB
-                            if (Me%ExternalVar%NoFluxV(i, j, k)==1) then
-                                Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
-                                Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
-                                Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
-                                Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
-                            endif
-                        enddo
-                    endif                                                
-
-            end do j1
-            !$OMP END DO
-            end do k1
             
-            !! $OMP END DO NOWAIT
-            !! $OMP END PARALLEL
+             if (Me%ExternalVar%Optimize) then
+                
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = JLB, JUB
+                
+                    call ComputeAdvection1D_TVD_SuperBee_2(ILB_Aux, IUB_Aux, Me%ExternalVar%DTProp,                 &
+                                            Me%ExternalVar%DVY          (:,j),                                    &
+                                            Me%ExternalVar%PROP         (:,j,k),                                  &
+                                            Me%ExternalVar%Wflux_Y      (:,j,k),                                  &
+                                            Me%ExternalVar%VolumeZ      (:,j,k),                                  & 
+                                            Me%ExternalVar%OpenPoints3D (:,j,k),                                  &
+                                            Me%COEF3_HorAdvYY%D_flux(:,j,k), Me%COEF3_HorAdvYY%E_flux(:,j,k))
+                end do
+                !$OMP END DO
+                end do
+                
+             else
+    k1:         do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    j1:         do j = JLB, JUB
 
-        endif st
+                    call ComputeAdvection1D_V2(ILB+1, IUB+1, Me%ExternalVar%DTProp,         &
+                                            Me%ExternalVar%DVY          (:,j),              &
+                                            Me%ExternalVar%PROP         (:,j,k),            &
+                                            Me%ExternalVar%Wflux_Y      (:,j,k),            &
+                                            Me%ExternalVar%VolumeZ      (:,j,k),            & 
+                                            Me%ExternalVar%OpenPoints3D (:,j,k),            &
+                                            Me%COEF3_HorAdvYY%C_flux    (:,j,k),            &
+                                            Me%COEF3_HorAdvYY%D_flux    (:,j,k),            &
+                                            Me%COEF3_HorAdvYY%E_flux    (:,j,k),            &
+                                            Me%COEF3_HorAdvYY%F_flux    (:,j,k),            &
+                                            Me%ExternalVar%AdvMethodH,                      &
+                                            Me%ExternalVar%TVDLimitationH,                  &
+                                            Me%ExternalVar%VolumeRelMax,                    &
+                                            Me%ExternalVar%Upwind2H)
 
 
-cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
+                        if (Me%ExternalVar%NoAdvFlux) then
+                            do i = ILB, IUB
+                                if (Me%ExternalVar%NoFluxV(i, j, k)==1) then
+                                    Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
+                                    Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
+                                    Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
+                                    Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
+                                endif
+                            enddo
+                        endif                                                
 
-dok3 :      do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-doj3 :      do j = JLB, JUB
-doi3 :      do i = ILB, IUB
-
-            if (Me%ExternalVar%ComputeFacesV3D(i, j  , k) == 1) then
-
-                AdvFluxY =    (Me%COEF3_HorAdvYY%C_flux(  i, j, k)                          &
-                            *  Me%ExternalVar%PROP     (i-2, j, k)                          &
-                            +  Me%COEF3_HorAdvYY%D_flux(  i, j, k)                          &
-                            *  Me%ExternalVar%PROP     (i-1, j, k)                          &
-                            +  Me%COEF3_HorAdvYY%E_flux(  i, j, k)                          &
-                            *  Me%ExternalVar%PROP     (  i, j, k)                          &
-                            +  Me%COEF3_HorAdvYY%F_flux(  i, j, k)                          &
-                            *  Me%ExternalVar%PROP     (i+1, j, k))
-
-                Me%TICOEF3(i  ,j,k) = Me%TICOEF3(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j,k)
-                Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j,k)
-
+                end do j1
+                !$OMP END DO
+                end do k1
             endif
 
-            end do doi3
-            end do doj3
-            !$OMP END DO NOWAIT
-            end do dok3
+        endif st
+        !$OMP END PARALLEL
+cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
+    
+            if (Me%ExternalVar%Optimize) then
+                call HorizontalAdvectionYY_Explicit
+            else
+                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY)
+    dok3 :      do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+    doj3 :      do j = JLB, JUB
+    doi3 :      do i = ILB, IUB
+
+                if (Me%ExternalVar%ComputeFacesV3D(i, j  , k) == 1) then
+
+                    AdvFluxY =    (Me%COEF3_HorAdvYY%C_flux(  i, j, k)                          &
+                                *  Me%ExternalVar%PROP     (i-2, j, k)                          &
+                                +  Me%COEF3_HorAdvYY%D_flux(  i, j, k)                          &
+                                *  Me%ExternalVar%PROP     (i-1, j, k)                          &
+                                +  Me%COEF3_HorAdvYY%E_flux(  i, j, k)                          &
+                                *  Me%ExternalVar%PROP     (  i, j, k)                          &
+                                +  Me%COEF3_HorAdvYY%F_flux(  i, j, k)                          &
+                                *  Me%ExternalVar%PROP     (i+1, j, k))
+
+                    Me%TICOEF3(i  ,j,k) = Me%TICOEF3(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j,k)
+                    Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j,k)
+
+                endif
+
+                end do doi3
+                end do doj3
+                !$OMP END DO NOWAIT
+                end do dok3
+                !$OMP END PARALLEL
+            endif
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
-
+            !$OMP PARALLEL PRIVATE(i,j,k,DT2,DT1)
 dok4 :      do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj4 :      do j = JLB, JUB
@@ -4001,26 +4881,70 @@ doi4 :      do i = ILB, IUB
             end do doj4
             !$OMP END DO NOWAIT
             end do dok4
-
+            !$OMP END PARALLEL
         else cd6
 
             stop 'sub. HorizontalAdvectionYY - ModuleAdvectionDiffusion - ERR01'
         
         endif cd6
 
-        !$OMP END PARALLEL
-
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionYY")
 
-        if (Me%State%CellFluxes .and. ImpExp_AdvYY == ExplicitScheme)                   &
-            call CalcHorizontalAdvFluxYY(1. - ImpExp_AdvYY)
-        
-        !if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionYY")
+        if (Me%State%CellFluxes .and. ImpExp_AdvYY == ExplicitScheme) then
+             if (Me%ExternalVar%Optimize)then
+                call CalcHorizontalAdvFluxYY_opt(1. - ImpExp_AdvYY)
+            else
+                call CalcHorizontalAdvFluxYY(1. - ImpExp_AdvYY)
+            endif
+        endif
 
         !----------------------------------------------------------------------
 
     end subroutine HorizontalAdvectionYY
 
+    !--------------------------------------------------------------------------
+    
+    subroutine HorizontalAdvectionYY_Explicit
+
+        !Local-----------------------------------------------------------------               
+        real(8)                             :: AdvFluxY
+        integer                             :: i,     j,     k                             
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                             :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB ; IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB ; JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB ; KUB = Me%WorkSize%KUB
+        CHUNK = CHUNK_K(KLB, KUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY)
+        CHUNK = CHUNK_K(KLB, KUB)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+        if (Me%ExternalVar%ComputeFacesV3D(i, j  , k) == 1) then
+
+            AdvFluxY =    (Me%COEF3_HorAdvYY%D_flux(  i, j, k)                          &
+                        *  Me%ExternalVar%PROP     (i-1, j, k)                          &
+                        +  Me%COEF3_HorAdvYY%E_flux(  i, j, k)                          &
+                        *  Me%ExternalVar%PROP     (  i, j, k))
+
+            Me%TICOEF3(i  ,j,k) = Me%TICOEF3(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j,k)
+            Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j,k)
+
+        endif
+
+        end do
+        end do
+        end do
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine HorizontalAdvectionYY_Explicit
+    
     !--------------------------------------------------------------------------
 
     subroutine HorizontalAdvectionYY_Nudge(ImpExp_AdvYY)
@@ -4053,7 +4977,6 @@ doi4 :      do i = ILB, IUB
         CHUNK = CHUNK_J(JLB, JUB)
       
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY,DT2,DT1)
-
 
 st:     if (Me%State%HorAdv) then
         
@@ -4196,10 +5119,20 @@ doi4 :      do i = ILB, IUB
 
         !----------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
-
-        call HorizontalDiffusionXX()
         
-        if (.not. Me%XZFlow) call HorizontalDiffusionYY()
+        if (Me%ExternalVar%Optimize)then
+            call HorizontalDiffusionXX2()
+        else
+            call HorizontalDiffusionXX()
+        endif
+        
+        if (.not. Me%XZFlow)then
+            if (Me%ExternalVar%Optimize)then
+                call HorizontalDiffusionYY2()
+            else
+                call HorizontalDiffusionYY()
+            endif
+        endif
                 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
 
@@ -4272,9 +5205,104 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------
 
     end subroutine HorizontalDiffusionXX
+    
+    subroutine HorizontalDiffusionXX2()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real(8)                                     :: DTPropDouble, Gradient
+        real(8)                                     :: AuxJ
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        DTPropDouble = dble(Me%ExternalVar%DTProp)
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusionXX2")
+
+        CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxJ, Gradient) 
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
+                
+                Gradient  = Me%ExternalVar%PROP(i, j, k) -  Me%ExternalVar%PROP   (i, j-1, k)
+                AuxJ      = Me%Diff_H_Const_U  (i, j ,k) * Gradient * DTPropDouble  
+                
+                Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) + AuxJ / Me%ExternalVar%VolumeZ(i, j-1, k)
+                Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) - AuxJ / Me%ExternalVar%VolumeZ(i, j  , k)
+
+            endif
+        end do
+        end do
+        end do
+        !$OMP END DO 
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusionXX2")
+    
+        if (Me%State%CellFluxes) call CalcHorizontalDifFluxXX2()
+
+        !----------------------------------------------------------------------
+
+    end subroutine HorizontalDiffusionXX2
 
     !--------------------------------------------------------------------------
 
+    subroutine HorizontalDiffusionYY2()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real(8)                                     :: DTPropDouble, Gradient
+        real(8)                                     :: AuxI
+        integer                                     :: i, j, k  
+        integer                                     :: CHUNK
+
+        !----------------------------------------------------------------------
+
+        DTPropDouble = dble(Me%ExternalVar%DTProp) 
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusionYY2")
+
+        CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxI, Gradient) 
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do3 :   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%ComputeFacesV3D(i  , j, k) == 1) then
+                
+                Gradient   = Me%ExternalVar%PROP(i, j, k) -  Me%ExternalVar%PROP   (i-1, j, k)
+                AuxI       = Me%Diff_H_Const_V  (i, j ,k) * DTPropDouble * Gradient
+                
+                Me%TICOEF3(i-1, j, k) = Me%TICOEF3(i-1,j,k) + AuxI / Me%ExternalVar%VolumeZ(i-1, j, k)
+                Me%TICOEF3(i  , j, k) = Me%TICOEF3(i  ,j,k) - AuxI / Me%ExternalVar%VolumeZ(i  , j, k)
+                
+            endif
+        end do do1
+        end do do2
+        end do do3
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusionYY2")
+
+        if (Me%State%CellFluxes) call CalcHorizontalDifFluxYY2()
+
+        !----------------------------------------------------------------------
+
+    end subroutine HorizontalDiffusionYY2
+
+    !--------------------------------------------------------------------------
+    
     subroutine HorizontalDiffusionYY()
 
         !Arguments-------------------------------------------------------------
@@ -4300,9 +5328,6 @@ do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExternalVar%ComputeFacesV3D(i  , j, k) == 1) then
-
-                !DTV1 = DTPropDouble / Me%ExternalVar%VolumeZ(i-1, j, k)
-                !DTV2 = DTPropDouble / Me%ExternalVar%VolumeZ(i  , j, k)
                         
                 AuxI = Me%Diffusion_CoeficientY (i  ,j,k)                               &
                        * Me%ExternalVar%AreaV   (i  ,j,k)                               &
@@ -4331,8 +5356,8 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------
 
     end subroutine HorizontalDiffusionYY
-
-    !--------------------------------------------------------------------------
+    
+    !-----------------------------------------------------------------------------
 
     subroutine OpenBoundaryCondition()
 
@@ -4662,13 +5687,8 @@ cd2 :                       if (Me%WaterFluxOBoundary(i,j,k) < 0.0) Then ! water
 
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
         ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D
@@ -4709,11 +5729,7 @@ do2 :           do k = KLB, KUB
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "FluxAtOpenBoundary")
 
-        nullify(ComputeFacesU3D)
-        nullify(ComputeFacesV3D)
-        nullify(ComputeFacesW3D)
-
-
+        nullify(ComputeFacesU3D, ComputeFacesV3D, ComputeFacesW3D)
         !----------------------------------------------------------------------
 
     end subroutine FluxAtOpenBoundary
@@ -4866,7 +5882,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 nUsers = DeassociateInstance (mGEOMETRY_,       Me%ObjGeometry)
                 if (nUsers == 0) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR04'
 
-
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda
                 call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
@@ -4874,59 +5889,58 @@ cd1 :   if (ready_ /= OFF_ERR_) then
 #endif _ENABLE_CUDA                
 
                 deallocate(Me%Diffusion_CoeficientX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
                 nullify   (Me%Diffusion_CoeficientX)
 
                 deallocate(Me%Diffusion_CoeficientY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
                 nullify   (Me%Diffusion_CoeficientY)
 
                 deallocate(Me%Diffusion_CoeficientZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
                 nullify   (Me%Diffusion_CoeficientZ)
-
+                
+                if (allocated(Me%Diff_H_Const_U)) then
+                    deallocate (Me%Diff_H_Const_U, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06c'
+                endif
+                
+                if (allocated(Me%Diff_H_Const_V)) then
+                    deallocate (Me%Diff_H_Const_V, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06d'
+                endif
+                
+                if (allocated(Me%Diff_V_Const)) then
+                    deallocate (Me%Diff_V_Const, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06e'
+                endif
+                
                 deallocate(Me%Fluxes%AdvFluxX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR07'
                 nullify   (Me%Fluxes%AdvFluxX   ) 
 
-
                 deallocate(Me%Fluxes%AdvFluxY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
                 nullify   (Me%Fluxes%AdvFluxY   ) 
 
-
                 deallocate(Me%Fluxes%AdvFluxZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR09'
                 nullify   (Me%Fluxes%AdvFluxZ) 
 
-
                 deallocate(Me%Fluxes%DifFluxX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR10'
                 nullify   (Me%Fluxes%DifFluxX) 
-
  
                 deallocate(Me%Fluxes%DifFluxY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR11'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR11'
                 nullify   (Me%Fluxes%DifFluxY) 
-
  
                 deallocate(Me%Fluxes%DifFluxZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR12'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR12'
                 nullify   (Me%Fluxes%DifFluxZ) 
-
  
                 deallocate(Me%WaterFluxOBoundary, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR13'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR13'
                 nullify   (Me%WaterFluxOBoundary)
 
 #ifdef _USE_PAGELOCKED
@@ -4936,89 +5950,73 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 call FreePageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F)
 #else
                 deallocate(Me%COEF3%D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14a'
                 nullify   (Me%COEF3%D) 
 
                 deallocate(Me%COEF3%E, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14b'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14b'
                 nullify   (Me%COEF3%E) 
 
                 deallocate(Me%COEF3%F, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14c'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14c'
                 nullify   (Me%COEF3%F) 
 #endif
 
                 deallocate(Me%COEF3_VertAdv%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16f'
                 nullify   (Me%COEF3_VertAdv%D_Flux) 
 
                 deallocate(Me%COEF3_VertAdv%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16g'
                 nullify   (Me%COEF3_VertAdv%E_Flux)
 
                 deallocate(Me%COEF3_VertAdv%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16h'
                 nullify   (Me%COEF3_VertAdv%C_Flux) 
 
                 deallocate(Me%COEF3_VertAdv%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16i'
                 nullify   (Me%COEF3_VertAdv%F_Flux)
-
-
+                
                 deallocate(Me%COEF3_HorAdvXX%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18h'
                 nullify   (Me%COEF3_HorAdvXX%C_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18f'
                 nullify   (Me%COEF3_HorAdvXX%D_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18g'
                 nullify   (Me%COEF3_HorAdvXX%E_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18i'
                 nullify   (Me%COEF3_HorAdvXX%F_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20f'
                 nullify   (Me%COEF3_HorAdvYY%D_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20g'
                 nullify   (Me%COEF3_HorAdvYY%E_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20h'
                 nullify   (Me%COEF3_HorAdvYY%C_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
                 nullify   (Me%COEF3_HorAdvYY%F_Flux) 
 #ifdef _USE_PAGELOCKED
                 ! FreePageLocked will also nullify the pointers and arrays
                 call FreePageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3)
 #else
                 deallocate(Me%TICOEF3, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
-                nullify   (Me%TICOEF3) 
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
+                nullify   (Me%TICOEF3)
+                
 #endif
                 deallocate(Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF)
                 nullify   (Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF) 
@@ -5033,21 +6031,17 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 deallocate(Me%THOMAS)
 
                 deallocate(Me%VECW, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR22'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR22'
                 nullify   (Me%VECW)
 
-
                 deallocate(Me%VECG, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR23'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR23'
                 nullify   (Me%VECG)
 
                 call DeallocateInstance()
 
                 AdvectionDiffusionID = 0
                 STAT_                = SUCCESS_
-
 
             endif
 
@@ -5056,7 +6050,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
             STAT_ = UNKNOWN_
 
         end if cd1
-
 
         if (present(STAT))                                                    &
             STAT = STAT_
@@ -5088,7 +6081,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
 
             !Now update linked list
             PreviousAdvectionDiffusion%Next => AuxAdvectionDiffusion%Next
-
 
         endif
 
@@ -5123,7 +6115,6 @@ cd1:    if (AdvectionDiffusionID > 0) then
             ready_ = OFF_ERR_
         end if cd1
 
-
         !----------------------------------------------------------------------
 
     end subroutine Ready
@@ -5147,7 +6138,6 @@ cd1:    if (AdvectionDiffusionID > 0) then
             stop 'ModuleAdvectionDiffusion - LocateObjAdvectionDiffusion - ERR01'
 
     end subroutine LocateObjAdvectionDiffusion
-
 
 
 end module ModuleAdvectionDiffusion

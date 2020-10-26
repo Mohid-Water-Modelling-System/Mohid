@@ -84,6 +84,7 @@ Module ModuleHDF5
     public  ::  GetHDF5FileOkToRead
     public  ::  GetHDF5DataTypeID
     public  ::  GetHDF5FileName
+    public  ::  GetHDF5AllDataSetsOK
 
 #ifdef _GUI_
     public  :: HDF5InquireFile
@@ -95,6 +96,7 @@ Module ModuleHDF5
 #endif
 
     public  :: HDF5ReadGenericRealAttribute
+    public  :: HDF5ReadGenericStringAttribute
     public  :: HDF5UpdateGenericRealAttribute
     
     !Management
@@ -268,7 +270,7 @@ Module ModuleHDF5
         !Local-----------------------------------------------------------------
         integer(4)                                  :: STAT_CALL
         integer                                     :: STAT_, ready_
-        logical                                     :: HDF5Stop_
+        logical                                     :: HDF5Stop_, Exist
         
         !Begin-----------------------------------------------------------------
 
@@ -318,6 +320,13 @@ Module ModuleHDF5
                 endif
                 
             elseif  (Access == HDF5_READ_) then
+                
+                inquire(FILE = trim(FileName), EXIST = Exist)
+                if (.not. Exist) then
+                    write(*,*)'HDF5 file does not exist:'//trim(FileName)
+                    stop 'ConstructHDF5 - ModuleHDF5 - ERR50'
+                endif                
+                
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDONLY_F,               &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
@@ -329,6 +338,13 @@ Module ModuleHDF5
                     endif                        
                 endif
             elseif  (Access == HDF5_READWRITE_) then
+                
+                inquire(FILE = trim(FileName), EXIST = Exist)
+                if (.not. Exist) then
+                    write(*,*)'HDF5 file does not exist:'//trim(FileName)
+                    stop 'ConstructHDF5 - ModuleHDF5 - ERR60'
+                endif                                
+                
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDWR_F,                &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
@@ -2953,7 +2969,11 @@ Module ModuleHDF5
             call h5dread_f   (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR8_3D,                                 &
                               dims, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_3D - ModuleHDF5 - ERR30'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'GroupName =', trim(GroupName)
+                write(*,*) 'Name      =', trim(AuxChar  )
+                stop 'HDF5ReadDataR8_3D - ModuleHDF5 - ERR30'
+            endif
 
             call SetMatrixValue(Array3D, Me%Limits3D, Me%AuxMatrixes%DataR8_3D)
                              
@@ -4459,7 +4479,9 @@ Module ModuleHDF5
 
                 !Gets the data type id
             call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR30'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR30'
+            endif
 
             call h5tget_class_f(datatype_id, class_id, STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR40'
@@ -4550,8 +4572,24 @@ Module ModuleHDF5
                                                       lower_bound(2):upper_bound(2), &
                                                       lower_bound(3):upper_bound(3)),&
                             dims_mem, STAT_CALL, memspace_id, space_id)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR130'
-
+            if (STAT_CALL /= SUCCESS_) then
+                write (*,*) "FileName      =", trim(Me%FileName)
+                write (*,*) "GroupName     =", trim(GroupName)
+                write (*,*) "DataSet       =", trim(AuxChar)                   
+                write (*,*) "dset_id       =", dset_id       
+                write (*,*) "NumType       =", NumType       
+                write (*,*) "lower_bound(1)=", lower_bound(1)
+                write (*,*) "upper_bound(1)=", upper_bound(1)
+                write (*,*) "lower_bound(2)=", lower_bound(2)
+                write (*,*) "upper_bound(2)=", upper_bound(2)
+                write (*,*) "lower_bound(3)=", lower_bound(3)
+                write (*,*) "upper_bound(3)=", upper_bound(3)
+                write (*,*) "dims_mem      =", dims_mem      
+                write (*,*) "STAT_CALL     =", STAT_CALL     
+                write (*,*) "memspace_id   =", memspace_id   
+                write (*,*) "space_id      =", space_id      
+                stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR130'
+            endif
             !Deallocates temporary matrixes
             deallocate (offset_in )
             deallocate (count_in  )
@@ -6824,6 +6862,7 @@ Module ModuleHDF5
            !Opens the group
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Filename = ' , trim(Me%FileName)
                 write(*,*) 'Group name not present in the hdf5 input file', GroupName
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
             endif
@@ -7278,6 +7317,253 @@ if11 :              if (size == 8) then
 
     !--------------------------------------------------------------------------
  
+    subroutine GetHDF5AllDataSetsOK (HDF5ID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        integer, optional                               :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                                  :: gr_idIn
+        integer                                         :: STAT_, ready_
+        character(len=1)                                :: GroupNameIn    
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+            
+            GroupNameIn = "/"
+            
+            call h5gopen_f        (Me%FileID, trim(GroupNameIn), gr_idIn, STAT)
+            if (STAT /= SUCCESS_) then
+                stop 'GetHDF5AllDataSetsOK - ModuleHDF5 - ERR10'
+            endif
+                               
+            call CheckAllDataSets (IDIn = gr_idIn, GroupNameIn = GroupNameIn)
+            
+            call h5gclose_f       (gr_idIn, STAT)
+            if (STAT /= SUCCESS_) then
+                stop 'GetHDF5AllDataSetsOK - ModuleHDF5 - ERR20'
+            endif            
+            
+            
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetHDF5AllDataSetsOK
+
+    !--------------------------------------------------------------------------    
+    
+
+    recursive subroutine CheckAllDataSets (IDIn, GroupNameIn)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDIn
+        character(len=*)                            :: GroupNameIn
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nmembersIn
+        character(StringLength)                     :: obj_nameIn
+        integer                                     :: obj_type, idx
+        integer(HID_T)                              :: gr_idIn, dset_id
+        integer(HID_T)                              :: space_id 
+        integer                                     :: STAT
+        character(StringLength)                     :: NewGroupNameIn
+        integer(HSIZE_T), dimension(:), allocatable :: dims, maxdims
+        integer(HID_T)                              :: rank, rank_out
+        integer(HID_T)                              :: memspace_id, NumType
+        integer(HSSIZE_T), dimension(:), allocatable:: offset_in
+        integer(HSIZE_T ), dimension(:), allocatable:: count_in
+        integer(HSIZE_T),  dimension(1)             :: dims_mem        
+        integer(HSSIZE_T), dimension(1)             :: offset_out
+        integer(HSIZE_T ), dimension(1)             :: count_out
+        real,              dimension(:), pointer    :: ValueOut
+
+        !Begin-----------------------------------------------------------------
+
+
+        !Get the number of members in the Group
+        call h5gn_members_f(IDIn, GroupNameIn, nmembersIn, STAT)
+        if (STAT /= SUCCESS_) then
+            write(*,*) "IDIn       =", IDIn
+            write(*,*) "FileName   =", trim(Me%Filename)
+            write(*,*) "GroupName  =", trim(GroupNameIn)  
+            write(*,*) "nmembersIn =", nmembersIn
+            stop 'CheckAllDataSets - ModuleHDF5 - ERR10'
+        endif
+        
+        do idx = 1, nmembersIn
+
+            call h5gget_obj_info_idx_f(IDIn, GroupNameIn, idx-1, obj_nameIn, obj_type, STAT)
+            if (STAT /= SUCCESS_) then
+                 write(*,*) "FileName  =",trim(Me%Filename)
+                 write(*,*) "GroupName =",trim(GroupNameIn)
+                 write(*,*) "DataSet   =",trim(obj_nameIn )                
+                stop 'CheckAllDataSets - ModuleHDF5 - ERR20'
+            endif
+
+
+            if     (obj_type == H5G_DATASET_F) then
+
+                !Opens data set
+                call h5dopen_f      (IDIn, trim(adjustl(obj_nameIn)), dset_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR30'
+                endif
+                
+
+                !Opens data space
+                call h5dget_space_f (dset_id, space_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR40'
+                endif
+
+                !Gets the rank
+                call h5sget_simple_extent_ndims_f (space_id, rank, STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR50'
+                endif
+                
+                allocate(dims(rank), maxdims(rank))
+
+                !Gets the size
+                call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT)
+                if (STAT < SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR60'
+                endif
+  
+
+                allocate (offset_in (rank))
+                allocate (count_in  (rank))
+                offset_in(:) = 1
+
+                count_in (:) = 1
+
+                !Defines the hyperslab in the dataset
+                call h5sselect_hyperslab_f        (space_id, H5S_SELECT_SET_F, offset_in, count_in, &
+                                                   STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR70'
+                endif
+
+
+                !Defines the memory dataspace
+                rank_out    = 1
+                dims_mem(1) = 1
+            
+                call h5screate_simple_f (rank_out, dims_mem, memspace_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR80'
+                endif
+
+
+                !Define the memory hyperslab
+  
+                offset_out(1) = 0
+                count_out (1) = 1
+                call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F, offset_out, count_out, &
+                                            STAT)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR90'
+                endif
+                
+                allocate(ValueOut(1))
+                
+                ValueOut(1) = 0.
+                
+                
+                NumType = H5T_NATIVE_REAL
+
+                call h5dread_f (dset_id, NumType, ValueOut(1),&
+                                dims_mem, STAT, memspace_id, space_id)
+                if (STAT /= SUCCESS_) then
+                    write(*,*) "FileName  =",trim(Me%Filename)
+                    write(*,*) "GroupName =",trim(GroupNameIn)
+                    write(*,*) "DataSet   =",trim(obj_nameIn )
+                    write(*,*) "CheckAllDataSets - ModuleHDF5 - ERR100"                    
+                    stop 
+                endif
+                
+                deallocate(ValueOut)
+
+                !Deallocates temporary matrixes
+                deallocate (offset_in )
+                deallocate (count_in  )
+                deallocate(dims, maxdims)
+
+
+                !Closes data space
+                call h5sclose_f     (space_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR110'
+                endif
+               
+
+
+            elseif (obj_type ==H5G_GROUP_F) then
+
+                !Looks for futher subgroups
+                if (GroupNameIn == "/") then
+                    NewGroupNameIn = GroupNameIn//trim(adjustl(obj_nameIn))
+                else
+                    NewGroupNameIn = GroupNameIn//"/"//trim(adjustl(obj_nameIn))
+                endif
+
+                call h5gopen_f        (IDIn   , trim(adjustl(NewGroupNameIn)), gr_idIn, STAT)
+                if (STAT /= SUCCESS_) then
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR120'
+                endif
+                               
+                call CheckAllDataSets (gr_idIn, trim(adjustl(NewGroupNameIn)))
+                call h5gclose_f       (gr_idIn, STAT)
+                if (STAT /= SUCCESS_) then
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR130'
+                endif
+                               
+            endif
+            
+        enddo
+        
+
+
+    end subroutine CheckAllDataSets
+    
+    
+    !----------------------------------------------------------------------------
+    
+    
      
     subroutine GetHDF5ObjectInfo (HDF5ID, FatherGroupName, GroupPosition, GroupName, &
                                   GroupType, STAT)
@@ -7417,6 +7703,101 @@ if11 :              if (size == 8) then
         if (present(STAT)) STAT = STAT_
         
     end subroutine HDF5ReadGenericRealAttribute
+
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5ReadGenericStringAttribute (HDF5ID, GroupName, ItemName, ItemType,   &
+                                               AttributeName, ValueString, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: HDF5ID
+        character(len=*)                            :: GroupName
+        character(len=*)                            :: ItemName
+        integer                                     :: ItemType
+        character(len=*)                            :: AttributeName
+        character(len=*)                            :: ValueString
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+        integer(HID_T)                              :: STAT_CALL        
+        integer(HID_T)                              :: gr_id, attr_id, dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !If item is a group
+            if (ItemType == TypeSDS) then
+
+                !Opens the group
+                call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR10'
+
+                !Opens the Dataset
+                call h5dopen_f          (gr_id, ItemName, dset_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR20'
+
+                !Reads String Value
+                call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR30'
+                
+                call h5aread_f          (attr_id, H5T_NATIVE_CHARACTER, ValueString, dims, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR40'
+                
+                call h5aclose_f         (attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR50'
+
+                !Closes the Dataset
+                call h5dclose_f        (dset_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR60'
+                
+
+                !Closes the Group
+                call h5gclose_f         (gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR70'
+
+            endif
+
+
+            if (ItemType == TypeVG) then
+
+                !Opens the group
+                call h5gopen_f (Me%FileID, trim(GroupName)//"/"//trim(ItemName), gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR80'
+
+                !Reads Real Value
+                call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR90'
+                
+                call h5aread_f          (attr_id, H5T_NATIVE_CHARACTER, ValueString, dims, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR90'
+                call h5aclose_f         (attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR100'
+
+                !Closes the Group
+                call h5gclose_f         (gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericStringAttribute - ModuleHDF5 - ERR110'
+
+            endif
+ 
+             STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine HDF5ReadGenericStringAttribute
 
     !--------------------------------------------------------------------------
 

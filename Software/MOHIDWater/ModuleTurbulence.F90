@@ -312,6 +312,7 @@ Module ModuleTurbulence
         type(T_Time         )                       :: BeginTime  
         type(T_Time         )                       :: EndTime
         real                                        :: DT
+        Logical                                     :: LagrangianOn
         
         !Hydrodynamic
         real,    pointer, dimension(:,:,:)          :: VelocityX  => null() !inicialization: Carina
@@ -457,6 +458,7 @@ Module ModuleTurbulence
                                    GridDataID,              &
                                    HorizontalMapID,         &
                                    TimeID,                  &
+                                   Lagrangian,              &
                                    STAT)
 
         !Arguments-------------------------------------------------------------
@@ -468,7 +470,8 @@ Module ModuleTurbulence
         integer                         :: MapID            
         integer                         :: GridDataID     
         integer                         :: HorizontalMapID  
-        integer                         :: TimeID                                    
+        integer                         :: TimeID
+        logical, intent(IN)             :: Lagrangian
         integer, optional, intent(OUT)  :: STAT     
 
         !External--------------------------------------------------------------
@@ -551,9 +554,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetWaterPoints3D(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR100'
 
-
+            Me%ExternalVar%LagrangianOn = Lagrangian
+            
             call TurbulenceOptions
-            call AllocateVariables 
+            call AllocateVariables
             call InicHorizontalModels
             call InicVerticalModels
             call InicMixingLengthHorizontal
@@ -993,8 +997,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%TurbVar%MixingLengthX     (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%TurbVar%MixingLengthY     (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%TurbVar%MixingLengthZ     (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate(Me%TurbVar%Ldownward         (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate(Me%TurbVar%VertPrandtlNumber (ILB:IUB, JLB:JUB, KLB:KUB))
+        
+        if (Me%ExternalVar%LagrangianOn) then
+            allocate(Me%TurbVar%Ldownward   (ILB:IUB, JLB:JUB, KLB:KUB))
+            Me%TurbVar%Ldownward            (:,:,:)   = null_real
+        endif
+        
+        if (Me%TurbOptions%MODTURB /= TurbulenceEquation_) then
+            allocate(Me%TurbVar%VertPrandtlNumber (ILB:IUB, JLB:JUB, KLB:KUB))
+            Me%TurbVar%VertPrandtlNumber    (:,:,:)   = null_real
+        endif
        
 
         Me%Viscosity%Vertical           (:,:,:)   = null_real
@@ -1007,8 +1019,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%TurbVar%MixingLengthX        (:,:,:)   = null_real
         Me%TurbVar%MixingLengthY        (:,:,:)   = null_real
         Me%TurbVar%MixingLengthZ        (:,:,:)   = null_real
-        Me%TurbVar%Ldownward            (:,:,:)   = null_real
-        Me%TurbVar%VertPrandtlNumber    (:,:,:)   = null_real
 
 
         if (Me%TurbOptions%MODTURB == backhaus_) then 
@@ -6566,9 +6576,10 @@ cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                 deallocate(Me%TurbVar%MixingLengthZ,       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR18'
 
-
-                deallocate(Me%TurbVar%Ldownward,          STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR19'
+                if (Me%ExternalVar%LagrangianOn) then
+                    deallocate(Me%TurbVar%Ldownward,          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR19'
+                endif
 
 
                 if (Me%TurbOptions%MODTURB == backhaus_) then 
@@ -6577,9 +6588,11 @@ cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                    if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR20'
                 
                 end if
-
-                deallocate(Me%TurbVar%VertPrandtlNumber,  STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR21'
+                
+                if (Me%TurbOptions%MODTURB /= TurbulenceEquation_) then
+                    deallocate(Me%TurbVar%VertPrandtlNumber,  STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Kill_Turbulence - ModuleTurbulence - ERR21'
+                endif
 
                 if(Me%TurbOptions%MLD_Calc) then
 
@@ -6646,9 +6659,15 @@ cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                 nullify(Me%TurbVar%MixingLengthX      )
                 nullify(Me%TurbVar%MixingLengthY      )
                 nullify(Me%TurbVar%MixingLengthZ      )
+                
+                if (Me%ExternalVar%LagrangianOn) &
                 nullify(Me%TurbVar%Ldownward          )
+                
                 nullify(Me%TurbVar%VMOD               )
-                nullify(Me%TurbVar%VertPrandtlNumber  )
+                
+                if (Me%TurbOptions%MODTURB /= TurbulenceEquation_) then
+                    nullify(Me%TurbVar%VertPrandtlNumber  )
+                endif
 
                 if(Me%TurbOptions%MLD_Calc) then
                    nullify(Me%TurbVar%MLD_surf)

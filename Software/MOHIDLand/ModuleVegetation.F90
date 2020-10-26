@@ -2609,7 +2609,7 @@ cd0:    if (Exist) then
         integer                                 :: ObjHDF5, NumberOfInstants, iflag, ObjTimeSerie
         integer                                 :: AgricPractIDScalar, HDFInstant, TimeSerieInstant
         integer                                 :: column
-        character(len=StringLength)             :: FileInTime, FileName, field_name
+        character(len=line_length)              :: FileInTime, FileName, field_name
         integer                                 :: HDF5_READ, DataValues
         type(T_Station), dimension(:), pointer  :: stations
         integer                                 :: stations_counter
@@ -4132,7 +4132,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: nProperties, STAT_CALL
         integer                                             :: nPropertiesToSoil
         integer                                             :: iflag, AddProperties, i
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=line_length)                          :: TimeSerieLocationFile
         integer                                             :: Pest
         integer                                             :: TimeSerieNumber, dn, Id, Jd
         real                                                :: CoordX, CoordY

@@ -69,6 +69,16 @@ Module ModuleFunctions
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
     public  :: GetPointer
+    public  :: AddMAtrixtimesScalar
+    public  :: AddMatrixtimesScalarDivByMatrix
+    public  :: SumMatrixes
+    interface  SumMatrixes
+        module procedure SumMatrixes_R4
+        module procedure SumMatrixes_R8
+    end interface  SumMatrixes
+
+    public  :: SumMatrixes_jik
+    public  :: AddMatrix2D_To_3D_jik
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -101,7 +111,12 @@ Module ModuleFunctions
 
     !Advection routines
     public  :: ComputeAdvectionFace
+    public  :: ComputeAdvectionFace_TVD_Superbee
+    public  :: ComputeAdvectionFace_TVD_Superbee_1
+    public  :: ComputeAdvectionFace_TVD_Superbee_2
     public  :: ComputeAdvection1D_V2
+    public  :: ComputeAdvection1D_TVD_Superbee
+    public  :: ComputeAdvection1D_TVD_SuperBee_2
     public  :: ComputeAdvection1D
     public  :: ComputeAdvection3D
 
@@ -114,7 +129,7 @@ Module ModuleFunctions
     public  :: LatentHeat
     public  :: SensibleHeat
     public  :: LatentHeatOfVaporization
-    public  :: LWCoef_PaulsonSimpson1977    
+    public  :: LWCoef_PaulsonSimpson1977
     public  :: SWPercentage_PaulsonSimpson1977
 
     public  :: AerationFlux
@@ -149,6 +164,7 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
+    public  :: SphericalToCart
 
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
@@ -178,18 +194,26 @@ Module ModuleFunctions
     private :: FillMatrix2DNearestCell_R4
     private :: FillMatrix2DAverage_R4
     private :: FillMatrix2DConstant_R4
-    
+
     private :: FillMatrix2DNearestCell_R8
     private :: FillMatrix2DAverage_R8
-    private :: FillMatrix2DConstant_R8    
+    private :: FillMatrix2DConstant_R8
 
-    !Nudging - TwoWay   Joao Sobrinho
+    !Nudging - TwoWay
     public  :: FeedBack_Avrg_UV
     public  :: FeedBack_Avrg
     public  :: FeedBack_Avrg_WL
     public  :: FeedBack_IWD
     public  :: FeedBack_IWD_UV
     public  :: FeedBack_IWD_WL
+    
+    public  :: Upscaling_Avrg_WL
+    !public  :: FeedBack_Avrg_WL
+    public  :: Mass_In_Father_Avrg_UV
+    !public  :: FeedBack_Avrg_UV
+    public  :: Upscaling_Avrg
+    !public  :: FeedBack_Avrg
+    
 
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -219,7 +243,7 @@ Module ModuleFunctions
     public  :: QuadraticInterpolProfile
     public  :: PolIntProfile
     public  :: polint
-    
+
     !Average of nearby vertical velocities
     public  :: ComputeAvgVerticalVelocity
 
@@ -310,13 +334,13 @@ Module ModuleFunctions
         module procedure FillMatrix2D_R4
         module procedure FillMatrix2D_R8
     end interface  FillMatrix2D
-        
+
     public  :: FillMatrix3D
     interface  FillMatrix3D
         module procedure FillMatrix3D_R4
         module procedure FillMatrix3D_R8
     end interface  FillMatrix3D
-    
+
 
     public :: GreatCircleDistance
 
@@ -330,6 +354,20 @@ Module ModuleFunctions
 
     !wind waves lnear theory
     public :: WaveLengthHuntsApproximation
+
+    public :: THOMASZ_NewType2
+
+    !Upscaling routines
+    public  :: SearchDischargeFace
+    public  :: ComputeUpscalingVelocity
+    public  :: DischargeFluxU
+    public  :: DischargeFluxV
+    public  :: Offline_DischargeFluxU
+    public  :: Offline_DischargeFluxV
+    public  :: UpdateDischargeConnections
+    public  :: DischargeIsAssociated
+    private :: SearchFace
+    private :: Update_n_Z
 
     !types -------------------------------------------------------------------
 
@@ -1283,7 +1321,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 Matrix (i, j) = InMatrix(i, j)
@@ -1329,7 +1367,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1377,7 +1415,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1425,7 +1463,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1473,7 +1511,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1521,7 +1559,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, chunk)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1531,7 +1569,15 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
+
         endif
+
+        !if (present(MapMatrix))then !left it here to test with MPI
+        !        where (MapMatrix == 1) Matrix(:,:,:) = ValueX
+        !else
+        !        Matrix(:,:,:) = ValueX
+        !endif
+
 
     end subroutine SetMatrixValues3D_R8_Constant
 
@@ -1569,7 +1615,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, chunk)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1617,7 +1663,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1663,7 +1709,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1710,7 +1756,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1741,7 +1787,6 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1758,7 +1803,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1806,7 +1851,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1890,6 +1935,247 @@ Module ModuleFunctions
 
     end function GetPointer3D_R8
 
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Adds the product of matrixB by a scalar, to matrixA
+    !>@param[in] MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor
+    subroutine AddMAtrixtimesScalar(MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        real, intent(IN)                                  :: Scalar
+        integer, intent(IN)                               :: DoMethod
+        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB
+        integer                                           :: CHUNK
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+
+        if (DoMethod == 1) then
+            CHUNK = CHUNK_J(JLB, JUB)
+
+            !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k) * Scalar
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        else
+            CHUNK = CHUNK_K(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k) * Scalar
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        endif
+    end subroutine AddMAtrixtimesScalar
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Adds the product of matrixB by a scalar and divided by a matrixC, to matrixA
+    !>@param[in] MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor
+    subroutine AddMatrixtimesScalarDivByMatrix(MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real(8), dimension(:, :, :), pointer, intent (IN) :: MatrixB, MatrixC
+        type (T_Size3D)                                   :: Size
+        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        real, intent(IN)                                  :: Scalar
+        integer, intent(IN)                               :: DoMethod
+        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB, CHUNK
+        real                                              :: Aux
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+
+        if (DoMethod == 1) then
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        Aux = MatrixB(i, j, k) / MatrixC(i, j, k)
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + Scalar * Aux
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_K(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(i,j,k, Aux)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Aux = MatrixB(i, j, k) / MatrixC(i, j, k)
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + Scalar * Aux
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        endif
+    end subroutine AddMatrixtimesScalarDivByMatrix
+
+    !End-------------------------------------------------------------------------
+
+    subroutine SumMatrixes_R8(MatrixA, Size, MatrixB)
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real(8), dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_K(KLB, KUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_R8
+
+
+    !End-------------------------------------------------------------------------
+
+    subroutine SumMatrixes_R4(MatrixA, Size, MatrixB)
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real(4), dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
+        integer                                           :: CHUNK
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_K(KLB, KUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine SumMatrixes_R4
+
+    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_jik
+
+    subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :   ), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine AddMatrix2D_To_3D_jik
+
+
+    !End-------------------------------------------------------------------------
     !--------------------------------------------------------------------------
     ! Function Pad
     ! Returns an upperbound value for padding a matrix.
@@ -3089,6 +3375,106 @@ do4 :       DO II = KLB+1, KUB+1
         endif
 #endif
     end subroutine THOMASZ_NewType
+
+
+    subroutine THOMASZ_NewType2 (ILB, IUB,                                        &
+                                 JLB, JUB,                                        &
+                                 KLB, KUB,                                        &
+                                 Thomas,                                          &
+                                 RES,                                             &
+                                 WaterPoints                                      &
+#ifdef _ENABLE_CUDA
+                                 , CudaID                                         &
+                                 , SaveResults                                    &
+#endif _ENABLE_CUDA
+                                )
+
+        !Arguments---------------------------------------------------------------
+        integer,                         intent(IN)     :: ILB, IUB
+        integer,                         intent(IN)     :: JLB, JUB
+        integer,                         intent(IN)     :: KLB, KUB
+        real,    dimension(:,:,:), pointer              :: RES
+        integer, dimension(:,:,:), pointer, intent(IN)  :: WaterPoints
+        type(T_THOMAS), pointer                         :: Thomas
+
+#ifdef _ENABLE_CUDA
+        ! Solve Thomas on a CUDA device
+        integer                                         :: CudaID
+        logical                                         :: SaveResults
+#endif _ENABLE_CUDA
+
+        !Local-------------------------------------------------------------------
+        type(T_VECGW), pointer                          :: VEC
+        integer                                         :: TID
+        !$ integer                                      :: CHUNK !
+        integer :: I, J, K
+        integer :: II, MM
+        real :: AUX
+
+        !------------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
+
+
+#ifdef _USE_CUDA
+            write(*,*) ' Solving Thomas for Z'
+
+        ! This method can solve Thomas for any dimension. Dim 0 = X, 1 = Y, 2 = Z
+        call SolveThomas(CudaID, ILB, IUB, JLB, JUB, KLB, KUB,                     &
+                          Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,           &
+                          Thomas%TI, RES, 2)
+#else
+        !$ CHUNK = CHUNK_J(JLB,JUB) !
+
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC,AUX)
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num() !
+        VEC => Thomas%VEC(TID)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do2 :   DO J = JLB, JUB
+do1 :   DO I = ILB, IUB
+            ! JPW: Changed 1 to KLB for consistency. Results should be the same as long as KLB = 1
+            !VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            !VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            ! JPW: Original
+            if (WaterPoints(I, J, KUB) == 1) then
+                VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
+                VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
+
+    do3 :       DO K  = KLB+1, KUB+1
+                    AUX = Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1)
+                    IF (abs(AUX) > 0) then
+                        VEC%W(K) = -Thomas%COEF3%F(I, J, K) / AUX
+                        VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1)) / AUX
+                    ELSE
+                            !write(*,*) 'i, j, k: ', I, J, K
+                            !write(*,*) 'ERROR: Instability in THOMASZ - ModuleFunctions - ERR10'
+                    END IF
+                END DO do3
+
+                RES(I, J, KUB+1) = VEC%G(KUB+1)
+
+    do4 :       DO II = KLB+1, KUB+1
+                    MM            = KUB + KLB + 1 - II
+                    RES(I, J, MM) = VEC%W(MM) * RES(I, J, MM+1) + VEC%G(MM)
+                END DO do4
+            endif
+
+        END DO do1
+        END DO do2
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+#endif
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
+
+#ifdef _ENABLE_CUDA
+        if(SaveResults) then
+            ! Correctness test only
+            ! call SaveThomas(CudaID, RES, 2);
+        endif
+#endif
+    end subroutine THOMASZ_NewType2
 
     !--------------------------------------------------------------------------
 
@@ -4386,6 +4772,29 @@ end function
 
     !--------------------------------------------------------------------------
 
+    subroutine SphericalToCart(Lat, Lon, X, Y, LonRef, LatRef)
+
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: Lat, Lon, LonRef, LatRef
+        real(8), intent(Out)            :: X, Y
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+
+        Rad_Lat     = Lat * radians
+        CosenLat    = cos(Rad_Lat)
+        X           = CosenLat * EarthRadius * (Lon - LonRef) * radians
+        Y           =            EarthRadius * (Lat - LatRef) * radians
+
+    end subroutine SphericalToCart
+
+    !--------------------------------------------------------------------------
+
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
 
@@ -5528,7 +5937,7 @@ i1:     if (NumberOfCells > 0) then
     end subroutine FillMatrix2DAverage_R4
 
     !--------------------------------------------------------------------------
-    
+
     !-------------------------------------------------------------------------------------
 
     subroutine FillMatrix2DNearestCell_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
@@ -5735,7 +6144,7 @@ i1:     if (NumberOfCells > 0) then
 
     end subroutine FillMatrix2DAverage_R8
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     subroutine FillMatrix2D_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
 
@@ -5762,7 +6171,7 @@ i1:     if (NumberOfCells > 0) then
     end subroutine FillMatrix2D_R4
 
     !-------------------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     subroutine FillMatrix2D_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
@@ -5790,7 +6199,7 @@ i1:     if (NumberOfCells > 0) then
     end subroutine FillMatrix2D_R8
 
     !-------------------------------------------------------------------------------------
-    
+
 
     subroutine FillMatrix3D_R4 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
 
@@ -5866,7 +6275,7 @@ d5:     do k = klast + 1,KUB
     end subroutine FillMatrix3D_R4
 
     !-------------------------------------------------------------------------------------
-    
+
 
     subroutine FillMatrix3D_R8 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
 
@@ -5940,16 +6349,15 @@ d5:     do k = klast + 1,KUB
         deallocate(Map2D, Value2D)
 
     end subroutine FillMatrix3D_R8
-    
-    !-------------------------------------------------------------------------------------    
-    
+
+    !-------------------------------------------------------------------------------------
+
     !-----------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using an volume weighted average method. routine for water level
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
-    !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink,           &
+    !>           JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2DT, gnoreOBCells
     subroutine FeedBack_Avrg_WL(FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
                                 JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2D,         &
                                 IgnoreOBCells)
@@ -5964,43 +6372,82 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:),   pointer                  :: SonVolInFather2D, AuxMatrix2D
         !Local variables --------------------------------------------------------------------------------
         integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-        integer                                             ::  NThreads, CHUNK, N
+        integer                                             :: Flag
+        real                                                :: DecayFactor
         !Begin-------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
         KUBFather = SizeFather%KUB
-        
-        NThreads = openmp_num_threads
-        CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-        !$OMP PARALLEL PRIVATE(i,j)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
-            AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
-                                                     VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+            Flag = Open3DSon(i, j, KUBSon) + IgnoreOBCells(i, j)
+            if (Flag == 2) then
+                AuxMatrix2D(ILink(i, j), JLink(i, j)) = &
+                AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
+            endif
 
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-        
-        CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-        N =  (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1))
-        !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
+        DecayFactor = DT / DecayTime
+
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
-                                   FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
-                                   (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
+            if (Open3DFather(i, j, KUBFather) == 1) then
+                if (SonVolInFather2D(i, j) > 0.1) then
+                    FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
+                                           FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
+                                           VolumeFather2D(i, j))
+                endif
+            endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-    end subroutine FeedBack_Avrg_WL
+
+   end subroutine FeedBack_Avrg_WL
+    !--------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes son mass in father cells using an volume weighted average method. routine for water level
+    !>@param[in] MassInFather2D, SonMatrix2D, Open3DSon, SizeFather, SizeSon, ILink, &
+    !>JLink, VolumeSon2D, IgnoreOBCells
+    subroutine Upscaling_Avrg_WL(FatherMatrix2D, SonMatrix2D, SonMask, SizeSon, ILink, &
+    JLink, VolumeSon2D, TotSonIn2D)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)      :: SizeSon
+        real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeSon2D
+        real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D
+        real,    dimension(:,:),   pointer, intent(IN)      :: TotSonIn2D
+        integer, dimension(:,:,:), pointer, intent(IN)      :: SonMask
+        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
+        real,    dimension(:,:),   pointer, intent(INOUT)   :: FatherMatrix2D
+        !Local variables --------------------------------------------------------------------------------
+        integer                                             :: i, j, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon
+        integer                                             :: ifather, jfather
+        !Begin-------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
+        KUBSon = SizeSon%KUB
+    
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            ifather = ILink(i, j) ; jfather = JLink(i, j)
+            FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
+                                             + SonMatrix2D(i, j) * VolumeSon2D(i, j) * SonMask(i, j, KUBSon)
+        enddo
+        enddo
+        
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (TotSonIn2D(i, j) > 0) then
+                ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+                FatherMatrix2D(i, j) = FatherMatrix2D(i, j) / TotSonIn2D(i, j)
+            endif
+        enddo
+        enddo
+        
+    end subroutine Upscaling_Avrg_WL
+                                
 
     !--------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6008,7 +6455,7 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using an volume weighted average method. routine for U/V types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>           SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
                                 SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,              &
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
@@ -6023,98 +6470,104 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
-                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
-                                         
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
-        OMPmethod = 2 !paralelization at the k level
-        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        NThreads = openmp_num_threads
-        if (NThreads > 1) then
-            if (NThreads - KUBSon > 1) then
-                OMPmethod = 1
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
+            if (Flag == 3) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
-        endif
-        if (OMPmethod == 2) then
-            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBSon, KUBSon
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +         &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                        Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                        IgnoreOBCells(i, j)
-                
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather) 
-            !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBFather, KUBFather
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
-                                         FatherComputeFaces3D(i, j, k)
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-        else
-            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            do k = KLBSon, KUBSon
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +      &
-                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                     Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                     IgnoreOBCells(i, j)
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-            
-            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            do k = KLBFather, KUBFather
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
-                                         FatherComputeFaces3D(i, j, k)
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-        endif
-
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    
+        DecayFactor = DT / DecayTime
+    
+        do k = KLBFather, KUBFather
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
+            if (Flag == 2) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+                endif
+            endif
+        enddo
+        enddo
+        enddo
+    
     end subroutine FeedBack_Avrg_UV
     !-------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes son volume in father cells using an volume weighted average method. routine for U/V types
+    !>@param[in] MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
+    !>ILink, JLink, VolumeSon, IgnoreOBCells
+    subroutine Mass_In_Father_Avrg_UV(MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
+        ILink, JLink, VolumeSon)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DSon, SonComputeFaces3D
+        real,    dimension(:,:,:), pointer, intent(OUT)   :: MassInFather
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
+        KUBFather = SizeFather%KUB
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k)
+            if (Flag == 2) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+                MassInFather(ifather, jfather, kfather) = MassInFather(ifather, jfather, kfather) +     &
+                                                          SonMatrix(i, j, k) * VolumeSon(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine Mass_In_Father_Avrg_UV
+    !!-------------------------------------------------------------------------------------
+    !           
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -6133,98 +6586,112 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
-                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
-        OMPmethod = 2 !paralelization at the k level
-        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        NThreads = openmp_num_threads
-        if (NThreads > 1) then
-            if (NThreads - KUBSon > 1) then
-                OMPmethod = 1
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
+            if (Flag == 2) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
-        endif
-        if (OMPmethod == 2) then
-            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBSon, KUBSon
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *      &
-                                                        Open3DSon(i, j, k) * IgnoreOBCells(i, j)
-            
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
-            
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)            
-            do k = KLBFather, KUBFather
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
-
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-        else
-            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            do k = KLBSon, KUBSon
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
-                                                     Open3DSon(i, j, k) * IgnoreOBCells(i, j)
-                
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-
-            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            do k = KLBFather, KUBFather
-			!$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)   
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-        endif
-     
-                             end subroutine FeedBack_Avrg
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    
+        DecayFactor = DT / DecayTime
+        do k = KLBFather, KUBFather
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (Open3DFather(i, j, k) == 1) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+                endif
+            endif
+        enddo
+        enddo
+        enddo
+    
+    end subroutine FeedBack_Avrg
     !-------------------------------------------------------------------------------------
-
+                             
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes son mass in each father cell. routine for Z types
+    !>@param[in] SonMassInFather, SonMatrix, Open3DSon, SizeFather, SizeSon, ILink, &
+    !>JLink, VolumeSon, IgnoreOBCells
+    subroutine Upscaling_Avrg(FatherMatrix, SonMatrix, SonMask, SizeFather, SizeSon, ILink, &
+    JLink, VolumeSon, TotSonIn)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        real,    dimension(:,:,:), pointer, intent(IN)    :: TotSonIn
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            !Using multiplication instead of if because I am assuming most applications will involve using the most
+            !part of the son domain
+            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+            FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
+        do k = SizeFather%KLB, SizeFather%KUB
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (TotSonIn(i, j, k) > 0) then
+                ! [X]                 = (X * [m3])            / ([m3]
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / TotSonIn(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+    end subroutine Upscaling_Avrg
+    !---------------------------------------------------------------------------------------------------
+                             
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
@@ -6250,27 +6717,20 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather = Connections (index, 1); iSon = Connections (index, 3)
+            jFather = Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
 
             Denom(iFather, jFather, k) = Denom(iFather, jFather, k) + (1.e-5 / (Dist(index) ** IWDn)) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
-
         enddo
         enddo
 
@@ -6287,14 +6747,15 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-    end subroutine FeedBack_IWD
+                             end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes, IWDn
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
+    !>                         SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
+    !>                           IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                 SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
                                 IgnoreOBCells, Nodes, IWDn, Nom, Denom)
@@ -6316,20 +6777,14 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather  = Connections (index, 1); iSon    = Connections (index, 3)
+            jFather  = Connections (index, 2); jSon    = Connections (index, 4)
 
             Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
                                        SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
@@ -6362,8 +6817,8 @@ d5:     do k = klast + 1,KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
+    !>                         Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
                                 Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
@@ -6381,24 +6836,19 @@ d5:     do k = klast + 1,KUB
                                                              JUBSon, iSon, jSon, iFather, jFather
         !Begin----------------------------------------------------------------------------------------
 
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
 
         do index = 1, Nodes ! ir buscar isto ao horizontal grid
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather    = Connections (index, 1); iSon = Connections (index, 3)
+            jFather    = Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
 
             Denom(iFather, jFather, 1) = Denom(iFather, jFather, 1) + 1.e-5 / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
-
         enddo
 
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -6620,7 +7070,7 @@ d5:     do k = klast + 1,KUB
             endif
         else
             if (.not. present(IDNumber)) &
-                stop 'ConstructPropertyID - ModuleFunctions - ERR010'
+                stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR010'
 
             PropertyID%IDNumber = IDNumber
 
@@ -6646,7 +7096,7 @@ d5:     do k = klast + 1,KUB
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR20'
+            stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR20'
         endif
         endif
 
@@ -7572,14 +8022,14 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 !!  Public-domain function by Darel Rex Finley, 2006.
 !   Computes the area of polygon
 
-    real function PolygonArea(X, Y, points)
+    real(8) function PolygonArea(X, Y, points)
 
         !Arguments-------------------------------------------------------------
-        real,       dimension(:), pointer :: X, Y
+        real(8),    dimension(:), pointer :: X, Y
         integer                           :: points
 
         !Local-----------------------------------------------------------------
-        real                              :: area=0.
+        real(8)                           :: area=0.
         integer                           :: i, j
 
         !Begin-----------------------------------------------------------------
@@ -8122,14 +8572,14 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         return
 
     end function AerationFlux_CO2
-    
-    
+
+
     !--------------------------------------------------------------------------
-   
+
     real function LWCoef_PaulsonSimpson1977 (SWCoef)
 
         !Arguments-------------------------------------------------------------
-                                                    
+
         real,   intent(IN)  :: SWCoef
 
         !Local-----------------------------------------------------------------
@@ -8137,55 +8587,55 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
         !----------------------------------------------------------------------
 
-        
-        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean, 
+
+        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean,
         !J. Phys. Oceanogr., 7, 952-956.
-        
+
         !       Water type       ! SWCoef [m] ! LWCoef [m] ! SWPercentage [-]
-        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58            
-        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62            
-        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67            
-        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77            
-        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78           
-        
+        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58
+        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62
+        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67
+        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77
+        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78
+
         if (SWCoef > 0) then
             !from 1/m to m
             SWCoef_aux =  1/SWCoef
         else
             SWCoef_aux = 1000
-        endif            
-            
+        endif
+
         if (SWCoef_aux >= 23) then
             LWCoef_aux   = 0.35
-        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then    
+        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then
             aux          = (SWCoef_aux - 20)/3.
-            LWCoef_aux   = aux * 0.35 + (1-aux)*0.6 
-        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then    
+            LWCoef_aux   = aux * 0.35 + (1-aux)*0.6
+        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then
             aux          = (SWCoef_aux - 17)/3.
-            LWCoef_aux   = aux * 0.60 + (1-aux)*1. 
-        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then    
+            LWCoef_aux   = aux * 0.60 + (1-aux)*1.
+        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then
             aux          = (SWCoef_aux - 14)/3.
-            LWCoef_aux   = aux * 1.   + (1-aux)*1.5 
-        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then    
+            LWCoef_aux   = aux * 1.   + (1-aux)*1.5
+        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then
             aux          = (SWCoef_aux - 7.9)/6.1
-            LWCoef_aux   = aux * 1.5   + (1-aux)*1.4 
-        elseif (SWCoef_aux < 7.9) then    
-            LWCoef_aux   = 1.4 
-        endif      
-            
+            LWCoef_aux   = aux * 1.5   + (1-aux)*1.4
+        elseif (SWCoef_aux < 7.9) then
+            LWCoef_aux   = 1.4
+        endif
+
         LWCoef_PaulsonSimpson1977 = 1/LWCoef_aux
 
     end function LWCoef_PaulsonSimpson1977
 
-    !--------------------------------------------------------------------------    
-    
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
-   
+
     real function SWPercentage_PaulsonSimpson1977 (SWCoef)
 
         !Arguments-------------------------------------------------------------
-                                                    
+
         real,   intent(IN)  :: SWCoef
 
         !Local-----------------------------------------------------------------
@@ -8193,47 +8643,47 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
         !----------------------------------------------------------------------
 
-        
-        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean, 
+
+        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean,
         !J. Phys. Oceanogr., 7, 952-956.
-        
+
         !       Water type       ! SWCoef [m] ! LWCoef [m] ! SWPercentage [-]
-        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58            
-        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62            
-        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67            
-        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77            
-        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78           
-        
+        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58
+        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62
+        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67
+        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77
+        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78
+
         if (SWCoef > 0) then
             !from 1/m to m
             SWCoef_aux =  1/SWCoef
         else
             SWCoef_aux = 1000
-        endif            
-            
+        endif
+
         if (SWCoef_aux >= 23) then
             SWPercentage = 0.58
-        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then    
+        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then
             aux          = (SWCoef_aux - 20)/3.
             SWPercentage = aux * 0.58 + (1-aux)*0.62
-        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then    
+        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then
             aux          = (SWCoef_aux - 17)/3.
-            SWPercentage = aux * 0.62 + (1-aux)*0.67               
-        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then    
+            SWPercentage = aux * 0.62 + (1-aux)*0.67
+        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then
             aux          = (SWCoef_aux - 14)/3.
-            SWPercentage = aux * 0.67 + (1-aux)*0.77               
-        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then    
+            SWPercentage = aux * 0.67 + (1-aux)*0.77
+        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then
             aux          = (SWCoef_aux - 7.9)/6.1
-            SWPercentage = aux * 0.77  + (1-aux)*0.78                 
-        elseif (SWCoef_aux < 7.9) then    
-            SWPercentage = 0.78                  
-        endif      
-            
+            SWPercentage = aux * 0.77  + (1-aux)*0.78
+        elseif (SWCoef_aux < 7.9) then
+            SWPercentage = 0.78
+        endif
+
         SWPercentage_PaulsonSimpson1977 = SWPercentage
 
     end function SWPercentage_PaulsonSimpson1977
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     !------------------------------------------------------------------------
 
@@ -8373,7 +8823,114 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
 
     end subroutine ComputeAdvection1D_V2
 
+     !-----------------------------------------------------------------------------------
 
+    subroutine ComputeAdvection1D_TVD_SuperBee(ilb, iub, dt, du, Prop, Q, V, ComputePoints, &
+    D_flux, E_flux)
+
+        !Arguments---------------------------------------------------
+        real(8), dimension(:), intent(IN)  :: Q, V
+        real,    dimension(:), intent(IN)  :: du, Prop
+        integer, dimension(:), intent(IN)  :: ComputePoints
+        real   ,               intent(IN)  :: dt
+        integer,               intent(IN)  :: ilb, iub
+
+        real,    dimension(:), intent(OUT) :: D_flux, E_flux
+        !Local-------------------------------------------------------
+        real(8), dimension(4)              :: V4
+        real,    dimension(4)              :: CFace, Prop4, du4
+        real(8)                            :: QFace
+        integer                            :: i
+
+        !Begin-------------------------------------------------------
+
+        do i = ilb, iub
+            if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute) then
+
+                QFace = Q(i)
+
+                if     ((QFace > 0 ) .and. (ComputePoints(i-2) /= Compute)) then
+                    !NearBoundary = .true.  CFace(2) = 1 so D_Flux(i) = QFace * 1
+                    D_Flux(i) = QFace
+                elseif ((QFace <= 0) .and. (ComputePoints(i+1) /= Compute)) then
+                        !NearBoundary = .true.  CFace(3) = 1 so E_Flux(i) = QFace * 1
+                    E_Flux(i) = QFace
+                else
+
+                    Prop4(1) = Prop(i-2);Prop4(2) = Prop(i-1);Prop4(3) = Prop(i);Prop4(4) = Prop(i+1);
+                    du4  (1) = du  (i-2);du4  (2) = du  (i-1);du4  (3) = du  (i);du4  (4) = du  (i+1);
+                                         V4   (2) = V   (i-1);V4   (3) = V   (i)
+
+                    call ComputeAdvectionFace_TVD_Superbee(Prop4, V4, du4, dt, QFace, CFace)
+
+                    D_Flux(i) = QFace * CFace(2)
+                    E_Flux(i) = QFace * CFace(3)
+                endif
+            endif
+        enddo
+
+    end subroutine ComputeAdvection1D_TVD_SuperBee
+
+    !---------------------------------------------------------------------------------------------
+    subroutine ComputeAdvection1D_TVD_SuperBee_2(ilb, iub, dt, du, Prop, Q, V, ComputePoints, &
+    D_flux, E_flux)
+
+        !Arguments---------------------------------------------------
+        real(8), dimension(:), intent(IN)  :: Q, V
+        real,    dimension(:), intent(IN)  :: du, Prop
+        integer, dimension(:), intent(IN)  :: ComputePoints
+        real   ,               intent(IN)  :: dt
+        integer,               intent(IN)  :: ilb, iub
+
+        real,    dimension(:), intent(OUT) :: D_flux, E_flux
+        !Local-------------------------------------------------------
+        real(8), dimension(4)              :: V4
+        real,    dimension(4)              :: CFace, Prop4, du4
+        real(8)                            :: QFace
+        integer                            :: i
+
+        !Begin-------------------------------------------------------
+
+        do i = ilb, iub
+            if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute) then
+
+                QFace = Q(i)
+
+                if (QFace > 0 ) then
+                    if (ComputePoints(i-2) /= Compute) then
+                        !NearBoundary = .true.  CFace(2) = 1 so D_Flux(i) = QFace * 1
+                        D_Flux(i) = QFace
+                    else
+                        V4   (2) = V   (i-1)
+                        Prop4(1) = Prop(i-2); Prop4(2) = Prop(i-1); Prop4(3) = Prop(i)
+                        du4  (1) = du  (i-2); du4  (2) = du  (i-1); du4  (3) = du  (i)
+
+                        call ComputeAdvectionFace_TVD_Superbee_1(Prop4, V4, du4, dt, QFace, CFace)
+
+                        D_Flux(i) = QFace * CFace(2)
+                        E_Flux(i) = QFace * CFace(3)
+                    endif
+
+                else !QFace <= 0
+                    if (ComputePoints(i+1) /= Compute) then
+                        !NearBoundary = .true.  CFace(3) = 1 so E_Flux(i) = QFace * 1
+                        E_Flux(i) = QFace
+                    else
+                        V4   (3) = V   (i)
+                        Prop4(2) = Prop(i-1); Prop4(3) = Prop(i); Prop4(4) = Prop(i+1)
+                        du4  (2) = du  (i-1); du4  (3) = du  (i); du4  (4) = du  (i+1)
+
+                        call ComputeAdvectionFace_TVD_Superbee_2(Prop4, V4, du4, dt, QFace, CFace)
+
+                        D_Flux(i) = QFace * CFace(2)
+                        E_Flux(i) = QFace * CFace(3)
+                    endif
+                endif
+            endif
+        enddo
+
+    end subroutine ComputeAdvection1D_TVD_SuperBee_2
+    !---------------------------------------------------------------------------------------------
 
     subroutine ComputeAdvectionFace(Prop, V, du, dt, QFace, VolumeRelMax,                &
                                     Method, TVD_Limitation, NearBoundary, Upwind2, CFace)
@@ -8569,7 +9126,154 @@ i5:         if      (TVD_Limitation == MinMod) then
 
     end subroutine ComputeAdvectionFace
 
+    subroutine ComputeAdvectionFace_TVD_Superbee(Prop, V, du, dt, QFace, CFace)
 
+        !Arguments---------------------------------------------------
+
+        real(8), dimension(4), intent(IN)   :: V
+        real,    dimension(4), intent(IN)   :: du, Prop
+        real   ,               intent(IN)   :: dt
+        real(8),               intent(IN)   :: QFace
+        real,   dimension(4) , intent(OUT)  :: CFace
+
+        !Local-------------------------------------------------------
+        real                                :: Cr, Theta, dC, r
+        real,   dimension(4)                :: Cup1, CupHighOrder
+
+        !Begin-------------------------------------------------------
+        CFace (1:4) = 0.
+
+        Cup1        (1:4) = 0.
+        CupHighOrder(1:4) = 0.
+
+        if (QFace > 0) then
+
+            Cup1(2) = 1.
+            Cr      = Courant (QFace,V(2),dt)
+
+            CupHighOrder(3) = 1.
+
+            dC  = (Prop(3)-Prop(2)) / (du(3) + du(2))
+
+            if (abs(dC)< MinValue ) then
+                if (dc>= 0) then
+                    dc =   MinValue
+                else
+                    dc = - MinValue
+                endif
+            endif
+
+            r = (Prop(2)-Prop(1))/ ((du(2) + du(1)) * dC)
+
+            Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+            Theta = 0.5 * Theta * (1. - Cr)
+
+        else
+
+            Cup1(3) = 1.
+            Cr      = Courant (QFace,V(3),dt)
+
+            CupHighOrder(2) = 1.
+
+            dC  = (Prop(2)-Prop(3)) / (du(3) + du(2))
+
+            if (abs(dC)< MinValue ) then
+                if (dc>= 0) then
+                    dc =   MinValue
+                else
+                    dc = - MinValue
+                endif
+            endif
+
+            r = (Prop(3)-Prop(4))/ ((du(3) + du(4)) * dC)
+
+            Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+            Theta = 0.5 * Theta * (1. - Cr)
+        endif
+
+        CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
+        CFace(3) =  (1. - Theta) * Cup1(3) + Theta * CupHighOrder(3)
+
+    end subroutine ComputeAdvectionFace_TVD_Superbee
+
+    subroutine ComputeAdvectionFace_TVD_Superbee_1(Prop, V, du, dt, QFace, CFace)
+
+        !Arguments---------------------------------------------------
+
+        real(8), dimension(4), intent(IN)   :: V
+        real,    dimension(4), intent(IN)   :: du, Prop
+        real   ,               intent(IN)   :: dt
+        real(8),               intent(IN)   :: QFace
+        real,   dimension(4) , intent(OUT)  :: CFace
+
+        !Local-------------------------------------------------------
+        real                                :: Cr, Theta, dC, r
+        !Begin-------------------------------------------------------
+
+        Cr      = Courant (QFace,V(2),dt)
+
+        dC  = (Prop(3)-Prop(2)) / (du(3) + du(2))
+
+        if (abs(dC)< MinValue ) then
+            if (dc>= 0) then
+                dc =   MinValue
+            else
+                dc = - MinValue
+            endif
+        endif
+
+        !r = (Prop(2)-Prop(1))/ ((du(2) + du(1)) * dC)
+        r = (Prop(2)-Prop(1))/ (du(2) + du(1))/ dC
+
+        Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+        Theta = 0.5 * Theta * (1. - Cr)
+
+        CFace(2) =  (1. - Theta)
+        CFace(3) =  Theta
+
+    end subroutine ComputeAdvectionFace_TVD_Superbee_1
+
+
+    subroutine ComputeAdvectionFace_TVD_Superbee_2(Prop, V, du, dt, QFace, CFace)
+
+        !Arguments---------------------------------------------------
+
+        real(8), dimension(4), intent(IN)   :: V
+        real,    dimension(4), intent(IN)   :: du, Prop
+        real   ,               intent(IN)   :: dt
+        real(8),               intent(IN)   :: QFace
+        real,   dimension(4) , intent(OUT)  :: CFace
+
+        !Local-------------------------------------------------------
+        real                                :: Cr, Theta, dC, r
+        !Begin-------------------------------------------------------
+
+        Cr  = Courant (QFace,V(3),dt)
+
+        dC  = (Prop(2)-Prop(3)) / (du(3) + du(2))
+
+        if (abs(dC)< MinValue ) then
+            if (dc>= 0) then
+                dc =   MinValue
+            else
+                dc = - MinValue
+            endif
+        endif
+
+        !r = (Prop(3)-Prop(4))/ ((du(3) + du(4)) * dC)
+        r = (Prop(3)-Prop(4))/ (du(3) + du(4))/ dC
+
+        Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+        Theta = 0.5 * Theta * (1. - Cr)
+
+        CFace(2) =  Theta
+        CFace(3) =  (1. - Theta)
+
+    end subroutine ComputeAdvectionFace_TVD_Superbee_2
 
     real function Courant (QFace,V,dt)
 
@@ -8792,7 +9496,7 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
         enddo d3
 
     end subroutine
-    
+
     ! This routine computes the average of the vertical velocities around (and including) the center cell
     ! To be used for the lagrangian layers evolution. Matrix outputed : ZonalVerticalVelocity
     ! Needs to be parallelized
@@ -8807,7 +9511,7 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
         real                                :: SumVerticalVelocity
         !Begin-------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
-        
+
         ILB = Size3D%ILB
         IUB = Size3D%IUB
 
@@ -8816,7 +9520,7 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
         KLB = Size3D%KLB
         KUB = Size3D%KUB
-        
+
         do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB
@@ -8832,20 +9536,20 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
                                     VerticalVelocity(i-1, j  , k)  * OpenPoints3D(i-1, j  , k)    + &
                                     VerticalVelocity(i-1, j+1, k)  * OpenPoints3D(i-1, j+1, k))   * &
                                     OpenPoints3D(i, j  , k)
-            
+
             NumCells = 1 + (OpenPoints3D(i+1, j-1, k) + OpenPoints3D(i+1, j  , k) + OpenPoints3D(i+1, j+1, k)  + &
                             OpenPoints3D(i  , j-1, k) + OpenPoints3D(i  , j  , k) + OpenPoints3D(i  , j+1, k)  + &
                             OpenPoints3D(i-1, j-1, k) + OpenPoints3D(i-1, j  , k) + OpenPoints3D(i-1, j+1, k)) * &
                             OpenPoints3D(i, j  , k)
-            
+
             ZonalVerticalVelocity(i, j, k) = SumVerticalVelocity / NumCells
-            
-        enddo        
-        enddo   
+
         enddo
-        
+        enddo
+        enddo
+
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
-        
+
     end subroutine ComputeAvgVerticalVelocity
     !End------------------------------------------------------------
     Subroutine ComputeDiffusion1D(ilb, iub, dt, du, Prop, k, v, ComputePoints, &
@@ -12686,6 +13390,527 @@ D2:     do I=imax-1,2,-1
 
     end function WaveLengthHuntsApproximation
 
+    !------------------------------------------------------------------------------
+
+
+    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
+
+        !Arguments----------------------------------------------------
+        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,df,tmax,dt
+        real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
+
+        !Computes the sea level and velocity time series based in a JONSWAP spectrum
+        !
+        !Input: Hs - Significant height
+        !       Tp - peak period
+        !       Gamma - peakedness factor determines the concentraton
+        !               of the spectrum on the peak frequency,  1 <= gamma <= 7.
+        !       hmax - sea bed level
+        !       hmin - average sea level
+        !       dh   - vertical discretization used to compute the average in depth velocity
+        !       fmim - min frequency
+        !       fmax - max frequency
+        !       df - frequency discretization
+        !       tmax -time serie period
+        !       dt - time discretization
+        !
+        !Output: ETA - sea level
+        !        UU  - average velocity in the water column
+
+        !Local----------------------------------------------------------------
+        real, dimension(:,:,:), allocatable :: U
+        real, dimension(:,:),   allocatable :: wave, U1
+        real, dimension(:),     allocatable :: f, z, t, w
+        real                                :: wp, h, SIG, K, LLC
+        real                                :: SS, SJ, phi, A, Ab, sigmaX, RAND
+        integer                             :: x, l, i, nf, nh, nt
+
+        !Begin----------------------------------------------------------------
+
+        !f=fmin:df:fmax;
+        if (df >0.) then
+            nf = int((fmax-fmin)/df)+1
+            allocate(f(1:nf))
+            allocate(w(1:nf))
+            f(1) = fmin
+            do i =2, nf
+                f(i) = f(i-1) + df
+            enddo
+            w(:) = f(:)
+
+        else
+            stop "JONSWAP2 - ERR10"
+        endif
+
+
+        !z=-h:.5:0;
+        h = hmax-hmin
+        if (dh >0. .and. h > 0.) then
+            nh = int(h/dh)+1
+            allocate(z(1:nh))
+            z(1) = 0.
+            do i =2, nf
+                z(i) = z(i-1) + dh
+            enddo
+        else
+            stop "JONSWAP2 - ERR20"
+        endif
+
+
+        !t=0:dt:tmax;
+        if (dt >0.) then
+            nt = int(tmax/dt)+1
+            allocate(t(1:nh))
+            t(1) = 0
+            do i =2, nf
+                t(i) = t(i-1) + dt
+            enddo
+
+        else
+            stop "JONSWAP2 - ERR30"
+        endif
+
+        allocate(ETA (1:nt))
+        allocate(UU  (1:nt))
+        allocate(wave(1:nt,     1:nf))
+        allocate(U1  (1:nt,     1:nf))
+        allocate(U   (1:nt,1:nh,1:nf))
+
+
+        wp = 1/Tp;
+        do x = 1, nf
+             if (f(x)<wp) then
+                 sigmaX= 0.07;
+             else
+                 sigmaX = 0.09;
+             endif
+
+             SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
+
+             !Jonsoap
+             A  = sqrt(2*SJ*df);
+
+             !Pierson-Moskowitz Spectrum
+             !A = sqrt(2*SS*df);
+
+             call RANDOM_NUMBER(RAND)
+             phi= 2*Pi*(RAND-0.5); ! random phase of ith frequency
+
+             wave(:,x) =(A * cos(f(x)*2*pi*t(:) + phi));
+
+            !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            !%% comprimento de onda na profundidade local %%%%%%%%%%%%%%%%%%%%%%%%%%
+            !LL0=g./(2*pi).*(1/f(x)).**2;
+            !k0=2*pi./LL0;
+            !k0h=k0*h;
+            !kh=sqrt((k0h).**2+(k0h)./(1+.66666667*k0h+(.35555556*k0h.**2)+...
+            !(.16084656*k0h.**3)+(.06320988*k0h.**4)+(0.02175405*k0h.**5)+...
+            !(.00654080*k0h.**6))); ,K=kh/h;, LLC=2*pi./K;
+            LLC = WaveLengthHuntsApproximation(1/f(x), h)
+            K = 2*Pi/LLC
+            SIG=sqrt(Gravity*K*tanh(K*h));
+            do l=1,nh
+                U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h+z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi);
+            enddo
+        enddo
+        !sum in frequency
+        ETA(:)  =Sum(Wave(:,:  ),2)
+        !sum in frequency
+        U1 (:,:)=Sum(U   (:,:,:),3)
+        !average in depth
+        UU (:  )=Sum(U1  (:,:  ),2) / h
+
+    end subroutine JONSWAP2
+
+!------------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches discharge faces of father cell, and provides it to the son domain
+    !>@param[in] Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, n_U, n_V, IZ, JZ
+    subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V, n_Z,&
+                                   Kfloor, KUB)
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
+        integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ, Kfloor
+        integer, intent(IN)                                   :: ICell, JCell
+        integer                                               :: n_U, n_V, n_Z, KUB !Number of son cells in U/V directions
+        !Local-----------------------------------------------------------------
+        integer                                               :: di, dj, MaxSize, IFather, JFather
+        !-------------------------------------------------------------------------
+
+        MaxSize = size(Connection, 1)
+
+        !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
+        if (FatherWaterPoints(Icell + 1, JCell) == 0) then
+            IFather = Icell + 1
+            JFather = JCell
+            di      = -1 !only going to search southwards
+            dj      = 0
+            call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, n = n_V)
+        endif
+        if (FatherWaterPoints(Icell - 1, JCell) == 0) then
+            IFather = Icell - 1
+            JFather = JCell
+            di      = 1 !only going to search northwards
+            dj      = 0
+            call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, n = n_V)
+        endif
+        if (FatherWaterPoints(Icell, JCell + 1) == 0) then
+            IFather = Icell
+            JFather = JCell + 1
+            di      = 0
+            dj      = -1 !only going to search westward
+            call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
+        endif
+        if (FatherWaterPoints(Icell, JCell - 1) == 0) then
+            IFather = Icell
+            JFather = JCell - 1
+            di      = 0 !only going to search eastward
+            dj      = 1
+            call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
+        endif
+        
+        call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
+
+    end subroutine SearchDischargeFace
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches discharge faces of father cell, and its son cells responsible for an upscaling discharge.
+    !> Will also update the connection matrix of the upscaling discharges (one matrix for all discharges)
+    !>@param[in] Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, n, Cells
+    subroutine SearchFace(Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, n)
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :), pointer, intent(IN)    :: Connection
+        integer, dimension(:, :), pointer, intent(IN)    :: SonWaterPoints, link
+        integer, intent(IN)                              :: IFather, JFather, di, dj, MaxSize
+        integer                                          :: n
+        !Local-----------------------------------------------------------------
+        integer                                          :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, &
+                                                            JSonAdjacent, IJFather
+        !----------------------------------------------------------------------
+        !Find index of matrix where connections to cell (IFather, JCell) begin
+        !columns in connection(:) : 1 - IFather; 2 - JFather; 3 - ISon; 4 - JSon
+        do i = 1, MaxSize
+            if (Connection(i, 1) == IFather)then
+                if (Connection(i, 2) == JFather)then
+                    StartIndex = i
+                    Aux = IFather * JFather
+                    exit
+                endif
+            endif
+        enddo
+        
+        if (StartIndex /= 0) then
+            
+            if (di /=0) IJFather = IFather ! means we are searching the north/South direction
+            if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
+            Aux2 = Aux
+            i = StartIndex
+            !Check if current face needs to be considered for the discharge velocity
+            do while (Aux2 == Aux)
+                ISon         = Connection(i, 3)
+                JSon         = Connection(i, 4)
+                ISonAdjacent = Connection(i, 3) + di
+                JSonAdjacent = Connection(i, 4) + dj
+
+                if (SonWaterPoints(ISon, JSon) == 1)then
+                    !Check if adjacent cell of son domain is inside Father dicharge cell
+                    if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
+                        if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
+                            n = n + 1 ! Found a discharge face
+                        endif
+                    endif
+                endif
+                i = i + 1
+                Aux2 = Connection(i, 1) * Connection(i, 2)
+            enddo
+        endif
+
+    end subroutine SearchFace
+
+    !-------------------------------------------------------------------------------------
+    
+    !-------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes area averaged velocity of son cells nested in a father cell
+    !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
+    !> KFloor, KUBSon, KUBFather
+    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
+                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather)
+        !Arguments----------------------------------------------------------------------------------
+        real, dimension(:, :, :),          intent(INOUT)    :: DischargeVel
+        real, dimension(:, :, :),          intent(INOUT)    :: AcumulatedVel, AuxArea
+        real, dimension(:, :, :),    pointer, intent(IN)    :: SonArea, FatherArea, SonVel
+        integer, dimension(:, :),    pointer, intent(IN)    :: KFloor
+        integer, dimension(:, :, :), pointer, intent(IN)    :: SonComputeFaces
+        integer, dimension(:, :),             intent(IN)    :: DLink
+        !Local--------------------------------------------------------------------------------------
+        integer                                             :: i, j, k, Maxlines, line, KUBSon, KUBFather, &
+                                                               iSon, jSon, kSon, Kbottom
+        !-------------------------------------------------------------------------------------------
+        Maxlines = size(DLink, 1)
+        !Not worth paralelizing... too litle work for each thread.
+        do line = 1, Maxlines
+            i    = DLink(line, 1)
+            j    = DLink(line, 2)
+            iSon = DLink(line, 3)
+            jSon = DLink(line, 4)
+
+            KBottom = KFloor(i, j)
+            do k = Kbottom, KUBFather
+                kSon = k - (KUBFather - KUBSon)
+                ! I am assuming the vertical discretization will be the same even if the son has less layers.
+                AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
+                                         SonVel(iSon, jSon, kSon) * SonArea(iSon, jSon, kSon) * SonComputeFaces(iSon, jSon, kSon)
+
+                AuxArea(i, j, k) = AuxArea(i, j, k) + SonArea(iSon, jSon, kSon)
+            enddo
+
+        enddo
+
+        do line = 1, Maxlines
+            i = DLink(line, 1)
+            j = DLink(line, 2)
+            KBottom = KFloor(i, j)
+            do k = Kbottom, KUBFather
+                DischargeVel(i, j, k) = AcumulatedVel(i, j, k) / FatherArea(i, j, k)
+            enddo
+
+        enddo
+
+    end subroutine ComputeUpscalingVelocity
+    !--------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes volume to be added or removed due to upscaling discharge
+    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
+    subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, Flow, DischargeConnection)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
+        real(8),    dimension(:)            , intent(INOUT)  :: Flow
+        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize
+        real                                                 :: F_East, F_West
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        do line = 1, MaxSize
+            i = DischargeConnection(line, 1)
+            j = DischargeConnection(line, 2)
+            k = DischargeConnection(line, 3)
+
+            F_West =  (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
+            F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
+
+            Flow(line) = F_East + F_West
+        enddo
+    end subroutine DischargeFluxU
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes flow to be added or removed due to upscaling discharge
+    !>@param[in] FatherU_old, FatherU, AreaU, Flow, DischargeConnection
+    subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, Flow, DischargeConnection)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer    , intent(IN)     :: FatherV, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: FatherV_old
+        real(8),    dimension(:)                , intent(INOUT)  :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        !Local-------------------------------------------------------------------------------
+        integer                                                  :: line, i, j, k, MaxSize
+        real                                                     :: F_South, F_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        do line = 1, MaxSize
+            i = DischargeConnection(line, 1)
+            j = DischargeConnection(line, 2)
+            k = DischargeConnection(line, 3)
+
+            F_South =  (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
+            F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
+
+            Flow(line) = Flow(line) + F_South + F_North
+        enddo
+    end subroutine DischargeFluxV
+    
+    !---------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes flow to be added or removed due to offline upscaling discharge - V direction
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
+    subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU
+        real(8),    dimension(:)                , intent(INOUT)  :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        real                                , intent(IN)         :: VelDT, CoefCold
+        !Local-------------------------------------------------------------------------------
+        integer                                                  :: line, i, j, k, MaxSize
+        real                                                     :: F_West, F_East, TimeCoef
+        real                                                     :: Est_VelFather_East, Est_VelFather_West
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        
+        if (CoefCold < 1) then
+                        
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+
+                Flow(line) = F_East + F_West
+            enddo
+        else
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = VelDT / DecayTime(i, j)
+                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
+                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
+
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+
+                Flow(line) = F_East + F_West
+            enddo   
+        endif
+        
+    end subroutine Offline_DischargeFluxU
+    
+    !---------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes flow to be added or removed due to offline upscaling discharge - U direction
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
+    subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
+        real(8),    dimension(:)            , intent(OUT)    :: Flow
+        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        real                                , intent(IN)     :: VelDT, CoefCold
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize
+        real                                                 :: F_North, F_South, TimeCoef
+        real                                                 :: Est_VelFather_South, Est_VelFather_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(Flow)
+        
+        if (CoefCold < 1) then
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
+                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
+                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
+
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+
+                Flow(line) = Flow(line) + F_South + F_North
+            enddo
+        else
+            do line = 1, MaxSize
+                i = DischargeConnection(line, 1)
+                j = DischargeConnection(line, 2)
+                k = DischargeConnection(line, 3)
+                        
+                TimeCoef = VelDT / DecayTime(i, j)
+                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
+                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
+
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+
+                Flow(line) = Flow(line) + F_South + F_North
+            enddo
+        endif
+        
+    end subroutine Offline_DischargeFluxV
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Updates n_Z matrix
+    !>@param[in] n_Z, Kfloor, KUB, I, J
+    subroutine Update_n_Z(n_Z, KFloorZ, KUB, I, J)
+        !Arguments--------------------------------------------------------------------------
+        integer, dimension(:, :), pointer, intent(IN)        :: KFloorZ
+        integer                          , intent(IN)        :: KUB, I, J
+        integer                          , intent(INOUT)     :: n_Z
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: k, KBottom
+        !------------------------------------------------------------------------------------
+        KBottom = KFloorZ(I, J)
+        do k = KBottom, KUB
+            n_Z = n_Z + 1
+        enddo
+    end subroutine Update_n_Z
+    !----------------------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Updates discharge matrix table with the I, J and K  Parent cells
+    !>@param[in] n_Z, Kfloor, KUB, I, J
+    subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
+        !Arguments--------------------------------------------------------------------------
+        integer, dimension(:, :), allocatable , intent(INOUT)     :: Matrix
+        integer,                           intent(IN)             :: I, J, KUB
+        integer, dimension(:, :), pointer, intent(IN)             :: KFloor
+        integer,                           intent(INOUT)          :: CurrentZ
+        !Local-------------------------------------------------------------------------------
+        integer                                                   :: k, KBottom
+        !------------------------------------------------------------------------------------
+        KBottom = KFloor(I, J)
+        do k = KBottom, KUB
+            CurrentZ = CurrentZ + 1
+            Matrix(CurrentZ, 1) = I
+            Matrix(CurrentZ, 2) = J
+            Matrix(CurrentZ, 3) = k
+        enddo
+    end subroutine UpdateDischargeConnections
+    !------------------------------------------------------------------------------
+    
+    logical function DischargeIsAssociated (Connections, IFather, JFather)
+        !Arguments------------------------------------------------------------------
+        integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections
+        !Local-----------------------------------------------------------------------
+        Logical                                          :: Found
+        integer                                          :: MaxSize, i
+        !Begin-----------------------------------------------------------------------
+        MaxSize = size(Connections, 1)
+        found = .false.
+        do i = 1, MaxSize
+            if (Connections(i, 1) == IFather)then
+                if (Connections(i, 2) == JFather)then
+                    Found = .true.
+                    exit
+                endif
+            endif
+        enddo
+
+        DischargeIsAssociated = Found
+
+    end function DischargeIsAssociated
     !------------------------------------------------------------------------------
 
     integer function WriteEsriGrid(UnitOut, ILB, IUB, JLB, JUB, OriginX, OriginY,       &

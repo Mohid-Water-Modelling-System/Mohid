@@ -225,6 +225,7 @@ Module ModuleJet
         real                            :: OutfallLength                = null_real
         real                            :: OutfallAngle                 = null_real
         integer                         :: Number                       = null_int
+        real                            :: MinPortVelocity              = null_real 
     end type T_Port
 
     type T_Ambient
@@ -1012,6 +1013,18 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR48'
 
 
+        call GetData(Me%Port%MinPortVelocity,                                           &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MIN_PORT_VELOCITY',                                 &
+                     ClientModule ='ModuleJet',                                         &
+                     Default      = 0.,                                                 &
+                     STAT         = STAT_CALL)        
+
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR60'
+        
+
 
     end subroutine ReadJetData
 
@@ -1030,6 +1043,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%Port%Flow = Me%Port%TotalFlow / Me%Port%Number
 
         Me%Port%VelModulus = Me%Port%Flow / PortArea
+
+        !Defining a minimum port velocity the user can avoid unrealistic high initial dilutions
+        !By default is zero but for very small flows/velocities dilutions values can be very large order of 1e5
+        !If a minimum value of 0.5 m/s is considered this high dilution values canbe avoid. 
+        Me%Port%VelModulus = max(Me%Port%VelModulus, Me%Port%MinPortVelocity)
 
         Me%Port%ex = cos(Me%Port%HZAngle) * cos(Me%Port%XYAngle)
         Me%Port%ey = cos(Me%Port%HZAngle) * sin(Me%Port%XYAngle)
@@ -1220,7 +1238,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Arguments-------------------------------------------------------------
    
         !Local-----------------------------------------------------------------
-        
+        real :: PortArea
         !----------------------------------------------------------------------
 
         Me%Evolution%HZAngle    = Me%Port%HZAngle
@@ -1255,7 +1273,11 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         Call ShearEntrainmentCoef
         Call ComputeInitialDt    
 
-        Me%Evolution%Volume        = Me%Port%Flow * Me%Evolution%dt
+        
+
+        !Me%Evolution%Volume        = Me%Port%Flow * Me%Evolution%dt
+        PortArea                   = Pi * (Me%Port%Diameter/2)**2
+        Me%Evolution%Volume        = Me%Port%VelModulus * PortArea * Me%Evolution%dt
         Me%Evolution%Thickness     = Me%Port%VelModulus * Me%Evolution%dt
         Me%Evolution%InitialVolume = Me%Evolution%Volume
         Me%Evolution%ContactArea   = Pi * Me%Port%Diameter * Me%Evolution%Thickness
@@ -1408,6 +1430,10 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
            
             else
+                
+                write(*,*) 'Z Surface =', Me%Ambient%Szz(I, J, Ksurface)    
+                write(*,*) 'Z Plume   =', Me%Evolution%z
+                write(*,*) 'Z Bottom  =', Me%Ambient%Szz(I, J, Kbottom)
                 stop 'LocalAmbientProp - ModuleJet - ERR30'
             endif
 
@@ -1634,7 +1660,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Arguments-------------------------------------------------------------
            
         !Local-----------------------------------------------------------------
-        
+        real                        :: Dilution
         !----------------------------------------------------------------------
 
 
@@ -1644,7 +1670,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         Me%Evolution%Volume    = Me%Evolution%VolumeOld + Me%Evolution%DV
 
         Me%Evolution%Dilution_old = Me%Evolution%Dilution
-        Me%Evolution%Dilution     = Me%Evolution%Volume / Me%Evolution%InitialVolume
+        Dilution                    = Me%Evolution%Volume / Me%Evolution%InitialVolume
+        Me%Evolution%Dilution       = Dilution
 
     end subroutine VolumeVariation
 
@@ -1928,7 +1955,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
             Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
         endif
 
-        if (Me%Evolution%EndRun .and. Me%Port%Number > 1) then
+        if (Me%Port%Number > 1) then
             call RANDOM_NUMBER(AuxRand)
             AuxRand = (AuxRand - 0.5) * Me%Port%OutfallLength
             AuxRandX = AuxRand * cos(Me%Port%OutfallAngle)

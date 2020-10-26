@@ -90,6 +90,7 @@ Module ModuleGlueHDF5Files
         character(len=PathLength)                        :: BaseGroup
         character(len=PathLength)                        :: TimeGroup
         type (T_TimeMap)                                 :: TimeMap
+        logical                                          :: CheckHDF5_File      = .false.   
     end type  T_GlueHDF5Files
 
     type(T_GlueHDF5Files), pointer                       :: Me                  
@@ -237,6 +238,16 @@ Module ModuleGlueHDF5Files
             Me%TimeMap%BestTimeSerieON = .false.
         endif            
         
+        call GetData(Me%CheckHDF5_File,                                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'CHECK_HDF5_FILE',                                  &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR90'
+        
+        
 do1 :   do
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
                                         '<<begin_list>>', '<<end_list>>', BlockFound,   &
@@ -257,7 +268,7 @@ if2 :           if (BlockFound) then
                         call GetData(FileNameAux, Me%ObjEnterData,  iflag,              & 
                                      Buffer_Line  = FirstLine + i,                      &
                                      STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR90'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR100'
                         
                         if (GetHDF5FileOkToRead(FileNameAux)) then
                             iAux2                = iAux2 + 1
@@ -282,7 +293,7 @@ if2 :           if (BlockFound) then
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                if(STAT_CALL .ne. SUCCESS_)stop 'ReadOptions - ModuleGlueHDF5Files - ERR100'
+                if(STAT_CALL .ne. SUCCESS_)stop 'ReadOptions - ModuleGlueHDF5Files - ERR110'
                     
             end if if1
         end do do1
@@ -2165,11 +2176,18 @@ if2 :           if (BlockFound) then
 
         endif
         
+        if (Me%CheckHDF5_File) then
+        
+            call GetHDF5AllDataSetsOK (HDF5ID = Me%ObjHDF5_Out, STAT = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR10'
+            
+        endif              
+        
         call KillHDF5(Me%ObjHDF5_Out, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR03'
+        if (STAT_CALL /= SUCCESS_)stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR20'
 
         nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-        if (nUsers == 0) stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR04'
+        if (nUsers == 0) stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR30'
 
 
         deallocate(Me%FileNameIn)

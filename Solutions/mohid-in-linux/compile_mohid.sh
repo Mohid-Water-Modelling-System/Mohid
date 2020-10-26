@@ -21,7 +21,7 @@ IS_DEBUG=false                   # default : false
 #### libraries path ####
 DIR_REQ=$HOME/apps_intel
 ZLIB=$DIR_REQ/zlib-1.2.11
-HDF5=$DIR_REQ/hdf5-1.8.15
+HDF5=$DIR_REQ/hdf5-1.8.17
 NETCDF=$DIR_REQ/netcdf-4.4.1.1
 MPI=$DIR_REQ/mpich-3.2
 #MPI=/opt/intel/compilers_and_libraries/linux/mpi/intel64
@@ -31,8 +31,8 @@ IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
 PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
 
 #### Activate modules ####
-USE_OPENMP=true                  # default : true
-USE_MPI=false                    # default : false
+USE_OPENMP=false                  # default : true
+USE_MPI=true                 # default : false
 
 USE_HDF=true                     # default : true
 USE_NETCDF=true                  # default : true
@@ -180,6 +180,7 @@ WARNINGS_FLAGS=
 OPENMP_FLAGS=
 OPT_FLAGS=
 OTH_FLAGS=
+FPE3_FLAGS=
 if [[ $FC == *"gfortran"* ]]; then
     LANG_FLAGS='-cpp -fdefault-real-8 -fdefault-double-8'
     if [ $IS_DEBUG == true ]; then
@@ -216,6 +217,8 @@ elif [[ $FC == *"ifort"* ]]; then
     OPT_FLAGS="-O1 -convert little_endian -fPIC -heap-arrays 64 -fp-model source" #-mcmodel=large
   
     OTH_FLAGS=" -xHost -ip -fpe0  -fpp "
+    
+    FPE3_FLAGS=" -xHost -ip -fpe3  -fpp " 
     
     MODOUT="-module "
 fi
@@ -584,7 +587,7 @@ MOHID_BASE_2(){
     ModuleFillMatrix  \
     ModuleChainReactions  \
     ModuleAtmosphere      \
-    ModuleTwoWay)
+    ModuleTwoWay )
 
   COMPILE_MOHID_BASE modules_Mohid_Base_2 "mohidbase2"
 }
@@ -682,6 +685,8 @@ MOHID_TOOLS(){
       exit 1
   fi
   modules_Mohid_Tools=( \
+    Convert2netcdf \
+    MohidDDC \
     BasinDelimiter \
     ConvertGridDataToHDF5 \
     ConvertHDF5ToGridData \
@@ -692,7 +697,6 @@ MOHID_TOOLS(){
     HDF5Exporter \
     HDF5Extractor \
     HDF5Statistics \
-    MainDDC \
     #Shell \   ## error
     )
 
@@ -770,16 +774,34 @@ MOHID_TOOLS(){
         ModuleHDF5Statistics)
         COMPILE_MOHID_TOOLS modules_HDF5Statistics "$tool"
 
-    elif [ $tool = 'MainDDC' ]; then
+    elif [ $tool = 'MohidDDC' ]; then
       modules_DDC=( \
         ModuleHashTable \
         ModuleDDC)
         COMPILE_MOHID_TOOLS modules_DDC "$tool"
+    
 
     elif [ $tool = 'Shell' ]; then
       modules_Shell=( \
         ModuleShell)
         COMPILE_MOHID_TOOLS modules_Shell "$tool"
+    
+    elif [ $tool = 'Convert2netcdf' ]; then
+      CCFLAGS2="$WARNINGS_FLAGS $DEBUG_FLAGS $LANG_FLAGS $OPENMP_FLAGS $OPT_FLAGS $FPE3_FLAGS $FPP_DEFINES"
+      if [ $OPT_VERBOSE == 1 ]; then
+        echo
+        echo " $FC $CCFLAGS2 $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}"
+        echo
+      fi
+      $FC $CCFLAGS2 $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90 $INCLUDES $LIBS -o bin/${tool}${Exe}
+      
+      if [ ! -f "bin/${tool}${Exe}" ];  then
+        echo -e "${ERROR} bin/${tool}${Exe} File not created!"
+        exit 0
+      else
+        echo -e " compile ${tool} ${OK}                                                      "
+        echo
+      fi
 
     elif [ -f "src/${tool}$F90" ];  then
 
@@ -788,7 +810,6 @@ MOHID_TOOLS(){
         echo " $FC $CCFLAGS $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}"
         echo
       fi
-
       $FC $CCFLAGS $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}
 
       if [ ! -f "bin/${tool}${Exe}" ];  then

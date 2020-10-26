@@ -6,9 +6,9 @@
 ! PROJECT       : Mohid Base 1
 ! MODULE        : Litter
 ! URL           : http://www.mohid.com
-! AFFILIATION   : HIDROMOD & ????
+! AFFILIATION   : HIDROMOD
 ! DATE          : April 2018
-! REVISION      : Paulo Leitao & ????
+! REVISION      : Paulo Leitao
 ! DESCRIPTION   : Module manages the beach and killing of lagrangian litter particles
 !
 !------------------------------------------------------------------------------
@@ -49,6 +49,11 @@ Module ModuleLitter
 
     !Constructor
     public  :: ConstructLitter
+    interface  ConstructLitter
+        module procedure ConstructLitterWater
+        module procedure ConstructLitterLag
+    end interface ConstructLitter   
+    
     private ::      AllocateInstance
 
     !Selector
@@ -56,6 +61,11 @@ Module ModuleLitter
     
     !Modifier
     public  :: ModifyLitter
+    interface  ModifyLitter
+        module procedure ModifyLitterWater
+        module procedure ModifyLitterLag
+    end interface ModifyLitter 
+    
     private ::      CheckBeachLitter
     private ::      DeleteOldLitter    
     private ::      OutputNumberGrid
@@ -64,7 +74,6 @@ Module ModuleLitter
 
     !Destructor
     public  :: KillLitter                                                     
-    private ::      DeAllocateInstance
 
     !Management
     private ::      Ready
@@ -102,9 +111,12 @@ Module ModuleLitter
     end type T_Files    
     
     type T_ExtVar
+        integer                                         :: ObjTime              = 0
         type(T_Time)                                    :: CurrentTime
+        type(T_Time)                                    :: NextCompute
         type(T_Time)                                    :: StartTime                      
         type(T_Time)                                    :: EndTime              
+        logical                                         :: Backtracking         = .false. 
         type (T_polygon), pointer                       :: ModelDomain          => null()
         integer                                         :: nParticles           = null_int
         real(8), dimension(:), pointer                  :: Longitude            => null()
@@ -139,7 +151,7 @@ Module ModuleLitter
         type (T_Time), dimension(:), pointer            :: OutTime
         integer                                         :: NextOutPut           = null_int
         integer                                         :: Number               = null_int
-        integer,       dimension(:,:), pointer          :: AuxInt2D             => null()
+        real,          dimension(:,:), pointer          :: AuxReal2D            => null()
         character (len = PathLength)                    :: OutputFile           = null_str
         character (len = PathLength)                    :: HotStartFile         = null_str        
         character (len = PathLength)                    :: InputGridFile        = null_str        
@@ -154,6 +166,10 @@ Module ModuleLitter
     type T_OutputGrids
         type (T_Output), dimension(:), pointer          :: Individual           => null()           
         integer                                         :: Number               = null_int
+        type (T_Time),   dimension(:), pointer  :: RestartOutTime       => null()
+        integer                                 :: NextRestartOutPut    = null_int
+        logical                                 :: WriteRestartFile     = .false. 
+        logical                                 :: RestartOverwrite     = .false.
     end type T_OutputGrids       
     
     private :: T_Litter
@@ -197,14 +213,15 @@ Module ModuleLitter
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructLitter(ObjLitterID, Nomfich, StartTime, EndTime, ModelDomain, STAT)
+    subroutine ConstructLitterWater(ObjLitterID, TimeID, Nomfich, ModelDomain,          &
+                                    ResultsHDF, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer                                         :: ObjLitterID 
-        character(len=*)                                :: Nomfich
-        type (T_Time)                                   :: StartTime
-        type (T_Time)                                   :: EndTime
-        type (T_Polygon), pointer                       :: ModelDomain
+        integer            ,            intent(OUT)     :: ObjLitterID 
+        integer            ,            intent(INOUT)   :: TimeID 
+        character(len=*)   ,            intent(IN)      :: Nomfich
+        type (T_Polygon), pointer,      intent(IN)      :: ModelDomain
+        character(len=*)   ,            intent(IN)      :: ResultsHDF
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -226,25 +243,26 @@ Module ModuleLitter
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
-
             call AllocateInstance
             
             Me%Files%Nomfich        = Nomfich
-            Me%ExtVar%StartTime     = StartTime            
-            Me%ExtVar%CurrentTime   = StartTime                        
-            Me%ExtVar%EndTime       = EndTime
+
             Me%ExtVar%ModelDomain   => ModelDomain
             
-            Me%LastAtualization     = StartTime
+            Me%ExtVar%ObjTime       = AssociateInstance (mTIME_, TimeID)
+            
+            Me%Files%ResultsHDF = ResultsHDF
+            
+            call GetExternalTime
             
             call ConstructFilesNames
             
             !Construct enter data 
             call ConstructEnterData(EnterDataID     = Me%ObjEnterData,                  &
                                     FileName        = Me%Files%ConstructData,           &
-                                    ErrorMessage    = "ConstructLitter - ModuleLitter", &
+                                    ErrorMessage    = "ConstructLitterWater - ModuleLitter", &
                                     STAT            = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitter - ModuleLitter - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitterWater - ModuleLitter - ERR10'
             
             
             
@@ -254,7 +272,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Kill enter data 
             call KillEnterData     (EnterDataID     = Me%ObjEnterData,                  &
                                     STAT            = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitter - ModuleLitter - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitterWater - ModuleLitter - ERR20'
             
             call ReadLitterBeach            
             
@@ -265,7 +283,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         else cd0
             
-            stop 'ModuleLitter - ConstructLitter - ERR100' 
+            stop 'ModuleLitter - ConstructLitterWater - ERR100' 
 
         end if cd0
 
@@ -274,10 +292,120 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !----------------------------------------------------------------------
 
-    end subroutine ConstructLitter
+    end subroutine ConstructLitterWater
  
     !--------------------------------------------------------------------------
     
+        subroutine ConstructLitterLag(ObjLitterID, StartTime, ModelDomain, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                intent(INOUT)           :: ObjLitterID 
+        integer, dimension(6),  intent(IN)              :: StartTime
+        !1 - Xmin, 2 - Xmax, 3 - Ymin, 4 - Ymax
+        real(8), dimension(4),  intent(IN)              :: ModelDomain
+        integer, optional,      intent(OUT)             :: STAT     
+
+        !Local-------------------------------------------------------------------
+        real,   dimension(:), pointer                   :: VectorX, VectorY
+        integer                                         :: ready_         
+        integer                                         :: STAT_
+        integer                                         :: STAT_CALL        
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mLitter_)) then
+            nullify (FirstObjLitter)
+            call RegisterModule (mLitter_) 
+        endif
+
+        call Ready(ObjLitterID, ready_)    
+
+cd0 :   if (ready_ .EQ. OFF_ERR_) then
+
+            call AllocateInstance
+            
+            Me%Files%Nomfich        = "Nomfich.dat"
+            
+            allocate(VectorX(5), VectorY(5))
+            
+            VectorX(1)  = ModelDomain(1)
+            VectorX(2)  = ModelDomain(1)
+            VectorX(3)  = ModelDomain(2)
+            VectorX(4)  = ModelDomain(2)
+            VectorX(5)  = ModelDomain(1)
+            
+            VectorY(1)  = ModelDomain(3)
+            VectorY(2)  = ModelDomain(4)
+            VectorY(3)  = ModelDomain(4)
+            VectorY(4)  = ModelDomain(3)
+            VectorY(5)  = ModelDomain(3)
+
+            call New(Polygons   = Me%ExtVar%ModelDomain,                                &
+                     VectorX    = VectorX,                                              & 
+                     VectorY    = VectorY)     
+            
+            deallocate(VectorX, VectorY)
+            
+            Me%ExtVar%ObjTime       = 0
+        
+            !call GetExternalTime
+            !Do not work backtracking
+            
+            Me%ExtVar%BackTracking = .false.
+            call SetDate (Time1 = Me%ExtVar%StartTime,                                  &
+                          Year  = StartTime(1),                                         &
+                          Month = StartTime(2),                                         &
+                          Day   = StartTime(3),                                         &
+                          Hour  = StartTime(4),                                         &
+                          Minute= StartTime(5),                                         &
+                          Second= StartTime(6))
+            
+            Me%ExtVar%CurrentTime   = Me%ExtVar%StartTime                        
+            Me%LastAtualization     = Me%ExtVar%StartTime  
+            
+            call ConstructFilesNames
+            
+            !Construct enter data 
+            call ConstructEnterData(EnterDataID     = Me%ObjEnterData,                  &
+                                    FileName        = Me%Files%ConstructData,           &
+                                    ErrorMessage    = "ConstructLitterWater - ModuleLitter", &
+                                    STAT            = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitterLag - ModuleLitter - ERR10'
+            
+            
+            
+            call ConstructFromLitterBlock
+            
+           
+            !Kill enter data 
+            call KillEnterData     (EnterDataID     = Me%ObjEnterData,                  &
+                                    STAT            = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLitterLag - ModuleLitter - ERR20'
+            
+            call ReadLitterBeach            
+            
+            !Returns ID
+            ObjLitterID          = Me%InstanceID
+
+            STAT_ = SUCCESS_
+
+        else cd0
+            
+            stop 'ModuleLitter - ConstructLitterLag - ERR100' 
+
+        end if cd0
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine ConstructLitterLag
+ 
+    !--------------------------------------------------------------------------
     subroutine AllocateInstance
 
         !Arguments-------------------------------------------------------------
@@ -313,13 +441,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
     !------------------------------------------------------------------------------
+    
+    subroutine GetExternalTime
+    
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                 :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+    
+        !Gets Time
+        call GetComputeTimeLimits(Me%ExtVar%ObjTime,                                    &
+                                  BeginTime = Me%ExtVar%StartTime,                      &
+                                  EndTime   = Me%ExtVar%EndTime,                        &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternalTime - ModuleLitter - ERR10'
+
+
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ExtVar%ObjTime,                                         &
+                             Me%ExtVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternalTime - ModuleLitter - ERR20'
+
+        Me%ExtVar%CurrentTime   = Me%ExtVar%StartTime                        
+        Me%LastAtualization     = Me%ExtVar%StartTime    
+            
+            
+    end subroutine GetExternalTime
+    
+    !------------------------------------------------------------------------------    
+    
 
     subroutine ConstructFilesNames
 
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, i
+        integer                                     :: STAT_CALL !, i
         character(len = StringLength)               :: Message
 
         !----------------------------------------------------------------------
@@ -356,29 +514,29 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_  ) then
         end if cd1  
         
         
-        !Transient HDF File
-        Message   ='Instant fields of litter particles in HDF format.'
-        call ReadFileName  (KEYWORD     = 'PARTIC_HDF',                                 &
-                            FILE_NAME   = Me%Files%ResultsHDF,                          &
-                            Message     = Message,                                      &
-                            TIME_END    = Me%ExtVar%EndTime,                            &
-                            Extension   = 'hdf5',                                       &
-                            FilesInput  = Me%Files%Nomfich,                             &
-                            STAT        = STAT_CALL)                           
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR40'
-
-        i = len_trim(Me%Files%ResultsHDF)
-        
-        if (Me%Files%ResultsHDF(i:i) /="5") then
-            Me%Files%ResultsHDF = trim(Me%Files%ResultsHDF)//"5"
-        endif
+        !!Transient HDF File
+        !Message   ='Instant fields of litter particles in HDF format.'
+        !call ReadFileName  (KEYWORD     = 'PARTIC_HDF',                                 &
+        !                    FILE_NAME   = Me%Files%ResultsHDF,                          &
+        !                    Message     = Message,                                      &
+        !                    TIME_END    = Me%ExtVar%EndTime,                            &
+        !                    Extension   = 'hdf5',                                       &
+        !                    FilesInput  = Me%Files%Nomfich,                             &
+        !                    STAT        = STAT_CALL)                           
+        !if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR40'
+        !
+        !i = len_trim(Me%Files%ResultsHDF)
+        !
+        !if (Me%Files%ResultsHDF(i:i) /="5") then
+        !    Me%Files%ResultsHDF = trim(Me%Files%ResultsHDF)//"5"
+        !endif
 
         !Initial Particle Litter List HDF File
         Message   ='Initial list of litter particles in HDF format.'
         call ReadFileName  (KEYWORD     = 'LITTER_INI',                                 &
                             FILE_NAME   = Me%Files%LitterIni,                           &
                             Message     = Message,                                      &
-                            TIME_END    = Me%ExtVar%EndTime,                            &
+                            TIME_END    = Me%ExtVar%StartTime,                          &
                             Extension   = 'hdf5',                                       &
                             FilesInput  = Me%Files%Nomfich,                             &
                             STAT        = STAT_CALL)                           
@@ -468,6 +626,36 @@ BF:     if (BlockFound) then
                     ClientModule    = 'ModuleLitter',                                   &
                     STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - ModuleLitter - ERR020'        
+        
+        Me%OutputGrids%WriteRestartFile = .false. 
+
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime = Me%ExtVar%CurrentTime,                         &
+                           EndTime     = Me%ExtVar%EndTime,                             &
+                           keyword     = 'RESTART_FILE_OUTPUT_TIME',                    &
+                           SearchType  = FromBlock,                                     &
+                           OutPutsTime = Me%OutputGrids%RestartOutTime,                 &
+                           OutPutsOn   = Me%OutputGrids%WriteRestartFile,               &
+                           STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - ModuleLitter - ERR030'
+
+        if(Me%OutputGrids%WriteRestartFile)then
+
+            Me%OutputGrids%NextRestartOutput = 1
+
+        end if 
+
+        !Checks wether to overwrite the Restart File OR not
+        call GetData(Me%OutputGrids%RestartOverwrite,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='RESTART_FILE_OVERWRITE',                            &
+                     ClientModule ='ModuleLitter',                                      &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - ModuleLitter - ERR040'
+        
         
     end subroutine ConstructGlobalOptions
     
@@ -862,11 +1050,10 @@ i1:         if (GridsFound) then
                                    STAT     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR130'                
                 
-                
                 deallocate(Bathymetry   )
                 deallocate(WaterPoints2D)                
 
-                allocate(Me%OutputGrids%Individual(nGrids)%AuxInt2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))     
+                allocate(Me%OutputGrids%Individual(nGrids)%AuxReal2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))     
                 
             else i1
             
@@ -999,7 +1186,15 @@ i1:         if (GridsFound) then
         type (T_Particle), pointer                    :: PrevParticle  => null()
 
         logical                                       :: ParticleDeleted
+        integer                                       :: nP
+        
         !Begin-----------------------------------------------------------------
+
+        nP = ParticleID(ParticleToDelete)         
+        
+        if (nP > 0) then
+            Me%ExtVar%KillPartic(nP) = .true.
+        endif
 
         ParticleDeleted = .false. 
 
@@ -1087,9 +1282,10 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyLitter(ObjLitterID,                                                &
+    subroutine ModifyLitterWater(ObjLitterID,                                           &
                             nParticles,                                                 &
                             CurrentTime,                                                &
+                                 NextCompute,                                           &
                             Longitude,                                                  &
                             Latitude,                                                   &                
                             Age,                                                        &
@@ -1102,6 +1298,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
         integer                       , intent(IN)      :: ObjLitterID
         integer                       , intent(IN)      :: nParticles
         type (T_Time)                 , intent(IN)      :: CurrentTime  
+        type (T_Time)                 , intent(IN)      :: NextCompute
         real(8), dimension(:), pointer, intent(IN)      :: Longitude
         real(8), dimension(:), pointer, intent(IN)      :: Latitude
         real(8), dimension(:), pointer, intent(IN)      :: Age     
@@ -1124,6 +1321,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
                                     
             Me%ExtVar%nParticles    =  nParticles
             Me%ExtVar%CurrentTime   =  CurrentTime
+            Me%ExtVar%NextCompute   =  NextCompute
             Me%ExtVar%Longitude     => Longitude
             Me%ExtVar%Latitude      => Latitude
             Me%ExtVar%Age           => Age     
@@ -1138,6 +1336,8 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
             
             call OutputNumberGrid
             
+            call OutputRestartFile
+            
             Me%LastAtualization = Me%ExtVar%CurrentTime
 
             STAT_ = SUCCESS_
@@ -1147,7 +1347,80 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine ModifyLitter
+    end subroutine ModifyLitterWater
+
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ModifyLitterLag(ObjLitterID,                                           &
+                                 CurrentTime,                                           &
+                                 Longitude,                                             &
+                                 Latitude,                                              &                
+                                 Age,                                                   &
+                                 Origin,                                                &
+                                 ID,                                                    &
+                                 Beach,                                                 &
+                                 KillPartic,                                            &    
+                                 STAT)        
+        !Arguments-------------------------------------------------------------
+        integer                       , intent(IN)      :: ObjLitterID
+        integer, dimension(6)         , intent(IN)      :: CurrentTime  
+        real(8), dimension(:), pointer, intent(IN)      :: Longitude
+        real(8), dimension(:), pointer, intent(IN)      :: Latitude
+        real(8), dimension(:), pointer, intent(IN)      :: Age     
+        integer, dimension(:), pointer, intent(IN)      :: Origin             
+        integer, dimension(:), pointer, intent(IN)      :: ID        
+        logical, dimension(:), pointer, intent(INOUT)   :: Beach
+        logical, dimension(:), pointer, intent(INOUT)   :: KillPartic                
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjLitterID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+                                    
+            Me%ExtVar%nParticles    =  size(Longitude)
+            
+            call SetDate (Time1 = Me%ExtVar%CurrentTime,                                &
+                          Year  = CurrentTime(1),                                       &
+                          Month = CurrentTime(2),                                       &
+                          Day   = CurrentTime(3),                                       &
+                          Hour  = CurrentTime(4),                                       &
+                          Minute= CurrentTime(5),                                       &
+                          Second= CurrentTime(6))
+            
+            Me%ExtVar%Longitude     => Longitude
+            Me%ExtVar%Latitude      => Latitude
+            Me%ExtVar%Age           => Age     
+            Me%ExtVar%Origin        => Origin     
+            Me%ExtVar%ID            => ID
+            Me%ExtVar%Beach         => Beach
+            Me%ExtVar%KillPartic    => KillPartic      
+            
+            call CheckBeachLitter
+            
+            call DeleteOldLitter
+            
+            call OutputNumberGrid
+            
+            call OutputRestartFile
+            
+            Me%LastAtualization = Me%ExtVar%CurrentTime
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine ModifyLitterLag
 
 
     !--------------------------------------------------------------------------
@@ -1169,36 +1442,39 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
         allocate(Point)
         
 d1:     do nP    = 1, nPtotal
+            
+i0:         if (.not. Me%ExtVar%KillPartic(nP)) then
+                if (Me%KillBeachLitter) then
+                Me%ExtVar%Beach     (nP) = .false.
+                endif
 
-            Me%ExtVar%Beach     (nP) = .false.
-            Me%ExtVar%KillPartic(nP) = .false.
+i1:             if (Me%ExtVar%Age (nP) > Me%AgeToBeach .and. .not. Me%ExtVar%Beach(nP)) then
 
-i1:         if (Me%ExtVar%Age (nP) > Me%AgeToBeach) then
+d2:                 do nArea = 1, nAreaTotal
 
-d2:             do nArea = 1, nAreaTotal
+                        Point%X = Me%ExtVar%Longitude(nP)
+                        Point%Y = Me%ExtVar%Latitude (nP)
 
-                    Point%X = Me%ExtVar%Longitude(nP)
-                    Point%Y = Me%ExtVar%Latitude (nP)
+i2:                    if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
 
-i2:                 if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
-
-                        call RANDOM_NUMBER(Rand1)
+                            call RANDOM_NUMBER(Rand1)
                                 
-i3:                     if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
+i3:                         if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
                     
-                            Me%ExtVar%Beach(nP) = .true.
+                                Me%ExtVar%Beach(nP) = .true.
                     
-                            call AllocateNewParticle       (NewPartic, nP, nArea)
-                            call InsertParticleToBeachList (NewPartic)                    
+                                call AllocateNewParticle       (NewPartic, nP, nArea)
+                                call InsertParticleToBeachList (NewPartic)                    
                     
-i4:                         if (Me%KillBeachLitter) then
-                                Me%ExtVar%KillPartic(nP) = .true.
-                            endif i4
-                        endif i3
+i4:                             if (Me%KillBeachLitter) then
+                                    Me%ExtVar%KillPartic(nP) = .true.
+                                endif i4
+                            endif i3
                                                                 
-                    endif i2
-                enddo   d2
-            endif i1                                
+                        endif i2
+                    enddo   d2
+                endif i1
+            endif i0
         enddo   d1
         
         deallocate(Point)
@@ -1207,6 +1483,38 @@ i4:                         if (Me%KillBeachLitter) then
 
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    integer function ParticleID(CurrentPartic)        
+        !Arguments-------------------------------------------------------------
+        type (T_Particle), pointer                  :: CurrentPartic
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nP, nPtotal
+        
+        !----------------------------------------------------------------------
+        
+        ParticleID  = FillValueInt
+        
+        nPtotal     = Me%ExtVar%nParticles
+        
+d1:     do nP    = 1, nPtotal
+    
+i1:         if (Me%ExtVar%Origin(nP) == CurrentPartic%Origin .and.                      &
+                Me%ExtVar%ID    (nP) == CurrentPartic%ID    ) then
+                ParticleID = nP
+                exit
+            endif i1
+
+        enddo   d1
+        
+
+    end function ParticleID
+
+
+    !--------------------------------------------------------------------------
+    
 
     !--------------------------------------------------------------------------
 
@@ -1265,14 +1573,14 @@ i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%Age
         type (T_Particle), pointer                  :: CurrentPartic
         real                                        :: PointX, PointY
         integer                                     :: nGrid, nTotalGrids
-        integer                                     :: iOut, STAT_CALL, I, J
+        integer                                     :: iOut, STAT_CALL, I, J, Nout
         logical                                     :: HaveDomain
-        type (T_Time)                               :: Aux
+        type (T_Time)                               :: Aux, OutTime
         real, dimension(6), target                  :: AuxTime
-        real, dimension(:), pointer                 :: TimePtr        
-        
+        real, dimension(:), pointer                 :: TimePtr      
+        real                                        :: TotalTime, AuxPeriod
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !----------------------------------------------------------------------
-        
         
         nTotalGrids = Me%OutputGrids%Number
         
@@ -1280,11 +1588,16 @@ d1:     do nGrid = 1, nTotalGrids
 
             iOut = Me%OutputGrids%Individual(nGrid)%NextOutput
             
-        
-i1:         if (Me%ExtVar%CurrentTime >=  Me%OutputGrids%Individual(nGrid)%OutTime(iOut)) then
+            OutTime = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+            Nout    = size(Me%OutputGrids%Individual(nGrid)%OutTime)
+            
+i1:         if (Me%ExtVar%CurrentTime >=  OutTime .and. iOut <= Nout) then
+    
+                if (Me%ExtVar%Backtracking) then
+                    iOut = Me%OutputGrids%Individual(nGrid)%Number - iOut + 1 
+                endif          
 
-                Me%OutputGrids%Individual(nGrid)%AuxInt2D(:,:) = 0
-        
+                Me%OutputGrids%Individual(nGrid)%AuxReal2D(:,:) = 0
         
                 CurrentPartic => Me%ParticleList%First
 
@@ -1311,15 +1624,29 @@ d2:             do while (associated(CurrentPartic))
                                         STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR20'
 
-                        Me%OutputGrids%Individual(nGrid)%AuxInt2D(I,J) = Me%OutputGrids%Individual(nGrid)%AuxInt2D(I,J) + 1
+                        Me%OutputGrids%Individual(nGrid)%AuxReal2D(I,J) = Me%OutputGrids%Individual(nGrid)%AuxReal2D(I,J) + 1
 
                     endif                
 
                     CurrentPartic => CurrentPartic%Next
                     
                 enddo   d2
+
+                if (Me%ExtVar%Backtracking) then
+                    
+                    TotalTime = Me%ExtVar%EndTime - Me%ExtVar%StartTime                  
+                    AuxPeriod = OutTime           - Me%ExtVar%StartTime
+                    AuxPeriod = TotalTime         - AuxPeriod
+                    
+                    Aux = Me%ExtVar%StartTime   + AuxPeriod
+                    
+                else
+                    
+                    Aux = OutTime
+                    
+                endif 
                 
-                Aux = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+                !Aux = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
                 
                 !Writes the Instant - HDF 5
                 call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),          &
@@ -1349,16 +1676,17 @@ d2:             do while (associated(CurrentPartic))
                                    STAT     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR50'
 
+                
                 call HDF5WriteData(HDF5ID       = Me%OutputGrids%Individual(nGrid)%ObjHDF5, &
                                    GroupName    = "/Results/Number",                        &
                                    Name         = "Number",                                 &
                                    Units        = "-",                                      &                           
-                                   Array2D      = Me%OutputGrids%Individual(nGrid)%AuxInt2D,&
+                                   Array2D      = Me%OutputGrids%Individual(nGrid)%AuxReal2D,&
                                    OutPutNumber = iOut,                                     &
                                    STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR60'
                 
-                Me%OutputGrids%Individual(nGrid)%NextOutput = iOut + 1                
+                Me%OutputGrids%Individual(nGrid)%NextOutput = Me%OutputGrids%Individual(nGrid)%NextOutput + 1                
                 
                 
             endif i1                
@@ -1368,6 +1696,35 @@ d2:             do while (associated(CurrentPartic))
 
 
     !--------------------------------------------------------------------------
+    
+    subroutine OutputRestartFile
+        
+        !Local-----------------------------------------------------------------
+        real                        :: Year, Month, Day, Hour, Minute, Second
+        integer                     :: i
+    
+        !Begin-----------------------------------------------------------------
+        
+        if (Me%OutputGrids%WriteRestartFile) then
+            
+            i = Me%OutputGrids%NextRestartOutput
+            
+            if  (Me%ExtVar%CurrentTime >= Me%OutputGrids%RestartOutTime(i)) then
+    
+                call ExtractDate(Me%ExtVar%CurrentTime,                                 &
+                                 Year = Year, Month  = Month,  Day    = Day,            &
+                                 Hour = Hour, Minute = Minute, Second = Second)
+    
+                call WriteLitterBeach(Final =.false.)
+    
+                Me%OutputGrids%NextRestartOutput = Me%OutputGrids%NextRestartOutput + 1
+    
+                call SetError(WARNING_, INTERNAL_, "Litter restart file saved      : ", &
+                              Year, Month, Day, Hour, Minute, Second)
+            endif                
+        endif
+    
+    end subroutine OutputRestartFile
     
     !--------------------------------------------------------------------------    
 
@@ -1399,14 +1756,14 @@ d2:             do while (associated(CurrentPartic))
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
-            call WriteLitterBeach
+            call WriteLitterBeach()
 
             call DeallocateVariables
 
             nUsers = DeassociateInstance(mLitter_,  Me%InstanceID)
 
             if (nUsers == 0) then
-
+                
                 !Deallocates Instance
                 call DeallocateInstance ()
 
@@ -1428,14 +1785,25 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !------------------------------------------------------------------------
     
-    subroutine WriteLitterBeach()
+    subroutine WriteLitterBeach(Final)
 
         !Arguments---------------------------------------------------------------
-
+        logical , optional                      :: Final
         !Local-------------------------------------------------------------------
+        character(len=PathLength)               :: Filename
+        character(len=StringLength)             :: AuxChar
+        logical                                 :: Final_
         integer                             :: STAT_CALL, HDF5_CREATE, HDF5_READWRITE
 
         !------------------------------------------------------------------------
+
+        !Write the particle list in a specific file to make more clear the hot start process
+        if  (present(Final)) then
+            Final_ = Final
+        else
+            Final_ = .true.
+        endif     
+        
 
         !Writes final results in the lagrangian transient results. 
         !This way the user can do quick figures using the lagrangian model grid
@@ -1451,24 +1819,48 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
         if (Me%ParticleList%Number > 0) then
+            
+            if (Final_) then
+                
             call WriteAllParticlesBeach(WriteTime = .false.)
+
+            else
+                
+                AuxChar = trim(TimeToString(Me%ExtVar%CurrentTime))
+                call WriteAllParticlesBeach(WriteTime = .false., CharDate = AuxChar)
+
+            endif             
+            
         endif            
         
         !Closes HDF File
         call KillHDF5      (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR20'
         
-        !Write the particle list in a specific file to make more clear the hot start process
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        if (Me%OutputGrids%RestartOverwrite .or. Final_) then
+
+            Filename = trim(Me%Files%LitterFin)
+
+        else
+
+            Filename =  ChangeSuffix(Me%Files%LitterFin,                         &
+                                "_"//Trim(AuxChar)//".fin")
+
+        endif     
         
         Me%ObjHDF5 = 0
 
         if (Me%ParticleList%Number > 0) then
             
+            
+            
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)            
             
             !Opens HDF File
-            call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%LitterFin), HDF5_CREATE, STAT = STAT_CALL)
+            call ConstructHDF5      (Me%ObjHDF5, trim(Filename), HDF5_CREATE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR30'            
             
             call WriteAllParticlesBeach(WriteTime = .True.)
@@ -1505,13 +1897,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             !Opens HDF File
             call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%LitterIni), HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLitterBeach - ModuleLitter - ERR30'
 
             call ReadAllParticlesBeach
         
             !Closes HDF File
             call KillHDF5      (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR40'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLitterBeach - ModuleLitter - ERR40'        
             
         endif            
 
@@ -1519,10 +1911,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     
     !------------------------------------------------------------------------    
     
-    subroutine WriteAllParticlesBeach(WriteTime)
+    subroutine WriteAllParticlesBeach(WriteTime, CharDate)
 
         !Arguments---------------------------------------------------------------
         logical                                 :: WriteTime
+        character(len=*), optional              :: CharDate
 
         !Local-------------------------------------------------------------------
         integer     , dimension(:),   pointer   :: ID          
@@ -1594,7 +1987,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             
             allocate(Time6(1:6))
             
-            call ExtractDate   (Time1   = Me%ExtVar%EndTime,                                &
+            call ExtractDate   (Time1   = Me%ExtVar%CurrentTime,                            &
                                 Year    = Time6(1),                                         &
                                 Month   = Time6(2),                                         &
                                 Day     = Time6(3),                                         &
@@ -1613,7 +2006,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate(Time6)
         
         endif        
+        
+        
+        if (present(CharDate)) then
+            GroupName = "/Results/BeachLitter/Restart/"//trim(CharDate)//"/"
+        else
         GroupName = "/Results/BeachLitter/"
+        endif
         
         !Output matrixes 1D - HDF5       
         call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
@@ -2039,7 +2438,7 @@ ex:     if (GroupExists) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                         :: STAT_CALL, iG
+        integer                         :: STAT_CALL, iG, nUsers
         !Begin-----------------------------------------------------------------        
 
         !Deallocates variables
@@ -2064,15 +2463,21 @@ ex:     if (GroupExists) then
                 stop 'DeallocateVariables - ModuleLitter - ERR20'
             endif              
 
-            deallocate(Me%OutputGrids%Individual(iG)%AuxInt2D)
+            deallocate(Me%OutputGrids%Individual(iG)%AuxReal2D)
             
         enddo            
         
         if (associated(Me%OutputGrids%Individual)) then            
             deallocate(Me%OutputGrids%Individual)            
             nullify   (Me%OutputGrids%Individual)                    
-        endif                    
+        endif           
         
+        if (Me%ExtVar%ObjTime > 0) then
+        
+        nUsers = DeassociateInstance (mTIME_,   Me%ExtVar%ObjTime)
+        if (nUsers == 0) stop 'DeallocateVariables - ModuleLitter - ERR30'        
+        
+        endif
             
     end subroutine DeallocateVariables
     
