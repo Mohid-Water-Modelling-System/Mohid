@@ -583,7 +583,7 @@ MOHID_BASE_2(){
     ModuleAdvectionDiffusion  \
     ModuleInterpolation  \
     ModuleNETCDF \
-    ModuleTwoWay   \
+    ModuleTwoWay \
     ModuleField4D  \
     ModuleFillMatrix  \
     ModuleChainReactions  \
