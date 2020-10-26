@@ -284,7 +284,11 @@ Module ModuleMERCATORFormat
 
             !The time in Mercator PSY2V4R1 is computed in seconds from 2006/10/11 : 0h:0m:0s
             !The time in Mercator PSY2V4R2 is computed in seconds from 2010/10/07 : 0h:0m:0s
-            call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
+            !The time in Mercator PSY4V3R1 is computed in seconds from 2010/10/07 : 0h:0m:0s
+            
+            !call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0)
+            
+            call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0)
 
             call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                   VariableDT = .false., STAT = STAT_CALL)   
@@ -1536,8 +1540,8 @@ i2:             if (exist) then
 
                             status = nf90_inq_varid(ncid, 'depthv', n)
 
-                            if (status /= nf90_noerr)                                   &
-                            stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR180'
+                            !if (status /= nf90_noerr)                                   &
+                            !stop 'OpenAndReadBathymMERCATORV3 - ModuleMERCATORFormat - ERR180'
 
                         endif
 
@@ -4214,7 +4218,7 @@ d1:             do ni = 1, nInst
                     if (Me%ReadOptionType == PSY2V4R4) then
                     ! correction of 12 hour is not necessary for format 7
 
-                    FieldTime = Me%RefDateTime + (AuxDays(ni))
+                    FieldTime = Me%RefDateTime + (AuxDays(ni)) * 3600
                     else
                    ! The mercator files format 1 to 6 have an error of 12 hours, 
                    ! and this is corrected as follows:

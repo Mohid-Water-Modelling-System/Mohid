@@ -599,6 +599,11 @@ Module ModuleGridData
         else
             allocate(Me%GridData2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%GridData2D(:,:  ) = Me%DefaultValue
+            
+            if (Me%Evolution%Yes) then
+                allocate(Me%GridData2Dreference(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%GridData2Dreference(:,:) = Me%DefaultValue
+            endif            
         endif        
         
 
@@ -681,10 +686,7 @@ BF:     if (BlockFound) then
             
 Is3D:       if (.not. Me%Is3D) then
 
-                if (Me%Evolution%Yes) then
-                    allocate(Me%GridData2Dreference(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                    Me%GridData2Dreference(:,:) = Me%DefaultValue
-                endif
+
 
                 line = FirstLine + 1
 

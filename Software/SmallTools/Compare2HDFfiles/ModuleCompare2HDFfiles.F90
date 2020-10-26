@@ -181,7 +181,6 @@ Module ModuleCompare2HDFfiles
         real                                        :: MinPercentValidValues= null_real
         real                                        :: GapLimit             = null_real        
         type (T_Unit)                               :: Unit
-        logical                                     :: Extrapolate          = .false. 
         logical                                     :: AngleProperty        = .false. 
         logical                                     :: AverageObservations  = .false. 
         real                                        :: ModelDT              = null_real
@@ -641,18 +640,6 @@ Module ModuleCompare2HDFfiles
             stop "ConstructOutPut - ModuleCompare2HDFfiles - ERR210"
         endif
 
-        call GetData(   Me%Extrapolate,                                                 &
-                        Me%ObjEnterData, flag,                                          &
-                        SearchType   = FromFile,                                        &
-                        ClientModule = 'ModuleCompare2HDFfiles',                        &
-                        keyword      = 'EXTRAPOLATE',                                   &
-                        default      = .false.,                                         &
-                        STAT         = STAT_CALL)
-        
-        if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleCompare2HDFfiles - ERR220"
-        endif
-        
         if (Me%HDFOut) then
         
             call GetData(   Me%FileOutTS,                                               &
@@ -1229,8 +1216,9 @@ i1:     if (PropertyFound) then
                                   MaskDim                = Me%HDFSolution(it)%MaskDim,       &
                                   LatReference           = Me%LatDefault,                    &
                                   LonReference           = Me%LongDefault,                   & 
-                                  Extrapolate            = Me%Extrapolate,                   &    
-                                  OnlyReadGridFromFile   = .true.,                           &
+                                  Extrapolate            = .false.,                          &    
+                                  OnlyReadGridFromFile   = .false.,                          &
+                                  DiscardFillValues      = .false.,                          &
                                   STAT                   = STAT_CALL)
                                   
             if (STAT_CALL /= SUCCESS_) then
@@ -1364,17 +1352,18 @@ i1:     if (PropertyFound) then
             stop "ConstructOneSolution - ModuleCompare2HDFfiles - ERR60"
         endif
 
-        call ConstructField4D(Field4DID      = Me%HDFSolution(it)%InstanceID,           &
-                              EnterDataID    = Me%ObjEnterData,                         &
-                              ExtractType    = FromBlock,                               &
-                              FileName       = Me%HDFSolution(it)%FileIn,               &
-                              TimeID         = Me%ObjTime,                              &   
-                              MaskDim        = Me%HDFSolution(it)%MaskDim,              &
-                              LatReference   = Me%LatDefault,                           &
-                              LonReference   = Me%LongDefault,                          & 
-                              WindowLimitsXY = Me%WindowLimitsXY,                       &
-                              Extrapolate    = Me%Extrapolate,                          &    
-                              STAT           = STAT_CALL)
+        call ConstructField4D(Field4DID         = Me%HDFSolution(it)%InstanceID,           &
+                              EnterDataID       = Me%ObjEnterData,                         &
+                              ExtractType       = FromBlock,                               &
+                              FileName          = Me%HDFSolution(it)%FileIn,               &
+                              TimeID            = Me%ObjTime,                              &   
+                              MaskDim           = Me%HDFSolution(it)%MaskDim,              &
+                              LatReference      = Me%LatDefault,                           &
+                              LonReference      = Me%LongDefault,                          & 
+                              WindowLimitsXY    = Me%WindowLimitsXY,                       &
+                              Extrapolate       = .false.,                                 &   
+                              DiscardFillValues = .false.,                                 &   
+                              STAT              = STAT_CALL)
                               
         if (STAT_CALL /= SUCCESS_) then
             stop "ConstructOneSolution - ModuleCompare2HDFfiles - ERR70"
@@ -3329,7 +3318,7 @@ i1:     if (PropertyFound) then
 
         Valid = .true. 
 
-	    if (npt > 1) then
+	    if (npt > 3) then
 	    
             call moment_mohid(npt,A,Am,adev_A,sdev_A,var_A,skew_A,curt_A)
             call moment_mohid(npt,B,Bm,adev_B,sdev_B,var_B,skew_B,curt_B)

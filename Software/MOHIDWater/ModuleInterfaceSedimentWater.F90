@@ -14,7 +14,7 @@
 !------------------------------------------------------------------------------
 !
 !This program is free software; you can redistribute it and/or
-!modify it under the terms of the GNU General Public License 
+!modify it under the terms of the GNU General Public License
 !version 2, as published by the Free Software Foundation.
 !
 !This program is distributed in the hope that it will be useful,
@@ -50,7 +50,7 @@
 !   <begin_critical_shear_deposition>
 !   See module FillMatrix       : -               [N/m2]        !Initialization of critical shear stress for deposition
 !   <end_critical_shear_deposition>
-    
+
 !   <begin_critical_shear_erosion>
 !   See module FillMatrix       : -               [N/m2]        !Initialization of critical shear stress for erosion
 !   <end_critical_shear_erosion>
@@ -73,7 +73,7 @@
 !   OUTPUT_SHEAR_STRESS         : 0/1              [0]          !Output shear stress in HDF format
 !   OUTPUT_TIME                 : sec. sec. sec.    -           !Output Time
 !   RESTART_FILE_OUTPUT_TIME    : sec. sec. sec.    -           !Output Time to write restart files
-!   RESTART_FILE_OVERWRITE      : 0/1              [1]          !Overwrite intermediate restart files    
+!   RESTART_FILE_OVERWRITE      : 0/1              [1]          !Overwrite intermediate restart files
 !   TIME_SERIE_LOCATION         : char              -           !Path to time serie location file
 !   BOXFLUXES                   : char              -           !If specified computes box integration
 !                                                               !based on boxes file defined by this keyword
@@ -83,7 +83,7 @@
 !   UNITS                       : char              -           !Property units
 !   DESCRIPTION                 : char              -           !Small description of the property
 !   See module FillMatrix       : -                 -           !Initialization of concentration values
-!                                                               !NOTE: Dissolved properties don´t have mass available
+!                                                               !NOTE: Dissolved properties don?t have mass available
 !   MASS_LIMITATION             : 0/1               -           !Property mass is finite
 !   MASS_MIN                    : real         [1e-6 kg/m2]     !Minimum mass allowed
 !   PARTICULATE                 : 0/1              [0]          !Property physical state: 0 - Dissolved ; 1 - Particulate
@@ -101,7 +101,7 @@
 !   EROSION                     : 0/1              [0]          !Compute erosion
 !   DEPOSITION                  : 0/1              [0]          !Compute deposition
 !   DT_INTERVAL                 : real          [ModelDT]       !Property evolution time step (seconds)
-!   TIME_SERIE                  : 0/1              [0]          !Ouputs results in time series  
+!   TIME_SERIE                  : 0/1              [0]          !Ouputs results in time series
 !   BOX_TIME_SERIE              : 0/1              [0]          !Ouputs results in box time series
 !   OUTPUT_HDF                  : 0/1              [0]          !Ouputs results in HDF5 format
 !   OUTHDF_ORIGIN_UNIT          : 0/1              [0]          !Ouputs results in the original units (other than concentration)
@@ -120,13 +120,13 @@ Module ModuleInterfaceSedimentWater
 
     use ModuleGlobalData
     use ModuleEnterData
-    use ModuleDrawing    
+    use ModuleDrawing
     use ModuleTime
     use ModuleFunctions,            only: ConstructPropertyID, TimeToString, ChangeSuffix,  &
                                           CHUNK_J, CHUNK_I
     use ModuleHDF5,                 only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,  &
                                           HDF5WriteData, HDF5FlushMemory, HDF5ReadWindow,   &
-                                          KillHDF5
+                                          GetHDF5GroupExist, KillHDF5
     use ModuleGridData,             only: GetGridData, UngetGridData
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, GetHorizontalGridSize,         &
                                           WriteHorizontalGrid, UnGetHorizontalGrid,         &
@@ -163,14 +163,15 @@ Module ModuleInterfaceSedimentWater
                                           SetWaveChezyVel, SetHydrodynamicChezy,            &
                                           GetResidualVelocityON,                            &
                                           GetResidualHorizontalVelocity,                    &
-                                          SetShearStressMethod, SetWaveShearStress
-                                          
-#ifndef _LAGRANGIAN_                                         
-#ifdef  _LAGRANGIAN_GLOBAL_                                         
+                                          SetShearStressMethod, SetWaveShearStress,         &
+                                          GetResidualVelocityPeriod
+
+#ifndef _LAGRANGIAN_
+#ifdef  _LAGRANGIAN_GLOBAL_
     use ModuleLagrangianGlobal,     only: SetLagrangianShearGlobal
 #else
     use ModuleLagrangian,           only: SetLagrangianShear
-#endif    
+#endif
 #endif
 
 
@@ -183,13 +184,13 @@ Module ModuleInterfaceSedimentWater
                                           Get_FreeVelocity, FreeVertPropertyHasDeposition,  &
                                           SetShearVelocity, GetDepositionIntertidalZones,   &
                                           SetSandParameters
-#ifndef _SEDIMENT_ 
+#ifndef _SEDIMENT_
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
                                           SetFluxToSedimentProperties, SetSedimentWaterFlux,&
                                           GetSedimentDryDensity,                            &
                                           GetSeagrassesRootsRates, GetRootsArray2D             ! Isabella
-                                          
+
 
     use ModuleConsolidation,        only: GetConsolidationWaterFluxes,                      &
                                           GetConsolidationOptions,                          &
@@ -198,7 +199,7 @@ Module ModuleInterfaceSedimentWater
                                           GetConsolidationDrySedVolume,                     &
                                           SetConsolidationFlux,                             &
                                           GetSedimentColumnFull,                            &
-                                          GetConsolidationMinThickness, UngetConsolidation 
+                                          GetConsolidationMinThickness, UngetConsolidation
 #endif
     use ModuleInterface,            only: ConstructInterface, SetSOD, Modify_Interface, GetRateFlux,&
                                           KillInterface
@@ -208,7 +209,7 @@ Module ModuleInterfaceSedimentWater
     use ModuleFillMatrix,           only: ConstructFillMatrix, GetIfMatrixRemainsConstant,  &
                                           GetDefaultValue, KillFillMatrix
     use ModuleSand,                 only: StartSand, ModifySand, KillSand,                  &
-                                          GetSandDiameters, GetSandDensity, UnGetSand 
+                                          GetSandDiameters, GetSandDensity, UnGetSand
     use ModuleSediment,             only: ConstructSediment, ModifySediment,                &
                                           SetCohesiveFlux, SetNonCohesiveFlux,              &
                                           GetTopCriticalShear, GetConcRef,                  &
@@ -220,7 +221,7 @@ Module ModuleInterfaceSedimentWater
                                           GetSandParameters
     implicit none
 
-    private 
+    private
 
     !Subroutines---------------------------------------------------------------
 
@@ -264,11 +265,11 @@ Module ModuleInterfaceSedimentWater
 
 
     private ::      SetSubModulesConstructor
-    
+
     !Selector
     private :: Search_Property
 
-                     
+
     !Modifier
     public  :: ModifyInterfaceSedimentWater
     private ::      ModifyShearStress
@@ -304,7 +305,7 @@ Module ModuleInterfaceSedimentWater
     private ::      ModifyRugosity
     private ::      ComputeEfficiencyFactor
     private ::      Output_TimeSeries
-    private ::      Output_BoxTimeSeries  
+    private ::      Output_BoxTimeSeries
     private ::      OutPut_Results_HDF
     private ::      OutPut_Statistics
     private ::      TimeStepActualization
@@ -318,14 +319,14 @@ Module ModuleInterfaceSedimentWater
 #endif
 
     !Destructor
-    public  :: KillInterfaceSedimentWater                                                     
+    public  :: KillInterfaceSedimentWater
     private ::      DeAllocateInstance
 
 
     !Management
     private ::      Ready
     private ::          LocateObjInterfaceSedimentWater
-    
+
     private ::              ReadLockExternalGlobal
 #ifndef _SEDIMENT_
     private ::              ReadLockExternalSediment
@@ -335,7 +336,7 @@ Module ModuleInterfaceSedimentWater
     private ::              ReadUnlockExternalGlobal
     private ::              ReadUnlockExternalWater
 
-    
+
     !Interfaces----------------------------------------------------------------
 
 
@@ -346,28 +347,28 @@ Module ModuleInterfaceSedimentWater
     character(LEN = StringLength), parameter        :: csd_end                  = '<end_critical_shear_deposition>'
     character(LEN = StringLength), parameter        :: erosion_begin            = '<begin_erosion_rate>'
     character(LEN = StringLength), parameter        :: erosion_end              = '<end_erosion_rate>'
-    
+
     character(LEN = StringLength), parameter        :: manning_begin            = '<begin_manning>'
     character(LEN = StringLength), parameter        :: manning_end              = '<end_manning>'
     character(LEN = StringLength), parameter        :: rugosity_begin           = '<begin_rugosity>'
-    character(LEN = StringLength), parameter        :: rugosity_end             = '<end_rugosity>'    
+    character(LEN = StringLength), parameter        :: rugosity_end             = '<end_rugosity>'
     character(LEN = StringLength), parameter        :: SOD_begin                = '<begin_SOD_Rate>'
     character(LEN = StringLength), parameter        :: SOD_end                  = '<end_SOD_Rate>'
-    
+
 
     character(LEN = StringLength), parameter        :: waverugosity_begin       = '<begin_waverugosity>'
     character(LEN = StringLength), parameter        :: waverugosity_end         = '<end_waverugosity>'
 
     character(LEN = StringLength), parameter        :: consolidation_begin      = '<begin_consolidation_rate>'
     character(LEN = StringLength), parameter        :: consolidation_end        = '<end_consolidation_rate>'
-    
+
     character(LEN = StringLength), parameter        :: prop_block_begin         = '<beginproperty>'
     character(LEN = StringLength), parameter        :: prop_block_end           = '<endproperty>'
     character(LEN = StringLength), parameter        :: rate_block_begin         = '<beginbenthicrate>'
     character(LEN = StringLength), parameter        :: rate_block_end           = '<endbenthicrate>'
 
     character(LEN = StringLength), parameter        :: diff_coef_begin          = '<<begin_diff_coef>>'
-    character(LEN = StringLength), parameter        :: diff_coef_end            = '<<end_diff_coef>>'    
+    character(LEN = StringLength), parameter        :: diff_coef_end            = '<<end_diff_coef>>'
 
     !Types---------------------------------------------------------------------
 
@@ -378,7 +379,7 @@ Module ModuleInterfaceSedimentWater
         character(LEN = StringLength)               :: Units        = null_str !initialization: Jauch
     end type T_ID
 
-    type       T_Files 
+    type       T_Files
          character(len=PathLength)                  :: InputData    = null_str !initialization: Jauch
          character(len=PathLength)                  :: Final        = null_str !initialization: Jauch
          character(len=PathLength)                  :: Initial      = null_str !initialization: Jauch
@@ -389,22 +390,22 @@ Module ModuleInterfaceSedimentWater
     type       T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime          => null(), &
                                                        RestartOutTime   => null()
-                                                       
+
          integer                                    :: NextOutPut           = null_int, & !initialization: Jauch
                                                        NextRestartOutPut    = null_int    !initialization: Jauch
-         logical                                    :: WriteRestartFile     = .false. 
+         logical                                    :: WriteRestartFile     = .false.
          logical                                    :: Yes                  = .false. !initialization: Jauch
          logical                                    :: WriteFinalFile       = .false.
          logical                                    :: RestartOverwrite     = .false. !initialization: Jauch
     end type T_OutPut
-    
+
     type       T_Ext_Global
         type(T_Time)                                :: Now
         real,    pointer, dimension(:,:  )          :: XX_IE        => null(), &
                                                        YY_IE        => null(), &
                                                        GridCellArea => null()
     end type T_Ext_Global
-    
+
     type       T_Ext_Water
         real,    pointer, dimension(:,:  )          :: Chezy            => null()
         real,    pointer, dimension(:,:,:)          :: DWZ              => null()
@@ -423,7 +424,7 @@ Module ModuleInterfaceSedimentWater
         real,    pointer, dimension(:,:  )          :: WaterColumn      => null()
         real(8), pointer, dimension(:,:)            :: WaterVolume      => null()
         real,    pointer, dimension(:,:)            :: Sediment         => null()
-        real                                        :: MinWaterColumn   = null_real !initialization: Jauch  
+        real                                        :: MinWaterColumn   = null_real !initialization: Jauch
         integer, pointer, dimension(:,:  )          :: KFloor_Z         => null()
         real,    pointer, dimension(:,:  )          :: WavePeriod       => null(), &
                                                        WaveHeight       => null(), &
@@ -432,11 +433,11 @@ Module ModuleInterfaceSedimentWater
         real,    pointer, dimension(:,:  )          :: Ubw              => null(), &
                                                        Abw              => null()
         type(T_Time)                                :: LastComputeWave
-        
+
         real,    pointer, dimension(:,:,:)          :: VelocityResidual_U       => null()
         real,    pointer, dimension(:,:,:)          :: VelocityResidual_V       => null()
-        logical                                     :: ResidualON               = .false. 
-        
+        logical                                     :: ResidualON               = .false.
+
     end type T_Ext_Water
 
     type       T_Ext_Sed
@@ -496,7 +497,7 @@ Module ModuleInterfaceSedimentWater
          real, dimension(:,:), pointer              :: Mass_Available           => null()
          real, dimension(:,:), pointer              :: WaterConcentration       => null()
          real, dimension(:,:), pointer              :: MassInKg                 => null()
-         real, dimension(:,:), pointer              :: Mass_FromWater           => null() 
+         real, dimension(:,:), pointer              :: Mass_FromWater           => null()
          real, dimension(:,:), pointer              :: SedimentConcentration    => null()
          real, dimension(:,:), pointer              :: FluxToWater              => null()
          real, dimension(:,:), pointer              :: FluxToSediment           => null()
@@ -515,7 +516,7 @@ Module ModuleInterfaceSedimentWater
          type(T_Evolution)                          :: Evolution
          type(T_Property), pointer                  :: Next => null()
          type(T_Property), pointer                  :: Prev => null()
-    end type  T_Property 
+    end type  T_Property
 
     type       T_BenthicRate
         type (T_ID)                                 :: ID
@@ -533,15 +534,15 @@ Module ModuleInterfaceSedimentWater
          real                                       :: DT_Compute           = FillValueReal
          logical                                    :: Yes                  = .false.
          integer                                    :: NumberOfProperties   = 0
-    end type T_Coupling  
+    end type T_Coupling
 
     type       T_Coupled
          type(T_Coupling)                           :: Benthos
          type(T_Coupling)                           :: BenthicEcology
          type(T_Coupling)                           :: CEQUALW2
          type(T_Coupling)                           :: Detritus
-         type(T_Coupling)                           :: SedimentFluxes   
-         type(T_Coupling)                           :: WaterFluxes   
+         type(T_Coupling)                           :: SedimentFluxes
+         type(T_Coupling)                           :: WaterFluxes
          type(T_Coupling)                           :: SedimentWaterFluxes
          type(T_Coupling)                           :: Erosion
          type(T_Coupling)                           :: Deposition
@@ -556,7 +557,7 @@ Module ModuleInterfaceSedimentWater
          character(LEN = StringLength)              :: File = null_str !initialization: Jauch
          logical                                    :: ON   = .false.  !initialization: Jauch
     end type   T_Statistics
-    
+
     type       T_Consolidation
          logical                                    :: Yes                  = .false.
          real, pointer, dimension(:,:)              :: Flux
@@ -573,7 +574,7 @@ Module ModuleInterfaceSedimentWater
         real,    pointer, dimension(:,:  )          :: LightFactor2D    => null()
         real, pointer, dimension(:,:  )             :: Array2D          => null()
    end type T_Seagrasses
-  
+
 
     type       T_Shear
          real, pointer, dimension (:,:)             :: CurrentVel       => null()
@@ -582,24 +583,34 @@ Module ModuleInterfaceSedimentWater
          real, pointer, dimension (:,:)             :: CurrentResidualU => null()
          real, pointer, dimension (:,:)             :: CurrentResidualV => null()
          real, pointer, dimension (:,:)             :: UFace            => null()
-         real, pointer, dimension (:,:)             :: VFace            => null()         
+         real, pointer, dimension (:,:)             :: VFace            => null()
          real, pointer, dimension (:,:)             :: Velocity         => null()
          real, pointer, dimension (:,:)             :: Tension          => null()
-         logical                                    :: Limitation           = .false.      
+         real, pointer, dimension (:,:)             :: Tension_X        => null()
+         real, pointer, dimension (:,:)             :: Tension_Y        => null()
+         logical                                    :: Limitation           = .false.
          real                                       :: ReferenceDepth       = null_real
          real                                       :: ReferenceShearStress = null_real
          type (T_Time)                              :: LastCompute
+         real                                       :: DT                   = null_real
          type (T_Statistics)                        :: Statistics
          logical                                    :: IntertidalRunOff     = .false.
          integer                                    :: Method               = 1
          real, pointer, dimension (:,:)             :: EfficiencyFactorCurrent => null()
          real, pointer, dimension (:,:)             :: EfficiencyFactorMean    => null()
          real, pointer, dimension (:,:)             :: EfficiencyFactorWaves   => null()
+
+         real                                       :: Residual_Period      = FillValueReal
+         real, pointer, dimension (:,:)             :: Residual_Tau         => null()
+         real, pointer, dimension (:,:)             :: Residual_Tau_X       => null()
+         real, pointer, dimension (:,:)             :: Residual_Tau_Y       => null()
+
+         logical                                    :: OutputON             = .false.
     end type T_Shear
 
     type       T_WaveShear
          logical                                    :: Yes                  = .false.
-         logical                                    :: NonLinear            = .false.         
+         logical                                    :: NonLinear            = .false.
          real, pointer, dimension (:,:)             :: Tension          => null()
          real, pointer, dimension (:,:)             :: TensionMean      => null()
          real, pointer, dimension (:,:)             :: TensionCurrents  => null()
@@ -652,7 +663,7 @@ Module ModuleInterfaceSedimentWater
         type(T_Property_2D)                         :: SOD
         type(T_Property_2D)                         :: Rugosity
         type(T_Property_2D)                         :: ManningCoef
-        logical                                     :: Chezy    = .false. !initialization: Jauch  
+        logical                                     :: Chezy    = .false. !initialization: Jauch
         real                                        :: ChezyCoef    = null_real !initialization: Jauch
         real(8), pointer, dimension(:,:)            :: Scalar2D     => null()
         real(8), pointer, dimension(:,:)            :: WaterFlux    => null()
@@ -663,85 +674,85 @@ Module ModuleInterfaceSedimentWater
         real                                        :: Dewatering_Rate           = FillValueReal
         logical                                     :: DepositionIntertidalZones = .false.
         integer, pointer, dimension(:,:)            :: WaterPointsorOpenPoints2D   => null()
-        
-        !Instance of ModuleBoxDif                   
+
+        !Instance of ModuleBoxDif
         integer                                     :: ObjBoxDif                = 0
-                                                                            
-        !Instance of ModuleEnterData                                        
+
+        !Instance of ModuleEnterData
         integer                                     :: ObjEnterData             = 0
-                                                                            
-        !Instance of ModuleTimeSerie                                        
+
+        !Instance of ModuleTimeSerie
         integer                                     :: ObjTimeSerie             = 0
-                                                                                
-        !Instance of ModuleHDF5                                                 
+
+        !Instance of ModuleHDF5
         integer                                     :: ObjHDF5                  = 0
-                                                                                
-        !Instance of ModuleTime                                                 
+
+        !Instance of ModuleTime
         integer                                     :: ObjTime                  = 0
 
-        !Instance of ModuleDischarges           
+        !Instance of ModuleDischarges
         integer                                     :: ObjDischarges            = 0
 
-        !Instance of ModuleHorizontalGrid                                       
+        !Instance of ModuleHorizontalGrid
         integer                                     :: ObjHorizontalGrid        = 0
-                                                                                
-        !Instance of ModuleGridData                                             
+
+        !Instance of ModuleGridData
         integer                                     :: ObjSedimentGridData      = 0
-                                                                                
-        !Instance of ModuleGridData                                             
+
+        !Instance of ModuleGridData
         integer                                     :: ObjWaterGridData         = 0
-                                                                                
-        !Instance of ModuleGeometry                                             
+
+        !Instance of ModuleGeometry
         integer                                     :: ObjSedimentGeometry      = 0
-                                                                                
-        !Instance of ModuleGeometry                                             
+
+        !Instance of ModuleGeometry
         integer                                     :: ObjWaterGeometry         = 0
-        
-        !Instance of ModuleHorizontalMap                                    
+
+        !Instance of ModuleHorizontalMap
         integer                                     :: ObjSedimentHorizontalMap = 0
-        
-        !Instance of ModuleHorizontalMap                                    
+
+        !Instance of ModuleHorizontalMap
         integer                                     :: ObjWaterHorizontalMap    = 0
-                                                                                
-        !Instance of ModuleMap                                                  
+
+        !Instance of ModuleMap
         integer                                     :: ObjSedimentMap           = 0
-                                                                                
-        !Instance of ModuleMap                                                  
+
+        !Instance of ModuleMap
         integer                                     :: ObjWaterMap              = 0
 
         !Instance of ModuleSand
         integer                                     :: ObjSand                  = 0
-        
+
         !Instance of ModuleSediment
         integer                                     :: ObjSediment              = 0
-        
+
         !Instance of ModuleHydrodynamic
         integer                                     :: ObjHydrodynamic          = 0
-        
+
         !Instance of ModuleTurbulence
         integer                                     :: ObjTurbulence            = 0
-        
+
         !Instance of ModuleTurbGOTM
         integer                                     :: ObjTurbGOTM              = 0
-        
+
         !Instance of ModuleWaves
         integer                                     :: ObjWaves                 = 0
-        
+
         !Instance of ModuleInterfaceSedimentWater
         integer                                     :: ObjWaterProperties       = 0
-        
+
         !Instance of ModuleFreeVerticalMovement
         integer                                     :: ObjFreeVerticalMovement  = 0
-        
+
         !Instance of ModuleSedimentProperties
         integer                                     :: ObjSedimentProperties    = 0
-        
+
         !Instance of ModuleConsolidation
         integer                                     :: ObjConsolidation         = 0
 
         !Instance of ModuleInterface
         integer                                     :: ObjInterface             = 0
-        
+
         !Instance of ModuleLagrangian
         integer                                     :: ObjLagrangian            = 0
 
@@ -753,7 +764,7 @@ Module ModuleInterfaceSedimentWater
     type (T_InterfaceSedimentWater), pointer        :: Me                               => null()
 
     !--------------------------------------------------------------------------
-    
+
     contains
 
 
@@ -765,7 +776,7 @@ Module ModuleInterfaceSedimentWater
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine StartInterfaceSedimentWater( ModelName,                      &    
+    subroutine StartInterfaceSedimentWater( ModelName,                      &
                                             ObjInterfaceSedimentWaterID,    &
                                             TimeID,                         &
                                             HorizontalGridID,               &
@@ -805,21 +816,21 @@ Module ModuleInterfaceSedimentWater
         integer                                         :: SedimentMapID
         integer                                         :: SedimentGeometryID
         integer                                         :: HydrodynamicID
-        integer                                         :: LagrangianID    
-        integer                                         :: TurbulenceID         
+        integer                                         :: LagrangianID
+        integer                                         :: TurbulenceID
         integer                                         :: TurbGOTMID
         integer                                         :: WavesID
         integer                                         :: WaterPropertiesID
-        integer                                         :: SedimentID 
-        integer                                         :: SedimentPropertiesID 
+        integer                                         :: SedimentID
+        integer                                         :: SedimentPropertiesID
         integer                                         :: ConsolidationID
         integer                                         :: DischargesID
         logical                                         :: RunsSediments
         logical                                         :: SedimentModule
-        integer, optional, intent(OUT)                  :: STAT    
+        integer, optional, intent(OUT)                  :: STAT
 
         !External----------------------------------------------------------------
-        integer                                         :: ready_, STAT_CALL       
+        integer                                         :: ready_, STAT_CALL
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
@@ -831,10 +842,10 @@ Module ModuleInterfaceSedimentWater
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mInterfaceSedimentWater_)) then
             nullify (FirstObjInterfaceSedimentWater)
-            call RegisterModule (mInterfaceSedimentWater_) 
+            call RegisterModule (mInterfaceSedimentWater_)
         endif
 
-        call Ready(ObjInterfaceSedimentWaterID, ready_)    
+        call Ready(ObjInterfaceSedimentWaterID, ready_)
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -861,7 +872,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHydrodynamic         = AssociateInstance(mHYDRODYNAMIC_,      HydrodynamicID          )
             Me%ObjWaterProperties      = AssociateInstance(mWATERPROPERTIES_,   WaterPropertiesID       )
             Me%ObjTurbulence           = AssociateInstance(mTURBULENCE_,        TurbulenceID            )
-            
+
             if(LagrangianID /= 0)then
                 Me%ObjLagrangian       = AssociateInstance(mLAGRANGIAN_,        LagrangianID            )
             end if
@@ -873,27 +884,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(WavesID /= 0)then
                 Me%ObjWaves            = AssociateInstance(mWAVES_,             WavesID                 )
             end if
-            
+
             Me%RunsSediments = RunsSediments
-            
+
             Me%RunSedimentModule = SedimentModule
 
             !Sediment column
             if(Me%RunsSediments.or.Me%RunSedimentModule)then
                 Me%ObjSedimentGridData     = AssociateInstance(mGRIDDATA_,          SedimentGridDataID      )
-                Me%ObjSedimentHorizontalMap= AssociateInstance(mHORIZONTALMAP_,     SedimentHorizontalMapID )    
+                Me%ObjSedimentHorizontalMap= AssociateInstance(mHORIZONTALMAP_,     SedimentHorizontalMapID )
                 Me%ObjSedimentGeometry     = AssociateInstance(mGEOMETRY_,          SedimentGeometryID      )
                 Me%ObjSedimentMap          = AssociateInstance(mMAP_,               SedimentMapID           )
                 if(Me%RunSedimentModule)then
                     Me%ObjSediment             = AssociateInstance(mSEDIMENT_,          SedimentID          )
                     else
-                    Me%ObjConsolidation        = AssociateInstance(mCONSOLIDATION_,     ConsolidationID     )               
+                    Me%ObjConsolidation        = AssociateInstance(mCONSOLIDATION_,     ConsolidationID     )
                     Me%ObjSedimentProperties   = AssociateInstance(mSEDIMENTPROPERTIES_,SedimentPropertiesID)
                 endif
             end if
 
             call ReadLockExternalGlobal
-            
+
             call ReadLockExternalWater
 
 #ifndef _SEDIMENT_
@@ -907,7 +918,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructEnterData(Me%ObjEnterData, Me%Files%InPutData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                 &
                 stop 'StartInterfaceSedimentWater - InterfaceSedimentWater - ERR02'
-            
+
             call ConstructShearStress
 
             call ConstructRugosity
@@ -919,15 +930,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructConsolidation
 
             call Construct_Sub_Modules
-            
+
             call ConstructSandTransport
-            
+
             if (Me%RunSedimentModule) call ConstructSedimentTransport
 
             call ConstructLog
-            
+
             if(Me%Coupled%OutputHDF%Yes) call OutPut_Results_HDF
-            
+
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                 &
                 stop 'StartInterfaceSedimentWater - InterfaceSedimentWater - ERR03'
@@ -939,7 +950,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadUnlockExternalWater
 
             call ReadUnlockExternalGlobal
-            
+
             call SetSubModulesConstructor
 
             !Returns ID
@@ -948,8 +959,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_ = SUCCESS_
 
         else cd0
-            
-            stop 'ModuleInterfaceSedimentWater - StartInterfaceSedimentWater - ERR99' 
+
+            stop 'ModuleInterfaceSedimentWater - StartInterfaceSedimentWater - ERR99'
 
         end if cd0
 
@@ -959,11 +970,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine StartInterfaceSedimentWater
- 
+
     !--------------------------------------------------------------------------
-    
+
     subroutine AllocateInstance
-                                                    
+
         !Local-----------------------------------------------------------------
         type (T_InterfaceSedimentWater), pointer    :: NewObjWaterSedInterface
         type (T_InterfaceSedimentWater), pointer    :: PreviousObjWaterSedInterface
@@ -992,11 +1003,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
     end subroutine AllocateInstance
-    
-    
+
+
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ReadWaterSedimentFilesName
 
         !External--------------------------------------------------------------
@@ -1041,40 +1052,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ReadFileName('BOT_INI', Me%Files%Initial, Message = Message, TIME_END = Me%ActualTime, &
                            STAT      = STAT_CALL)
-                                                                                               
+
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
-           
+
             write(*,*)'Initial file not found.'
             stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR04'
 
         else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then cd1
-            
+
             Message   = 'Keyword BOT_INI not found - StartInterfaceSedimentWater - ModuleInterfaceSedimentWater'
             Message   = trim(Message)
 
             call SetError(WARNING_, KEYWORD_, Message, Screen = .false.)
-                          
+
         else if (STAT_CALL .EQ. SUCCESS_              ) then cd1
 
             continue
-        
+
         else cd1
 
             stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR06'
 
-        end if cd1  
-                                                                             
+        end if cd1
+
         !----------------------------------------------------------------------
 
     end subroutine ReadWaterSedimentFilesName
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine ConstructGlobalVariables
-                                                    
+
         !External--------------------------------------------------------------
         integer                             :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
 
         call GetHorizontalGridSize(Me%ObjHorizontalGrid,                        &
@@ -1114,11 +1125,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         Me%ActualTime = Me%BeginTime
 
     end subroutine ConstructGlobalVariables
-    
-    
+
+
     !--------------------------------------------------------------------------
 
-    
+
     subroutine ConstructShearStress
 
         !External--------------------------------------------------------------
@@ -1126,72 +1137,194 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, iflag
-        logical                             :: OutputShearStress
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        nullify(Me%Shear_Stress%Tension, Me%Shear_Stress%Velocity)
-        
-        !Shear stress 
-        allocate(Me%Shear_Stress%Tension(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
-        if(STAT_CALL .ne. SUCCESS_)&
+        Me%Shear_Stress%LastCompute = Me%BeginTime
+
+        nullify(Me%Shear_Stress%Tension)
+
+        !Shear stress - intensity
+        allocate(Me%Shear_Stress%Tension(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR10'
+        endif
         Me%Shear_Stress%Tension(:,:) = 0.
-        
-        !Shear velocity 
-        allocate(Me%Shear_Stress%Velocity(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
-        if(STAT_CALL .ne. SUCCESS_)&
+
+        nullify(Me%Shear_Stress%Tension_X)
+
+        !Shear stress - X component
+        allocate(Me%Shear_Stress%Tension_X(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR20'
+        endif
+
+        Me%Shear_Stress%Tension_X(:,:) = 0.
+
+        nullify(Me%Shear_Stress%Tension_Y)
+
+        !Shear stress - Y component
+        allocate(Me%Shear_Stress%Tension_Y(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR30'
+        endif
+        Me%Shear_Stress%Tension_Y(:,:) = 0.
+
+
+        nullify(Me%Shear_Stress%Velocity)
+
+        !Shear velocity
+        allocate(Me%Shear_Stress%Velocity(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_)&
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR40'
         Me%Shear_Stress%Velocity(:,:) = 0.
 
 
-        call GetData(OutputShearStress,                                             &     
+        call GetData(Me%Shear_Stress%OutputON,                                      &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'OUTPUT_SHEAR_STRESS',                          &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = .false.,                                        &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR30'
-        
-        if(OutputShearStress)then
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR50'
+
+        if (Me%Shear_Stress%OutputON) then
+
             Me%Coupled%OutputHDF%Yes = ON
+
+            if (Me%ExtWater%ResidualON) then
+                call ConstructShearStressResidual
+            endif
+
         end if
-        
+
         call ConstructShearLimitation
 
         call ConstructShearStatistics
 
         call ConstructWaveShearStress
 
-        call GetData(Me%Shear_Stress%IntertidalRunOff,                              &     
+        call GetData(Me%Shear_Stress%IntertidalRunOff,                              &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'INTERTIDAL_RUN_OFF_SHEAR',                     &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = .false.,                                        &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR40'
-            
-       call GetData(Me%Shear_Stress%Method,                                         & 
+
+       call GetData(Me%Shear_Stress%Method,                                         &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'SHEAR_STRESS_METHOD',                          &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = 1,                                              &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR41'
 
 
     end subroutine ConstructShearStress
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructShearStressResidual
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                             :: ILB, IUB, JLB, JUB
+        integer                             :: HDF5_READ, ObjHDF5
+        logical                             :: FileExist, CheckResidual
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%Size2D%ILB
+        IUB = Me%Size2D%IUB
+        JLB = Me%Size2D%JLB
+        JUB = Me%Size2D%JUB
+
+        call GetResidualVelocityPeriod(HydrodynamicID = Me%ObjHydrodynamic,             &
+                                        ResidualPeriod = Me%Shear_Stress%Residual_Period,&
+                                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR10'
+
+        !Shear stress - intensity
+        nullify(Me%Shear_Stress%Residual_Tau)
+
+        allocate(Me%Shear_Stress%Residual_Tau(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR20'
+        endif
+        Me%Shear_Stress%Residual_Tau(:,:) = 0.
+
+        !Shear stress - component X
+        nullify(Me%Shear_Stress%Residual_Tau_X)
+
+        allocate(Me%Shear_Stress%Residual_Tau_X(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR30'
+        endif
+        Me%Shear_Stress%Residual_Tau_X(:,:) = 0.
+
+        !Shear stress - component Y
+        nullify(Me%Shear_Stress%Residual_Tau_Y)
+
+        allocate(Me%Shear_Stress%Residual_Tau_Y(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR40'
+        endif
+        Me%Shear_Stress%Residual_Tau_Y(:,:) = 0.
+
+        FileExist     = .false.
+        CheckResidual = .false.
+
+        if (Me%Shear_Stress%Residual_Period > 0) then
+
+            inquire(File = trim(Me%Files%Initial), Exist = FileExist)
+            
+            if (FileExist) then
+                
+                !Gets File Access Code
+                call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+                !Opens HDF5 File
+                call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR50'
+                
+                call GetHDF5GroupExist (ObjHDF5, "Residual", CheckResidual, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR60'                
+                
+                call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR70'
+                
+                if (CheckResidual) then
+            
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_X, "Residual",     &
+                                                GetPropertyName(ShearStressX_))
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_Y, "Residual",     &
+                                                GetPropertyName(ShearStressY_))            
+                endif
+            endif
+        endif
+
+        if (Me%Shear_Stress%Residual_Period <= 0 .or. .not. FileExist .or. .not. CheckResidual) then
+            write(*,*) "Residual bottom shear stress has a cold start in this run"
+            Me%Shear_Stress%Residual_Period = 0.
+        endif
+
+
+
+    end subroutine ConstructShearStressResidual
 
     !--------------------------------------------------------------------------
 
@@ -1204,24 +1337,24 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                             :: ILB, IUB, JLB, JUB
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        call GetData(Me%WaveShear_Stress%Yes,                                       &     
+        call GetData(Me%WaveShear_Stress%Yes,                                       &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'WAVETENSION',                                  &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = .false.,                                        &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR01'
-        
+
         !call GetWavesStressON (Me%ObjHydrodynamic,                                  &
-        !                       WavesStressON = Me%WaveShear_Stress%NonLinear, STAT = STAT_CALL)            
+        !                       WavesStressON = Me%WaveShear_Stress%NonLinear, STAT = STAT_CALL)
         !if  (STAT_CALL .ne. SUCCESS_)&
         !    stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR02'
 
@@ -1232,20 +1365,20 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                 write(*,*)'compute wave shear stress'
                 stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR03'
             end if
-            !Shear stress 
-            allocate(Me%WaveShear_Stress%Tension   (ILB:IUB, JLB:JUB)) 
+            !Shear stress
+            allocate(Me%WaveShear_Stress%Tension   (ILB:IUB, JLB:JUB))
             Me%WaveShear_Stress%Tension   (:,:) = FillValueReal
 
-            allocate(Me%WaveShear_Stress%ChezyVel  (ILB:IUB, JLB:JUB)) 
+            allocate(Me%WaveShear_Stress%ChezyVel  (ILB:IUB, JLB:JUB))
             Me%WaveShear_Stress%ChezyVel  (:,:) = FillValueReal
 
-            allocate(Me%WaveShear_Stress%Cphi(ILB:IUB, JLB:JUB)) 
+            allocate(Me%WaveShear_Stress%Cphi(ILB:IUB, JLB:JUB))
             Me%WaveShear_Stress%Cphi(:,:) = 0.
-            
-            allocate(Me%WaveShear_Stress%CWphi(ILB:IUB, JLB:JUB)) 
+
+            allocate(Me%WaveShear_Stress%CWphi(ILB:IUB, JLB:JUB))
             Me%WaveShear_Stress%CWphi(:,:) = 0.
-            
-            allocate(Me%WaveShear_Stress%TensionMean(ILB:IUB, JLB:JUB)) 
+
+            allocate(Me%WaveShear_Stress%TensionMean(ILB:IUB, JLB:JUB))
             Me%WaveShear_Stress%TensionMean(:,:) = 0.
 
         end if
@@ -1254,7 +1387,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     end subroutine ConstructWaveShearStress
 
     !--------------------------------------------------------------------------
-    
+
     subroutine ReadSOD
 
         !External--------------------------------------------------------------
@@ -1267,19 +1400,19 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         logical                             :: BlockFound
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
-        
+
         call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,          &
                                     SOD_begin, SOD_end, BlockFound,         &
                                     STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) stop 'ReadSOD - ModuleInterfaceSedimentWater - ERR01'
-            
+
         if(BlockFound)then
-            
+
             Me%UseSOD = ON
 
             nullify(Me%SOD%Field)
@@ -1304,17 +1437,17 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             call KillFillMatrix(Me%SOD%ID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ReadSOD - ModuleInterfaceSedimentWater - ERR04'
 
-            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-            if (STAT_CALL  /= SUCCESS_) stop 'ReadSOD - ModuleInterfaceSedimentWater - ERR05'        
-        
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) stop 'ReadSOD - ModuleInterfaceSedimentWater - ERR05'
+
         endif
-    
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) stop 'ReadSOD - ModuleInterfaceSedimentWater - ERR06'
-        
-        
+
+
     end subroutine ReadSOD
-    
+
     !--------------------------------------------------------------------------
 
     subroutine ConstructSandTransport
@@ -1327,19 +1460,19 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                             :: ILB, IUB, JLB, JUB
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        call GetData(Me%RunsSandTransport,                                               &     
+        call GetData(Me%RunsSandTransport,                                               &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
                      Keyword      = 'SAND_TRANSPORT',                                    &
                      ClientModule = 'ModuleInterfaceSedimentWater',                      &
                      Default      = .false.,                                             &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)                                                      &
             stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR10.'
 
@@ -1360,7 +1493,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                            ObjWavesID           = Me%ObjWaves,                           &
                            ObjDischargesID      = Me%ObjDischarges,                      &
                            WaterDensity         = SigmaDensityReference,          &
-                           WaveTensionON        = Me%WaveShear_Stress%Yes,               &          
+                           WaveTensionON        = Me%WaveShear_Stress%Yes,               &
                            STAT                 = STAT_CALL)
 
             if(STAT_CALL /= SUCCESS_)                                                    &
@@ -1369,42 +1502,42 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
 
             if(Me%WaveShear_Stress%Yes)then
-                allocate(Me%WaveShear_Stress%TensionCurrents(ILB:IUB, JLB:JUB)) 
+                allocate(Me%WaveShear_Stress%TensionCurrents(ILB:IUB, JLB:JUB))
                 Me%WaveShear_Stress%TensionCurrents(:,:) = FillValueReal
             endif
 
-            !Current velocity 
-            allocate(Me%Shear_Stress%CurrentVel(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            !Current velocity
+            allocate(Me%Shear_Stress%CurrentVel(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR40'
             Me%Shear_Stress%CurrentVel(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%CurrentU(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%CurrentU(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR50'
             Me%Shear_Stress%CurrentU(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%CurrentV(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%CurrentV(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR60'
             Me%Shear_Stress%CurrentV(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%UFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%UFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR70'
             Me%Shear_Stress%UFace(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%VFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%VFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR80'
             Me%Shear_Stress%VFace(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%CurrentResidualU(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%CurrentResidualU(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR90'
             Me%Shear_Stress%CurrentResidualU(:,:) = FillValueReal
 
-            allocate(Me%Shear_Stress%CurrentResidualV(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%CurrentResidualV(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR100'
             Me%Shear_Stress%CurrentResidualV(:,:) = FillValueReal
@@ -1413,7 +1546,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         endif
 
     end subroutine ConstructSandTransport
-    
+
      !--------------------------------------------------------------------------
 
     subroutine ConstructSedimentTransport
@@ -1427,59 +1560,59 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !real                                :: ReferenceLevel
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
-        
+
         call SetWaveTensionON(ObjSedimentID = Me%ObjSediment,            &
                               WaveTensionON = Me%WaveShear_Stress%Yes,   &
                               STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_)                                      &
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR10'
 
-        !Current velocity 
-        allocate(Me%Shear_Stress%CurrentVel(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        !Current velocity
+        allocate(Me%Shear_Stress%CurrentVel(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR40'
         Me%Shear_Stress%CurrentVel(:,:) = FillValueReal
 
-        allocate(Me%Shear_Stress%CurrentU(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%Shear_Stress%CurrentU(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR50'
         Me%Shear_Stress%CurrentU(:,:) = FillValueReal
 
-        allocate(Me%Shear_Stress%CurrentV(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%Shear_Stress%CurrentV(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR60'
         Me%Shear_Stress%CurrentV(:,:) = FillValueReal
 
-        allocate(Me%Shear_Stress%UFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%Shear_Stress%UFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR70'
         Me%Shear_Stress%UFace(:,:) = FillValueReal
 
-        allocate(Me%Shear_Stress%VFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%Shear_Stress%VFace(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR80'
         Me%Shear_Stress%VFace(:,:) = FillValueReal
-        
-        allocate(Me%Shear_Stress%EfficiencyFactorCurrent(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+        allocate(Me%Shear_Stress%EfficiencyFactorCurrent(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR90'
          Me%Shear_Stress%EfficiencyFactorCurrent(:,:) = FillValueReal
-         
+
         if(Me%WaveShear_Stress%Yes)then
-            allocate(Me%Shear_Stress%EfficiencyFactorMean(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            allocate(Me%Shear_Stress%EfficiencyFactorMean(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR100'
             Me%Shear_Stress%EfficiencyFactorMean(:,:) = FillValueReal
-            
-            allocate(Me%Shear_Stress%EfficiencyFactorWaves(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+            allocate(Me%Shear_Stress%EfficiencyFactorWaves(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR110'
-            Me%Shear_Stress%EfficiencyFactorWaves(:,:) = FillValueReal            
+            Me%Shear_Stress%EfficiencyFactorWaves(:,:) = FillValueReal
         endif
 
     end subroutine ConstructSedimentTransport
@@ -1494,7 +1627,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                             :: ILB, IUB, JLB, JUB
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
@@ -1506,21 +1639,21 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Keyword      = 'CONSOLIDATION',                                    &
                      ClientModule = 'ModuleInterfaceSedimentWater',                     &
                      Default      = .false.,                                            &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR10'
 
 
         if(Me%Consolidation%Yes)then
-            
-            allocate(Me%Consolidation%Flux(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+            allocate(Me%Consolidation%Flux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR20'
-                
-            Me%Consolidation%Flux(:,:) = 0.   
-            
+
+            Me%Consolidation%Flux(:,:) = 0.
+
             if(Me%RunSedimentModule) then
-            
+
                 !Dewatering rate (kg/m2/s)
                 call GetData(Me%Dewatering_Rate,                                            &
                              Me%ObjEnterData, iflag,                                        &
@@ -1528,20 +1661,20 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                              Keyword      = 'DEWATERING_RATE',                              &
                              ClientModule = 'ModuleInterfaceSedimentWater',                 &
                              Default      = 10E-3,                                          &
-                             STAT         = STAT_CALL)            
+                             STAT         = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR30'
-            
+
             elseif(Me%RunsSediments)then
 
                 !Me%Coupled%SedimentFluxes%Yes      = ON  !review this
                 !Me%Coupled%SedimentWaterFluxes%Yes = ON  !review this
-            
+
                 call Read_Property_2D (Me%Consolidation%Rate, FromBlock, &
                                        consolidation_begin, consolidation_end)
-                            
+
                 call GetConsolidationMinThickness(Me%ObjConsolidation, Me%ExtSed%MinLayerThickness, &
-                                                      STAT = STAT_CALL)            
+                                                      STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                         stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR40'
             endif
@@ -1549,7 +1682,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         end if
 
     end subroutine ConstructConsolidation
-    
+
     !--------------------------------------------------------------------------
 
 
@@ -1567,10 +1700,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Keyword      = 'SHEAR_STRESS_LIMITATION',                          &
                      ClientModule = 'ModuleInterfaceSedimentWater',                     &
                      Default      = .false.,                                            &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearLimitation - ModuleInterfaceSedimentWater - ERR01'
-            
+
         if(Me%Shear_Stress%Limitation)then
 
             !Reference depth to compute shear stress limitation [m]
@@ -1580,7 +1713,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                          Keyword      = 'REFERENCE_DEPTH',                              &
                          ClientModule = 'ModuleInterfaceSedimentWater',                 &
                          Default      = 0.2,                                            &
-                         STAT         = STAT_CALL)            
+                         STAT         = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructShearLimitation - ModuleInterfaceSedimentWater - ERR02'
 
@@ -1591,7 +1724,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                          Keyword      = 'REFERENCE_SHEAR_STRESS',                       &
                          ClientModule = 'ModuleInterfaceSedimentWater',                 &
                          Default      = 0.25,                                           &
-                         STAT         = STAT_CALL)            
+                         STAT         = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructShearLimitation - ModuleInterfaceSedimentWater - ERR03'
 
@@ -1600,7 +1733,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     end subroutine ConstructShearLimitation
 
     !--------------------------------------------------------------------------
-    
+
     subroutine ConstructShearStatistics
 
         !Local ------------------------------------------------------------------------------
@@ -1608,7 +1741,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                                         :: iflag
 
         !Begin----------------------------------------------------------------------------
-        
+
         !Checks out if the user pretends the statistics of bottom shear velocity
         call GetData(Me%Shear_Stress%Statistics%ON,                                     &
                      Me%ObjEnterData, iflag,                                            &
@@ -1620,7 +1753,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStatistics - ModuleInterfaceSedimentWater - ERR01'
 
-        
+
         if (Me%Shear_Stress%Statistics%ON) then
 
             call GetData(Me%Shear_Stress%Statistics%File,                               &
@@ -1648,7 +1781,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
 
     end subroutine ConstructShearStatistics
-    
+
 
     !--------------------------------------------------------------------------
 
@@ -1664,7 +1797,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         logical                             :: BlockFound
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
@@ -1677,29 +1810,29 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         Me%Manning = OFF
         Me%Chezy   = OFF
-        
-        call GetData(Me%ComputeRugosity,                                            & 
+
+        call GetData(Me%ComputeRugosity,                                            &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'COMPUTE_RUGOSITY',                             &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = .false.,                                        &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR00a'
-        
+
         if(Me%ComputeRugosity .and. .not. Me%RunSedimentModule) then
             write(*,*) 'To compute the rugosity the module Sediment must be activated'
             stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR00b'
         endif
-        
-        call GetData(Me%RugosityDecayTime,                                          & 
+
+        call GetData(Me%RugosityDecayTime,                                          &
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'RUGOSITY_DECAY_TIME',                          &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
                      Default      = 100.,                                           &
-                     STAT         = STAT_CALL)            
+                     STAT         = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR00c'
 
@@ -1708,16 +1841,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                                     manning_begin, manning_end, BlockFound,         &
                                     STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR01'
-            
+
         if(BlockFound)then
-            
+
 
             if(Me%WaterWorkSize3D%KUB > 1)then
-                
+
                 write(*,*)'Cannot use Manning coefficient in 3D.'
                 stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR02'
             end if
-            
+
             Me%Manning = ON
 
             nullify(Me%ManningCoef%Field)
@@ -1742,12 +1875,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             call KillFillMatrix(Me%ManningCoef%ID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR05'
 
-            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR07'
 
         endif
 
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR06'
 
         call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
@@ -1760,8 +1893,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             nullify(Me%Rugosity%Field)
             allocate(Me%Rugosity%Field(ILB:IUB, JLB:JUB))
             Me%Rugosity%Field(:,:) = FillValueReal
-            
-            
+
+
             call GetData(Me%Rugosity%Old,                                       &
                          Me%ObjEnterData, iflag,                                &
                          keyword      ='OLD',                                   &
@@ -1771,11 +1904,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR090'
-            
+
             if(Me%Rugosity%Old)then
 
-                call Read_Old_Properties_2D(Me%Rugosity%Field, "Rugosity")
-                
+                call Read_Old_Properties_2D(Me%Rugosity%Field, "Rugosity", "Rugosity")
+
             else
 
                 call ConstructFillMatrix  (PropertyID           = Me%Rugosity%ID,                   &
@@ -1796,10 +1929,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
                 call KillFillMatrix(Me%Rugosity%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR11'
-            
+
             endif
-           
-            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR13'
 
         else if (.not. BlockFound .and. .not. Me%Manning) then
@@ -1810,27 +1943,27 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                          SearchType     = FromFile,                                     &
                          ClientModule   = 'ModuleInterfaceSedimentWater',               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &         
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructShearStatistics - ModuleInterfaceSedimentWater - ERR200'
             if (iflag == 1) then
 
                 Me%Chezy = ON
 
             else
-                write(*,*)'Must define rugosity in ModuleInterfaceSedimentWater' 
+                write(*,*)'Must define rugosity in ModuleInterfaceSedimentWater'
                 stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR14'
             endif
 
         end if
 
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceSedimentWater - ERR12'
 
 
         if (BlockFound .and. Me%Manning) then
 
-            write(*,*)'Both absolute rugosity and Manning coefficient were defined' 
-            write(*,*)'by default the hydrodynamic module use the Manning coefficient' 
+            write(*,*)'Both absolute rugosity and Manning coefficient were defined'
+            write(*,*)'by default the hydrodynamic module use the Manning coefficient'
             write(*,*)'ConstructRugosity - ModuleInterfaceSedimentWater - WARN01'
 
         endif
@@ -1848,8 +1981,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine Construct_PropertyList
 
         !External----------------------------------------------------------------
@@ -1862,7 +1995,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         !------------------------------------------------------------------------
 
-        !Initialize the properties number   
+        !Initialize the properties number
         Me%PropertiesNumber = 0
 
 
@@ -1873,15 +2006,15 @@ do1 :   do
                                         block_end       = prop_block_end,       &
                                         BlockFound      = BlockFound,           &
                                         STAT            = STAT_CALL)
-cd1 :       if      (STAT_CALL .EQ. SUCCESS_     ) then    
-cd2 :           if (BlockFound) then                                                  
-                    ! Construct a New Property 
+cd1 :       if      (STAT_CALL .EQ. SUCCESS_     ) then
+cd2 :           if (BlockFound) then
+                    ! Construct a New Property
                     Call Construct_Property(NewProperty, ClientNumber)
 
-                    ! Add new Property to the WaterProperties List 
+                    ! Add new Property to the WaterProperties List
                     Call Add_Property(NewProperty)
                 else cd2
-                    call Block_Unlock(Me%ObjEnterData , ClientNumber, STAT = STAT_CALL) 
+                    call Block_Unlock(Me%ObjEnterData , ClientNumber, STAT = STAT_CALL)
 
                     if (STAT_CALL .NE. SUCCESS_)                                &
                         stop 'Construct_PropertyList - ModuleInterfaceSedimentWater - ERR01'
@@ -1890,7 +2023,7 @@ cd2 :           if (BlockFound) then
                 end if cd2
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
-                write(*,*)  
+                write(*,*)
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
                 stop 'Construct_PropertyList - ModuleInterfaceSedimentWater - ERR02'
             else cd1
@@ -1915,10 +2048,10 @@ cd2 :           if (BlockFound) then
         integer                         :: STAT_CALL
 
         !----------------------------------------------------------------------
-             
-        allocate (NewProperty, STAT = STAT_CALL)            
+
+        allocate (NewProperty, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
-            stop 'Construct_Property - ModuleInterfaceSedimentWater - ERR01' 
+            stop 'Construct_Property - ModuleInterfaceSedimentWater - ERR01'
 
         nullify(NewProperty%Mass_Available       )
         nullify(NewProperty%FluxToWater          )
@@ -1944,9 +2077,9 @@ cd2 :           if (BlockFound) then
 
 
     end subroutine Construct_Property
-        
+
     !--------------------------------------------------------------------------
-    
+
     subroutine Construct_PropertyValues(NewProperty)
 
         !Arguments-------------------------------------------------------------
@@ -1960,33 +2093,28 @@ cd2 :           if (BlockFound) then
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: WILB, WIUB, WJLB, WJUB
         real, dimension(:,:),     pointer   :: Biomass
-        
-        !----------------------------------------------------------------------
-        
-        ILB = Me%Size2D%ILB
-        IUB = Me%Size2D%IUB
-        JLB = Me%Size2D%JLB
-        JUB = Me%Size2D%JUB
 
-        WILB = Me%WorkSize2D%ILB
-        WIUB = Me%WorkSize2D%IUB
-        WJLB = Me%WorkSize2D%JLB
-        WJUB = Me%WorkSize2D%JUB
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size2D%ILB;  IUB = Me%Size2D%IUB
+        JLB = Me%Size2D%JLB;  JUB = Me%Size2D%JUB
+
+        WILB = Me%WorkSize2D%ILB;  WJLB = Me%WorkSize2D%JLB
+        WIUB = Me%WorkSize2D%IUB;  WJUB = Me%WorkSize2D%JUB
 
         !By default there's always mass limitation for every property
-        call GetData(NewProperty%Mass_Limitation,                               & 
+        call GetData(NewProperty%Mass_Limitation,                               &
                      Me%ObjEnterData, iflag,                                    &
                      keyword      ='MASS_LIMITATION',                           &
                      SearchType   = FromBlock,                                  &
                      ClientModule = 'ModuleInterfaceSedimentWater',             &
                      Default      = .true.,                                     &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR01'
-        
-        !By default the minimum mass available is 1e-6 kg/m^2 
-        if (NewProperty%Mass_Limitation) then 
-            
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR01'
+
+        !By default the minimum mass available is 1e-6 kg/m^2
+        if (NewProperty%Mass_Limitation) then
+
             call GetData(NewProperty%Mass_Min,                                  &
                          Me%ObjEnterData, iflag,                                &
                          keyword      ='MASS_MIN',                              &
@@ -1994,8 +2122,7 @@ cd2 :           if (BlockFound) then
                          ClientModule = 'ModuleInterfaceSedimentWater',         &
                          Default      = 1e-6,                                   &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR02'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR02'
 
             call GetData(NewProperty%Old,                                       &
                          Me%ObjEnterData, iflag,                                &
@@ -2004,9 +2131,7 @@ cd2 :           if (BlockFound) then
                          ClientModule = 'ModuleInterfaceSedimentWater',         &
                          Default      = .false.,                                &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR03'
-
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR03'
 
             allocate(NewProperty%Mass_Available(ILB:IUB, JLB:JUB))
             NewProperty%Mass_Available  = null_real
@@ -2017,26 +2142,25 @@ cd2 :           if (BlockFound) then
 
             if(NewProperty%Old)then
 
-                call Read_Old_Properties_2D(NewProperty%Mass_Available, NewProperty%ID%Name)
-                
-                  ! In the module interfacesediment water properties are initialized 
+                call Read_Old_Properties_2D(NewProperty%Mass_Available, "Mass", NewProperty%ID%Name)
+
+                  ! In the module interfacesediment water properties are initialized
                     if(  (NewProperty%ID%IDNumber == SeagrassesLeaves_ )  .or.  &
                        (NewProperty%ID%IDNumber == SeagrassesRoots_    )  .or.  &
                        (NewProperty%ID%IDNumber == SeagrassesP_        )  .or.  &
                        (NewProperty%ID%IDNumber == SeagrassesN_        )         )   then
-                       
-                           do i=ILB,IUB
-                           do j=JLB,JUB             
-                              if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then 
 
-                              ! kg =                   Kg/m2  * m2
-                              NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
-                              endif
-                           enddo
-                           enddo   
+                        do i=ILB,IUB
+                        do j=JLB,JUB
+                            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+
+                            ! kg =                   Kg/m2  * m2
+                            NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                            endif
+                        enddo
+                        enddo
                    endif
-                
-            
+
             else
 
                 call ConstructFillMatrix  (PropertyID           = NewProperty%ID,                   &
@@ -2048,89 +2172,76 @@ cd2 :           if (BlockFound) then
                                            Matrix2D             = NewProperty%Mass_Available,       &
                                            TypeZUV              = TypeZ_,                           &
                                            STAT                 = STAT_CALL)
-                if (STAT_CALL  /= SUCCESS_) &
-                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR04'
+                if (STAT_CALL  /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR04'
 
                 call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL  /= SUCCESS_) &
-                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
-               
-             
-              if (NewProperty%ID%IDNumber== SeagrassesLeaves_) then
-                
-                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID= SeagrassesLeaves_, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
-                       
-                      ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
-                       do i=ILB,IUB
-                       do j=JLB,JUB             
-                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then 
-                        
+                if (STAT_CALL  /= SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR05'
+
+            if (NewProperty%ID%IDNumber== SeagrassesLeaves_) then
+
+                call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, ArrayID= SeagrassesLeaves_, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                    ! get the value in kg (this is necessary to initialize the leaves when running modulebenthicEcology)
+                    do i=ILB,IUB
+                    do j=JLB,JUB
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+
                         ! gets the mass  in gDW/m2 and convert to kg DW/m2
-                       NewProperty%Mass_Available(i,j)=Biomass(i,j)/1000.  ! convert to kg DW/m2
-                       
-                       
+                        NewProperty%Mass_Available(i,j)=Biomass(i,j)/1000.  ! convert to kg DW/m2
+
+
                         ! kg DW=                   kg DW/m2  * m2
-                       NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                        NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
                         endif
-                       enddo
-                       enddo
-               
-               call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
-          
+                    enddo
+                    enddo
+
+                call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
               endif
-              
-              
+
+
               if (NewProperty%ID%IDNumber== SeagrassesRoots_) then
-              
-              
+
                 call GetRootsArray2D(Me%ObjSedimentProperties, Biomass,ArrayID=SeagrassesRoots_, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
-              
-              ! gets the mass from the water column in g DW/m2
-               
-               NewProperty%Mass_Available=Biomass/1000.  ! convert to kg DW/m2
-               
-               ! get the value in kg DW(this is necessary to initialize the roots when running modulebenthicEcology)
-               do i=ILB,IUB
-               do j=JLB,JUB   
-                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then  ! not sure what to put here   
-                !if(Me%ExtSed%OpenPoints2D(i,j) == OpenPoint)
-                  ! i put the waterpoints to say that i have roots where i have leaves                                                
-                 
-                 ! kg DW =                   Kg DW/m2  * m2
-                  NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
-                endif
-               enddo
-               enddo
-               
-               call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR15'
-          
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
+
+                  ! gets the mass from the water column in g DW/m2
+
+                   NewProperty%Mass_Available=Biomass/1000.  ! convert to kg DW/m2
+
+                   ! get the value in kg DW(this is necessary to initialize the roots when running modulebenthicEcology)
+                    do i=ILB,IUB
+                    do j=JLB,JUB
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then  ! not sure what to put here
+                        !if(Me%ExtSed%OpenPoints2D(i,j) == OpenPoint)
+                            ! i put the waterpoints to say that i have roots where i have leaves
+
+                            ! kg DW =                   Kg DW/m2  * m2
+                            NewProperty%MassInKg(i,j)=NewProperty%Mass_Available(i,j)* Me%ExternalVar%GridCellArea(i,j)
+                        endif
+                    enddo
+                    enddo
+
+                    call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR15'
+
               endif
-                
+
                 !Test to verify mass matrix consistence
                 do j = WJLB, WJUB
                 do i = WILB, WIUB
-
                     if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
-
                         if(NewProperty%Mass_Available(i,j) < NewProperty%Mass_Min)then
 
                             NewProperty%Mass_Available(i,j) = NewProperty%Mass_Min
 
                         end if
-
                     end if
+                enddo
+                enddo
 
-                enddo
-                enddo
-        
             end if
 
         end if
@@ -2138,53 +2249,43 @@ cd2 :           if (BlockFound) then
         if((.not. NewProperty%ID%IsParticulate) .or. NewProperty%Evolution%WaterFluxes)then
 
             allocate(NewProperty%WaterConcentration(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07'
             NewProperty%WaterConcentration(:,:) = null_real
 
         end if
 
-       
+
        if(NewProperty%Evolution%BenthicOnly)then
 
             allocate(NewProperty%WaterConcentration(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07.1'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07.1'
             NewProperty%WaterConcentration(:,:) = 0.
 
         end if
-       
-       
-        if(NewProperty%Evolution%WaterFluxes .or. NewProperty%Evolution%SedimentWaterFluxes)then
-            
-            allocate(NewProperty%FluxToWater(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR06'
-            NewProperty%FluxToWater(:,:) = 0.
 
+
+        if(NewProperty%Evolution%WaterFluxes .or. NewProperty%Evolution%SedimentWaterFluxes)then
+
+            allocate(NewProperty%FluxToWater(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR06'
+            NewProperty%FluxToWater(:,:) = 0.
 
             if(NewProperty%Evolution%Erosion)then
 
                 allocate(NewProperty%ErosionCoefficient(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR08'
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR08'
                 NewProperty%ErosionCoefficient(:,:) = null_real
 
                 allocate(NewProperty%ErosionFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
                 NewProperty%ErosionFlux(:,:) = null_real
 
             end if
 
-
             if(NewProperty%Evolution%Deposition)then
-
                 allocate(NewProperty%DepositionFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
                 NewProperty%DepositionFlux(:,:) = null_real
-
             end if
 
         end if
@@ -2192,21 +2293,18 @@ cd2 :           if (BlockFound) then
         if(NewProperty%Evolution%SedimentFluxes .or. NewProperty%Evolution%SedimentWaterFluxes)then
 
             allocate(NewProperty%FluxToSediment(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR11'
             NewProperty%FluxToSediment(:,:) = 0.
 
             allocate(NewProperty%SedimentConcentration(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR12'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR12'
             NewProperty%FluxToSediment(:,:) = null_real
 
-            
         end if
 
     end subroutine Construct_PropertyValues
 
-    
+
     !--------------------------------------------------------------------------
 
 
@@ -2237,10 +2335,10 @@ cd2 :           if (BlockFound) then
 !~                      ClientModule = 'ModuleInterfaceSedimentWater',                      &
 !~                      STAT         = STAT_CALL)
 !~         if (STAT_CALL .NE. SUCCESS_)&
-!~             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR00' 
+!~             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR00'
 
 !~         if (NewProperty%Particulate)then
-!~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then
 !~             if (.not. NewProperty%ID%IsParticulate) then
 !~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
 !~                 write(*,*) 'recognised as PARTICULATE'
@@ -2259,8 +2357,8 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR20'
 
         if(NewProperty%evolution%Benthos) NewProperty%Evolution%Variable = .true.
-       
-       
+
+
         call GetData(NewProperty%Evolution%BenthicEcology,                              &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -2270,10 +2368,10 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
-        
+
          if(NewProperty%evolution%BenthicEcology) NewProperty%Evolution%Variable = .true.
-        
-        
+
+
         call GetData(NewProperty%Evolution%BenthicOnly,                              &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -2284,7 +2382,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
 
-        !CEQUALW2 as a sink and source      
+        !CEQUALW2 as a sink and source
         call GetData(NewProperty%Evolution%CEQUALW2,                                    &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -2296,7 +2394,7 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR30'
 
         if(NewProperty%Evolution%CEQUALW2) NewProperty%Evolution%Variable = .true.
-    
+
         ! This property is a DETRITUS component
         call GetData(NewProperty%Evolution%Detritus,                                    &
                      Me%ObjEnterData, iflag,                                            &
@@ -2352,7 +2450,7 @@ cd2 :           if (BlockFound) then
         end if
 
 
-        !Compute erosion fluxes  no - 0;  yes - 1      
+        !Compute erosion fluxes  no - 0;  yes - 1
         call GetData(NewProperty%Evolution%Erosion,                                      &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -2378,13 +2476,13 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR110'
             end if
-            
+
             NewProperty%Evolution%Variable = .true.
-                        
+
         end if
 
 
-        !Compute deposition fluxes  no - 0;  yes - 1      
+        !Compute deposition fluxes  no - 0;  yes - 1
         call GetData(NewProperty%Evolution%Deposition,                                   &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -2408,13 +2506,13 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR140'
             end if
-            
+
             NewProperty%Evolution%Variable = .true.
-                        
+
         end if
 
 
-        ! This property has fluxes between sediment and 
+        ! This property has fluxes between sediment and
         ! sediment-water interface? no - 0;  yes - 1
         call GetData(NewProperty%Evolution%SedimentFluxes,                              &
                      Me%ObjEnterData, iflag,                                            &
@@ -2427,7 +2525,7 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR150'
 
         if (NewProperty%Evolution%SedimentFluxes)NewProperty%Evolution%Variable = .true.
-        
+
         call GetData(NewProperty%Non_Cohesive,                                           &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromBlock,                                           &
@@ -2436,17 +2534,17 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleInterfaceSedimentWater',                      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)&
-            stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR155' 
-        
-        if (NewProperty%Non_Cohesive .and. .not. Me%RunSedimentModule) then        
+            stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR155'
+
+        if (NewProperty%Non_Cohesive .and. .not. Me%RunSedimentModule) then
                 write(*,*)
                 write(*,*) 'Property : '//trim(NewProperty%ID%Name), ' is defined as non-cohesive (sand).'
-                write(*,*)'Define the keyword NON_COHESIVE as 0 or '  
+                write(*,*)'Define the keyword NON_COHESIVE as 0 or '
                 write(*,*)'include the keyword SEDIMENT : 1 in module Model to activate the module Sediment.'
                 write(*,*)
                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR156'
         endif
-        
+
         !Time Step if the property field is variable in time
         if ((NewProperty%Evolution%Variable         ).or. &
             (NewProperty%ID%IDNumber.eq.Temperature_).or. &
@@ -2459,9 +2557,9 @@ cd2 :           if (BlockFound) then
             call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR170'
-    
+
             if (VariableDT) then
-                
+
                 NewProperty%Evolution%DTInterval = ModelDT
 
             else
@@ -2478,7 +2576,7 @@ cd2 :           if (BlockFound) then
 
 
                 if (NewProperty%evolution%DTInterval < (ModelDT)) then
-                    write(*,*) 
+                    write(*,*)
                     write(*,*) ' Time step error.'
                     stop       'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR190'
 
@@ -2488,9 +2586,9 @@ cd2 :           if (BlockFound) then
                     auxFactor = NewProperty%evolution%DTInterval  / ModelDT
 
                     Erroraux = auxFactor - int(auxFactor)
-                    
+
                     if (Erroraux /= 0) then
-                        write(*,*) 
+                        write(*,*)
                         write(*,*) ' Time step error.'
                         stop       'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR200'
                     endif
@@ -2502,9 +2600,9 @@ cd2 :           if (BlockFound) then
                         auxFactor = DTaux / NewProperty%evolution%DTInterval
 
                         ErrorAux = auxFactor - int(auxFactor)
-                        
+
                         if (ErrorAux /= 0) then
-                            write(*,*) 
+                            write(*,*)
                             write(*,*) ' Time step error.'
                             stop       'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR210'
                         endif
@@ -2515,7 +2613,7 @@ cd2 :           if (BlockFound) then
 
             NewProperty%Evolution%NextCompute = Me%ExternalVar%Now + NewProperty%Evolution%DTInterval
 
-        else 
+        else
 
             call null_time(NewProperty%Evolution%NextCompute)
 
@@ -2524,11 +2622,11 @@ cd2 :           if (BlockFound) then
         endif
 
     end subroutine Construct_PropertyEvolution
-    
-    
+
+
     !-------------------------------------------------------------------------
-    
-    
+
+
     subroutine Construct_PropertyOutPut(NewProperty)
 
         !Arguments------------------------------------------------------------
@@ -2550,7 +2648,7 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR01a'
-        
+
         !Checks out if the user pretends to write property values in the original units
         !(when units are other than concentration)
         call GetData(NewProperty%OutHDForigin,                                          &
@@ -2562,7 +2660,7 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR01b'
-               
+
         ! Checks out if the user pretends to write a time serie for this property
         call GetData(NewProperty%TimeSerie,                                             &
                      Me%ObjEnterData, iflag,                                            &
@@ -2586,9 +2684,9 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyOutPut - ModuleInterfaceSedimentWater - ERR03'
 
     end subroutine Construct_PropertyOutPut
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine Add_Property(NewProperty)
 
         !Arguments-------------------------------------------------------------
@@ -2606,15 +2704,15 @@ cd2 :           if (BlockFound) then
             Me%LastProperty%Next => NewProperty
             Me%LastProperty      => NewProperty
             Me%PropertiesNumber  = Me%PropertiesNumber + 1
-        end if 
+        end if
 
         !----------------------------------------------------------------------
 
-    end subroutine Add_Property 
+    end subroutine Add_Property
 
     !--------------------------------------------------------------------------
 
-    
+
     subroutine Add_BenthicRate(NewBenthicRate)
 
         !Arguments-------------------------------------------------------------
@@ -2632,9 +2730,9 @@ cd2 :           if (BlockFound) then
             Me%LastBenthicRate%Next    => NewBenthicRate
             Me%LastBenthicRate         => NewBenthicRate
             Me%BenthicRatesNumber      = Me%BenthicRatesNumber + 1
-        end if 
+        end if
 
-    end subroutine Add_BenthicRate 
+    end subroutine Add_BenthicRate
 
     !--------------------------------------------------------------------------
 
@@ -2646,12 +2744,12 @@ cd2 :           if (BlockFound) then
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE
-        
+
         !----------------------------------------------------------------------
 
-        WorkILB = Me%WaterWorkSize3D%ILB 
-        WorkIUB = Me%WaterWorkSize3D%IUB 
-        WorkJLB = Me%WaterWorkSize3D%JLB 
+        WorkILB = Me%WaterWorkSize3D%ILB
+        WorkIUB = Me%WaterWorkSize3D%IUB
+        WorkJLB = Me%WaterWorkSize3D%JLB
         WorkJUB = Me%WaterWorkSize3D%JUB
         WorkKLB = Me%WaterWorkSize3D%KLB
         WorkKUB = Me%WaterWorkSize3D%KUB
@@ -2668,7 +2766,7 @@ cd2 :           if (BlockFound) then
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR02'
-        
+
         !Sets limits for next write operations
         call HDF5SetLimits   (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
@@ -2680,13 +2778,13 @@ cd2 :           if (BlockFound) then
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR04'
-           
+
         !call HDF5WriteData  (Me%ObjHDF5, "/Grid/CellArea", "CellArea",           &
         !                         'm2', Array2D = Me%ExternalVar%GridCellArea,    &
         !                      STAT = STAT_CALL)
         !if (STAT_CALL /= SUCCESS_) &
         !   stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR05'
-        
+
         call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                          &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
@@ -2698,26 +2796,26 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR07'
 
-        
+
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR08'
-       
+
         !----------------------------------------------------------------------
 
     end subroutine Open_HDF5_OutPut_File
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructGlobalOutput 
+    subroutine ConstructGlobalOutput
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: iflag
 
         !Begin-----------------------------------------------------------------
-        
+
         nullify(Me%OutPut%OutTime)
 
         call GetOutPutTime(Me%ObjEnterData,                              &
@@ -2727,9 +2825,9 @@ cd2 :           if (BlockFound) then
                            SearchType  = FromFile,                       &
                            OutPutsTime = Me%OutPut%OutTime,              &
                            OutPutsOn   = Me%OutPut%Yes,                  &
-                           STAT        = STAT_CALL) 
+                           STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                       &
-            stop 'ConstructGlobalOutput - ModuleInterfaceSedimentWater - ERR01' 
+            stop 'ConstructGlobalOutput - ModuleInterfaceSedimentWater - ERR01'
 
         if (Me%OutPut%Yes) then
 
@@ -2758,21 +2856,21 @@ cd2 :           if (BlockFound) then
 
             Me%OutPut%NextRestartOutput = 1
 
-        end if 
+        end if
 
         !<BeginKeyword>
             !Keyword          : RESTART_FILE_OVERWRITE
-            !<BeginDescription>       
-               ! 
+            !<BeginDescription>
+               !
                ! This option checks wether the restart file is to be overwritten or not
-               ! 
+               !
             !<EndDescription>
-            !Type             : logical 
+            !Type             : logical
             !Default          : .true.
             !Multiple Options : Do not have
             !Search Type      : FromFile
         !<EndKeyword>
-        
+
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -2802,7 +2900,7 @@ cd2 :           if (BlockFound) then
 
         !------------------------------------------------------------------------
 
- 
+
 do1 :   do
             call ExtractBlockFromBuffer(Me%ObjEnterData,                    &
                                         ClientNumber    = ClientNumber,     &
@@ -2810,17 +2908,17 @@ do1 :   do
                                         block_end       = rate_block_end,   &
                                         BlockFound      = BlockFound,       &
                                         STAT            = STAT_CALL)
-            if(STAT_CALL .EQ. SUCCESS_)then    
-                if (BlockFound) then                                                  
-                    
+            if(STAT_CALL .EQ. SUCCESS_)then
+                if (BlockFound) then
+
                     !Construct a New Benthic Rate
                     Call Construct_BenthicRate  (NewBenthicRate)
 
-                    !Add new Rate to the Benthic Rates List 
+                    !Add new Rate to the Benthic Rates List
                     Call Add_BenthicRate    (NewBenthicRate)
 
                 else
-                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
 
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Construct_BenthicRateList - ModuleInterfaceSedimentWater - ERR01'
@@ -2830,18 +2928,18 @@ do1 :   do
 
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then
-                write(*,*)  
+                write(*,*)
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
                 stop       'Construct_BenthicRateList - ModuleInterfaceSedimentWater - ERR02'
             else
                 stop       'Construct_BenthicRateList - ModuleInterfaceSedimentWater - ERR03'
             end if
         end do do1
-         
+
     end subroutine Construct_BenthicRateList
 
     !--------------------------------------------------------------------------
-    
+
     subroutine Construct_BenthicRate(NewBenthicRate)
 
         !Arguments-------------------------------------------------------------
@@ -2851,10 +2949,10 @@ do1 :   do
         integer                             :: STAT_CALL
 
         !----------------------------------------------------------------------
-             
-        allocate (NewBenthicRate, STAT = STAT_CALL)            
+
+        allocate (NewBenthicRate, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                          &
-            stop 'Construct_BenthicRate - ModuleInterfaceSedimentWater - ERR01' 
+            stop 'Construct_BenthicRate - ModuleInterfaceSedimentWater - ERR01'
 
         nullify(NewBenthicRate%Field, NewBenthicRate%Prev, NewBenthicRate%Next)
 
@@ -2866,7 +2964,7 @@ do1 :   do
     end subroutine Construct_BenthicRate
 
     !--------------------------------------------------------------------------
-    
+
     subroutine Construct_BenthicRateID(NewBenthicRate)
 
         !Arguments-------------------------------------------------------------
@@ -2879,7 +2977,7 @@ do1 :   do
         integer                             :: iflag, PropNumber
         logical                             :: CheckName
         !type (T_Property), pointer          :: PropertyX
-      
+
         !----------------------------------------------------------------------
 
         !First Property defined in a rate relation
@@ -2890,9 +2988,9 @@ do1 :   do
                      SearchType   = FromBlock,                                          &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR01' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR01'
         if (iflag==0)                                                                   &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR02' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR02'
 
         !Check if the property name is valid
         CheckName = CheckPropertyName(NewBenthicRate%FirstProp%Name, Number = PropNumber)
@@ -2901,13 +2999,13 @@ do1 :   do
         else
             write(*,*)
             write(*,*) 'The first property name is not recognised by the model.'
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR03' 
-        end if 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR03'
+        end if
 
-        !call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+        !call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)
        ! if (STAT_CALL /= SUCCESS_)                                                     &
-         !   stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR04' 
-        
+         !   stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR04'
+
         !second Property defined in a rate relation
         call GetData(NewBenthicRate%SecondProp%Name,                                     &
                      Me%ObjEnterData, iflag,                                             &
@@ -2916,10 +3014,10 @@ do1 :   do
                      SearchType   = FromBlock,                                           &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR05' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR05'
         if (iflag==0)                                                                    &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR06' 
-      
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR06'
+
         ! Check if the property name is valid OR not
         CheckName = CheckPropertyName(NewBenthicRate%SecondProp%name, Number = PropNumber)
         if (CheckName) then
@@ -2927,14 +3025,14 @@ do1 :   do
         else
             write(*,*)
             write(*,*) 'The Second property name is not recognised by the model.'
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR07' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR07'
         end if
-        
-       ! call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+
+       ! call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)
        ! if (STAT_CALL /= SUCCESS_)                                                       &
-       !     stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR08' 
-  
-  
+       !     stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR08'
+
+
        !Rate description ex: zooplankton grazing over phytoplankton
         call GetData(NewBenthicRate%ID%Description,                                      &
                      Me%ObjEnterData, iflag,                                             &
@@ -2942,10 +3040,10 @@ do1 :   do
                      Default      = 'No description was given.',                         &
                      ClientModule = 'ModuleInterfaceSedimentWater',                      &
                      SearchType   = FromBlock,                                           &
-                     STAT         = STAT_CALL)  
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR09' 
-         
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR09'
+
         !Rate name (this is the name of the output boxes file)
         call GetData(NewBenthicRate%ID%Name,                                               &
                      Me%ObjEnterData, iflag,                                               &
@@ -2955,16 +3053,16 @@ do1 :   do
                      Default      = 'No name was given to sediment rate.',                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                         &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR10' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR10'
         if (iflag==0)                                                                      &
-            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR11' 
+            stop 'Construct_BenthicRateID - ModuleInterfaceSedimentWater - ERR11'
 
     end subroutine Construct_BenthicRateID
-    
-    
+
+
     !--------------------------------------------------------------------------
 
-    
+
     subroutine Construct_BenthicRateValues(NewBenthicRate)
 
         !Arguments-------------------------------------------------------------
@@ -2975,7 +3073,7 @@ do1 :   do
 
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB
-          
+
         !----------------------------------------------------------------------
 
         ILB = Me%Size2D%ILB
@@ -2986,15 +3084,15 @@ do1 :   do
 
         allocate(NewBenthicRate%Field(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
-            stop 'Construct_BenthicRateValues - ModuleInterfaceSedimentWater - ERR01' 
+            stop 'Construct_BenthicRateValues - ModuleInterfaceSedimentWater - ERR01'
         NewBenthicRate%Field(:,:) = FillValueReal
 
     end subroutine Construct_BenthicRateValues
-    
-    
+
+
     !----------------------------------------------------------------------
 
-    
+
     subroutine ConstructLog
 
 
@@ -3028,15 +3126,15 @@ do1 :   do
 #endif
 
     end subroutine ConstructLog
-    
-    
+
+
     !--------------------------------------------------------------------------
 
-    
+
     subroutine Construct_Sub_Modules
 
         !Local-----------------------------------------------------------------
-        type (T_Property),           pointer                 :: PropertyX            
+        type (T_Property),           pointer                 :: PropertyX
         integer                                              :: STAT_CALL
         integer                                              :: FreeVerticalMovementID
         integer                                              :: ILB, IUB, JLB, JUB
@@ -3086,7 +3184,7 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%Benthos%NumberOfProperties               + 1
                 Me%Coupled%Benthos%Yes                              = ON
             endif
-            
+
              if (PropertyX%Evolution%BenthicEcology) then
                 Me%Coupled%BenthicEcology%NumberOfProperties        = &
                 Me%Coupled%BenthicEcology%NumberOfProperties        + 1
@@ -3129,7 +3227,7 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%BoxTimeSerie%NumberOfProperties          + 1
                 Me%Coupled%BoxTimeSerie%Yes                         = ON
             endif
-            
+
             if (PropertyX%OutputHDF) then
                 Me%Coupled%OutputHDF%NumberOfProperties             = &
                 Me%Coupled%OutputHDF%NumberOfProperties             + 1
@@ -3141,21 +3239,21 @@ do1 :   do while (associated(PropertyX))
         end do do1
 
         if(Me%Coupled%Benthos%Yes .and. Me%Coupled%CEQUALW2%Yes)then
-            
+
             write(*,*)'Benthos and CEQUALW2 models cannot be simulated at the same time.'
             stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR01'
 
         end if
 
         if(Me%Coupled%Benthos%Yes .and. Me%Coupled%BenthicEcology%Yes)then
-            
+
             write(*,*)'Benthos and BenthicEcology models cannot be simulated at the same time.'
             stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR01.1'
 
         end if
-        
+
         if(Me%Coupled%BenthicEcology%Yes .and. Me%Coupled%CEQUALW2%Yes)then
-            
+
             write(*,*)'BenthicEcology and CEQUALW2 models cannot be simulated at the same time.'
             stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR01.2'
 
@@ -3163,7 +3261,7 @@ do1 :   do while (associated(PropertyX))
 
 
         if(Me%Coupled%Detritus%Yes .and. .not. Me%Coupled%CEQUALW2%Yes)then
-            
+
             write(*,*)'Detritus and CEQUALW2 must be simulated at the same time.'
             stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR02'
 
@@ -3171,31 +3269,31 @@ do1 :   do while (associated(PropertyX))
 
 
         if(Me%Coupled%WaterFluxes%Yes) then
-            
+
             call GetWaterPropertiesSubModulesID(WaterPropertiesID      = Me%ObjWaterProperties, &
                                                 FreeVerticalMovementID = FreeVerticalMovementID,&
                                                 STAT                   = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR03'
-            
+
             if(FreeVerticalMovementID /= 0)then
                 Me%ObjFreeVerticalMovement = AssociateInstance(mFREEVERTICALMOVEMENT_,FreeVerticalMovementID)
-                
+
                 call GetDepositionIntertidalZones(FreeVerticalMovementID = FreeVerticalMovementID, &
                                                   DepositionIntertidalZones = Me%DepositionIntertidalZones, &
                                                   STAT                   = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
                     stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR04'
-                
+
                 if(Me%DepositionIntertidalZones) then
                     Me%WaterPointsorOpenPoints2D => Me%ExtWater%WaterPoints2D
                 else
                     Me%WaterPointsorOpenPoints2D => Me%ExtWater%OpenPoints2D
                 endif
-                
-                
+
+
                 if (Me%RunSedimentModule) then
-                    
+
                     !get and set information in Module Sediment so that it does not need to comunicate with free vertical
                     !movement
                     call SetWaterPointsOpenPoints2D(ObjSedimentID = Me%ObjSediment,                         &
@@ -3210,8 +3308,8 @@ do1 :   do while (associated(PropertyX))
                                                   STAT = STAT_CALL)
                     if (STAT_CALL  /= SUCCESS_)                                                     &
                         stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.6'
-                
-                
+
+
                     do n=1, NumberOfClasses
                         call GetSandParameters(ObjSedimentID = Me%ObjSediment,                      &
                                                SandID = n,                                          &
@@ -3220,24 +3318,24 @@ do1 :   do while (associated(PropertyX))
                                                RelativeDensity = RelativeDensity,                   &
                                                STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.7'
-                    
+
                         call SetSandParameters(FreeVerticalMovementID = FreeVerticalMovementID,     &
                                                PropertyID = SandIDNumber,                           &
-                                               SandDiameter = D50,                                  & 
+                                               SandDiameter = D50,                                  &
                                                RelativeDensity = RelativeDensity,                   &
                                                STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.8'
-                    enddo                
+                    enddo
                 endif
-                
+
             end if
-            
+
             ILB = Me%Size2D%ILB
             IUB = Me%Size2D%IUB
             JLB = Me%Size2D%JLB
             JUB = Me%Size2D%JUB
-            
-            allocate(Me%DepositionProbability(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+            allocate(Me%DepositionProbability(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR05'
             Me%DepositionProbability(:,:) = 1.
@@ -3247,7 +3345,7 @@ do1 :   do while (associated(PropertyX))
         end if
 
 #ifndef _SEDIMENT_
-        
+
         if(Me%RunsSediments)then
             if(Me%Coupled%SedimentFluxes%Yes) then
 
@@ -3262,22 +3360,22 @@ do1 :   do while (associated(PropertyX))
             end if
         endif
 #endif
- 
+
         if(Me%Coupled%Benthos%Yes)then
 
             call CoupleBenthos
-            
+
             call ReadSOD
-                
+
             if (Me%UseSOD)then
                 call SetSOD(Me%SOD%Field, Me%ExtWater%OpenPoints2D, Me%ExtWater%WaterPoints2D)
-            end if             
+            end if
 
         end if
-        
+
        if(Me%Coupled%BenthicEcology%Yes)then
 
-            call CoupleBenthicEcology                          
+            call CoupleBenthicEcology
 
         end if
 
@@ -3286,24 +3384,24 @@ do1 :   do while (associated(PropertyX))
             call CoupleCEQUALW2
 
             call ReadSOD
-                
+
             if (Me%UseSOD)then
                 call SetSOD(Me%SOD%Field, Me%ExtWater%OpenPoints2D, Me%ExtWater%WaterPoints2D)
-            end if            
+            end if
 
         end if
 
-   
+
         if(Me%Coupled%TimeSerie%Yes)then
 
             call Construct_Time_Serie
-             
+
         end if
-        
+
         if(Me%Coupled%BoxTimeSerie%Yes)then
 
             call StartOutputBoxFluxes
-               
+
         end if
 
         if(Me%Coupled%OutputHDF%Yes)then
@@ -3316,7 +3414,7 @@ do1 :   do while (associated(PropertyX))
                                              MacroAlgae        = Me%MacroAlgae,         &
                                              STAT              = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR06' 
+            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR06'
 
 
     end subroutine Construct_Sub_Modules
@@ -3334,7 +3432,7 @@ do1 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
-        integer                                             :: dn, Id, Jd, TimeSerieNumber  
+        integer                                             :: dn, Id, Jd, TimeSerieNumber
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: nProperties
         character(len=StringLength), dimension(:), pointer  :: PropertyList
@@ -3359,7 +3457,7 @@ do1 :   do while (associated(PropertyX))
                     nProperties = nProperties + 1
                 endif
             endif
-                
+
             PropertyX=>PropertyX%Next
         enddo
 
@@ -3377,7 +3475,7 @@ do1 :   do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
                 nProperties = nProperties + 1
                 PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
-                
+
                 if(PropertyX%Evolution%Deposition) then
                     nProperties = nProperties + 1
                     PropertyList(nProperties) = 'Deposition_'//trim(adjustl(PropertyX%ID%name))
@@ -3390,7 +3488,7 @@ do1 :   do while (associated(PropertyX))
                     nProperties = nProperties + 1
                     PropertyList(nProperties) = 'Erosion_'//trim(adjustl(PropertyX%ID%name))
                 endif
-                
+
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -3403,28 +3501,28 @@ do1 :   do while (associated(PropertyX))
                      Default      = Me%Files%InputData,                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR20' 
+            stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR20'
 
         call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
                                      Polygon          = ModelDomainLimit,               &
-                                     STAT             = STAT_CALL)           
+                                     STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR25' 
+            stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR25'
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             trim(TimeSerieLocationFile),                                &
                             PropertyList, "srb",                                        &
                             WaterPoints3D = Me%ExtWater%WaterPoints3D,                  &
-                            ModelName     = Me%ModelName,                               & 
+                            ModelName     = Me%ModelName,                               &
                             ModelDomain   = ModelDomainLimit,                           &
                             STAT          = STAT_CALL)
         if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR30'
-        
+
         call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
-                                 Polygon          = ModelDomainLimit,                   &   
-                                 STAT             = STAT_CALL)                          
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR35'        
+                                 Polygon          = ModelDomainLimit,                   &
+                                 STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR35'
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
@@ -3435,31 +3533,31 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR50'
 
         do dn = 1, TimeSerieNumber
-        
+
             call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR60'
-            
-            if (IgnoreOK) cycle        
 
-            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+            if (IgnoreOK) cycle
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
                                       CoordX   = CoordX,                                &
-                                      CoordY   = CoordY,                                & 
+                                      CoordY   = CoordY,                                &
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR70'
-            
+
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR80'  
-                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR80'
+
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                     stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR90'
-                endif                            
+                endif
 
                 !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
-                
+
                 !    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
                 !    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR70'
 
@@ -3476,21 +3574,21 @@ do1 :   do while (associated(PropertyX))
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleInterfaceSedimentWater - ERR100'
             endif
 
-            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
                                       LocalizationI   = Id,                             &
-                                      LocalizationJ   = Jd,                             & 
+                                      LocalizationJ   = Jd,                             &
                                       STAT     = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleInterfaceSedimentWater - ERR120'
 
             if (Me%ExtWater%WaterPoints3D(Id, Jd,Me%WaterWorkSize3D%KUB) /= WaterPoint) then
-                
+
                  write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',' ModuleInterfaceSedimentWater'
             endif
 
         enddo
 
-        
+
     end subroutine Construct_Time_Serie
 
     !----------------------------------------------------------------------
@@ -3501,7 +3599,7 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: iflag, STAT_CALL
         integer                                             :: ILB, IUB, JLB, JUB
         logical                                             :: Exist, Opened
- 
+
         !Local-----------------------------------------------------------------
         type(T_Property),                           pointer :: PropertyX
         type(T_BenthicRate    ),                    pointer :: BenthicRateX
@@ -3515,32 +3613,32 @@ do1 :   do while (associated(PropertyX))
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        ! This keyword have two functions if exist fluxes between boxes are compute 
+        ! This keyword have two functions if exist fluxes between boxes are compute
         ! and the value read is the name file where the boxes are defined
         call GetData(Me%Files%BoxesFile,                                            &
                      Me%ObjEnterData, iflag,                                        &
                      keyword      = 'BOXFLUXES',                                    &
                      ClientModule = 'ModuleInterfaceSedimentWater',                 &
-                     STAT         = STAT_CALL)                                      
+                     STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                &
             stop 'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR01'
         if (iflag .EQ. 0)                                                           &
-            stop 'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR02'    
-        
+            stop 'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR02'
+
         inquire(File = Me%Files%BoxesFile, Exist = exist)
         if (exist) then
             inquire(File = Me%Files%BoxesFile, Opened  = Opened)
             if (opened) then
-                write(*,*    ) 
+                write(*,*    )
                 write(*,'(A)') 'BoxesFile = ',trim(adjustl(Me%Files%BoxesFile))
                 write(*,*    ) 'Already opened.'
-                stop           'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR03'    
+                stop           'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR03'
             end if
         else
-            write(*,*) 
+            write(*,*)
             write(*,*)     'Could not find the boxes file.'
             write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
-            stop           'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR04'    
+            stop           'StartOutputBoxFluxes - ModuleInterfaceSedimentWater - ERR04'
         end if
 
         nScalars = Me%Coupled%BoxTimeSerie%NumberOfProperties + Me%BenthicRatesNumber
@@ -3555,7 +3653,7 @@ do1 :   do while (associated(PropertyX))
             if (PropertyX%BoxTimeSerie) then
                 n = n + 1
                 ScalarOutputList(n) = "Bottom "//trim(PropertyX%ID%name)
-            end if 
+            end if
 
             PropertyX=>PropertyX%Next
         end do
@@ -3608,11 +3706,11 @@ do1 :   do while (associated(PropertyX))
         allocate(BenthosPropertyList(1:Me%Coupled%Benthos%NumberOfProperties))
 
 
-        call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)                                  
+        call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
             write(*,*)'Please define property temperature in the'
             write(*,*)'InterfaceSedimentWater data file.'
-            stop 'CoupleBenthos - ModuleInterfaceSedimentWater - ERR00' 
+            stop 'CoupleBenthos - ModuleInterfaceSedimentWater - ERR00'
         end if
 
 
@@ -3642,7 +3740,7 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_)                                                   &
             stop 'CoupleBenthos - ModuleInterfaceSedimentWater - ERR01'
 
-        Me%Coupled%Benthos%DT_Compute  = BenthosDT 
+        Me%Coupled%Benthos%DT_Compute  = BenthosDT
         Me%Coupled%Benthos%NextCompute = Me%ExternalVar%Now
 
         deallocate(BenthosPropertyList)
@@ -3651,7 +3749,7 @@ do1 :   do while (associated(PropertyX))
     end subroutine CoupleBenthos
 
 
-  
+
     !--------------------------------------------------------------------------
 
     subroutine CoupleBenthicEcology
@@ -3670,7 +3768,7 @@ do1 :   do while (associated(PropertyX))
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
-        
+
         KLBW=Me%WaterWorkSize3D%KLB     ! 1
         KUBW=Me%WaterWorkSize3D%KUB     ! 1
         KLBS=Me%SedimentWorkSize3D%KLB  ! 1
@@ -3682,11 +3780,11 @@ do1 :   do while (associated(PropertyX))
         allocate(BenthicEcologyPropertyList(1:Me%Coupled%BenthicEcology%NumberOfProperties))
 
 
-        call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)                                  
+        call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
             write(*,*)'Please define property temperature in the'
             write(*,*)'InterfaceSedimentWater data file.'
-            stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR00' 
+            stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR00'
         end if
 
 
@@ -3716,62 +3814,62 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_)                                                   &
             stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR01'
 
-        Me%Coupled%BenthicEcology%DT_Compute  = BenthicEcologyDT 
+        Me%Coupled%BenthicEcology%DT_Compute  = BenthicEcologyDT
         Me%Coupled%BenthicEcology%NextCompute = Me%ExternalVar%Now
-        
 
-       
-        allocate(Me%ExtWater%WaterVolume(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+
+        allocate(Me%ExtWater%WaterVolume(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR05'
-     
-       allocate(Me%ExtWater%Sediment(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+       allocate(Me%ExtWater%Sediment(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR06'
-       
-      allocate(Me%BottomSWRadiationAverage(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+      allocate(Me%BottomSWRadiationAverage(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR14'
 
 
-      allocate(Me%Seagrasses%UptakeNH4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+      allocate(Me%Seagrasses%UptakeNH4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR08'
-                
-      allocate(Me%Seagrasses%UptakeNH4NO3w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+      allocate(Me%Seagrasses%UptakeNH4NO3w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR09'
-     
-      
-        allocate(Me%Seagrasses%UptakePO4w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+
+        allocate(Me%Seagrasses%UptakePO4w2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR10'
-     
-      
-                     
-        allocate(Me%Seagrasses%LightFactor2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+
+
+        allocate(Me%Seagrasses%LightFactor2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR12'
-                    
-        allocate(Me%Seagrasses%UptakePO4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+
+        allocate(Me%Seagrasses%UptakePO4s2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR13'
-        
+
         Me%Seagrasses%UptakeNH4s2D  = 0.
         Me%Seagrasses%LightFactor2D = 0.
         Me%Seagrasses%UptakePO4w2D  = 0.
         Me%Seagrasses%UptakePO4s2D  = 0.
         Me%Seagrasses%UptakeNH4NO3w2D =0.
 
-      
-        
+
+
         deallocate(BenthicEcologyPropertyList)
         nullify   (BenthicEcologyPropertyList)
 
     end subroutine CoupleBenthicEcology
     !--------------------------------------------------------------------------
 
-    
+
 
     subroutine CoupleCEQUALW2
 
@@ -3803,7 +3901,7 @@ do1 :   do while (associated(PropertyX))
         enddo
 
         nullify(PropertyX)
-        
+
         call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
                                 TimeID              = Me%ObjTime,                    &
                                 SinksSourcesModel   = BenthicCEQUALW2Model,          &
@@ -3815,7 +3913,7 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_)                                                   &
             stop 'CoupleCEQUALW2 - ModuleInterfaceSedimentWater - ERR01'
 
-        Me%Coupled%CEQUALW2%DT_Compute  = CEQUALW2DT 
+        Me%Coupled%CEQUALW2%DT_Compute  = CEQUALW2DT
         Me%Coupled%CEQUALW2%NextCompute = Me%ExternalVar%Now
 
         deallocate(CEQUALW2PropertyList)
@@ -3831,7 +3929,7 @@ do1 :   do while (associated(PropertyX))
 
         !External--------------------------------------------------------------
         integer                                             :: STAT_CALL
-        
+
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                           :: PropertyX
         real                                                :: DTInterval
@@ -3893,7 +3991,7 @@ do1 :   do while (associated(PropertyX))
                     write(*,*) ' equal to the water property time step.'
                     write(*,*)
                     write(*,*) ' CheckOptionsWaterFluxes - ModuleInterfaceSedimentWater - WRN01'
-                    
+
                     PropertyX%Evolution%DTInterval  = DTInterval
 
                     PropertyX%Evolution%NextCompute = Me%ExternalVar%Now + PropertyX%Evolution%DTInterval
@@ -3931,10 +4029,10 @@ do1 :   do while (associated(PropertyX))
         enddo
 
         Me%Coupled%WaterFluxes%NextCompute = Me%ExternalVar%Now
-   
+
     end subroutine CheckOptionsWaterFluxes
 
-    
+
     !--------------------------------------------------------------------------
 
 #ifndef _SEDIMENT_
@@ -3942,13 +4040,13 @@ do1 :   do while (associated(PropertyX))
 
         !External--------------------------------------------------------------
         integer                                             :: STAT_CALL
-        
+
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                          :: PropertyX
         real                                                :: DTInterval
         logical                                             :: SedimentFluxes
         !----------------------------------------------------------------------
-        
+
         PropertyX => Me%FirstProperty
         do while (associated(PropertyX))
             if(PropertyX%Evolution%SedimentFluxes)then
@@ -4015,13 +4113,13 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%Size2D%ILB
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-                
+
         PropertyX   => Me%FirstProperty
         do while (associated(PropertyX))
 
@@ -4050,16 +4148,16 @@ do1 :   do while (associated(PropertyX))
             stop 'CheckOptionsSedimentWaterFluxes - ModuleInterfaceSedimentWater - ERR30'
 
         if(Me%ExtSed%ComputeConsolidation .and. .not. Me%Consolidation%Yes)then
-            write(*,*)'Please activate option CONSOLIDATION' 
+            write(*,*)'Please activate option CONSOLIDATION'
             stop 'CheckOptionsSedimentWaterFluxes - ModuleInterfaceSedimentWater - ERR35'
         endif
 
         if(.not. Me%ExtSed%ComputeConsolidation .and. Me%Consolidation%Yes)then
-            write(*,*)'CONSOLIDATION option is active and ModuleConsolidation is not.' 
+            write(*,*)'CONSOLIDATION option is active and ModuleConsolidation is not.'
             stop 'CheckOptionsSedimentWaterFluxes - ModuleInterfaceSedimentWater - ERR36'
         endif
 
-        allocate(Me%WaterFlux (ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%WaterFlux (ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'CheckOptionsSedimentWaterFluxes - ModuleInterfaceSedimentWater - ERR40'
         Me%WaterFlux(:,:) = 0.
@@ -4070,14 +4168,15 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
 
 
-    subroutine Read_Old_Properties_2D(Scalar_2D, PropertyName)
+    subroutine Read_Old_Properties_2D(Scalar_2D, GroupName, PropertyName)
 
         !Arguments--------------------------------------------------------------
         real, dimension(:,:), pointer               :: Scalar_2D
+        character (Len=*), Intent(IN)               :: GroupName
         character (Len=*), Intent(IN)               :: PropertyName
 
         !Local-----------------------------------------------------------------
-        integer                                     :: IUB, JUB, ILB, JLB 
+        integer                                     :: IUB, JUB, ILB, JLB
         integer                                     :: STAT_CALL
         integer                                     :: HDF5_READ
         integer                                     :: ObjHDF5 = 0
@@ -4085,24 +4184,24 @@ do1 :   do while (associated(PropertyX))
         integer                                     :: ILW, IUW, JLW, JUW
         type (T_Size2D)                             :: WindowLimitsJI
         real,    dimension(:,:), pointer            :: Aux2D
-        logical                                     :: MasterOrSlave        
+        logical                                     :: MasterOrSlave
 
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize2D%ILB 
+        ILB = Me%WorkSize2D%ILB
         JLB = Me%WorkSize2D%JLB
-        IUB = Me%WorkSize2D%IUB 
+        IUB = Me%WorkSize2D%IUB
         JUB = Me%WorkSize2D%JUB
 
         ObjHDF5 = 0
 
         inquire(File = trim(Me%Files%Initial), Exist = exist)
-        
+
         if(.not. exist)then
-            write(*,*) 
+            write(*,*)
             write(*,*)     'Could not find the final InterfaceSedimentWater file.'
             write(*,'(A)') 'BoxFileName = ', trim(Me%Files%Initial)
-            stop           'Read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR10'    
+            stop           'Read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR10'
         end if
 
         !Gets File Access Code
@@ -4111,64 +4210,57 @@ do1 :   do while (associated(PropertyX))
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR20'
-        
+
         call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
                                   MasterOrSlave    = MasterOrSlave,                 &
                                   STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR30'            
-            
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR30'
+
 ifMS:   if (MasterOrSlave) then
-                
+
             call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,          &
                                       WorkSize         = WindowLimitsJI,                &
                                       STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR40'
-            
+
             ILW = WindowLimitsJI%ILB
             IUW = WindowLimitsJI%IUB
 
             JLW = WindowLimitsJI%JLB
             JUW = WindowLimitsJI%JUB
-                                                  
+
         else ifMS
 
-            ILW = ILB 
+            ILW = ILB
             IUW = IUB
 
-            JLW = JLB 
-            JUW = JUB 
+            JLW = JLB
+            JUW = JUB
 
-        endif ifMS                
-            
+        endif ifMS
+
         !Reads from HDF file the Property concentration and open boundary values
         call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR50'
-        
+
         allocate(Aux2D(ILW:IUW, JLW:JUW))
-        
-        if(PropertyName == "Rugosity") then       
-        
+
+
            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
-                                GroupName      = "/Rugosity/"//"Rugosity",              &
-                                Name           = trim(PropertyName),                    &
-                                Array2D        = Aux2D,                                 &    
-                                STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR60'
-        else            
-           call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
-                                GroupName      = "/Mass/"//trim(PropertyName),          &
+                            GroupName      = "/"//trim(GroupName)//"/"//                &
+                                             trim(PropertyName),                        &
                                 Name           = trim(PropertyName),                    &
                                 Array2D        = Aux2D,                                 &
                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR70'
-        endif
-        
+            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR60'
+
+
         Scalar_2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
-        
+
         deallocate(Aux2D)
-        
+
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR70'
 
     end subroutine read_Old_Properties_2D
 
@@ -4194,12 +4286,12 @@ ifMS:   if (MasterOrSlave) then
         select case(ExtractType)
 
             case(FromBlock)
-                
+
                 call ExtractBlockFromBuffer (Me%ObjEnterData, LocalClientNumber,    &
                                              BeginBlock, EndBlock,                  &
                                              BlockFound, STAT = STAT_CALL)
             case(FromBlockInBlock)
-                
+
                 call ExtractBlockFromBlock (Me%ObjEnterData, ClientNumber,          &
                                             BeginBlock, EndBlock,                   &
                                             BlockFound, STAT = STAT_CALL)
@@ -4209,7 +4301,7 @@ ifMS:   if (MasterOrSlave) then
 
 
         if(present(ClientNumber)) LocalClientNumber = ClientNumber
-        
+
         if (BlockFound) then
 
             !Allocates Variables
@@ -4245,7 +4337,7 @@ ifMS:   if (MasterOrSlave) then
             end if
 
             if(ExtractType == FromBlock)then
-                call Block_Unlock(Me%ObjEnterData, LocalClientNumber, STAT = STAT_CALL) 
+                call Block_Unlock(Me%ObjEnterData, LocalClientNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR40'
             end if
 
@@ -4255,8 +4347,8 @@ ifMS:   if (MasterOrSlave) then
             stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR60'
 
         endif
-        
-        
+
+
         select case(ExtractType)
 
             case(FromBlock)
@@ -4265,7 +4357,7 @@ ifMS:   if (MasterOrSlave) then
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR70'
 
             case(FromBlockInBlock)
-                
+
                 call RewindBlock  (Me%ObjEnterData, LocalClientNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR80'
 
@@ -4275,15 +4367,15 @@ ifMS:   if (MasterOrSlave) then
 
 
     end subroutine Read_Property_2D
-    
-    
+
+
     !--------------------------------------------------------------------------
 
-    
-    subroutine SetSubModulesConstructor 
+
+    subroutine SetSubModulesConstructor
 
         !External--------------------------------------------------------------
-        integer                                         :: STAT_CALL 
+        integer                                         :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
 
@@ -4323,14 +4415,14 @@ ifMS:   if (MasterOrSlave) then
                                          STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR50'
-        
+
         call SetWaveShearStress(Me%ObjHydrodynamic,                                  &
                                WaveShearStress = Me%WaveShear_Stress%Yes, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR60'
-        
+
         call SetShearStressMethod (Me%ObjHydrodynamic,                                  &
-                               ShearStressMethod = Me%Shear_Stress%Method, STAT = STAT_CALL)            
+                               ShearStressMethod = Me%Shear_Stress%Method, STAT = STAT_CALL)
         if  (STAT_CALL .ne. SUCCESS_)&
             stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR70'
 
@@ -4346,8 +4438,8 @@ ifMS:   if (MasterOrSlave) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     !----------------------------------------------------------------------
-    
-    
+
+
     subroutine Search_Property(PropertyX, PropertyXID, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4356,29 +4448,29 @@ ifMS:   if (MasterOrSlave) then
         integer         , optional, intent (OUT)        :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_ 
-        
+        integer                                         :: STAT_
+
         !----------------------------------------------------------------------
 
         STAT_  = UNKNOWN_
 
         PropertyX => Me%FirstProperty
 
-        do while (associated(PropertyX)) 
+        do while (associated(PropertyX))
             if (PropertyX%ID%IDNumber==PropertyXID) then
-                exit        
+                exit
             else
-                PropertyX => PropertyX%Next                 
-            end if    
-        end do    
+                PropertyX => PropertyX%Next
+            end if
+        end do
 
        if (associated(PropertyX)) then
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
-            STAT_  = NOT_FOUND_ERR_  
-        end if 
+            STAT_  = NOT_FOUND_ERR_
+        end if
 
         if (present(STAT)) STAT = STAT_
 
@@ -4386,19 +4478,19 @@ ifMS:   if (MasterOrSlave) then
 
 
 
-    
+
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ReadLockExternalGlobal
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
-        
+
         !Now
-        call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)   
+        call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadLockExternalGlobal - ModuleInterfaceSedimentWater - ERR01'
 
@@ -4416,15 +4508,15 @@ ifMS:   if (MasterOrSlave) then
 
     end subroutine ReadLockExternalGlobal
 
-    
+
     !--------------------------------------------------------------------------
 
-    
+
     subroutine ReadLockExternalWater
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
 
         !WaterPoints2D
@@ -4434,7 +4526,7 @@ ifMS:   if (MasterOrSlave) then
         !OpenPoints2D
         call GetOpenPoints2D(Me%ObjWaterHorizontalMap, Me%ExtWater%OpenPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR02'
-        
+
         !WaterPoints3D
         call GetWaterPoints3D(Me%ObjWaterMap, Me%ExtWater%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR03'
@@ -4464,37 +4556,37 @@ ifMS:   if (MasterOrSlave) then
 
         call GetGeometryDistances (Me%ObjWaterGeometry, DWZ = Me%ExtWater%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR10'
-        
-       
+
+
         call GetChezy(HydrodynamicID = Me%ObjHydrodynamic,                  &
                       Chezy          = Me%ExtWater%Chezy,                   &
                       STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR12'
-        
+
         call GetHorizontalVelocity(HydrodynamicID = Me%ObjHydrodynamic,     &
                                    Velocity_U     = Me%ExtWater%Velocity_U, &
                                    Velocity_V     = Me%ExtWater%Velocity_V, &
                                    STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR13'
-        
-        call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)  
+
+        call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleWaterProperties - ERR14'
 
         call GetGeometryWaterColumn(Me%ObjWaterGeometry,                    &
                                     WaterColumn = Me%ExtWater%WaterColumn,  &
-                                    STAT = STAT_CALL)  
+                                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleWaterProperties - ERR15'
 
         call GetGeometryMinWaterColumn(Me%ObjWaterGeometry,                          &
                                        MinWaterColumn = Me%ExtWater%MinWaterColumn,  &
-                                       STAT = STAT_CALL)  
+                                       STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleWaterProperties - ERR15a'
 
         call GetGeometryKFloor(Me%ObjWaterGeometry, Z = Me%ExtWater%KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleWaterProperties - ERR16'
 
 #ifndef _WAVES_
-        if (Me%ObjWaves /=0) then        
+        if (Me%ObjWaves /=0) then
 
             call GetWaves (WavesID       = Me%ObjWaves,                                  &
                            WavePeriod    = Me%ExtWater%WavePeriod,                       &
@@ -4510,10 +4602,10 @@ ifMS:   if (MasterOrSlave) then
 #endif
 
         call GetResidualVelocityON(HydrodynamicID = Me%ObjHydrodynamic,                 &
-                                   ResidualON     = Me%ExtWater%ResidualON,             &     
+                                   ResidualON     = Me%ExtWater%ResidualON,             &
                                    STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR200'
-        
+
         if (Me%ExtWater%ResidualON) then
 
             call GetResidualHorizontalVelocity(HydrodynamicID     = Me%ObjHydrodynamic,             &
@@ -4523,17 +4615,17 @@ ifMS:   if (MasterOrSlave) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR210'
 
         endif
-        
+
     end subroutine ReadLockExternalWater
 
 
     !--------------------------------------------------------------------------
 #ifndef _SEDIMENT_
     subroutine ReadLockExternalSediment
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
 
         !WaterPoints2D
@@ -4567,16 +4659,16 @@ ifMS:   if (MasterOrSlave) then
         call GetGeometryDistances (Me%ObjSedimentGeometry, SZZ = Me%ExtSed%SZZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR07'
-        
+
         !DWZ
         call GetGeometryDistances (Me%ObjSedimentGeometry, DWZ = Me%ExtSed%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR08'
-        
+
         !Volumes
         call GetGeometryVolumes(Me%ObjSedimentGeometry,                             &
-                                VolumeZ     = Me%ExtSed%VolumeZ,                    & 
-                                VolumeZOld  = Me%ExtSed%VolumeZOld,                 & 
+                                VolumeZ     = Me%ExtSed%VolumeZ,                    &
+                                VolumeZOld  = Me%ExtSed%VolumeZOld,                 &
                                 STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR09'
@@ -4585,31 +4677,31 @@ ifMS:   if (MasterOrSlave) then
         call GetLandPoints3D(Me%ObjSedimentMap, Me%ExtSed%LandPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR10'
-        
+
         call GetGeometryKTop(Me%ObjSedimentGeometry,                                    &
                              KTopZ  = Me%ExtSed%KTop,                                   &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR15'
-        
+
         if(Me%RunsSediments)then
 
             !WaterFluxes
-            call GetConsolidationWaterFluxes(Me%ObjConsolidation,                       & 
+            call GetConsolidationWaterFluxes(Me%ObjConsolidation,                       &
                                              WaterFluxZ = Me%ExtSed%WaterFluxZ,         &
                                              STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR11'
 
             !TopCriticalShear
-            call GetConsolidationCriticalShear(Me%ObjConsolidation,                     & 
+            call GetConsolidationCriticalShear(Me%ObjConsolidation,                     &
                                                TopCriticalShear = Me%ExtSed%TopCriticalShear,&
                                                STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR12'
 
 
-            call GetConsolidationDrySedVolume(Me%ObjConsolidation,                          & 
+            call GetConsolidationDrySedVolume(Me%ObjConsolidation,                          &
                                               DrySedimentVolume = Me%ExtSed%DrySedVolume,   &
                                               STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
@@ -4622,42 +4714,42 @@ ifMS:   if (MasterOrSlave) then
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR14'
 
-            call GetConsolidationPorosity(Me%ObjConsolidation,                              & 
+            call GetConsolidationPorosity(Me%ObjConsolidation,                              &
                                           Porosity = Me%ExtSed%Porosity,                    &
                                           STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR16'
 
-            call GetSedimentColumnFull(Me%ObjConsolidation,                                 & 
+            call GetSedimentColumnFull(Me%ObjConsolidation,                                 &
                                        SedimentColumnFull = Me%ExtSed%SedimentColumnFull,   &
                                        STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR17'
         endif
-        
+
          if(Me%RunSedimentModule)then
-            
+
             !TopCriticalShear
-            call GetTopCriticalShear(Me%ObjSediment,                                         & 
+            call GetTopCriticalShear(Me%ObjSediment,                                         &
                                                TopCriticalShear = Me%ExtSed%TopCriticalShear,&
                                                STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                       &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR18'
 
-            
-            call GetCohesiveMass(Me%ObjSediment,                                            & 
+
+            call GetCohesiveMass(Me%ObjSediment,                                            &
                                           CohesiveMass = Me%ExtSed%CohesiveMass,            &
                                           STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR20'
-            
-            call GetCohesiveContent(Me%ObjSediment,                                         & 
+
+            call GetCohesiveContent(Me%ObjSediment,                                         &
                                           CohesiveClassRun = Me%ExtSed%CohesiveClassRun,    &
                                           CohesiveContent = Me%ExtSed%CohesiveContent,      &
                                           STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR30'
-            
+
         endif
 
     end subroutine ReadLockExternalSediment
@@ -4667,10 +4759,10 @@ ifMS:   if (MasterOrSlave) then
 
 
     subroutine ReadUnlockExternalGlobal
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%XX_IE, STAT = STAT_CALL)
@@ -4680,27 +4772,27 @@ ifMS:   if (MasterOrSlave) then
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%YY_IE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalGlobal - ModuleInterfaceSedimentWater - ERR03'
-        
+
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%GridCellArea, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalGlobal - ModuleInterfaceSedimentWater - ERR03'
-        
+
 
         call null_time(Me%ExternalVar%Now)
 
     end subroutine ReadUnlockExternalGlobal
 
-    
+
     !----------------------------------------------------------------------
 
 
     subroutine ReadUnlockExternalWater
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
-        
+
         call UnGetHorizontalMap(Me%ObjWaterHorizontalMap, Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR01'
 
@@ -4712,25 +4804,25 @@ ifMS:   if (MasterOrSlave) then
 
         call UnGetMap(Me%ObjWaterMap, Me%ExtWater%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR04'
-        
+
         call UnGetMap(Me%ObjWaterMap, Me%ExtWater%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR05'
 
         call UnGetMap(Me%ObjWaterMap, Me%ExtWater%LandPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR06'
 
-        call UnGetGeometry(Me%ObjWaterGeometry,Me%ExtWater%DWZ, STAT = STAT_CALL) 
+        call UnGetGeometry(Me%ObjWaterGeometry,Me%ExtWater%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR07'
-        
-        call UnGetGeometry(Me%ObjWaterGeometry,Me%ExtWater%SZZ, STAT = STAT_CALL) 
+
+        call UnGetGeometry(Me%ObjWaterGeometry,Me%ExtWater%SZZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR08'
 
-        call UnGetGeometry(Me%ObjWaterGeometry, Me%ExtWater%VolumeZ, STAT = STAT_CALL)            
+        call UnGetGeometry(Me%ObjWaterGeometry, Me%ExtWater%VolumeZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR09'
 
-        call UnGetGeometry(Me%ObjWaterGeometry, Me%ExtWater%VolumeZOld, STAT = STAT_CALL)            
+        call UnGetGeometry(Me%ObjWaterGeometry, Me%ExtWater%VolumeZOld, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR10'
-                               
+
         call UnGetHydrodynamic(Me%ObjHydrodynamic, Me%ExtWater%Chezy, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR12'
 
@@ -4748,7 +4840,7 @@ ifMS:   if (MasterOrSlave) then
 
         call UnGetGeometry(Me%ObjWaterGeometry, Me%ExtWater%KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR17'
-        
+
 
 #ifndef _WAVES_
         if (Me%ObjWaves /=0) then
@@ -4764,13 +4856,13 @@ ifMS:   if (MasterOrSlave) then
 
             call UnGetWaves(Me%ObjWaves, Me%ExtWater%Ubw, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR21'
-            
+
             call UnGetWaves(Me%ObjWaves, Me%ExtWater%WaveDirection, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR22'
 
         endif
 #endif
-        
+
         if (Me%ExtWater%ResidualON) then
 
             call UnGetHydrodynamic(Me%ObjHydrodynamic, Me%ExtWater%VelocityResidual_U, STAT = STAT_CALL)
@@ -4788,10 +4880,10 @@ ifMS:   if (MasterOrSlave) then
 
 #ifndef _SEDIMENT_
     subroutine ReadUnlockExternalSediment
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
 
         call UnGetHorizontalMap(Me%ObjSedimentHorizontalMap, Me%ExtSed%WaterPoints2D, STAT = STAT_CALL)
@@ -4805,7 +4897,7 @@ ifMS:   if (MasterOrSlave) then
         call UnGetMap(Me%ObjSedimentMap, Me%ExtSed%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR03'
-        
+
         call UnGetMap(Me%ObjSedimentMap, Me%ExtSed%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR04'
@@ -4814,30 +4906,30 @@ ifMS:   if (MasterOrSlave) then
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR05'
 
-        call UnGetGeometry(Me%ObjSedimentGeometry,Me%ExtSed%DWZ, STAT = STAT_CALL) 
+        call UnGetGeometry(Me%ObjSedimentGeometry,Me%ExtSed%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR06'
-        
-        call UnGetGeometry(Me%ObjSedimentGeometry,Me%ExtSed%SZZ, STAT = STAT_CALL) 
+
+        call UnGetGeometry(Me%ObjSedimentGeometry,Me%ExtSed%SZZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR07'
-        
-        call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExtSed%VolumeZ, STAT = STAT_CALL)            
+
+        call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExtSed%VolumeZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR15'
 
-        call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExtSed%VolumeZOld, STAT = STAT_CALL)            
+        call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExtSed%VolumeZOld, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR16'
 
         call UngetHorizontalMap (Me%ObjSedimentHorizontalMap, Me%ExtSed%BoundaryPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR17'
-        
+
         call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExtSed%KTop, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR20'  
-        
+            stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR20'
+
         if(Me%RunsSediments)then
 
             call UngetConsolidation(Me%ObjConsolidation, Me%ExtSed%WaterFluxZ, STAT = STAT_CALL)
@@ -4847,40 +4939,40 @@ ifMS:   if (MasterOrSlave) then
             call UngetConsolidation(Me%ObjConsolidation, Me%ExtSed%TopCriticalShear, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR14'
-                 
+
             call UngetConsolidation(Me%ObjConsolidation, Me%ExtSed%DrySedVolume, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR18'  
-         
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR18'
+
             call UngetSedimentProperties(Me%ObjConsolidation, Me%ExtSed%SedimentDryDensity, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR19'  
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR19'
 
             call UngetConsolidation(Me%ObjConsolidation, Me%ExtSed%Porosity, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR21'  
-                       
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR21'
+
             call UngetConsolidation(Me%ObjConsolidation, Me%ExtSed%SedimentColumnFull, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR22' 
-            
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR22'
+
         endif
-        
+
         if(Me%RunSedimentModule)then
-            
+
             call UngetSediment(Me%ObjSediment, Me%ExtSed%TopCriticalShear, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR23' 
-            
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR23'
+
             call UngetSediment(Me%ObjSediment, Me%ExtSed%CohesiveMass, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR24' 
-            
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR24'
+
             call UngetSediment(Me%ObjSediment, Me%ExtSed%CohesiveContent, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR25'             
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR25'
         endif
-            
+
 
     end subroutine ReadUnlockExternalSediment
 
@@ -4928,7 +5020,7 @@ ifMS:   if (MasterOrSlave) then
             call TimeStepActualization
 
             call ModifyShearStress
-            
+
             if(Me%Coupled%SedimentFluxes%Yes)       &
                 call ModifySedimentColumnFluxes
 
@@ -4940,13 +5032,13 @@ ifMS:   if (MasterOrSlave) then
 
             if(Me%Coupled%Benthos%Yes)              &
                 call Benthos_Processes
-                
+
             if(Me%Coupled%BenthicEcology%Yes)       &
-                call BenthicEcology_Processes  
-                                   
+                call BenthicEcology_Processes
+
             if(Me%Coupled%CEQUALW2%Yes)             &
                 call CEQUALW2_Processes
-            
+
             if(Me%Coupled%SedimentWaterFluxes%Yes)  &
                 call ModifySedimentWaterFluxes
 
@@ -4966,10 +5058,10 @@ ifMS:   if (MasterOrSlave) then
                 call OutputRestartFile
 
             call Actualize_Time_Evolution
-            
+
             if(Me%ComputeRugosity)                  &
                 call ModifyRugosity
-            
+
             if (Me%RunSedimentModule)               &
                 call ComputeEfficiencyFactor
 
@@ -4979,19 +5071,19 @@ ifMS:   if (MasterOrSlave) then
             call ReadUnlockExternalWater
 
             call ReadUnlockExternalGlobal
-            
+
             call SetSubModulesModifier
-            
+
             if (Me%RunSedimentModule) &
                 call ModifySedimentTransport
-                
+
             if (MonitorPerformance)                 &
                 call StopWatch ("ModuleInterfaceSedimentWater", "ModifyInterfaceSedimentWater")
 
 
 
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if
 
@@ -4999,9 +5091,9 @@ ifMS:   if (MasterOrSlave) then
 
     end subroutine ModifyInterfaceSedimentWater
 
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine TimeStepActualization
 
         !Local-----------------------------------------------------------------
@@ -5016,7 +5108,7 @@ ifMS:   if (MasterOrSlave) then
         call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'TimeStepActualization - ModuleInterfaceSedimentWater - ERR01'
-    
+
 cd1:    if (VariableDT) then
 
             call GetComputeTimeStep(Me%ObjTime, NewDT, STAT = STAT_CALL)
@@ -5039,10 +5131,10 @@ do1 :       do while (associated(Property))
 
 
     end subroutine TimeStepActualization
-   
+
     !------------------------------------------------------------------------
-        
-    
+
+
     subroutine ModifyShearStress
 
         !Local-----------------------------------------------------------------
@@ -5063,9 +5155,11 @@ do1 :       do while (associated(Property))
         !Begin-----------------------------------------------------------------
 
         !A if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
-                
+
 
         if (Me%Shear_Stress%LastCompute .LT. Me%ExternalVar%Now) then
+
+            Me%Shear_Stress%DT = Me%ExternalVar%Now - Me%Shear_Stress%LastCompute
 
             IUB = Me%WaterWorkSize3D%IUB
             JUB = Me%WaterWorkSize3D%JUB
@@ -5083,10 +5177,10 @@ do1 :       do while (associated(Property))
             LandPoints3D    => Me%ExtWater%LandPoints3D
             OpenPoints3D    => Me%ExtWater%OpenPoints3D
             KFloorZ         => Me%ExtWater%KFloor_Z
-            
+
             Me%Shear_Stress%Tension (:,:) = 0.
             Me%Shear_Stress%Velocity(:,:) = 0.
-            
+
             if (Me%Shear_Stress%Method==1) then
 
                 if (Me%WaveShear_Stress%Yes) then
@@ -5110,15 +5204,15 @@ do1 :       do while (associated(Property))
                 endif
 
                 CHUNK = CHUNK_J(JLB, JUB)
-                
+
                 !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
-                ! nos cantos com terra para evitar que estes se tornem em zonas 
-                ! de deposição acentuada
+                ! Se alisa cantos com terra. Aumenta artificialmente a tens?o de corte
+                ! nos cantos com terra para evitar que estes se tornem em zonas
+                ! de deposi??o acentuada
                 do j = JLB, JUB
                 do i = ILB, IUB
-                                            
+
                     if (Me%ExtWater%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
                         kbottom = KFloorZ(i, j)
@@ -5128,7 +5222,7 @@ do1 :       do while (associated(Property))
 
                             !VC = max(abs(Velocity_V(i+1,j,kbottom)),abs(Velocity_V(i,j,  kbottom)))
                             !UC = max(abs(Velocity_U(i,  j,kbottom)),abs(Velocity_U(i,j+1,kbottom)))
-                            
+
                             if (abs(Velocity_V(i+1,j,kbottom)) > abs(Velocity_V(i,j,  kbottom))) then
                                 VC = Velocity_V(i+1,j,kbottom)
                             else
@@ -5149,9 +5243,17 @@ do1 :       do while (associated(Property))
                         endif
 
                         UVC2 = UC*UC+VC*VC
-
+                        UVC  = sqrt(UVC2)
 
                         Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
+
+                        if (UVC > 0) then
+                            Me%Shear_Stress%Tension_X (i,j) = Me%Shear_Stress%Tension(i,j) * UC / UVC
+                            Me%Shear_Stress%Tension_Y (i,j) = Me%Shear_Stress%Tension(i,j) * VC / UVC
+                        else
+                            Me%Shear_Stress%Tension_X (i,j) = 0
+                            Me%Shear_Stress%Tension_Y (i,j) = 0
+                        endif
 
                         if (Me%RunSedimentModule.or.Me%RunsSandTransport) then
 
@@ -5162,15 +5264,15 @@ do1 :       do while (associated(Property))
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
 
                         endif
-                        
+
                         if (Me%RunsSandTransport) then
-                            if (Me%ExtWater%ResidualON) then        
-                            
+                            if (Me%ExtWater%ResidualON) then
+
                                 Me%Shear_Stress%CurrentResidualU(i, j) = (VelRes_U(i,  j,kbottom)+VelRes_U(i,j+1,kbottom))/2.
                                 Me%Shear_Stress%CurrentResidualV(i, j) = (VelRes_V(i+1,j,kbottom)+VelRes_V(i,j,  kbottom))/2.
-                                
+
                             else
-                            
+
                                 if (associated(Me%Shear_Stress%CurrentResidualU)) then
                                     deallocate(Me%Shear_Stress%CurrentResidualU)
                                     nullify   (Me%Shear_Stress%CurrentResidualU)
@@ -5181,7 +5283,7 @@ do1 :       do while (associated(Property))
                                     nullify   (Me%Shear_Stress%CurrentResidualV)
                                 endif
 
-                            endif                
+                            endif
                         endif
 
                         if (Me%WaveShear_Stress%Yes) then
@@ -5198,7 +5300,7 @@ do1 :       do while (associated(Property))
                                                                     Me%ExtWater%Ubw (i,j) * WaterDensity
                             !endif
 
-                            !Currents contribution 
+                            !Currents contribution
                             if (Me%RunsSandTransport) then
                                 Me%WaveShear_Stress%TensionCurrents(i, j) = Me%Shear_Stress%Tension (i,j)
                             endif
@@ -5216,10 +5318,10 @@ do1 :       do while (associated(Property))
 
                             endif
 
-                        endif 
+                        endif
 
-                        ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 = 
-                        Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension (i,j) / WaterDensity)   
+                        ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 =
+                        Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension (i,j) / WaterDensity)
 
                     endif
 
@@ -5231,40 +5333,40 @@ do1 :       do while (associated(Property))
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method1")
                 endif
-             
+
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            
+
             elseif (Me%Shear_Stress%Method==2) then !GFranz
 
                 if (MonitorPerformance) then
                     call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
                 endif
-                
-                if (Me%WaveShear_Stress%Yes) then                    
+
+                if (Me%WaveShear_Stress%Yes) then
                     Me%WaveShear_Stress%CWphi(:,:) = 0.
                 endif
 
 do1:            do j = JLB, JUB
-do2:            do i = ILB, IUB  
-                                                                
+do2:            do i = ILB, IUB
+
                     if (Me%ExtWater%OpenPoints3D(i, j,KUB) == OpenPoint) then
-                        
+
                         !TAUM is used for determining the friction governing the current
                         TAUM=0.
                         !TAUMAX is used to determine the threshold of sediment motion
                         TAUMAX=0.
-                    
+
                         kbottom = KFloorZ(i, j)
-                        
+
                         DWZ = Me%ExtWater%DWZ(i,j,kbottom)
-                    
+
                         VC = (Velocity_V(i+1,j,kbottom)+Velocity_V(i,j,  kbottom))/2.
                         UC = (Velocity_U(i,  j,kbottom)+Velocity_U(i,j+1,kbottom))/2.
 
                         UVC2 = UC*UC+VC*VC
 
-                        UVC = sqrt(UVC2) 
-                        
+                        UVC = sqrt(UVC2)
+
                         if (Me%RunSedimentModule.or.Me%RunsSandTransport) then
 
                             Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
@@ -5272,79 +5374,87 @@ do2:            do i = ILB, IUB
                             Me%Shear_Stress%CurrentV  (i, j) = VC
                             Me%Shear_Stress%UFace     (i, j) = Velocity_U(i,j,kbottom)
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
-                                
+
                         endif
-                        
+
                         Z0 = Me%Rugosity%Field(i,j)
-                        
+
                         if (Me%WaveShear_Stress%Yes) then
 
                             Ubw = Me%ExtWater%Ubw(i,j)
                             Abw = Me%ExtWater%Abw(i,j)
-                            
+
                             if (Ubw.gt.1e-3) then
-                            
+
                                 !Current angle in cartesian convention (angle between the vector and positive x-axis)
                                 Cphi = atan2(VC, UC) * 180./pi
                                 !(0, 360)
-                                If(Cphi < 0.) Cphi = Cphi + 360  
-                                Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle                        
-                                Wphi = Me%ExtWater%WaveDirection(i,j)                                    
+                                If(Cphi < 0.) Cphi = Cphi + 360
+                                Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle
+                                Wphi = Me%ExtWater%WaveDirection(i,j)
                                 !CWphi = Cphi - Wphi !Current-wave angle
                                 CWphi = Wphi - Cphi !Wave - Current angle
                                 Me%WaveShear_Stress%CWphi(i,j) = CWphi
-                            
+
                                 !Compute drag coefficient
-                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)        
-                        
-                                if(UVC < 1e-3)then !wave-only flow                                    
+                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)
+
+                                if(UVC < 1e-3)then !wave-only flow
                                     TAUM=0.
                                     TAUMAX=0.5*WaterDensity*FW*Ubw**2
-                                        
+
                                     Me%WaveShear_Stress%Tension(i,j) = TAUMAX
-                        
-                                else if(UVC.gt.1e-3)then !combined wave and current flow                                    
+
+                                else if(UVC.gt.1e-3)then !combined wave and current flow
                                     TAUM=WaterDensity*CDM*UVC**2
-                                    TAUMAX=WaterDensity*CDMAX*UVC**2    
+                                    TAUMAX=WaterDensity*CDMAX*UVC**2
 
                                     Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FW*Ubw**2
                                 endif
-                                
+
                                 Me%WaveShear_Stress%TensionMean(i,j) = TAUM
-                            else !Ubw==0.                               
-                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW)                        
+                            else !Ubw==0.
+                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW)
                                 TAUMAX=WaterDensity*CDMAX*UVC**2
-                            
+
                                 Me%WaveShear_Stress%TensionMean(i,j) = TAUMAX
-                                Me%WaveShear_Stress%Tension(i,j) = 0.                             
+                                Me%WaveShear_Stress%Tension(i,j) = 0.
                             endif
                         else
                             call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW)
-                        
+
                             TAUMAX=WaterDensity*CDMAX*UVC**2
                         endif
-                                                                       
+
                     Me%Shear_Stress%Tension(i,j) = TAUMAX
-                    
+
                     !Limit shear stress values in small depths
                     if(Me%Shear_Stress%Limitation) then
 
                         Me%Shear_Stress%Tension(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
                                                         Me%Shear_Stress%Tension(i,j))
-                        
+
                         if (Me%WaveShear_Stress%Yes) then
-                            
+
                            Me%WaveShear_Stress%Tension(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
                                                              Me%WaveShear_Stress%Tension(i,j))
-                           
+
                            Me%WaveShear_Stress%TensionMean(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
                                                                  Me%WaveShear_Stress%TensionMean(i,j))
-                            
-                        endif 
+
+                        endif
                     end if
- 
-                    Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension(i,j)/ WaterDensity) 
-                    
+
+                    Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension(i,j)/ WaterDensity)
+
+                    if (UVC > 0) then
+                        Me%Shear_Stress%Tension_X (i,j) = Me%Shear_Stress%Tension(i,j) * UC / UVC
+                        Me%Shear_Stress%Tension_Y (i,j) = Me%Shear_Stress%Tension(i,j) * VC / UVC
+                    else
+                        Me%Shear_Stress%Tension_X (i,j) = 0
+                        Me%Shear_Stress%Tension_Y (i,j) = 0
+                    endif
+
                 endif
 
                 enddo do2
@@ -5354,28 +5464,96 @@ do2:            do i = ILB, IUB
                     call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
                 endif
 
-            endif !Method==2          
+            endif !Method==2
 
             if (Me%Shear_Stress%Statistics%ON) then
 
                 call OutPut_Statistics (Me%Shear_Stress%Velocity, Me%Shear_Stress%Statistics%ID)
-                                        
+
             endif
 
-     
+            if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
+                call ComputeShearStressResidual
+            endif
+
             Me%Shear_Stress%LastCompute = Me%ExternalVar%Now
 
-        
+
         endif
 
         !A if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
 
-    
+
     end subroutine ModifyShearStress
-        
+
     !--------------------------------------------------------------------------
-    subroutine Compute_DragCoef (DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw) 
-     
+
+    subroutine ComputeShearStressResidual
+
+        !Local-----------------------------------------------------------------
+        real                                    :: DT_Old, DT_New
+        integer                                 :: IUB, JUB, ILB, JLB, KUB
+        integer                                 :: i, j
+        integer                                 :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+
+        IUB = Me%WaterWorkSize3D%IUB
+        JUB = Me%WaterWorkSize3D%JUB
+        ILB = Me%WaterWorkSize3D%ILB
+        JLB = Me%WaterWorkSize3D%JLB
+        KUB = Me%WaterWorkSize3D%KUB
+
+        DT_New   = Me%Shear_Stress%DT
+        DT_Old   = Me%Shear_Stress%Residual_Period
+
+
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "ComputeShearStressResidual")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        ! Se alisa cantos com terra. Aumenta artificialmente a tens?o de corte
+        ! nos cantos com terra para evitar que estes se tornem em zonas
+        ! de deposi??o acentuada
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExtWater%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                Me%Shear_Stress%Residual_Tau_X(i, j) = (DT_Old * Me%Shear_Stress%Residual_Tau_X(i,j) + &
+                                                        DT_New * Me%Shear_Stress%Tension_X(i,j)) / (DT_Old + DT_New)
+
+                Me%Shear_Stress%Residual_Tau_Y(i, j) = (DT_Old * Me%Shear_Stress%Residual_Tau_Y(i,j) + &
+                                                        DT_New * Me%Shear_Stress%Tension_Y(i,j)) / (DT_Old + DT_New)
+
+                Me%Shear_Stress%Residual_Tau  (i, j) = sqrt(Me%Shear_Stress%Residual_Tau_X(i, j)**2. +   &
+                                                            Me%Shear_Stress%Residual_Tau_Y(i, j)**2.)
+
+            endif
+
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "ComputeShearStressResidual")
+        endif
+
+        Me%Shear_Stress%Residual_Period = DT_Old + DT_New
+
+    end subroutine ComputeShearStressResidual
+
+    !--------------------------------------------------------------------------
+
+    subroutine Compute_DragCoef (DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)
+
         !Arguments-----------------------------------------------------------------
         real                                    :: DWZ, Z0, UVC
         real, intent(IN), optional              :: Ubw, Abw, CWphi
@@ -5383,39 +5561,39 @@ do2:            do i = ILB, IUB
         !Local---------------------------------------------------------------------
         real    ::  REC, REW, FWS, FWR, as, ar, T1, T2, T3, A1, A2
         real    ::  CDS, CDR, CDMS, CDMAXS, CDMR, CDMAXR
-         
+
         !Begin----------------------------------------------------------------
-        
+
         if (DWZ < Z0*Exp(1.001)) DWZ = Z0*Exp(1.001)
-    
+
         CDR = 0.
         if(Z0 > 0.) CDR=(0.40/(log(DWZ/Z0)-1.))**2
-                        
+
         REC=UVC*DWZ/WaterCinematicVisc
         CDS = 0.
         if(UVC > 1e-3) CDS=0.0001615*EXP(6.*REC**(-0.08))
-                        
+
         CDMAX = MAX(CDR,CDS)
         CDM = CDMAX
         FW = 0.
 
         if (present(Ubw)) then
-                            
-            if (Ubw.gt.1e-3)then 
-                        
-                    REW=Ubw*Abw/WaterCinematicVisc     
+
+            if (Ubw.gt.1e-3)then
+
+                    REW=Ubw*Abw/WaterCinematicVisc
                     FWS=0.0521*REW**(-0.187)
                     FWR=1.39*(Abw/Z0)**(-0.52)
-                    
+
                     FW=MAX(FWS,FWR)
-                        
+
                 if(UVC < 1e-3)then !wave-only flow
-                    
+
                     CDMAX=FW
                     CDM=0.
-                        
+
                 else if(UVC.gt.1e-3)then !combined wave and current flow
-                                    
+
                     !turbulent flow
                     !Rough-turbulent wave-plus-current shear-stress
                     ar=0.24
@@ -5429,7 +5607,7 @@ do2:            do i = ILB, IUB
                     CDMR=((A1**2+A2)**0.5-A1)**2
                     CDMAXR=((CDMR+T3*Ubw/UVC*(FWR/2)**0.5*abs(COS(CWphi*pi/180.)))**2+        &
                     (T3*Ubw/UVC*(FWR/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
-                                        
+
                     !Smooth-turbulent wave-plus-current shear-stress
                     as=0.24
                     T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UVC/Ubw)**4+(FWS/2)**2)**(1./4)
@@ -5441,26 +5619,26 @@ do2:            do i = ILB, IUB
                     if (A2<0) A2 = 0
                     CDMS=((A1**2+A2)**0.5-A1)**2
                     CDMAXS=((CDMS+T3*Ubw/UVC*(FWS/2)**0.5*abs(COS(CWphi*pi/180.)))**2+         &
-                    (T3*Ubw/UVC*(FWS/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5  
-                                    
+                    (T3*Ubw/UVC*(FWS/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
+
                     if(CDMAXR.gt.CDMAXS)then !flow is rough turbulent
                         CDMAX=CDMAXR
                         CDM=CDMR
-                                            
-                    else !flow is smooth turbulent                        
+
+                    else !flow is smooth turbulent
                         CDMAX=CDMAXS
                         CDM=CDMS
-                    endif 
+                    endif
                 endif
             endif
         endif
-                                
+
     end subroutine Compute_DragCoef
-    
-    !------------------------------------------------------------------------------                           
-    
+
+    !------------------------------------------------------------------------------
+
     subroutine ComputeEfficiencyFactor
-    
+
         !Local-----------------------------------------------------------------
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
         integer                                 :: i, j, KTOP
@@ -5470,95 +5648,95 @@ do2:            do i = ILB, IUB
         real                                    :: fc, fc1, ks
         integer                                 :: STAT_CALL
         !Begin-----------------------------------------------------------------
- 
+
         IUB = Me%WaterWorkSize3D%IUB
         JUB = Me%WaterWorkSize3D%JUB
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
         KUB = Me%WaterWorkSize3D%KUB
         KLB = Me%WaterWorkSize3D%KLB
-        
+
         Me%Shear_Stress%EfficiencyFactorCurrent(:,:) = 0.
-        
-        if (Me%WaveShear_Stress%Yes) then 
+
+        if (Me%WaveShear_Stress%Yes) then
             Me%Shear_Stress%EfficiencyFactorMean(:,:) = 0.
             Me%Shear_Stress%EfficiencyFactorWaves(:,:) = 0.
         endif
-        
+
         call GetGrainRoughness(Me%ObjSediment, GrainRoughness, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'ComputeEfficiencyFactor - ModuleInterfaceSedimentWater - ERR10'
-            
+
         if (Me%Shear_Stress%Method==2) then
-        
+
 do1:        do j = JLB, JUB
 do2:        do i = ILB, IUB
-    
+
                 if (Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
-    
-                    KTOP = Me%ExtSed%KTop(i, j)  
-                            
+
+                    KTOP = Me%ExtSed%KTop(i, j)
+
                     if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
-                
+
                         H  = Me%ExtWater%WaterColumn(i,j)
                         Z0_ = GrainRoughness(i,j)/30.
                         Z0 = Me%Rugosity%Field(i,j)
-                
+
                         !Average velocity
                         U = Me%Shear_Stress%Velocity(i,j)/0.4* &
                             (log(H/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/H)
-                                
-                        if (Me%WaveShear_Stress%Yes) then 
-                    
+
+                        if (Me%WaveShear_Stress%Yes) then
+
                             CWphi = Me%WaveShear_Stress%CWphi(i,j)
                             Ubw = Me%ExtWater%Ubw(i,j)
                             Abw = Me%ExtWater%Abw(i,j)
-                                            
-                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW, CWphi, Ubw, Abw)                                    
+
+                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW, CWphi, Ubw, Abw)
                             call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_, CWphi, Ubw, Abw)
-                    
+
                             if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
-                    
-                            if (Me%ExtWater%Ubw(i,j).gt.1e-3) then                        
+
+                            if (Me%ExtWater%Ubw(i,j).gt.1e-3) then
                                 if(CDM .gt. 0.) Me%Shear_Stress%EfficiencyFactorMean(i,j)    = MIN(CDM_/CDM, 1.0)
                                 if (FW .gt. 0.) Me%Shear_Stress%EfficiencyFactorWaves(i,j)   = MIN(FW_/FW, 1.0)
                             else
                                 Me%Shear_Stress%EfficiencyFactorMean(i,j) = Me%Shear_Stress%EfficiencyFactorCurrent(i,j)
                                 Me%Shear_Stress%EfficiencyFactorWaves(i,j) = 0.
                             endif
-                        else                    
-                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW)                    
+                        else
+                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW)
                             call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_)
-                    
+
                             if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
                         endif
-                    endif 
+                    endif
                 endif
             enddo do2
             enddo do1
-    
-            
+
+
         elseif (Me%Shear_Stress%Method==1) then
-            
+
 do3:        do j = JLB, JUB
 do4:        do i = ILB, IUB
-                
+
                 if (Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
-                    KTOP = Me%ExtSed%KTop(i, j)  
-                            
+                    KTOP = Me%ExtSed%KTop(i, j)
+
                     if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
-                                
+
                         ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
-                                
+
                         if(GrainRoughness(i,j) .ge. ks) then
-                                    
+
                             Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 1.
-                        else                                              
+                        else
                             H  = Me%ExtWater%WaterColumn(i,j)
-                        
+
                             fc = 0.24*(log10(12*H/ks))**(-2.)
                             fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**(-2.)
-                        
+
                             Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = fc1/fc
                         endif
                     else
@@ -5568,14 +5746,14 @@ do4:        do i = ILB, IUB
             enddo do4
             enddo do3
         endif
-    
+
         call UngetSediment(Me%ObjSediment, GrainRoughness, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'ComputeEfficiencyFactor - ModuleInterfaceSedimentWater - ERR20'
-            
+
     end subroutine ComputeEfficiencyFactor
     !--------------------------------------------------------------------------
-    
+
     !Based on van Rijn (2007a)
     subroutine ModifyRugosity
 
@@ -5587,15 +5765,15 @@ do4:        do i = ILB, IUB
         real                                    :: Psi, WaterDensity, U, Uwc2, Ubw
         real                                    :: sedimentdensity, relativedensity
         real(8)                                 :: dsilt, dsand, dgravel
-        real                                    :: Kscr, Kscmr, Kscd, Ksc, Ks, ffs, fcs 
+        real                                    :: Kscr, Kscmr, Kscd, Ksc, Ks, ffs, fcs
         real                                    :: Kscr_max, Kscmr_max, Kscd_max
         real                                    :: alfa, Td, ModelDT
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
         integer                                 :: i, j
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
-    
+
         IUB = Me%WaterWorkSize3D%IUB
         JUB = Me%WaterWorkSize3D%JUB
         ILB = Me%WaterWorkSize3D%ILB
@@ -5605,84 +5783,84 @@ do4:        do i = ILB, IUB
 
         WaterDensity    =  SigmaDensityReference
         Depth           => Me%ExtWater%WaterColumn
-        
+
         dsilt = 32e-6
         dsand = 62e-6
         dgravel = 0.002
-        
+
         sedimentdensity = 2650.
         relativedensity = sedimentdensity/WaterDensity
-        
+
         call GetD50(Me%ObjSediment, D50, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyRugosity - ModuleInterfaceSedimentWater - ERR10'
-        
+
         call GetGrainRoughness(Me%ObjSediment, GrainRoughness, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyRugosity - ModuleInterfaceSedimentWater - ERR20'
-        
+
         call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyRugosity - ModuleInterfaceSedimentWater - ERR25'
-        
+
 do1:    do j = JLB, JUB
-do2:    do i = ILB, IUB  
-                                                                
+do2:    do i = ILB, IUB
+
             if (Me%ExtWater%OpenPoints3D(i, j,KUB) == OpenPoint) then
-                
+
                 if (d50(i,j) > 0. ) then
-                    
+
                     !Average velocity
                     U = Me%Shear_Stress%Velocity(i,j)/0.4* &
                         (log(Depth(i,j)/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/Depth(i,j))
-                    
+
                     if (Me%WaveShear_Stress%Yes) then
                         Ubw = Me%ExtWater%Ubw(i,j)
                         Uwc2 = U**2 + Ubw**2
                     else
-                        Uwc2 = U**2 
+                        Uwc2 = U**2
                     endif
-                    
+
                     !Mobility parameter
                     Psi = Uwc2/((relativedensity-1)*gravity*d50(i,j))
-                
+
                     if(d50(i,j) < dsilt) then
                         Kscr = 20 * dsilt
                         Kscmr = 0.
                         Kscd = 0.
                     else
-                    
+
                         if(d50(i,j) .gt. 0.25*dgravel) then
                             fcs = (0.25*dgravel/d50(i,j))**1.5
                         else
                             fcs = 1.
                         endif
-                    
+
                         if(d50(i,j) .lt. 1.5*dsand) then
                             ffs = d50(i,j)/(1.5*dsand)
-                        else 
+                        else
                             ffs = 1.
                         endif
-                    
+
                         !Ripples
                         Kscr_max = 0.075
                         Kscr = fcs*d50(i,j)*(85-65*tanh(0.015*(Psi-150)))
                         Kscr = min(Kscr, Kscr_max)
-                    
+
                         !Mega-ripples
                         Kscmr_max = min(0.01*Depth(i,j), 0.2)
                         Kscmr = 2e-6*ffs*Depth(i,j)*(1-exp(-0.05*Psi))*(550-Psi)
-                        Kscmr = min(Kscmr, Kscmr_max) 
-                    
+                        Kscmr = min(Kscmr, Kscmr_max)
+
                         !Dunes
                         Kscd_max = min(0.04*Depth(i,j), 0.4)
                         Kscd = 8e-6*ffs*Depth(i,j)*(1-exp(-0.02*Psi))*(600-Psi)
                         Kscd = min(Kscd, Kscd_max)
                     endif
-                
-                    !Current-related bed rougnhness  
+
+                    !Current-related bed rougnhness
                     Ksc = (Kscr**2 + Kscmr**2 + Kscd**2)**0.5
-                
-                    !Bed rougnhness    
-                    Ks =  GrainRoughness(i,j) + Ksc 
-                
+
+                    !Bed rougnhness
+                    Ks =  GrainRoughness(i,j) + Ksc
+
                     !Decay time
                     Td = Me%RugosityDecayTime
                     !Relaxation factor
@@ -5691,16 +5869,16 @@ do2:    do i = ILB, IUB
                     Me%Rugosity%Field(i,j) = (1-alfa)*Ks/30. + alfa*Me%Rugosity%Field(i,j)
                 endif
             endif
-                
+
         enddo do2
         enddo do1
-        
+
          call UngetSediment(Me%ObjSediment, D50, STAT = STAT_CALL)
          if (STAT_CALL /= SUCCESS_) stop 'ModifyRugosity - ModuleInterfaceSedimentWater - ERR30'
-         
+
         call UngetSediment(Me%ObjSediment, GrainRoughness, STAT = STAT_CALL)
          if (STAT_CALL /= SUCCESS_) stop 'ModifyRugosity - ModuleInterfaceSedimentWater - ERR40'
-    
+
 
     end subroutine ModifyRugosity
     !--------------------------------------------------------------------------
@@ -5718,7 +5896,7 @@ do2:    do i = ILB, IUB
         real                          :: WaveHeight, WaterColumn, WavePeriod, LimitMin
         integer                       :: STAT_CALL
         integer                       :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
 
@@ -5726,17 +5904,17 @@ do2:    do i = ILB, IUB
 
             call GetSandDiameters(ObjSandID = Me%ObjSand,                                &
                                   D50       = D50Field2D,                                &
-                                  D90       = D90Field2D,                                & 
+                                  D90       = D90Field2D,                                &
                                   STAT      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveRugosity - ModuleInterfaceSedimentWater - ERR02'
 
             call GetSandDensity (ObjSandID   = Me%ObjSand,                               &
-                                 SandDensity = SedimentDryDensity,                       & 
+                                 SandDensity = SedimentDryDensity,                       &
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveRugosity - ModuleInterfaceSedimentWater - ERR03'
 
         else
-               
+
             D50                 = 2E-3
             D90                 = 3E-3
             SedimentDryDensity  = 2300.
@@ -5761,7 +5939,7 @@ do2:    do i = ILB, IUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                                    
+
 cd0:        if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
                 WavePeriod      = Me%ExtWater%WavePeriod(i,j)
@@ -5771,9 +5949,9 @@ cd0:        if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                 WaterColumn     = Me%ExtWater%WaterColumn(i,j)
 
                 WaterDensity    = SigmaDensityReference
-        
+
 cd1:            if (WavePeriod .ne. 0. .or. WaveHeight .ne. 0.) then
-        
+
                     if (Me%RunsSandTransport) then
 
                         D50 = D50Field2D(i, j)
@@ -5781,67 +5959,67 @@ cd1:            if (WavePeriod .ne. 0. .or. WaveHeight .ne. 0.) then
 
                     endif
 
-       
+
                     RelativeDensity     = (SedimentDryDensity - WaterDensity) / &
                                            WaterDensity
-        
+
 cd6:                if(WaveHeight.LT.0.10)then
-        
+
                         Me%WaveShear_Stress%Rugosity%Field(i,j) = 3. * D90
-        
+
                     else cd6
-        
+
 ! ---> Computes Ripple Height and Lenght (Eq. 6.3.7 and 6.3.8 VanRijn)
-        
+
                         Psi = Ubw**2./(RelativeDensity*Gravity*D50)
 
                         LimitMin = 1e-6
-        
+
 cd4:                    if(Psi .LT. LimitMin**2)then
 
-                            Klsw            = 3.  * D90 
+                            Klsw            = 3.  * D90
                             Kllsw           = 0.
 
                         elseif(Psi.LE.10 .and. Psi .GT. LimitMin**2)then
-        
+
                             RippleHeight    = Abw * 0.2
                             RippleLength    = RippleHeight / 0.18
-                            Klsw            = 3.  * D90 
+                            Klsw            = 3.  * D90
                             Kllsw           = 16. * RippleHeight * (RippleHeight / RippleLength)
-        
+
                         elseif (Psi .GT. 10. .AND. Psi .LE. 250.)then cd4
-        
+
                             RippleHeight    = Abw * 2.8E-13 * (250   - Psi)**5.
                             RippleLength    = RippleHeight  / (2.E-7 * (250 - Psi)**2.5)
                             Klsw            = 3.  * D90
                             Kllsw           = 16. * RippleHeight * (RippleHeight / RippleLength)
-        
+
                         else cd4
-        
+
                             RippleHeight    = 0.
                             RippleLength    = 0.
-                            Klsw            = 3.  * (0.04 * Psi - 9.) * D90 
+                            Klsw            = 3.  * (0.04 * Psi - 9.) * D90
                             Kllsw           = 0.
-        
+
                         end if cd4
-        
+
 ! ---> Computes Wave Related bed BedRoughnesshness
-        
+
                         Roughness                         = Klsw+Kllsw
                         Me%WaveShear_Stress%Rugosity%Field(i,j) = Roughness
                         !Me%WaveShear_Stress%Rugosity%Field(i,j) = min(Roughness, 0.1)
-        
+
                     end if  cd6  ! WaveHeight>0
 
                 endif cd1
 
             endif cd0
-        
+
 
         enddo
         enddo
         !$OMP END DO
-        !$OMP END PARALLEL        
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleInterfaceSedimentWater", "ComputeWaveRugosity")
@@ -5874,7 +6052,7 @@ cd4:                    if(Psi .LT. LimitMin**2)then
         integer                       :: IUB, JUB, ILB, JLB, i, j
         real                          :: WaveHeight, WavePeriod, LimitMin
         integer                       :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ComputeWaveTension")
@@ -5891,7 +6069,7 @@ cd4:                    if(Psi .LT. LimitMin**2)then
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                                    
+
 cd0:        if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
                 WavePeriod      = Me%ExtWater%WavePeriod(i,j)
@@ -5900,34 +6078,34 @@ cd0:        if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                 Ubw             = Me%ExtWater%Ubw(i,j)
 
                 WaterDensity    = SigmaDensityReference
-        
+
 cd1:            if (WavePeriod .ne. 0. .or. WaveHeight .ne. 0.) then
-        
-! ---> Finally WaveShearStress           
-        
+
+! ---> Finally WaveShearStress
+
                     LimitMin = 1.e-6
 
                     C1       = -0.194
-        
+
 cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         Fw = exp(-5.977 + 5.213 * (Abw / Me%WaveShear_Stress%Rugosity%Field(i,j))**C1)
-    
+
                         if (Fw.GT.0.3) Fw = 0.3
-    
+
                     else cd7
-    
+
                         Fw = 0.
-    
+
                     end if cd7
 
                     Me%WaveShear_Stress%ChezyVel  (i,j)    = 0.25 * Fw * Ubw
 
-    
+
                 else cd1
 
                     Me%WaveShear_Stress%ChezyVel  (i,j)    = 0.
-    
+
                 endif cd1
 
 
@@ -5946,53 +6124,53 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
     subroutine ModifyWaterColumnFluxes
-    
+
         !Local-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
        !Begin-----------------------------------------------------------------
-    
+
         PropertyX => Me%FirstProperty
 
         do while(associated(PropertyX))
-            
+
             if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
-        
+
                 !if (Me%Coupled%BenthicEcology%Yes)then
                 if (PropertyX%Evolution%BenthicEcology)then
                     call InitializeFluxesToWaterColumn_Benthic(PropertyX)
                 else
                     call InitializeFluxesToWaterColumn(PropertyX)
                 endif
-        
+
                 !if(Me%Coupled%Erosion%Yes)then
-                if(PropertyX%Evolution%Erosion)then    
-            
+                if(PropertyX%Evolution%Erosion)then
+
                     if(.not.PropertyX%Non_Cohesive) then
                        !Proportional factor between property mass and cohesive sediment mass
                         call ModifyErosionCoefficient(PropertyX)
 
-                        call ModifyErosionFluxes(PropertyX)                                   
-                    else           
+                        call ModifyErosionFluxes(PropertyX)
+                    else
                         call ModifyNonCohesiveErosionFluxes(PropertyX)
                     endif
                 end if
 
                 !if(Me%Coupled%Deposition%Yes)then
-                if(PropertyX%Evolution%Deposition)then 
-                
+                if(PropertyX%Evolution%Deposition)then
+
                     if(.not.PropertyX%Non_Cohesive) then
-                        call ModifyDepositionFluxes(PropertyX)       
-                    else           
+                        call ModifyDepositionFluxes(PropertyX)
+                    else
                         call ModifyNonCohesiveDepositionFluxes(PropertyX)
                     endif
                 endif
-                
+
                 if(PropertyX%Evolution%WaterFluxes .and. (.not. PropertyX%ID%IsParticulate))then
 
                     call ModifyDissolvedFluxes(PropertyX)
                 endif
-        
+
             end if
 
             PropertyX => PropertyX%Next
@@ -6002,14 +6180,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     end subroutine ModifyWaterColumnFluxes
 
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ModifySedimentColumnFluxes
 
 #ifndef _SEDIMENT_
 
         call InitializeFluxesToSediment
-        
+
         if(Me%Consolidation%Yes)then
 
             call ComputeConsolidation
@@ -6020,51 +6198,51 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
     end subroutine ModifySedimentColumnFluxes
 
-    
+
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ModifySedimentWaterFluxes
-    
+
         !Local-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
        !Begin-----------------------------------------------------------------
-    
+
 
 #ifndef _SEDIMENT_
 
         PropertyX => Me%FirstProperty
 
         do while(associated(PropertyX))
-            
+
             if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
-                
+
                 if(PropertyX%Evolution%SedimentWaterFluxes .and.    &
                     .not. PropertyX%Non_Cohesive) then
-                    
+
                     if(PropertyX%ID%IsParticulate)then
                         call ParticulateSedimentWaterFluxes(PropertyX)
-                        
+
                     else
                         call DissolvedSedimentWaterFluxes(PropertyX)
                     endif
                 endif
-                
+
             end if
 
             PropertyX => PropertyX%Next
 
         end do
-        
+
         if(Me%Consolidation%Yes)then
 
             call ModifyConsolidatedErosionFluxes
-            
+
             if(Me%RunsSediments)then
 
                 call ComputeWaterFlux
-                
+
             endif
 
         end if
@@ -6077,10 +6255,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     !--------------------------------------------------------------------------
 
     subroutine InitializeFluxesToWaterColumn(PropertyX)
-    
+
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
 
@@ -6090,7 +6268,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
-        integer                                 :: CHUNK 
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -6145,7 +6323,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do i = ILB, IUB
                     do j = JLB, JUB
-                
+
                         if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
                             PropertyX%FluxToWater(i,j) = 0.
                         end if
@@ -6160,16 +6338,16 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
                 endif
-    
+
     end subroutine InitializeFluxesToWaterColumn
 
     !--------------------------------------------------------------------------
 
     subroutine InitializeFluxesToWaterColumn_Benthic(PropertyX)
-    
+
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
 
@@ -6179,7 +6357,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
-        integer                                 :: CHUNK 
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -6215,10 +6393,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     PropertyX%WaterConcentration(i,j) = WaterPropertyConcentration(i,j,kbottom) * &
                                                         WaterPropertyISCoef
-                                                                
-                            
+
+
                     PropertyX%Mass_FromWater(i,j) =  PropertyX%WaterConcentration(i,j) * &
-                                                            Me%ExtWater%VolumeZ(i,j,kbottom) 
+                                                            Me%ExtWater%VolumeZ(i,j,kbottom)
 
                 end if
 
@@ -6229,7 +6407,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
             call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
-                stop 'InitializeFluxesToWaterColumn_Benthic - ModuleInterfaceSedimentWater - ERR02'                
+                stop 'InitializeFluxesToWaterColumn_Benthic - ModuleInterfaceSedimentWater - ERR02'
         end if
 
         if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
@@ -6239,10 +6417,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do i = ILB, IUB
             do j = JLB, JUB
-                
+
                 if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
                     PropertyX%FluxToWater(i,j) = 0.
-                end if                
+                end if
             enddo
             enddo
             !$OMP END DO
@@ -6252,13 +6430,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         if (MonitorPerformance) then
             call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn_Benthic")
         endif
-    
+
     end subroutine InitializeFluxesToWaterColumn_Benthic
 
     !--------------------------------------------------------------------------
 
     subroutine InitializeFluxesToSediment
-        
+
 #ifndef _SEDIMENT_
 
         !External--------------------------------------------------------------
@@ -6287,7 +6465,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
                 if(PropertyX%Evolution%SedimentFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
-                    
+
                     if(Me%RunsSediments)then
 
                         call GetSedimentConcentration(SedimentPropertiesID = Me%ObjSedimentProperties,  &
@@ -6305,10 +6483,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         CHUNK = CHUNK_J(JLB, JUB)
                         !$OMP PARALLEL PRIVATE(i,j,KUB)
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
-            
+
                             if(Me%ExtSed%WaterPoints2D(i,j) == WaterPoint)then
 
                                 KUB = Me%ExtSed%KTop(i,j)
@@ -6328,14 +6506,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 stop 'InitializeFluxesToSediment - ModuleInterfaceSedimentWater - ERR02'
                         !$OMP END MASTER
                         !$OMP END PARALLEL
-                        
+
                     endif
 
                     !$OMP PARALLEL PRIVATE(i,j)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
-                
+
                         if(Me%ExtSed%WaterPoints2D(i,j) == WaterPoint)then
 
                             PropertyX%FluxToSediment(i,j) = 0.
@@ -6346,11 +6524,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     enddo
                     !$OMP END DO
                     !$OMP END PARALLEL
-                    
+
                     if (MonitorPerformance) then
                         call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToSediment")
                     endif
-                    
+
                 end if
 
             end if
@@ -6360,14 +6538,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         end do
 
 #endif
-    
+
     end subroutine InitializeFluxesToSediment
 
 
     !--------------------------------------------------------------------------
 
     subroutine ModifyErosionCoefficient(PropertyX)
-    
+
         !Argument-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
@@ -6385,14 +6563,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
 
-        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ModifyErosionCoefficient - ModuleInterfaceSedimentWater - ERR01'
-                    
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
-        endif
-                    
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModifyErosionCoefficient - ModuleInterfaceSedimentWater - ERR01'
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j)
         if(PropertyX%Mass_Limitation)then
@@ -6438,20 +6613,18 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         end if
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
 
         nullify(CohesiveSediment)
-    
+
     end subroutine ModifyErosionCoefficient
 
-    
+
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ModifyErosionFluxes(PropertyX)
-    
+
         !Argument-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
@@ -6461,15 +6634,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real                                    :: PotentialNewMass, ReallyErodedMass
 
         !Begin-----------------------------------------------------------------
-        
+
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyErosionFluxes")
 
-                    
         !$OMP PARALLEL PRIVATE(i,j,ShearStress,PotentialNewMass, ReallyErodedMass)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WaterWorkSize3D%JLB, Me%WaterWorkSize3D%JUB
         do i = Me%WaterWorkSize3D%ILB, Me%WaterWorkSize3D%IUB
-                    
+
             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
 
                 !Limit shear stress values in small depths
@@ -6485,7 +6657,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if(PropertyX%Mass_Limitation)then
 
-    
+
                     ![kg/m2s]
                     PropertyX%ErosionFlux(i,j) =                                                 &
                         ErosionFlux(CriticalShearErosion = Me%Critical_Shear_Erosion%Field(i,j), &
@@ -6499,13 +6671,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     PotentialNewMass                     = PropertyX%Mass_Available(i,j)       - &
                                                             PropertyX%ErosionFlux(i,j)          * &
                                                             PropertyX%Evolution%DTInterval
-                                
+
                     !if erosion flux will erode more than it exists
                     if(PotentialNewMass <= PropertyX%Mass_Min)then
-                                    
+
                         !erosion will happen until mass minimum
                         ReallyErodedMass                = PropertyX%Mass_Available(i,j) - PropertyX%Mass_Min
-                                    
+
                         !Re-compute real erosion flux
                         PropertyX%ErosionFlux(i,j)      = ReallyErodedMass / PropertyX%Evolution%DTInterval
 
@@ -6537,7 +6709,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !$OMP END DO
         !$OMP END PARALLEL
 
-            
+
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionFluxes")
 
     end subroutine ModifyErosionFluxes
@@ -6546,8 +6718,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     !--------------------------------------------------------------------------
 
     real function ErosionFlux (CriticalShearErosion, ShearStress, ErosionRate, &
-                               Mass_Available, MinimumMass) 
-        
+                               Mass_Available, MinimumMass)
+
         !Arguments-------------------------------------------------------------
         real, intent(IN)                        :: CriticalShearErosion
         real, intent(IN)                        :: ShearStress
@@ -6559,13 +6731,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
         if (present(Mass_Available).and.present(MinimumMass)) then
-            
+
             if (ShearStress >= CriticalShearErosion .and. Mass_Available > MinimumMass)then
-                
+
                 ErosionFlux = ErosionRate * (ShearStress / CriticalShearErosion - 1.)
-            
+
             else
-                
+
                 ErosionFlux = 0.
             endif
 
@@ -6592,7 +6764,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !Arguments-------------------------------------------------------------
         real, intent(IN)                        :: WaterColumn
         real, intent(IN)                        :: ComputedShearStress
-        
+
         !Local-----------------------------------------------------------------
         real                                    :: ReferenceDepth
         real                                    :: ReferenceShearStress
@@ -6607,7 +6779,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             ShearStressLimitation = min(ComputedShearStress, ReferenceShearStress)
         else
             ShearStressLimitation = ComputedShearStress
-        
+
         end if
 
     end function ShearStressLimitation
@@ -6626,7 +6798,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
+
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyConsolidatedErosionFluxes")
 
 
@@ -6635,9 +6807,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
 
-        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
-        if (STAT_CALL .NE. SUCCESS_)  &
-            stop 'ModifyConsolidatedErosionCoef - ModuleInterfaceSedimentWater - ERR01'
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModifyConsolidatedErosionCoef - ModuleInterfaceSedimentWater - ERR01'
 
         if(CohesiveSediment%Evolution%Erosion)then
 
@@ -6655,48 +6826,48 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         KUB = Me%ExtSed%KTop(i, j)
 
                         !if(CohesiveSediment%Mass_Available(i,j) .le. CohesiveSediment%Mass_Min)then
-                            
+
                             if(Me%RunSedimentModule)then
-                                
+
                                 MaximumFlux = Me%ExtSed%CohesiveMass(i,j,KUB)/Me%ExternalVar%GridCellArea(i,j)/  &
                                               CohesiveSediment%Evolution%DTInterval
                             else
 
                                 MaxErosionDepth = Me%ExtSed%DWZ(i,j,KUB) - Me%ExtSed%MinLayerThickness
 
-                                !kgsed/m2s = msed * m3sed / m3 / s * kgsed / m3sed 
+                                !kgsed/m2s = msed * m3sed / m3 / s * kgsed / m3sed
                                 MaximumFlux = MaxErosionDepth * (1.-Me%ExtSed%Porosity(i, j, KUB))/ &
                                               CohesiveSediment%Evolution%DTInterval               * &
                                               Me%ExtSed%SedimentDryDensity(i, j, KUB)
                             endif
-                            
+
                             if(MaximumFlux .lt. 0.)then
                                 !$OMP CRITICAL (MCEF1_ERR02)
                                 write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KUB = ', KUB
                                 stop 'ModifyConsolidatedErosionFluxes - ModuleInterfaceSedimentWater - ERR02'
                                 !MaximumFlux = 0.
                                 !$OMP END CRITICAL (MCEF1_ERR02)
-                            end if       
+                            end if
 
                             if(Me%ExtSed%TopCriticalShear(i, j) < Me%Shear_Stress%Tension(i,j) .and.        &
                                 Me%ExtSed%CohesiveMass(i,j,KUB) > 0.)then
 
                                 !$OMP CRITICAL (MCEF2_FNC01)
                                 !kgsed/m2s
-                                
+
                                 CohesiveSediment%ErosionFlux(i,j) =                                         &
                                 ErosionFlux(CriticalShearErosion = Me%ExtSed%TopCriticalShear(i, j),        &
                                             ShearStress          = Me%Shear_Stress%Tension(i,j),            &
                                             ErosionRate          = Me%ErosionRate%Field(i,j))
                                 !$OMP END CRITICAL (MCEF2_FNC01)
-                                            
+
                                 if(CohesiveSediment%ErosionFlux(i,j) .gt. MaximumFlux)then
 
                                     CohesiveSediment%ErosionFlux(i,j) = MaximumFlux
 
                                 end if
-                                
-                                if(Me%RunSedimentModule)then                                
+
+                                if(Me%RunSedimentModule)then
                                     CohesiveSediment%ErosionFlux(i,j) = CohesiveSediment%ErosionFlux(i,j) * &
                                         Me%ExtSed%CohesiveContent(i,j,KUB)
                                 endif
@@ -6714,7 +6885,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                                                 CohesiveSediment%ErosionFlux(i,j)
 
                         !endif
-                        
+
                     end if
 
                 enddo
@@ -6732,16 +6903,16 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyConsolidatedErosionFluxes")
 
-#endif   
+#endif
     end subroutine ModifyConsolidatedErosionFluxes
 
     !--------------------------------------------------------------------------
 
     subroutine ModifyDepositionFluxes(PropertyX)
-    
+
         !External--------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
 
@@ -6755,13 +6926,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        !A if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
 
-        IUB = Me%WaterWorkSize3D%IUB
-        JUB = Me%WaterWorkSize3D%JUB
-        ILB = Me%WaterWorkSize3D%ILB
-        JLB = Me%WaterWorkSize3D%JLB
-        KUB = Me%WaterWorkSize3D%KUB
+        IUB = Me%WaterWorkSize3D%IUB; JUB = Me%WaterWorkSize3D%JUB; KUB = Me%WaterWorkSize3D%KUB
+        ILB = Me%WaterWorkSize3D%ILB; JLB = Me%WaterWorkSize3D%JLB
 
         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
                                 ConcentrationX    = WaterPropertyConcentration,       &
@@ -6769,20 +6936,17 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 PropertyXUnits    = WaterPropertyUnits,               &
                                 PropertyXISCoef   = WaterPropertyISCoef,              &
                                 STAT              = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR01'
-                
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR01'
+
         call Get_FreeConvFlux(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,  &
                                 PropertyID             = PropertyX%ID%IDNumber,       &
-                                FreeConvFlux           = FreeConvFlux,                & 
+                                FreeConvFlux           = FreeConvFlux,                &
                                 STAT                   = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR02'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR02'
 
-                   
         do j = JLB, JUB
         do i = ILB, IUB
-                    
+
             if(Me%WaterPointsorOpenPoints2D(i,j) == WaterPoint)then
 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
@@ -6790,10 +6954,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 Me%DepositionProbability(i,j) =                                       &
                     DepositionProbability(Me%Critical_Shear_Deposition%Field(i,j),     &
                                             Me%Shear_Stress%Tension(i,j))
-                        
+
                 !   kg          kg        1
-                !--------- = ------- * ------- 
-                ! m2 * s        s         m2 
+                !--------- = ------- * -------
+                ! m2 * s        s         m2
                 PropertyX%DepositionFlux(i,j) = -1. * FreeConvFlux(i,j,kbottom)     * &
                                                 WaterPropertyISCoef                 / &
                                                 Me%ExternalVar%GridCellArea(i,j)
@@ -6805,16 +6969,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         if(PropertyX%Mass_Limitation)then
 
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
-            endif
+            if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
 
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-                    
+
                 if(Me%WaterPointsorOpenPoints2D(i,j) == OpenPoint)then
 
                     PropertyX%Mass_Available(i,j) = PropertyX%Mass_Available(i,j)       + &
@@ -6828,25 +6990,20 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             !$OMP END DO
             !$OMP END PARALLEL
 
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
-            endif
+            if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
 
         end if
 
         call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR03'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR03'
 
         call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR04'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR04'
 
     end subroutine ModifyDepositionFluxes
 
-    
     !--------------------------------------------------------------------------
-    
+
 
     real function DepositionProbability (CriticalShearDeposition, ShearStress)
 
@@ -6857,28 +7014,22 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !Begin-----------------------------------------------------------------
 
         if (ShearStress <= CriticalShearDeposition .and. ShearStress >= 0.)then
-            
-            DepositionProbability = 1. - ShearStress / CriticalShearDeposition
-                             
 
-        elseif (ShearStress < 0.) then 
-            
+            DepositionProbability = 1. - ShearStress / CriticalShearDeposition
+
+        elseif (ShearStress < 0.) then
             stop 'DepositionProbability - ModuleInterfaceSedimentWater - ERR01'
-        
         else
-            
             DepositionProbability = 0.
-        
         endif
 
     end function DepositionProbability
 
-    
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ModifyDissolvedFluxes(PropertyX)
-    
+
         !Argument--------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
@@ -6890,18 +7041,15 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDissolvedFluxes")
 
-        IUB = Me%WaterWorkSize3D%IUB
-        JUB = Me%WaterWorkSize3D%JUB
-        ILB = Me%WaterWorkSize3D%ILB
-        JLB = Me%WaterWorkSize3D%JLB
-        KUB = Me%WaterWorkSize3D%KUB
-                  
+        IUB = Me%WaterWorkSize3D%IUB;  JUB = Me%WaterWorkSize3D%JUB;  KUB = Me%WaterWorkSize3D%KUB
+        ILB = Me%WaterWorkSize3D%ILB;  JLB = Me%WaterWorkSize3D%JLB
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                    
+
             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
@@ -6921,7 +7069,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     end subroutine ModifyDissolvedFluxes
 
     !--------------------------------------------------------------------------
-    
+
     subroutine ComputeWaterFlux
 
 #ifndef _SEDIMENT_
@@ -6932,14 +7080,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
+
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ComputeWaterFlux")
 
-        IUB = Me%WorkSize2D%IUB
-        JUB = Me%WorkSize2D%JUB
-        ILB = Me%WorkSize2D%ILB
-        JLB = Me%WorkSize2D%JLB
-        
+        IUB = Me%WorkSize2D%IUB;  JUB = Me%WorkSize2D%JUB
+        ILB = Me%WorkSize2D%ILB;  JLB = Me%WorkSize2D%JLB
+
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,KUB)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -6972,8 +7118,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine ComputeConsolidation
 
 #ifndef _SEDIMENT_
@@ -6987,15 +7133,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real                                    :: Max_Flux
 
         !Begin-----------------------------------------------------------------
-        
-        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ComputeConsolidation")
-        
-        ILB = Me%WorkSize2D%ILB
-        IUB = Me%WorkSize2D%IUB
-        JLB = Me%WorkSize2D%JLB
-        JUB = Me%WorkSize2D%JUB
 
-        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ComputeConsolidation")
+
+        ILB = Me%WorkSize2D%ILB;  JLB = Me%WorkSize2D%JLB
+        IUB = Me%WorkSize2D%IUB;  JUB = Me%WorkSize2D%JUB
+
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'ComputeConsolidation - ModuleInterfaceSedimentWater - ERR10'
 
         CHUNK = CHUNK_J(JLB, JUB)
@@ -7010,16 +7154,16 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-              
+
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ComputeConsolidation")
-                
+
         !T !$OMP PARALLEL PRIVATE(i,j,Initial_Mass_Available)
         !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
 
             if (Me%ExtWater%WaterPoints2D(i,j) .eq. WaterPoint) then
-                
+
                 if(Me%Shear_Stress%Tension(i,j)                     &
                         < Me%Critical_Shear_Deposition%Field(i,j).and.  &
                         CohesiveSediment%Mass_Available(i,j)            &
@@ -7027,15 +7171,15 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     !Consolidation is solved implicitly to avoid instability
                     Initial_Mass_Available = CohesiveSediment%Mass_Available(i,j)
-                        
+
                     if(Me%RunSedimentModule) then
-                    !When running the module sediment, it's considered that the cohesive sediment 
+                    !When running the module sediment, it's considered that the cohesive sediment
                     !present in the interface sediment-water is fluid mud (concentration below the gel point) -
-                    !a matrix structure is not formed yet and self-weight consolidation is not possible.   
+                    !a matrix structure is not formed yet and self-weight consolidation is not possible.
                     !A constant dewatering rate is considered to transfer cohesive sediment from the fluid mud
-                    !(interface) to the active layer, considering the concentration in the hindered settling regime. 
+                    !(interface) to the active layer, considering the concentration in the hindered settling regime.
                     !This flux should be called Dewatering_Flux, however to maintain the code structure it's called Consolidation_Flux.
-                        
+
                         if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
                             Me%DepositionProbability(i,j) =                                    &
                                 DepositionProbability(Me%Critical_Shear_Deposition%Field(i,j), &
@@ -7043,22 +7187,22 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         else
                             Me%DepositionProbability(i,j) = 1.
                         endif
-                            
+
                         !kg/m2/s
                         Me%Consolidation%Flux(i,j) = Me%Dewatering_Rate *    &
                                                      Me%DepositionProbability(i,j)
-                            
+
                         Max_Flux = (Initial_Mass_Available - CohesiveSediment%Mass_Min) /  &
                                     Me%ExternalVar%GridCellArea(i,j)/                      &
                                     CohesiveSediment%Evolution%DTInterval
-                            
+
                         If (Me%Consolidation%Flux(i,j) > Max_Flux) then
-                                
+
                             Me%Consolidation%Flux(i,j) = Max_Flux
-                                
-                        endif 
-                            
-                    elseif(Me%RunsSediments) then                        
+
+                        endif
+
+                    elseif(Me%RunsSediments) then
 
                         !kg/m2 = kg/m2 / (s * s-1)
                         CohesiveSediment%Mass_Available(i,j) = &
@@ -7066,7 +7210,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             (1. + CohesiveSediment%Evolution%DTInterval * &
                             Me%Consolidation%Rate%Field(i,j))
 
-                                                        
+
                         !kg/m2s = kg/m2 / s  (Positive if it entering consolidated sediment compartment)
                         Me%Consolidation%Flux(i,j) = Me%Consolidation%Flux(i,j)            + &
                                                     (Initial_Mass_Available                - &
@@ -7076,25 +7220,25 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         if(Me%ExtSed%SedimentColumnFull(i,j) > 0) &
                             Me%Consolidation%Flux(i,j) = 0.
-  
-                    endif         
-                 endif     
+
+                    endif
+                 endif
             endif
         end do
         end do
-        !T !$OMP END DO               
+        !T !$OMP END DO
         !T !$OMP END PARALLEL
 
 #endif
 
     end subroutine ComputeConsolidation
 
-    
+
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine DissolvedSedimentWaterFluxes(PropertyX)
-    
+
         !Argument--------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
@@ -7119,7 +7263,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                    
+
             if(Me%ExtWater%OpenPoints2D(i,j) == WaterPoint .and. &
                 Me%ExtSed%WaterPoints2D (i,j) == WaterPoint)then
 
@@ -7165,7 +7309,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
                 end if
-                            
+
                 PropertyX%FluxToWater(i,j)    = PropertyX%FluxToWater(i,j)    + DiffusiveFlux + AdvectiveFlux
 
                 PropertyX%FluxToSediment(i,j) = PropertyX%FluxToSediment(i,j) - DiffusiveFlux - AdvectiveFlux
@@ -7183,9 +7327,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
     !--------------------------------------------------------------------------
-    
+
     subroutine ParticulateSedimentWaterFluxes(PropertyX)
-    
+
         !Argument--------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
 
@@ -7204,7 +7348,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         ILB = Me%WorkSize2D%ILB
         JLB = Me%WorkSize2D%JLB
 
-        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'ParticulateSedimentWaterFluxes - ModuleInterfaceSedimentWater - ERR10'
 
         CHUNK = CHUNK_J(JLB, JUB)
@@ -7212,11 +7356,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                    
-            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then                            
+
+            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                 !if (Me%Consolidation%Yes) then
-                            
+
                     if(Me%Consolidation%Flux(i,j) > 0. .and.  &
                         CohesiveSediment%Mass_Available(i,j)  &
                         > CohesiveSediment%Mass_Min)then !consolidation
@@ -7227,14 +7371,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                                         Me%Consolidation%Flux(i,j)
 
                     elseif(Me%Consolidation%Flux(i,j) < 0.)then !erosion
-                                    
+
                         KUB = Me%ExtSed%Ktop(i, j)
-                                
+
                         if(Me%RunsSediments)    &
                             PropertyX%FluxToWater(i,j)    = PropertyX%FluxToWater(i,j)          - &
                                                         Me%Consolidation%Flux(i,j)          * &
                                                         PropertyX%SedimentConcentration(i,j)
-                                
+
                         if(Me%RunSedimentModule)    &
                             PropertyX%FluxToWater(i,j)    = PropertyX%FluxToWater(i,j)          - &
                                                         Me%Consolidation%Flux(i,j)
@@ -7245,22 +7389,22 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     else
 
-                        PropertyX%FluxToSediment(i,j) = 0. 
+                        PropertyX%FluxToSediment(i,j) = 0.
 
                     end if
-                            
-            !else   ! no consolidation   
+
+            !else   ! no consolidation
             !PropertyX%FluxToSediment(i,j) = 0.
             !endif
-                                
+
                     PropertyX%Mass_Available(i,j) = PropertyX%Mass_Available(i,j)        - &
                                                     PropertyX%FluxToSediment(i,j)        * &
                                                     PropertyX%Evolution%DTInterval
-                            
+
                     if(PropertyX%Mass_Available(i,j) < PropertyX%Mass_Min)         &
-                        PropertyX%Mass_Available(i,j) = PropertyX%Mass_Min                                
-                                
-            endif 
+                        PropertyX%Mass_Available(i,j) = PropertyX%Mass_Min
+
+            endif
 
         enddo
         enddo
@@ -7270,10 +7414,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ParticulateSedimentWaterFluxes")
 
     end subroutine ParticulateSedimentWaterFluxes
-    
-    
+
+
     !--------------------------------------------------------------------------
-    
+
     subroutine ModifyNonCohesiveErosionFluxes(PropertyX)
 #ifndef _SEDIMENT_
 
@@ -7295,76 +7439,69 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: FreeConvFlux
 
         !Begin-----------------------------------------------------------------
-        
+
         IUB = Me%WaterWorkSize3D%IUB
         JUB = Me%WaterWorkSize3D%JUB
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
-        
+
         call GetSandMass(Me%ObjSediment,PropertyX%ID%IDNumber,SandMass, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR10'
-                    
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR10'
+
         call GetSandContent(Me%ObjSediment,PropertyX%ID%IDNumber,SandContent, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR20'
-                
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR20'
+
         call GetCriticalShearStress(Me%ObjSediment,PropertyX%ID%IDNumber,CriticalShearStress, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR30'
-                    
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR30'
+
         call GetConcRef(Me%ObjSediment,PropertyX%ID%IDNumber,ConcRef, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR40'
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR40'
+
         call GetReferenceLevel(Me%ObjSediment,PropertyX%ID%IDNumber,ReferenceLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR45'
-                    
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR45'
+
         call Get_FreeVelocity(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
                                     PropertyID             = PropertyX%ID%IDNumber,     &
                                     Free_Velocity          = SettlingVelocity,          &
                                     STAT                   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                    &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR50'        
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR50'
+
          call Get_FreeConvFlux(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,  &
                                 PropertyID             = PropertyX%ID%IDNumber,       &
-                                FreeConvFlux           = FreeConvFlux,                & 
+                                FreeConvFlux           = FreeConvFlux,                &
                                 STAT                   = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR70'
-        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR70'
+
         do j = JLB, JUB
         do i = ILB, IUB
 
             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint .and. &
                 Me%ExtSed%WaterPoints2D (i,j) == WaterPoint)then
 
-                KTOP = Me%ExtSed%KTop(i, j)                            
-                                
+                KTOP = Me%ExtSed%KTop(i, j)
+
                 MaximumFlux = SandMass(i,j,KTOP)/Me%ExternalVar%GridCellArea(i,j)/  &
                                 PropertyX%Evolution%DTInterval
 
-                            
+
                 if(MaximumFlux .lt. 0.)then
                     write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KTOP = ', KTOP
                     write(*,*) 'Sand Mass', SandMass(i,j,KTOP), 'Property : '//trim(PropertyX%ID%Name)
                     stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR80'
-                end if       
+                end if
 
                 if(SandMass(i,j,KTOP) > 0.)then
-                    
+
                     kbottom = Me%ExtWater%KFloor_Z(i, j)
-                
+
                     !height above bed
                     z = Me%ExtWater%DWZ(i,j,kbottom) / 2.
-                    
+
                     !Reference Level
                     a = ReferenceLevel(i,j)
                     !WaterColumn
                     H = Me%ExtWater%WaterColumn(i,j)
-                    !Settling velocity 
+                    !Settling velocity
                     Ws = - SettlingVelocity(i,j,kbottom)
                     !Von Karmann coefficient
                     K0 = 0.4
@@ -7378,34 +7515,34 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     RouseProfile = (a * (H - z) / (z * (H - a))) **b
                     !Reference concentration in the middle of the bottom grid cell
                     ConcRefz = ConcRef(i,j) * RouseProfile
-                    
+
                     !The erosion flux is equal to the entrainment rate under equilibrium conditions
                     !(Garcia and Parker, 1991).
-                    ![kg m-2 s-1]               [m s-1]*[kg m-3]                       
-                            
+                    ![kg m-2 s-1]               [m s-1]*[kg m-3]
+
                     PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,kbottom) * ConcRefz
-                                
+
                     if(Me%ExtSed%CohesiveClassRun) then
-                        
+
                         if(Me%ExtSed%CohesiveContent(i,j,KTOP) > 0.6) then
-                        !For fully cohesive beds (mud content > 0.6) the erosion flux for sand is calculated by using 
+                        !For fully cohesive beds (mud content > 0.6) the erosion flux for sand is calculated by using
                         !the same formulation of cohesive sediments
-                        
+
                             if(CriticalShearStress(i,j) < Me%Shear_Stress%Tension(i,j))then
-                                 
+
                                 PropertyX%ErosionFlux(i,j) =                                         &
                                 ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
                                             ShearStress          = Me%Shear_Stress%Tension(i,j),     &
                                             ErosionRate          = Me%ErosionRate%Field(i,j))
-                                
+
                                 PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KTOP)
-                                
+
                             else
                                 PropertyX%ErosionFlux(i,j) = 0.
                             endif
                         endif
                     endif
-                    
+
                     if(PropertyX%ErosionFlux(i,j) .gt. MaximumFlux)then
 
                         PropertyX%ErosionFlux(i,j) = MaximumFlux
@@ -7417,47 +7554,40 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     PropertyX%ErosionFlux(i,j) = 0.
 
                 end if
-                            
+
                 PropertyX%FluxToWater(i,j) = PropertyX%ErosionFlux(i,j)
-                        
+
             end if
 
         enddo
         enddo
-                    
-        call UngetSediment(Me%ObjSediment, SandMass, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR100'
-            
-        call UngetSediment(Me%ObjSediment, CriticalShearStress, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR110' 
-                    
-        call UngetSediment(Me%ObjSediment, ConcRef, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR120' 
-        
-        call UngetSediment(Me%ObjSediment, ReferenceLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR125' 
-                    
-        call UngetSediment(Me%ObjSediment, SandContent, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR130' 
-                    
-        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, SettlingVelocity, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR140'               
-        
-        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR160'
 
-#endif   
+        call UngetSediment(Me%ObjSediment, SandMass, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR100'
+
+        call UngetSediment(Me%ObjSediment, CriticalShearStress, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR110'
+
+        call UngetSediment(Me%ObjSediment, ConcRef, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR120'
+
+        call UngetSediment(Me%ObjSediment, ReferenceLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR125'
+
+        call UngetSediment(Me%ObjSediment, SandContent, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR130'
+
+        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, SettlingVelocity, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR140'
+
+        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR160'
+
+#endif
     end subroutine ModifyNonCohesiveErosionFluxes
-    
+
         !--------------------------------------------------------------------------
-    
+
     subroutine ModifyNonCohesiveDepositionFluxes(PropertyX)
 #ifndef _SEDIMENT_
 
@@ -7472,63 +7602,57 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real                                    :: WaterPropertyISCoef
         real, dimension(:,:,:), pointer         :: FreeConvFlux
         !Begin-----------------------------------------------------------------
-        
-        IUB = Me%WaterWorkSize3D%IUB
-        JUB = Me%WaterWorkSize3D%JUB
-        ILB = Me%WaterWorkSize3D%ILB
-        JLB = Me%WaterWorkSize3D%JLB 
-                    
+
+        IUB = Me%WaterWorkSize3D%IUB;  JUB = Me%WaterWorkSize3D%JUB
+        ILB = Me%WaterWorkSize3D%ILB;  JLB = Me%WaterWorkSize3D%JLB
+
         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
                                 ConcentrationX    = WaterPropertyConcentration,       &
                                 PropertyXIDNumber = PropertyX%ID%IDNumber,            &
                                 PropertyXUnits    = WaterPropertyUnits,               &
                                 PropertyXISCoef   = WaterPropertyISCoef,              &
                                 STAT              = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR10'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR10'
 
-        
+
          call Get_FreeConvFlux(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,  &
                                 PropertyID             = PropertyX%ID%IDNumber,       &
-                                FreeConvFlux           = FreeConvFlux,                & 
+                                FreeConvFlux           = FreeConvFlux,                &
                                 STAT                   = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR20'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR20'
 
-        
+
         do j = JLB, JUB
         do i = ILB, IUB
 
             if(Me%WaterPointsorOpenPoints2D(i,j) == WaterPoint)then
-                
+
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
-                
+
                 PropertyX%DepositionFlux(i,j) = -1. * FreeConvFlux(i,j,kbottom)     * &
                                                 WaterPropertyISCoef                 / &
                                                 Me%ExternalVar%GridCellArea(i,j)
-                
+
                 PropertyX%FluxToSediment(i,j) = PropertyX%DepositionFlux(i,j) - PropertyX%FluxToWater(i,j)
             endif
         enddo
         enddo
-                    
-        call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR30'
-        
-        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR40'
 
-#endif   
+        call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR30'
+
+        call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR40'
+
+#endif
     end subroutine ModifyNonCohesiveDepositionFluxes
 
 
     !--------------------------------------------------------------------------
 
-    
+
     subroutine SetFluxesToWaterColumn
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
 
@@ -7547,8 +7671,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                               PropertyID        = PropertyX%ID%IDNumber, &
                                               Flux              = PropertyX%FluxToWater, &
                                               STAT              = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                             &
-                    stop 'SetFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'SetFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR01'
 
             end if
 
@@ -7564,7 +7687,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 #ifndef _SEDIMENT_
     subroutine SetFluxesToSedimentColumn
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
 
@@ -7583,8 +7706,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                                  PropertyID           = PropertyX%ID%IDNumber,    &
                                                  Flux                 = PropertyX%FluxToSediment, &
                                                  STAT                 = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                &
-                    stop 'SetFluxesToSedimentColumn - ModuleInterfaceSedimentWater - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'SetFluxesToSedimentColumn - ModuleInterfaceSedimentWater - ERR01'
 
             end if
 
@@ -7598,7 +7720,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     !--------------------------------------------------------------------------
 
 #endif
-    
+
     !--------------------------------------------------------------------------
 
 
@@ -7609,9 +7731,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !Begin-----------------------------------------------------------------
 
-        call UnGetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_)                                               &
-            stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR01'
+        call UnGetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR01'
 
         call ModifySand(Me%ObjSand, Me%Shear_Stress%Tension,                     &
                         Me%Rugosity%Field,                                       &
@@ -7629,16 +7750,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         Me%Shear_Stress%CurrentResidualU,                        &
                         Me%Shear_Stress%CurrentResidualV,                        &
                         STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_)                                                &
-            stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
+        if(STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
 
-        call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_)                                               &
-            stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR03'
+        call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR03'
 
 
     end subroutine ModifySandTransport
-    
+
        !--------------------------------------------------------------------------
 
 
@@ -7648,11 +7767,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
-        
+
 
         call ModifySediment(Me%ObjSediment,                                      &
                         Me%Shear_Stress%Tension,                                 &
-                        Me%Shear_Stress%EfficiencyFactorCurrent,                 &                        
+                        Me%Shear_Stress%EfficiencyFactorCurrent,                 &
                         Me%Shear_Stress%CurrentU,                                &
                         Me%Shear_Stress%CurrentV,                                &
                         Me%Shear_Stress%CurrentVel,                              &
@@ -7660,17 +7779,16 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         Me%WaveShear_Stress%TensionMean,                         &
                         Me%WaveShear_Stress%Cphi,                                &
                         Me%WaveShear_Stress%CWphi,                               &
-                        Me%Shear_Stress%EfficiencyFactorMean,                    & 
-                        Me%Shear_Stress%EfficiencyFactorWaves,                   & 
+                        Me%Shear_Stress%EfficiencyFactorMean,                    &
+                        Me%Shear_Stress%EfficiencyFactorWaves,                   &
                         STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_)                                                &
-            stop 'ModifySedimentTransport - ModuleInterfaceSedimentWater - ERR02'
+        if(STAT_CALL /= SUCCESS_) stop 'ModifySedimentTransport - ModuleInterfaceSedimentWater - ERR02'
 
 
     end subroutine ModifySedimentTransport
 
     !--------------------------------------------------------------------------
-    
+
     subroutine OutPut_TimeSeries
 
         !External--------------------------------------------------------------
@@ -7678,62 +7796,57 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
-        
+
         !Begin-----------------------------------------------------------------
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
                             Data2D  = Me%Shear_Stress%Tension,                  &
                             STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                              &
-            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR010'
-        
-        
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR010'
+
+
         PropertyX   => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                        
+
                 if(PropertyX%OutHDForigin) then
-                             
+
                         call WriteTimeSerie(Me%ObjTimeSerie,                         &
                                     Data2D  = PropertyX%MassInKg,                    &
                                     STAT    = STAT_CALL)
-                     if (STAT_CALL /= SUCCESS_)                                      &
-                        stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR020'     
-                             
+                     if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR020'
+
                     else
-                                 
+
                         call WriteTimeSerie(Me%ObjTimeSerie,                            &
                                             Data2D  = PropertyX%Mass_Available,         &
                                             STAT    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
-                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR030'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR030'
 
                     end if
-    
-                    
+
+
                     if(PropertyX%Evolution%Deposition)then
-                        
+
                         call WriteTimeSerie(Me%ObjTimeSerie,                            &
                                             Data2D  = PropertyX%DepositionFlux,         &
                                             STAT    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
-                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR040'
-                            
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR040'
+
                     end if
-                    
+
                     if(PropertyX%Evolution%Erosion)then
-                        
+
                         call WriteTimeSerie(Me%ObjTimeSerie,                            &
                                             Data2D  = PropertyX%ErosionFlux,            &
                                             STAT    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
-                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR050'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR050'
                     end if
-            
+
             endif
             PropertyX=>PropertyX%Next
         enddo
-    
+
     end subroutine OutPut_TimeSeries
 
 
@@ -7752,10 +7865,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !----------------------------------------------------------------------
 
-        ILB = Me%Size2D%ILB 
-        IUB = Me%Size2D%IUB 
-        JLB = Me%Size2D%JLB 
-        JUB = Me%Size2D%JUB 
+        ILB = Me%Size2D%ILB;  JLB = Me%Size2D%JLB
+        IUB = Me%Size2D%IUB;  JUB = Me%Size2D%JUB
 
         PropertyX  => Me%FirstProperty
 
@@ -7764,9 +7875,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 Me%Scalar2D(:,:) = 0.
 
-                if (MonitorPerformance) then
-                    call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
-                endif
+                if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
 
                 CHUNK = CHUNK_J(JLB, JUB)
                 !$OMP PARALLEL PRIVATE(I,J)
@@ -7774,35 +7883,32 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 do J = JLB, JUB
                 do I = ILB, IUB
                     if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
-                    
-                        if(PropertyX%OutHDForigin) then 
-                    
+
+                        if(PropertyX%OutHDForigin) then
+
                             Me%Scalar2D(i,j) = PropertyX%MassinKg(i, j) * &
                                                Me%ExternalVar%GridCellArea(i,j)
-                        
+
                         else
-                        
+
                             Me%Scalar2D(i,j) = PropertyX%Mass_Available(i, j) * &
                                                Me%ExternalVar%GridCellArea(i,j)
                         end if
-                                            
+
                     end if
                 end do
                 end do
                 !$OMP END DO
                 !$OMP END PARALLEL
-                
-                if (MonitorPerformance) then
-                    call StopWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
-                endif
-                
+
+                if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
+
                 call BoxDif(Me%ObjBoxDif,                       &
                             Me%Scalar2D,                        &
                             "Bottom "//trim(PropertyX%ID%name), &
                             Me%ExtWater%WaterPoints2D,          &
                             STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)  &
-                    stop 'OutPut_BoxTimeSeries - ModuleInterfaceSedimentWater - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_BoxTimeSeries - ModuleInterfaceSedimentWater - ERR01'
 
                 Me%Scalar2D(:,:) = null_real
 
@@ -7826,28 +7932,22 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !Begin-----------------------------------------------------------------
 
-        call GetStatisticMethod (StatisticsID, MethodStatistic, STAT = STAT_CALL)                                     
-        if (STAT_CALL /= SUCCESS_)  &
-            stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR01'
-                                                                                    
+        call GetStatisticMethod (StatisticsID, MethodStatistic, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR01'
+
         call GetStatisticParameters (StatisticsID,                                   &
                                      Value2DStat2D = Value2DStat2D,                  &
-                                     STAT          = STAT_CALL)                        
-        if (STAT_CALL /= SUCCESS_)  &
-            stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR02'
-                                                                                    
-                                                                                    
-        if (MethodStatistic /= Value2DStat2D)                                            &
-            stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR03'
-                                                                                    
-                                                                                    
+                                     STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR02'
+
+        if (MethodStatistic /= Value2DStat2D) stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR03'
+
+
         call ModifyStatistic (StatisticsID,                                              &
                               Value2D       = Value2D,                                   &
                               WaterPoints2D = Me%ExtWater%WaterPoints2D,                 &
-                              STAT          = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_)  &
-            stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR04'
-
+                              STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Statistics - ModuleInterfaceSedimentWater - ERR04'
 
     end subroutine OutPut_Statistics
 
@@ -7856,11 +7956,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
     subroutine Benthos_Processes
-        
+
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL        
-        
-        !Local----------------------------------------------------------------- 
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
         type (T_Property   ),       pointer     :: PropertyX
         type (T_BenthicRate),       pointer     :: BenthicRateX
         integer                                 :: WILB, WIUB, WJLB, WJUB
@@ -7871,18 +7971,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
-        WIUB = Me%WorkSize2D%IUB
-        WJUB = Me%WorkSize2D%JUB
-        WILB = Me%WorkSize2D%ILB
-        WJLB = Me%WorkSize2D%JLB
+
+        WIUB = Me%WorkSize2D%IUB;  WJUB = Me%WorkSize2D%JUB
+        WILB = Me%WorkSize2D%ILB;  WJLB = Me%WorkSize2D%JLB
 
         CHUNK = CHUNK_J(WJLB, WJUB)
-        
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
-        endif
-        
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
+
         if (Me%ExternalVar%Now .GE. Me%Coupled%Benthos%NextCompute) then
 
             PropertyX => Me%FirstProperty
@@ -7897,11 +7993,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR01'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR01'
 
                 elseif(PropertyX%ID%IDNumber == Oxygen_  )then
-                    
+
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = WJLB, WJUB
@@ -7928,9 +8023,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR04'
-
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR04'
 
                 else
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
@@ -7968,7 +8061,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         enddo
                         enddo
                         !$OMP END DO
-                    
+
                     end if
                     !$OMP END PARALLEL
 
@@ -7978,16 +8071,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR05'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR05'
 
                 end if
-
 
                 PropertyX => PropertyX%Next
 
             end do
-            
+
             Me%Coupled%Benthos%NextCompute = Me%Coupled%Benthos%NextCompute +               &
                                              Me%Coupled%Benthos%DT_Compute
         end if
@@ -8041,13 +8132,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
-                                          Concentration = PropertyX%MassInKg,               & 
+                                          Concentration = PropertyX%MassInKg,               &
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           DTProp        = PropertyX%Evolution%DTInterval,   &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR06'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR06'
 
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(.not. PropertyX%ID%IsParticulate)then
@@ -8058,26 +8148,25 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                               PropertyXUnits    = WaterPropertyUnits,       &
                                               PropertyXISCoef   = WaterPropertyISCoef,      &
                                               STAT              = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)                                         &
-                            stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR07'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR07'
                         !$OMP END MASTER
                         !$OMP BARRIER
-                        
+
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
-                    
+
                             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                                 !kg m-2 s-1                = kg m-2 s-1 + (kg - kg/m3 * m3)/(m2 * s)
-                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &
                                                              (PropertyX%MassInKg(i,j)                             -   &
                                                               ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
                                                               Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
                                                              (Me%ExternalVar%GridCellArea(i,j)                    *   &
                                                               PropertyX%Evolution%DTInterval)
- 
+
                             end if
 
                         enddo
@@ -8086,8 +8175,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         !$OMP MASTER
                         call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR08'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR08'
                         !$OMP END MASTER
                     else
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -8113,13 +8201,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             end if
 
             PropertyX => PropertyX%Next
-            
+
         end do
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
-        endif
-        
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
+
         BenthicRateX => Me%FirstBenthicRate
 
         do while (associated(BenthicRateX))
@@ -8130,8 +8216,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                              RateFlux2D     = BenthicRateX%Field,                       &
                              WaterPoints2D  = Me%ExtWater%WaterPoints2D,                &
                              STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR09'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR09'
 
             where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
                 BenthicRateX%Field = BenthicRateX%Field * Me%ExternalVar%GridCellArea / &
@@ -8143,8 +8228,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         BenthicRateX%ID%Name,                                           &
                         Me%ExtWater%WaterPoints2D,                                      &
                         STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR10'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR10'
 
             BenthicRateX => BenthicRateX%Next
         enddo
@@ -8156,11 +8240,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 !--------------------------------------------------------------------------
 
 subroutine BenthicEcology_Processes
-        
+
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL        
-        
-        !Local----------------------------------------------------------------- 
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
         type (T_Property   ),       pointer     :: PropertyX
         type (T_BenthicRate),       pointer     :: BenthicRateX
         integer                                 :: WILB, WIUB, WJLB, WJUB
@@ -8179,55 +8263,45 @@ subroutine BenthicEcology_Processes
         real, dimension(:,:  ),     pointer     :: Biomass
         real, dimension(:,:  ),     pointer     :: Array2D
         integer                                 :: CHUNK
-        
+
 
         !Begin-----------------------------------------------------------------
-        KLBW=Me%WaterWorkSize3D%KLB
-        KUBW=Me%WaterWorkSize3D%KUB
-        
-        KLBS=Me%SedimentWorkSize3D%KLB
-        KUBS=Me%SedimentWorkSize3D%KUB
-        
-        WIUB = Me%WorkSize2D%IUB
-        WJUB = Me%WorkSize2D%JUB
-        WILB = Me%WorkSize2D%ILB
-        WJLB = Me%WorkSize2D%JLB
+        KLBW = Me%WaterWorkSize3D%KLB   ; KUBW = Me%WaterWorkSize3D%KUB
+        KLBS = Me%SedimentWorkSize3D%KLB; KUBS = Me%SedimentWorkSize3D%KUB
+
+        WIUB = Me%WorkSize2D%IUB;  WJUB = Me%WorkSize2D%JUB
+        WILB = Me%WorkSize2D%ILB;  WJLB = Me%WorkSize2D%JLB
 
         CHUNK = CHUNK_J(WJLB, WJUB)
-        
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
-        endif
-        
-       
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
+
         if (Me%ExternalVar%Now .GE. Me%Coupled%BenthicEcology%NextCompute) then
 
          call GetShortWaveRadiationAverage(Me%ObjWaterProperties, ShortWaveRadiationAverage, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-          stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
-        
-                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do j = WJLB, WJUB
-                    do i = WILB, WIUB
+         if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
 
-                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+                !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = WJLB, WJUB
+                do i = WILB, WIUB
 
-                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+                    if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
-                            Me%ExtWater%WaterVolume(i,j) =  Me%ExtWater%VolumeZ(i,j,kbottom)
-                            Me%BottomSWRadiationAverage(i,j) = ShortWaveRadiationAverage(i,j,kbottom)
+                        kbottom = Me%ExtWater%KFloor_Z(i, j)
 
-                        end if
+                        Me%ExtWater%WaterVolume(i,j) =  Me%ExtWater%VolumeZ(i,j,kbottom)
+                        Me%BottomSWRadiationAverage(i,j) = ShortWaveRadiationAverage(i,j,kbottom)
 
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-        
+                    end if
+
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+
             call UnGetWaterProperties(Me%ObjWaterProperties, ShortWaveRadiationAverage, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)&
-               stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR02'
+            if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR02'
 
             PropertyX => Me%FirstProperty
 
@@ -8245,12 +8319,10 @@ subroutine BenthicEcology_Processes
                                           ShortWave2D      = Me%BottomSWRadiationAverage,      &
                                           ShearStress2D    = Me%Shear_Stress%Tension,          &
                                           STAT             = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                               &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
 
-        
                 elseif(PropertyX%ID%IDNumber == Cohesive_Sediment_  )then
-                    
+
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = WJLB, WJUB
@@ -8262,7 +8334,6 @@ subroutine BenthicEcology_Processes
 
                             PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &
                                                       Me%ExtWater%VolumeZ(i,j,kbottom)
-
                         end if
 
                     enddo
@@ -8277,171 +8348,129 @@ subroutine BenthicEcology_Processes
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR04'
+                    if (STAT_CALL .NE. SUCCESS_)stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR04'
 
-             
-             
+
              elseif(PropertyX%ID%IDNumber == SeagrassesRoots_) then
-               
-                    Me%Seagrasses%UptakeNH4s2D =0.
-                    Me%Seagrasses%UptakePO4s2D =0.
-                    
-                    call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeN_, UptakeNH4s3D, STAT = STAT_CALL)
-                     if (STAT_CALL .NE. SUCCESS_)                                            &
-                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
-                    
-                     call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeP_, UptakePO4s3D, STAT = STAT_CALL)
-                     if (STAT_CALL .NE. SUCCESS_)                                            &
-                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR09'
-         
-                            do j = WJLB, WJUB
-                               do i = WILB, WIUB
-                            
-                                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                                             
-                                            ktop = Me%ExtSed%KTop(i,j)
-                                            if(Me%SedimentWorkSize3D%KUB > 1)then 
-                                                do k=KLBS, ktop
-                                              
-                                               Me%Seagrasses%UptakeNH4s2D(i,j)=Me%Seagrasses%UptakeNH4s2D(i,j)+ &
-                                                                               UptakeNH4s3D(i,j,k)
-                                               
-                                               Me%Seagrasses%UptakePO4s2D(i,j)=Me%Seagrasses%UptakePO4s2D(i,j)+ &
-                                                                               UptakePO4s3D(i,j,k)
 
-                                               enddo
-                                           else
-                                               Me%Seagrasses%UptakeNH4s2D(i,j)=UptakeNH4s3D(i,j,ktop)
-                                               Me%Seagrasses%UptakePO4s2D(i,j)=UptakePO4s3D(i,j,ktop)
-                                           endif
-                                           
-                              endif
-                            enddo
-                          enddo
-                           
-                           call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                                              PropertyID    = PropertyX%ID%IDNumber,            &
-                                              Concentration = PropertyX%MassInKg,               &
-                                              UptakeNH4s2D  = Me%Seagrasses%UptakeNH4s2D,     &
-                                              UptakePO4s2D  = Me%Seagrasses%UptakePO4s2D,     &
-                                              WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                                              OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                                              STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR10'
-                            
-                            
-                           
-                      
-                       call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakeNH4s3D, STAT = STAT_CALL)
-                            if(STAT_CALL .ne. SUCCESS_)&
-                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
-           
-                     
-                     call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakePO4s3D, STAT = STAT_CALL)
-                            if(STAT_CALL .ne. SUCCESS_)&
-                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
-                
-                
+                Me%Seagrasses%UptakeNH4s2D =0.
+                Me%Seagrasses%UptakePO4s2D =0.
+
+                call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeN_, UptakeNH4s3D, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+
+                call GetSeagrassesRootsRates(Me%ObjSedimentProperties, RootsUptakeP_, UptakePO4s3D, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR09'
+
+                    do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+
+                            ktop = Me%ExtSed%KTop(i,j)
+                            if(Me%SedimentWorkSize3D%KUB > 1)then
+
+                                do k=KLBS, ktop
+                                    Me%Seagrasses%UptakeNH4s2D(i,j)=Me%Seagrasses%UptakeNH4s2D(i,j)+UptakeNH4s3D(i,j,k)
+                                    Me%Seagrasses%UptakePO4s2D(i,j)=Me%Seagrasses%UptakePO4s2D(i,j)+UptakePO4s3D(i,j,k)
+                                enddo
+                            else
+                                Me%Seagrasses%UptakeNH4s2D(i,j)=UptakeNH4s3D(i,j,ktop)
+                                Me%Seagrasses%UptakePO4s2D(i,j)=UptakePO4s3D(i,j,ktop)
+                            endif
+
+                        endif
+                    enddo
+                    enddo
+
+                        call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                            PropertyID    = PropertyX%ID%IDNumber,            &
+                                            Concentration = PropertyX%MassInKg,               &
+                                            UptakeNH4s2D  = Me%Seagrasses%UptakeNH4s2D,     &
+                                            UptakePO4s2D  = Me%Seagrasses%UptakePO4s2D,     &
+                                            WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                            OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                            STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR10'
+
+                    call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakeNH4s3D, STAT = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
+
+                    call UnGetSedimentProperties(Me%ObjSedimentProperties, UptakePO4s3D, STAT = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR11'
+
+
                 elseif (PropertyX%ID%IDNumber == SeagrassesLeaves_) then
-                            
-                            Me%Seagrasses%UptakeNH4NO3w2D =0.
-                            Me%Seagrasses%UptakePO4w2D    =0.
-                            Me%Seagrasses%LightFactor2D     =0.
-                           
-                
-                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeN_, UptakeNH4NO3w3D, STAT = STAT_CALL)
-                         if (STAT_CALL .NE. SUCCESS_)                                            &
-                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR20'
-                         
-                         
-                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesLightFactor_ , LightFactor3D, STAT = STAT_CALL)
-                         if (STAT_CALL .NE. SUCCESS_)                                            &
-                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR23'
-                         
-                         
-                         
-                          call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeP_   , UptakePO4w3D, STAT = STAT_CALL)
-                         if (STAT_CALL .NE. SUCCESS_)                                            &
-                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR25'
-           
-           
-                               do j = WJLB, WJUB
-                               do i = WILB, WIUB
-                            
-                                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                                             
-                                            kbottom = Me%ExtWater%KFloor_Z(i, j) 
-                                          
-                                          if(Me%WaterWorkSize3D%KUB > 1)then 
-                                          
-                                          ! if the run is 3D in the water column 
-                                           
-                                                    do k=kbottom, KUBW
-                                                  
-                                                   Me%Seagrasses%UptakeNH4NO3w2D(i,j)=Me%Seagrasses%UptakeNH4NO3w2D(i,j)+ &
-                                                                                            UptakeNH4NO3w3D(i,j,k)   ! gN/day
-                                                   
-                                                   Me%Seagrasses%UptakePO4w2D(i,j)=Me%Seagrasses%UptakePO4w2D(i,j)+ &
-                                                                                         UptakePO4w3D(i,j,k)         ! gP/day
-                                                
-                                                     
-                                                   Me%Seagrasses%LightFactor2D(i,j) =Me%Seagrasses%LightFactor2D(i,j)+ &  
-                                                                                         LightFactor3D(i,j,k) 
 
-                                                   enddo
-                                           
-                                           else
-                                                ! if the run is 2D in the water column
-                                                
-                                                    Me%Seagrasses%UptakeNH4NO3w2D(i,j)= UptakeNH4NO3w3D(i,j,kbottom)   ! gN/day
-                                                           
-                                                    Me%Seagrasses%UptakePO4w2D(i,j) = UptakePO4w3D(i,j,kbottom)         ! gP/day
-                                                        
-                                                             
-                                                    Me%Seagrasses%LightFactor2D(i,j) =LightFactor3D(i,j,kbottom) !dimensionless
-                                           
-                                           endif
-                              endif
-                            enddo
-                            enddo
-                            
-                     
-                            
-                            
-                      
-                      ! The BenthicEcology modifier is called and the 
-                  
-                                   call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                                                      PropertyID    = PropertyX%ID%IDNumber,            &
-                                                      Concentration = PropertyX%MassInKg,               &
-                                                      UptakePO4w2D  = Me%Seagrasses%UptakePO4w2D,     &
-                                                      UptakeNH4NO3w2D  = Me%Seagrasses%UptakeNH4NO3w2D,     &
-                                                      LightFactor2D   = Me%Seagrasses%LightFactor2D,     &
-                                                      WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                                                      OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                                                      STAT          = STAT_CALL)
-                                if (STAT_CALL .NE. SUCCESS_)                                            &
-                                    stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR30'
-                
+                    Me%Seagrasses%UptakeNH4NO3w2D = 0.
+                    Me%Seagrasses%UptakePO4w2D    = 0.
+                    Me%Seagrasses%LightFactor2D   = 0.
 
-                
-                             call UnGetWaterProperties(Me%ObjWaterProperties, UptakeNH4NO3w3D, STAT = STAT_CALL)
-                                        if(STAT_CALL .ne. SUCCESS_)&
-                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR31'
-                                            
-                            call UnGetWaterProperties(Me%ObjWaterProperties, UptakePO4w3D, STAT = STAT_CALL)
-                                        if(STAT_CALL .ne. SUCCESS_)&
-                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR32'
-                           
-                           call UnGetWaterProperties(Me%ObjWaterProperties, LightFactor3D, STAT = STAT_CALL)
-                                        if(STAT_CALL .ne. SUCCESS_)&
-                                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR33'
-                
+                    call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeN_, UptakeNH4NO3w3D, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR20'
+
+                    call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesLightFactor_ , LightFactor3D, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR23'
+
+                    call GetSeagrassesLeavesRates(Me%ObjWaterProperties, LeavesUptakeP_   , UptakePO4w3D, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR25'
+
+                    do j = WJLB, WJUB
+                    do i = WILB, WIUB
+
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+
+                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                            if(Me%WaterWorkSize3D%KUB > 1)then
+                            ! if the run is 3D in the water column
+                                do k=kbottom, KUBW
+
+                                    Me%Seagrasses%UptakeNH4NO3w2D(i,j)=Me%Seagrasses%UptakeNH4NO3w2D(i,j)+ &
+                                                                            UptakeNH4NO3w3D(i,j,k)   ! gN/day
+
+                                    Me%Seagrasses%UptakePO4w2D(i,j)=Me%Seagrasses%UptakePO4w2D(i,j)+ &
+                                                                            UptakePO4w3D(i,j,k)         ! gP/day
+
+                                    Me%Seagrasses%LightFactor2D(i,j) =Me%Seagrasses%LightFactor2D(i,j)+ &
+                                                                            LightFactor3D(i,j,k)
+
+                                enddo
+                            else
+                                ! if the run is 2D in the water column
+                                Me%Seagrasses%UptakeNH4NO3w2D(i,j)= UptakeNH4NO3w3D(i,j,kbottom)   ! gN/day
+                                Me%Seagrasses%UptakePO4w2D(i,j) = UptakePO4w3D(i,j,kbottom)         ! gP/day
+                                Me%Seagrasses%LightFactor2D(i,j) =LightFactor3D(i,j,kbottom) !dimensionless
+                            endif
+                        endif
+                    enddo
+                    enddo
+
+                ! The BenthicEcology modifier is called and the
+
+                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                        PropertyID    = PropertyX%ID%IDNumber,            &
+                                        Concentration = PropertyX%MassInKg,               &
+                                        UptakePO4w2D  = Me%Seagrasses%UptakePO4w2D,     &
+                                        UptakeNH4NO3w2D  = Me%Seagrasses%UptakeNH4NO3w2D,     &
+                                        LightFactor2D   = Me%Seagrasses%LightFactor2D,     &
+                                        WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                        OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR30'
+
+                    call UnGetWaterProperties(Me%ObjWaterProperties, UptakeNH4NO3w3D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR31'
+
+                    call UnGetWaterProperties(Me%ObjWaterProperties, UptakePO4w3D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR32'
+
+                    call UnGetWaterProperties(Me%ObjWaterProperties, LightFactor3D, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR33'
+
                 else
-                    
-                    
+
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(PropertyX%ID%IsParticulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -8451,14 +8480,13 @@ subroutine BenthicEcology_Processes
                             if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
-                       !For particulate properties, MassInkg is different from Mass_FromWater 
+                       !For particulate properties, MassInkg is different from Mass_FromWater
                        ! MassInKg is the mass of particulate material (In Kg) laying on the bottom;
                        ! Mass_FromWater is the mass of particulate material (In Kg) in the water cell closest to the bottom
-                                PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &   
+                                PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &
                                                           Me%ExternalVar%GridCellArea(i,j)
                                 PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)     / &
-                                                          Me%ExtWater%VolumeZ(i,j,kbottom)                          
-                                                                                        
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)
                             end if
 
                         enddo
@@ -8474,57 +8502,35 @@ subroutine BenthicEcology_Processes
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                                 !For dissolved properties, MassInkg and Mass_FromWater are the same
-                                !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &  
+                                !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &
                                 !                          Me%ExtWater%VolumeZ(i,j,kbottom)
-                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * & 
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &
                                                           Me%ExtWater%VolumeZ(i,j,kbottom)
-
 
                             end if
 
                         enddo
                         enddo
                         !$OMP END DO
-                    
+
                     end if
                     !$OMP END PARALLEL
 
+                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                            PropertyID    = PropertyX%ID%IDNumber,            &
+                                            Concentration = PropertyX%MassInKg,               &
+                                        MassInKgFromWater = PropertyX%Mass_FromWater,      &
+                                            WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                            OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                            STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
 
-                            
-                           !if(PropertyX%Evolution%BenthicOnly)then
-                           
-                           !call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                           !                       PropertyID    = PropertyX%ID%IDNumber,            &
-                           !                       Concentration = PropertyX%MassInKg,               &
-                           !                       WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                           !                       OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                           !                       STAT          = STAT_CALL)
-                           ! if (STAT_CALL .NE. SUCCESS_)                                            &
-                           !     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
-                           
-                           !else
-                            ! Concentration is NOT a concentration but a mass
-                            call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                                                  PropertyID    = PropertyX%ID%IDNumber,            &
-                                                  Concentration = PropertyX%MassInKg,               &  
-                                              MassInKgFromWater = PropertyX%Mass_FromWater,      &
-                                                  WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                                                  OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                                                  STAT          = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_)                                            &
-                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
-                          
-                          
-                         ! endif
-                           
-                
                 end if
-
 
                 PropertyX => PropertyX%Next
 
             end do
-            
+
             Me%Coupled%BenthicEcology%NextCompute = Me%Coupled%BenthicEcology%NextCompute +               &
                                              Me%Coupled%BenthicEcology%DT_Compute
         end if
@@ -8549,10 +8555,10 @@ subroutine BenthicEcology_Processes
 
                                 PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &
                                                           Me%ExternalVar%GridCellArea(i,j)
-                                                          
+
                                 PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)     / &
-                                                          Me%ExtWater%VolumeZ(i,j,kbottom)                        
-                                                          
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)
+
                             end if
 
                         enddo
@@ -8568,10 +8574,10 @@ subroutine BenthicEcology_Processes
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                                 ! If the property is dissolved, the mass is retrieved from the water
-                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &
                                                           Me%ExtWater%VolumeZ(i,j,kbottom)
-                                                          
-                                PropertyX%MassInKg(i,j)=0. ! since the property is dissolved, it has no mass on the bottom 
+
+                                PropertyX%MassInKg(i,j)=0. ! since the property is dissolved, it has no mass on the bottom
 
                             end if
 
@@ -8581,35 +8587,16 @@ subroutine BenthicEcology_Processes
                     end if if1
                     !$OMP END PARALLEL
 
+                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                            PropertyID    = PropertyX%ID%IDNumber,            &
+                                            Concentration = PropertyX%MassInKg,               &
+                                        MassInKgFromWater = PropertyX%Mass_FromWater,      &
+                                            WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                            OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                            DTProp        = PropertyX%Evolution%DTInterval,   &
+                                            STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR06'
 
-                   !if(PropertyX%Evolution%BenthicOnly)then
-                           
-                           !call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                           !                       PropertyID    = PropertyX%ID%IDNumber,            &
-                           !!                       Concentration = PropertyX%MassInKg,               & 
-                           !!                       WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                           !                       OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                           !                       DTProp        = PropertyX%Evolution%DTInterval,   &
-                           !                       STAT          = STAT_CALL)
-                           ! if (STAT_CALL .NE. SUCCESS_)                                            &
-                           !     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR06'
-                           
-                     !else
-
-                            call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                                                  PropertyID    = PropertyX%ID%IDNumber,            &
-                                                  Concentration = PropertyX%MassInKg,               & 
-                                              MassInKgFromWater = PropertyX%Mass_FromWater,      &
-                                                  WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                                                  OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                                                  DTProp        = PropertyX%Evolution%DTInterval,   &
-                                                  STAT          = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_)                                            &
-                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR06'
-                     
-                     
-                     
-                     !endif
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                 if2: if(.not. PropertyX%ID%IsParticulate)then
                         !$OMP MASTER
@@ -8619,29 +8606,26 @@ subroutine BenthicEcology_Processes
                                               PropertyXUnits    = WaterPropertyUnits,       &
                                               PropertyXISCoef   = WaterPropertyISCoef,      &
                                               STAT              = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)                                         &
-                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR07'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR07'
                         !$OMP END MASTER
                         !$OMP BARRIER
-                        
+
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
-                    
+
                             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                                 !kg m-2 s-1                = kg m-2 s-1 + (kg - kg/m3 * m3)/(m2 * s)
-                               
-                               
-                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+
+                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &
                                                             ! (PropertyX%MassInKg(i,j)                             -   &
                                                             (PropertyX%Mass_FromWater(i,j)                             -   &
                                                               ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
                                                               Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
                                                              (Me%ExternalVar%GridCellArea(i,j)                    *   &
                                                               PropertyX%Evolution%DTInterval)
- 
                             end if
 
                         enddo
@@ -8650,8 +8634,7 @@ subroutine BenthicEcology_Processes
 
                         !$OMP MASTER
                         call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
                         !$OMP END MASTER
                     else
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -8666,45 +8649,34 @@ subroutine BenthicEcology_Processes
                                                                  Me%ExternalVar%GridCellArea(i,j)
                                 PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)  / &
                                                                  Me%ExtWater%VolumeZ(i,j,kbottom)
-                                
+
                                 if(.not.PropertyX%Evolution%BenthicOnly)then
-                                
+
                                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                                       ConcentrationX    = ConcentrationOld,         &
                                                       PropertyXIDNumber = PropertyX%ID%IDNumber,    &
                                                       PropertyXUnits    = WaterPropertyUnits,       &
                                                       PropertyXISCoef   = WaterPropertyISCoef,      &
                                                       STAT              = STAT_CALL)
-                                if(STAT_CALL .ne. SUCCESS_)                                         &
-                                    stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR03'
-                                
-                                                                 
-                                    PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+                                if(STAT_CALL .ne. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR03'
+
+                                    PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &
                                                                  (PropertyX%Mass_FromWater(i,j)                    -   &
                                                                   ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
                                                                   Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
                                                                  (Me%ExternalVar%GridCellArea(i,j)                    *   &
-                                                                  PropertyX%Evolution%DTInterval)                                 
-                                   
-                                    
+                                                                  PropertyX%Evolution%DTInterval)
+
                                     call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                                    if(STAT_CALL .ne. SUCCESS_)&
-                                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
-                                    
-                        
-                        
-                                   
-                                   endif                                  
+                                    if(STAT_CALL .ne. SUCCESS_) &
+                                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+
+                                   endif
                             end if
-                            
-                            
 
                         enddo
                         enddo
                         !$OMP END DO
-                        
-                       
-                        
 
                     end if if2
                     !$OMP END PARALLEL
@@ -8713,94 +8685,80 @@ subroutine BenthicEcology_Processes
             end if if01
 
             PropertyX => PropertyX%Next
-            
+
         end do
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
-        endif
-        
-        
-        
-        
-                  PropertyX => Me%FirstProperty
-          
-                  do while(associated(PropertyX))
-                  
-               if11:       if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
-                  
-                  if21:         if (PropertyX%ID%IDNumber==SeagrassesLeaves_) then
-                                ! if property is seagrassesleaves get the  value
-                               ! of their biomass and put it in the water property:
-                               ! 1. get seagrassesleaves%biomass from waterproperty
-                               ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area*1000.
-                               ! 3. unget the seagrassesleaves%biomass
-     
-                                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, &
-                                                                ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
-                                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
 
-                                            
-                                      ! get the value in g 
-                                       do i=WILB,WIUB
-                                       do j=WJLB,WJUB             
-                                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                                        ! g/m2 =                   Kg       * 1000/m2
-                                       Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
-                                        endif
-                                       enddo
-                                       enddo
-                               
-                    
-                               call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
-                                    if(STAT_CALL .ne. SUCCESS_)&
-                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
-                           
-                           elseif(PropertyX%ID%IDNumber==SeagrassesRoots_) then
-                                         
-                                        call GetRootsArray2D(Me%ObjSedimentProperties, Biomass, &
-                                                              ArrayID=SeagrassesRoots_ , STAT = STAT_CALL)
-                                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+            PropertyX => Me%FirstProperty
 
-                                            
-                                      ! get the value in g from waterproperties
-                                       do i=WILB,WIUB
-                                       do j=WJLB,WJUB             
-                                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
-                                        ! g/m2 =                   Kg       * 1000/m2
-                                       Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
-                                      if( Biomass(i,j)==0. ) then 
-                                      !write(*,*), 'Zero biomass', i, j ,'reset to minval'
-                                      Biomass(i,j)=0.000001
-                                      endif
-                                      
-                                      
-                                        endif
-                                       enddo
-                                       enddo
-                               
-                    
-                               call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
-                                    if(STAT_CALL .ne. SUCCESS_)&
-                                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
-                
-                            endif if21
-                       endif if11
-                     
-                     PropertyX => PropertyX%Next
-         
-                 enddo
-        
+            do while(associated(PropertyX))
+
+    if11:       if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+
+    if21:         if (PropertyX%ID%IDNumber==SeagrassesLeaves_) then
+                        ! if property is seagrassesleaves get the  value
+                        ! of their biomass and put it in the water property:
+                        ! 1. get seagrassesleaves%biomass from waterproperty
+                        ! 2. change seagrassesleaves%biomass equal to to the value of PropertyX%MassInKg/area*1000.
+                        ! 3. unget the seagrassesleaves%biomass
+
+                        call GetSeagrassArray2D(Me%ObjWaterProperties, Biomass, &
+                                                ArrayID=SeagrassesLeaves_ , STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)&
+                            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                        ! get the value in g
+                        do i=WILB,WIUB
+                        do j=WJLB,WJUB
+                            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                            ! g/m2 =                   Kg       * 1000/m2
+                            Biomass(i,j) = PropertyX%MassInKg(i,j)&
+                                            * 1000./Me%ExternalVar%Gridcellarea(i,j)
+                            endif
+                        enddo
+                        enddo
+
+                        call UnGetWaterProperties(Me%ObjWaterProperties, Biomass, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_)&
+                                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+                    elseif(PropertyX%ID%IDNumber==SeagrassesRoots_) then
+
+                        call GetRootsArray2D(Me%ObjSedimentProperties, Biomass, &
+                                                ArrayID=SeagrassesRoots_ , STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                        ! get the value in g from waterproperties
+                        do i=WILB,WIUB
+                        do j=WJLB,WJUB
+                            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                ! g/m2 =                   Kg       * 1000/m2
+                                Biomass(i,j) = PropertyX%MassInKg(i,j)*1000./Me%ExternalVar%Gridcellarea(i,j)
+                                if( Biomass(i,j)==0. ) then
+                                !write(*,*), 'Zero biomass', i, j ,'reset to minval'
+                                Biomass(i,j)=0.000001
+                                endif
+                            endif
+                        enddo
+                        enddo
+
+                        call UnGetSedimentProperties(Me%ObjSedimentProperties, Biomass, STAT = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+                    endif if21
+                endif if11
+
+                PropertyX => PropertyX%Next
+
+            enddo
+
 
         BenthicRateX => Me%FirstBenthicRate
 
         do while (associated(BenthicRateX))
-        
-
-        
-        
 
             call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
                              FirstProp      = BenthicRateX%FirstProp%IDNumber,          &
@@ -8808,148 +8766,120 @@ subroutine BenthicEcology_Processes
                              RateFlux2D     = BenthicRateX%Field,                       &
                              WaterPoints2D  = Me%ExtWater%WaterPoints2D,                &
                              STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR55'
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR55'
 
-          ! This subroutine has been modified to transfer information from BenthicEcology to water properties: 
+          ! This subroutine has been modified to transfer information from BenthicEcology to water properties:
           ! The rates calculated in the BenthicEcology model for seagrasses roots and leaves are transferred as 2D array
           ! to the module waterproperties.
-          
-          if111:  if (BenthicRateX%FirstProp%IDNumber==NintFactor_) then
-            
-             call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= NintFactor_, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
-            
-                 Array2D = BenthicRateX%Field
-            
-             call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
-                        
-                        
-              BenthicRateX%Field2 => BenthicRateX%Field
-                        
-                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
-                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
-                    
 
-                    call BoxDif(Me%ObjBoxDif,                                                   &
-                                BenthicRateX%Field2,                                             &
-                                BenthicRateX%ID%Name,                                           &
-                                Me%ExtWater%WaterPoints2D,                                      &
-                                STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'          
-                       
+    if111:  if (BenthicRateX%FirstProp%IDNumber==NintFactor_) then
+
+                call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= NintFactor_, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+                 Array2D = BenthicRateX%Field
+
+                call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+                BenthicRateX%Field2 => BenthicRateX%Field
+
+                where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea
+
+                call BoxDif(Me%ObjBoxDif,                                                   &
+                            BenthicRateX%Field2,                                             &
+                            BenthicRateX%ID%Name,                                           &
+                            Me%ExtWater%WaterPoints2D,                                      &
+                            STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+
             elseif (BenthicRateX%FirstProp%IDNumber==PintFactor_) then
-            
-             call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= PintFactor_, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
-            
-                 Array2D = BenthicRateX%Field
-            
-             call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
-             
-             
-             BenthicRateX%Field2 => BenthicRateX%Field
-                        
-                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
-                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
-                    
 
-                    call BoxDif(Me%ObjBoxDif,                                                   &
-                                BenthicRateX%Field2,                                             &
-                                BenthicRateX%ID%Name,                                           &
-                                Me%ExtWater%WaterPoints2D,                                      &
-                                STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
-                        
+            call GetSeagrassArray2D(Me%ObjWaterProperties, Array2D, ArrayID= PintFactor_, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+            Array2D = BenthicRateX%Field
+
+            call UnGetWaterProperties(Me%ObjWaterProperties, Array2D, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+            BenthicRateX%Field2 => BenthicRateX%Field
+
+            where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+            BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea
+
+
+            call BoxDif(Me%ObjBoxDif,                                                   &
+                        BenthicRateX%Field2,                                             &
+                        BenthicRateX%ID%Name,                                           &
+                        Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+
           elseif (BenthicRateX%FirstProp%IDNumber==RootsMort_) then
-            
-             call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= RootsMort_, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
-            
-                 Array2D = BenthicRateX%Field
-            
-             call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'           
-                        
-                        ! I can eventually make an output for boxes as for the other BenthicEcology 
-                        !rate fluxes, but I have to check how to do a unit conversion . 
-                        BenthicRateX%Field2 => BenthicRateX%Field
-                        
-                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
-                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
-                    
 
-                    call BoxDif(Me%ObjBoxDif,                                                   &
-                                BenthicRateX%Field2,                                             &
-                                BenthicRateX%ID%Name,                                           &
-                                Me%ExtWater%WaterPoints2D,                                      &
-                                STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
-            
-              elseif (BenthicRateX%FirstProp%IDNumber==NintFactorR_) then
-            
-             call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= NintFactorR_, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
-            
-                 Array2D = BenthicRateX%Field
-            
-             call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'           
-                        
-                        ! I can eventually make an output for boxes as for the other BenthicEcology 
-                        !rate fluxes, but I have to check how to do a unit conversion . 
-                        BenthicRateX%Field2 => BenthicRateX%Field
-                        
-                        where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
-                        BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea 
-                    
 
-                    call BoxDif(Me%ObjBoxDif,                                                   &
-                                BenthicRateX%Field2,                                             &
-                                BenthicRateX%ID%Name,                                           &
-                                Me%ExtWater%WaterPoints2D,                                      &
-                                STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
-            else
-            
-           
-                     
-            
-                    where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
-                        BenthicRateX%Field = BenthicRateX%Field * Me%ExternalVar%GridCellArea / &  ! Kg/s?
-                                             Me%Coupled%BenthicEcology%DT_Compute
-                    
+            call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= RootsMort_, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
 
-                    call BoxDif(Me%ObjBoxDif,                                                   &
-                                BenthicRateX%Field,                                             &
-                                BenthicRateX%ID%Name,                                           &
-                                Me%ExtWater%WaterPoints2D,                                      &
-                                STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                &
-                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
-          
+            Array2D = BenthicRateX%Field
+
+            call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+            ! I can eventually make an output for boxes as for the other BenthicEcology
+            !rate fluxes, but I have to check how to do a unit conversion .
+            BenthicRateX%Field2 => BenthicRateX%Field
+
+            where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+            BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea
+
+            call BoxDif(Me%ObjBoxDif,                                                   &
+                        BenthicRateX%Field2,                                             &
+                        BenthicRateX%ID%Name,                                           &
+                        Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+
+        elseif (BenthicRateX%FirstProp%IDNumber==NintFactorR_) then
+
+            call GetRootsArray2D(Me%ObjSedimentProperties, Array2D, ArrayID= NintFactorR_, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR09'
+
+            Array2D = BenthicRateX%Field
+
+            call UnGetSedimentProperties(Me%ObjSedimentProperties, Array2D, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
+
+                ! I can eventually make an output for boxes as for the other BenthicEcology
+                !rate fluxes, but I have to check how to do a unit conversion .
+                BenthicRateX%Field2 => BenthicRateX%Field
+
+                where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                BenthicRateX%Field2 = BenthicRateX%Field2 * Me%ExternalVar%GridCellArea
+
+            call BoxDif(Me%ObjBoxDif,                                                   &
+                        BenthicRateX%Field2,                                             &
+                        BenthicRateX%ID%Name,                                           &
+                        Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+        else
+
+            where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+                BenthicRateX%Field = BenthicRateX%Field * Me%ExternalVar%GridCellArea / &  ! Kg/s?
+                                        Me%Coupled%BenthicEcology%DT_Compute
+
+            call BoxDif(Me%ObjBoxDif,                                                   &
+                        BenthicRateX%Field,                                             &
+                        BenthicRateX%ID%Name,                                           &
+                        Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+
          endif if111
-          
-          
+
             BenthicRateX => BenthicRateX%Next
         enddo
-        
-        
-        
+
         !BenthicRateX => Me%FirstBenthicRate
 
        ! do while (associated(BenthicRateX))
@@ -8982,29 +8912,29 @@ subroutine BenthicEcology_Processes
 
     end subroutine BenthicEcology_Processes
     !--------------------------------------------------------------------------
-    
+
 
     subroutine Detritus_Processes
-        
+
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL        
-        
-        !Local----------------------------------------------------------------- 
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
         type (T_Property),       pointer        :: Detritus
         type (T_Property),       pointer        :: PropertyX
         integer                                 :: WILB, WIUB, WJLB, WJUB, i, j
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
+
         WIUB = Me%WorkSize2D%IUB
         WJUB = Me%WorkSize2D%JUB
         WILB = Me%WorkSize2D%ILB
         WJLB = Me%WorkSize2D%JLB
 
-        call Search_Property(Detritus, PropertyXID = Detritus_, STAT = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'Detritus_Processes - ModuleInterfaceSedimentWater - ERR01' 
-            
+        call Search_Property(Detritus, PropertyXID = Detritus_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Detritus_Processes - ModuleInterfaceSedimentWater - ERR01'
+
         PropertyX => Me%FirstProperty
 
         do while(associated(PropertyX))
@@ -9047,20 +8977,20 @@ subroutine BenthicEcology_Processes
             PropertyX => PropertyX%Next
 
         end do
-                    
+
 
     end subroutine Detritus_Processes
 
-    
+
     !--------------------------------------------------------------------------
 
 
     subroutine CEQUALW2_Processes
-        
+
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL        
-        
-        !Local----------------------------------------------------------------- 
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
         type (T_Property   ),       pointer     :: PropertyX
         type (T_BenthicRate),       pointer     :: BenthicRateX
         integer                                 :: WILB, WIUB, WJLB, WJUB
@@ -9070,16 +9000,14 @@ subroutine BenthicEcology_Processes
         real                                    :: WaterPropertyISCoef
 
         !Begin-----------------------------------------------------------------
-        
+
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "CEQUALW2_Processes")
 
-        WIUB = Me%WorkSize2D%IUB
-        WJUB = Me%WorkSize2D%JUB
-        WILB = Me%WorkSize2D%ILB
-        WJLB = Me%WorkSize2D%JLB
+        WIUB = Me%WorkSize2D%IUB;  WJUB = Me%WorkSize2D%JUB
+        WILB = Me%WorkSize2D%ILB;  WJLB = Me%WorkSize2D%JLB
 
         if (Me%ExternalVar%Now .GE. Me%Coupled%CEQUALW2%NextCompute) then
-            
+
             PropertyX => Me%FirstProperty
 
             do while(associated(PropertyX))
@@ -9093,11 +9021,10 @@ subroutine BenthicEcology_Processes
                                           CellArea2D    = Me%ExternalVar%GridCellArea,      &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR01'
-                        
+                    if (STAT_CALL .NE. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR01'
+
                 elseif( PropertyX%ID%IDNumber == Oxygen_  )then
-                    
+
                     do j = WJLB, WJUB
                     do i = WILB, WIUB
 
@@ -9120,13 +9047,12 @@ subroutine BenthicEcology_Processes
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR04'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR04'
 
                 else
 
                     if(PropertyX%ID%IsParticulate)then
-                
+
                         do i = WILB, WIUB
                         do j = WJLB, WJUB
 
@@ -9157,7 +9083,7 @@ subroutine BenthicEcology_Processes
 
                         enddo
                         enddo
-                    
+
                     end if
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
@@ -9166,15 +9092,14 @@ subroutine BenthicEcology_Processes
                                           WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR01'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR01'
 
                 end if
 
                 PropertyX => PropertyX%Next
 
             end do
-            
+
             Me%Coupled%CEQUALW2%NextCompute = Me%Coupled%CEQUALW2%NextCompute +         &
                                               Me%Coupled%CEQUALW2%DT_Compute
 
@@ -9187,9 +9112,9 @@ subroutine BenthicEcology_Processes
             if (PropertyX%Evolution%CEQUALW2) then
 
                 if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
-                    
+
                     if(PropertyX%ID%IsParticulate)then
-                        
+
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -9205,7 +9130,7 @@ subroutine BenthicEcology_Processes
                         enddo
 
                     else
-                        
+
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -9220,7 +9145,7 @@ subroutine BenthicEcology_Processes
 
                         enddo
                         enddo
-                    
+
                     end if
 
 
@@ -9231,28 +9156,26 @@ subroutine BenthicEcology_Processes
                                           OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
                                           DTProp        = PropertyX%Evolution%DTInterval,   &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
-                        stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR02'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR02'
 
                     if(.not. PropertyX%ID%IsParticulate)then
-                        
+
                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                               ConcentrationX    = ConcentrationOld,         &
                                               PropertyXIDNumber = PropertyX%ID%IDNumber,    &
                                               PropertyXUnits    = WaterPropertyUnits,       &
                                               PropertyXISCoef   = WaterPropertyISCoef,      &
                                               STAT              = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)                                         &
-                            stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR03'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR03'
 
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
-                    
+
                             if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
 
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                                 !kg m-2 s-1                = kg m-2 s-1 + (kg - kg/m3 * m3)/(m2 * s)
-                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &
                                                              (PropertyX%MassInKg(i,j)                             -   &
                                                               ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
                                                               Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
@@ -9265,8 +9188,7 @@ subroutine BenthicEcology_Processes
                         enddo
 
                         call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
-                        if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR04'
+                        if(STAT_CALL .ne. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR04'
                     else
 
                         do i = WILB, WIUB
@@ -9290,7 +9212,7 @@ subroutine BenthicEcology_Processes
             end if
 
             PropertyX => PropertyX%Next
-            
+
         end do
 
         BenthicRateX => Me%FirstBenthicRate
@@ -9303,8 +9225,7 @@ subroutine BenthicEcology_Processes
                              RateFlux2D     = BenthicRateX%Field,                       &
                              WaterPoints2D  = Me%ExtWater%WaterPoints2D,                &
                              STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR05'
+            if (STAT_CALL .NE. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR05'
 
             where (Me%ExtWater%WaterPoints2D == WaterPoint)           &
                 BenthicRateX%Field = BenthicRateX%Field             * &
@@ -9317,14 +9238,12 @@ subroutine BenthicEcology_Processes
                         BenthicRateX%ID%Name,                                           &
                         Me%ExtWater%WaterPoints2D,                                      &
                         STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR06'
+            if (STAT_CALL .NE. SUCCESS_) stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR06'
 
             BenthicRateX => BenthicRateX%Next
 
         enddo
-        
-        
+
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "CEQUALW2_Processes")
 
 
@@ -9333,12 +9252,14 @@ subroutine BenthicEcology_Processes
     !--------------------------------------------------------------------------
 
     subroutine OutPut_Results_HDF
-        
+        !Arguments--------------------------------------------------------------
+
         !External--------------------------------------------------------------
         integer                             :: STAT_CALL
         real                                :: Year, Month, Day, Hour, Minute, Second
-         
+
         !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: PropertyName, GroupName
         type (T_Property), pointer          :: PropertyX
         integer                             :: OutPutNumber
         integer, dimension(6)               :: TimeAux
@@ -9351,18 +9272,14 @@ subroutine BenthicEcology_Processes
 
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_Results_HDF")
 
-        WorkILB = Me%WaterWorkSize3D%ILB 
-        WorkIUB = Me%WaterWorkSize3D%IUB 
-        WorkJLB = Me%WaterWorkSize3D%JLB 
-        WorkJUB = Me%WaterWorkSize3D%JUB
-        WorkKLB = Me%WaterWorkSize3D%KLB
-        WorkKUB = Me%WaterWorkSize3D%KUB
+        WorkILB = Me%WaterWorkSize3D%ILB;  WorkJLB = Me%WaterWorkSize3D%JLB;  WorkKLB = Me%WaterWorkSize3D%KLB
+        WorkIUB = Me%WaterWorkSize3D%IUB;  WorkJUB = Me%WaterWorkSize3D%JUB;  WorkKUB = Me%WaterWorkSize3D%KUB
 
         OutPutNumber = Me%OutPut%NextOutPut
 
 
 TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
-            
+
             call ExtractDate(Me%ExternalVar%Now,                         &
                              Year = Year, Month  = Month,  Day    = Day, &
                              Hour = Hour, Minute = Minute, Second = Second)
@@ -9380,37 +9297,62 @@ TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                                 AuxTime(4), AuxTime(5), AuxTime(6))
             TimePtr => AuxTime
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR10'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
                                  Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR20'
 
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                 &
                                  WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR30'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints", &
                                  "-", Array3D = Me%ExtWater%OpenPoints3D,      &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR40'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/ShearStress", "ShearStress",  &
-                                 "N/m2", Array2D = Me%Shear_Stress%Tension,          &
-                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR05'
-            
-            if(Me%ComputeRugosity)then          
+            PropertyName = GetPropertyName(ShearStress_)
+            GroupName    = "/Results/"//trim(PropertyName)
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  &
+                                Array2D        = Me%Shear_Stress%Tension,               &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR50'
+
+            PropertyName = GetPropertyName(ShearStressX_)
+            GroupName    = "/Results/"//trim(PropertyName)
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  &
+                                Array2D        = Me%Shear_Stress%Tension_X,             &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR60'
+
+            PropertyName = GetPropertyName(ShearStressY_)
+            GroupName    = "/Results/"//trim(PropertyName)
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  &
+                                Array2D        = Me%Shear_Stress%Tension_Y,             &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR70'
+
+            if(Me%ComputeRugosity)then
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Rugosity", "Rugosity",  &
                                      "N/m2", Array2D = Me%Rugosity%Field,          &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR010'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR080'
             endif
 
             if(Me%Consolidation%Yes)then
@@ -9419,12 +9361,9 @@ TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "consolidation flux",                          &
                                      "kg/m2s", Array2D = Me%Consolidation%Flux,     &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR90'
 
             end if
-
-                        
 
             PropertyX => Me%FirstProperty
 
@@ -9433,27 +9372,25 @@ PropX:      do while (associated(PropertyX))
                 if(PropertyX%OutputHDF)then
 
                     if(PropertyX%Mass_Limitation)then
-                    
+
                         if(PropertyX%OutHDForigin) then
-                                                                        
+
                             call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name,                &
                                                  PropertyX%ID%Name, PropertyX%ID%Units,                     &
                                                  Array2D = PropertyX%MassInKg,                              &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) &
-                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06a'
-                        
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater -ERR100'
+
                         else
-                    
+
                             call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name,                &
                                                  PropertyX%ID%Name, PropertyX%ID%Units,                     &
                                                  Array2D = PropertyX%Mass_Available,                        &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) &
-                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06b'
-                            
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater -ERR110'
+
                         end if
-                            
+
                     end if
 
                     if(PropertyX%Evolution%WaterFluxes)then
@@ -9462,30 +9399,27 @@ PropX:      do while (associated(PropertyX))
                                              PropertyX%ID%Name, 'kg/m2s',                               &
                                              Array2D = PropertyX%FluxToWater,                           &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07'
-                                                        
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR07'
+
                     end if
-                    
+
                     if(PropertyX%Evolution%SedimentWaterFluxes)then
-                       
+
                         call HDF5WriteData  (Me%ObjHDF5, "/Results/FluxToSediment/"//PropertyX%ID%Name, &
                                              PropertyX%ID%Name, 'kg/m2s',                               &
                                              Array2D = PropertyX%FluxToSediment,                        &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR08'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR120'
 
                     end if
-                    
+
                     if(PropertyX%Evolution%Deposition)then
-                       
+
                         call HDF5WriteData  (Me%ObjHDF5, "/Results/Deposition/"//PropertyX%ID%Name,     &
                                              PropertyX%ID%Name, 'kg/m2s',                               &
                                              Array2D = PropertyX%DepositionFlux,                        &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR09'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR130'
 
                     end if
 
@@ -9497,13 +9431,11 @@ PropX:      do while (associated(PropertyX))
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR140'
 
             Me%OutPut%NextOutPut = OutPutNumber + 1
 
-
-        endif  TOut    
+        endif  TOut
 
         nullify(PropertyX)
 
@@ -9513,8 +9445,86 @@ PropX:      do while (associated(PropertyX))
 
     !--------------------------------------------------------------------------
 
+    subroutine OutPut_Residual_HDF
+        !Arguments--------------------------------------------------------------
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: PropertyName, GroupName
+        integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        !----------------------------------------------------------------------
+
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_Residual_HDF")
+
+        WorkILB = Me%WaterWorkSize3D%ILB
+        WorkIUB = Me%WaterWorkSize3D%IUB
+        WorkJLB = Me%WaterWorkSize3D%JLB
+        WorkJUB = Me%WaterWorkSize3D%JUB
+
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                              &
+                             WorkJLB, WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR10'
+        endif
+
+
+        PropertyName = GetPropertyName(ShearStress_)
+        GroupName    = "/Residual/"//trim(PropertyName)
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      &
+                            Array2D        = Me%Shear_Stress%Residual_Tau,              &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR20'
+        endif
+
+        PropertyName = GetPropertyName(ShearStressX_)
+        GroupName    = "/Residual/"//trim(PropertyName)
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      &
+                            Array2D        = Me%Shear_Stress%Residual_Tau_X,            &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR30'
+        endif
+
+        PropertyName = GetPropertyName(ShearStressY_)
+        GroupName    = "/Residual/"//trim(PropertyName)
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      &
+                            Array2D        = Me%Shear_Stress%Residual_Tau_Y,            &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR40'
+        endif
+
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR50'
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "OutPut_Residual_HDF")
+
+    end subroutine OutPut_Residual_HDF
+
+    !--------------------------------------------------------------------------
+
+
     subroutine OutputRestartFile
-        
+
         !Local-----------------------------------------------------------------
         real                                :: Year, Month, Day, Hour, Minute, Second
 
@@ -9522,7 +9532,6 @@ PropX:      do while (associated(PropertyX))
 
 
         if(Me%ExternalVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-
 
             call ExtractDate(Me%ExternalVar%Now,                         &
                              Year = Year, Month  = Month,  Day    = Day, &
@@ -9542,9 +9551,9 @@ PropX:      do while (associated(PropertyX))
 
 
     !--------------------------------------------------------------------------
-    ! This subroutine is responsable for defining       
-    ! the next time to actualize the value of each      
-    ! property                                          
+    ! This subroutine is responsable for defining
+    ! the next time to actualize the value of each
+    ! property
     subroutine Actualize_Time_Evolution
 
         !Local-----------------------------------------------------------------
@@ -9552,7 +9561,7 @@ PropX:      do while (associated(PropertyX))
 
         !----------------------------------------------------------------------
 
-        Property => Me%FirstProperty  
+        Property => Me%FirstProperty
 
         do while (associated(Property))
 
@@ -9566,7 +9575,7 @@ PropX:      do while (associated(PropertyX))
 
 
             Property => Property%Next
-        end do   
+        end do
 
         nullify(Property)
 
@@ -9575,126 +9584,115 @@ PropX:      do while (associated(PropertyX))
 
     !--------------------------------------------------------------------------
 
-    
-    subroutine SetSubModulesModifier 
+
+    subroutine SetSubModulesModifier
 
         !Local-----------------------------------------------------------------
         !logical                                         :: WavesStressON
-        integer                                         :: STAT_CALL 
+        integer                                         :: STAT_CALL
         type(T_Property), pointer                       :: SPM
         type(T_Property), pointer                       :: PropertyX
 
         !Begin-----------------------------------------------------------------
 
-        
+
         call SetFluxesToWaterColumn
 
         if(Me%MacroAlgae)then
 
-            call Search_Property(SPM, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
-            if (STAT_CALL .NE. SUCCESS_) &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR10'
-        
+            call Search_Property(SPM, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR10'
+
             call SetMacroAlgaeParameters(WaterPropertiesID = Me%ObjWaterProperties,     &
                                          ShearStress       = Me%Shear_Stress%Tension,   &
                                          SPMFlux           = SPM%DepositionFlux,        &
                                          STAT              = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR20' 
-            
+            if (STAT_CALL .NE. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR20'
+
             nullify(SPM)
 
         endif
 
-#ifndef _SEDIMENT_ 
+#ifndef _SEDIMENT_
 
         if(Me%RunSedimentModule)then
-                
+
             PropertyX => Me%FirstProperty
 
             do while(associated(PropertyX))
-                
+
                 if(PropertyX%Non_Cohesive) then
-                
+
                     call SetNonCohesiveFlux(Me%ObjSediment, PropertyX%ID%IDNumber, PropertyX%FluxToSediment,    &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                                                &
-                        stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR30'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR30'
                 endif
-                
+
                 PropertyX => PropertyX%Next
-            
+
             enddo
-                
-            if(Me%Consolidation%Yes)then    
+
+            if(Me%Consolidation%Yes)then
                 call SetCohesiveFlux(Me%ObjSediment, Me%Consolidation%Flux,                                     &
                                           STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                                    &
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR40'
+                if (STAT_CALL .NE. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR40'
             endif
 
         endif
-        
+
         if(Me%RunsSediments)then
             if(Me%Consolidation%Yes)then
-                
+
                 call SetFluxesToSedimentColumn
-                
+
                 call SetConsolidationFlux(Me%ObjConsolidation, Me%Consolidation%Flux,               &
                                             STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                        &
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR50'
+                if (STAT_CALL .NE. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR50'
 
                 call SetBottomWaterFlux(Me%ObjHydrodynamic,                                         &
                                         Me%WaterFlux,                                               &
                                         STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_)                                                         &
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR60'
+                if(STAT_CALL .ne. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR60'
 
                 call SetSedimentWaterFlux(Me%ObjSedimentProperties,                                 &
                                             Me%WaterFlux,                                             &
                                             STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_)                                                         &
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR70'
-                
+                if(STAT_CALL .ne. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR70'
+
             endif
         endif
 
-#endif 
-        
+#endif
+
         if(Me%ObjTurbGOTM /= 0)then
             call SetTurbGOTMBottomShearVelocity(TurbGOTMID          = Me%ObjTurbGOTM,           &
                                                 BottomShearVelocity = Me%Shear_Stress%Velocity, &
                                                 STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                          &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR80'
-        
+            if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR80'
+
             call SetTurbGOTMBottomRugosity(TurbGOTMID     = Me%ObjTurbGOTM,                     &
                                            BottomRugosity = Me%Rugosity%Field,                  &
                                            STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                          &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR90'
         end if
 
-#ifndef _LAGRANGIAN_                                         
-        if(Me%ObjLagrangian /= 0)then       
-#ifdef  _LAGRANGIAN_GLOBAL_                                         
+#ifndef _LAGRANGIAN_
+        if(Me%ObjLagrangian /= 0)then
+#ifdef  _LAGRANGIAN_GLOBAL_
             call SetLagrangianShearGlobal                                               &
                                    (LagrangianID   = Me%ObjLagrangian,                  &
                                     ModelName      = Me%ModelName,                      &
                                     ShearStress    = Me%Shear_Stress%Tension,           &
                                     ShearVelocity  = Me%Shear_Stress%Velocity,          &
                                     STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR100'
 #else
             call SetLagrangianShear(LagrangianID   = Me%ObjLagrangian,                  &
                                     ShearStress    = Me%Shear_Stress%Tension,           &
                                     ShearVelocity  = Me%Shear_Stress%Velocity,          &
                                     STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR110'
-#endif    
+            if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR110'
+#endif
         end if
 #endif
 
@@ -9703,14 +9701,12 @@ PropX:      do while (associated(PropertyX))
             call SetDepositionProbability(Me%ObjFreeVerticalMovement,                   &
                                           Me%DepositionProbability,                     &
                                           STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)                                                 &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR120'
-            
+            if(STAT_CALL .ne. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR120'
+
             call SetShearVelocity (Me%ObjFreeVerticalMovement,                          &
                                           Me%Shear_Stress%Velocity,                     &
                                           STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)                                                 &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR121'
+            if(STAT_CALL .ne. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR121'
         end if
 
         if (Me%ObjHydrodynamic /= 0) then
@@ -9721,18 +9717,17 @@ PropX:      do while (associated(PropertyX))
             !    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR130'
 
             if (Me%WaveShear_Stress%Yes) then
-                
+
                 if (Me%Shear_Stress%Method==1) then
 
                     call SetWaveChezyVel(Me%ObjHydrodynamic,                             &
                                          Me%WaveShear_Stress%ChezyVel,                   &
                                          STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)                                          &
-                        stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR140'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR140'
                 endif
             endif
         endif
-            
+
 
     end subroutine SetSubModulesModifier
 
@@ -9749,14 +9744,14 @@ PropX:      do while (associated(PropertyX))
     subroutine KillInterfaceSedimentWater(ObjInterfaceSedimentWaterID, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer                             :: ObjInterfaceSedimentWaterID              
+        integer                             :: ObjInterfaceSedimentWaterID
         integer, optional, intent(OUT)      :: STAT
 
         !External----------------------------------------------------------------
-        integer                             :: ready_, STAT_CALL, nUsers              
+        integer                             :: ready_, STAT_CALL, nUsers
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_           
+        integer                             :: STAT_
         type (T_Property),    pointer       :: PropertyX
         type (T_BenthicRate), pointer       :: BenthicRateX
 
@@ -9764,7 +9759,7 @@ PropX:      do while (associated(PropertyX))
 
         STAT_ = UNKNOWN_
 
-        call Ready(ObjInterfaceSedimentWaterID, ready_)    
+        call Ready(ObjInterfaceSedimentWaterID, ready_)
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
@@ -9774,22 +9769,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%OutPut%Yes) then
 
+                    if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
+                        call OutPut_Residual_HDF
+                    endif
+
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR01'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR10'
                 endif
 
                 if (Me%Shear_Stress%Statistics%ON) then
                     call KillStatistic (Me%Shear_Stress%Statistics%ID, STAT = STAT_CALL)
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR02'
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR20'
                 endif
 
                 if (Me%RunsSandTransport) then
 
                     call KillSand(Me%ObjSand, STAT = STAT_CALL)
 
-                    if(STAT_CALL /= SUCCESS_)                                            &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR03.'
+                    if(STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR20'
 
                 endif
 
@@ -9810,87 +9807,84 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
                 nUsers = DeassociateInstance(mTIME_,            Me%ObjTime)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR05'
-                
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR40'
+
                 nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR06'
-                
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR50'
+
                 nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjWaterGridData)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR07'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR60'
 
                 nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjWaterHorizontalMap)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR08'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR70'
 
                 nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjWaterGeometry)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR09'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR80'
 
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjWaterMap)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR10'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR90'
 
                 nUsers = DeassociateInstance(mTURBULENCE_,      Me%ObjTurbulence)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR11'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR110'
 
                 nUsers = DeassociateInstance(mHYDRODYNAMIC_,    Me%ObjHydrodynamic)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR12'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR120'
 
                 nUsers = DeassociateInstance(mWATERPROPERTIES_, Me%ObjWaterProperties)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR13'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR130'
 
 #ifndef _LAGRANGIAN_
                 if(Me%ObjLagrangian /= 0)then
                     nUsers = DeassociateInstance(mLAGRANGIAN_, Me%ObjLagrangian)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR14'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR140'
                 end if
 #endif
 
                 if(Me%ObjTurbGOTM /= 0)then
                     nUsers = DeassociateInstance(mTURBGOTM_, Me%ObjTurbGOTM)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR15'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR150'
                 end if
 
 
                 if(Me%ObjFreeVerticalMovement /= 0)then
                     nUsers = DeassociateInstance(mFREEVERTICALMOVEMENT_, Me%ObjFreeVerticalMovement)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR16'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR160'
                 end if
 
                 if(Me%RunsSediments.or.Me%RunSedimentModule)then
-                                    
+
                     nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjSedimentGridData)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR17'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR170'
 
                     nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjSedimentHorizontalMap)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR18'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR180'
 
                     nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjSedimentGeometry)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR19'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR190'
 
                     nUsers = DeassociateInstance(mMAP_,             Me%ObjSedimentMap)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR20'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR200'
 #ifndef _SEDIMENT_
                     if(Me%RunSedimentModule)then
                         nUsers = DeassociateInstance(mSEDIMENT_, Me%ObjSediment)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR21a'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR210'
                     else
                         nUsers = DeassociateInstance(mSEDIMENTPROPERTIES_, Me%ObjSedimentProperties)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR21'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR220'
 
                         nUsers = DeassociateInstance(mCONSOLIDATION_,   Me%ObjConsolidation)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR22'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR230'
                     endif
 #endif
                 end if
 
                 if (Me%Coupled%BoxTimeSerie%Yes) then
-                    
-                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR23'
 
+                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater -ERR240'
 
                     deallocate(Me%Scalar2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR24'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater -ERR250'
                     nullify(Me%Scalar2D)
 
                 end if
@@ -9898,257 +9892,248 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 !Kills the TimeSerie
                 if (Me%Coupled%TimeSerie%Yes) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR25'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater -ERR260'
                 endif
 
-                deallocate(Me%Shear_Stress%Tension,    STAT = STAT_CALL) 
-                if(STAT_CALL .ne. SUCCESS_)&
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR26'
+                deallocate(Me%Shear_Stress%Tension,    STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR270'
                 nullify(Me%Shear_Stress%Tension)
 
-                deallocate(Me%Shear_Stress%Velocity,   STAT = STAT_CALL) 
+                deallocate(Me%Shear_Stress%Tension_X,    STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27'
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR270'
+                nullify(Me%Shear_Stress%Tension_X)
+
+                deallocate(Me%Shear_Stress%Tension_Y,    STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR280'
+                nullify(Me%Shear_Stress%Tension_Y)
+
+
+                deallocate(Me%Shear_Stress%Velocity,   STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR280'
                 nullify(Me%Shear_Stress%Velocity)
 
                 if(Me%UseSOD)then
-                    deallocate(Me%SOD%Field,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27a'
+                    deallocate(Me%SOD%Field,   STAT = STAT_CALL)
+                    if(STAT_CALL /= SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR290'
                     nullify(Me%SOD%Field)
                 endif
 
-
                 if (Me%RunsSandTransport.or.Me%RunSedimentModule) then
 
-                    deallocate(Me%Shear_Stress%CurrentVel,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27a'
+                    deallocate(Me%Shear_Stress%CurrentVel,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR300'
                     nullify(Me%Shear_Stress%CurrentVel)
 
-                    deallocate(Me%Shear_Stress%CurrentU,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27b'
+                    deallocate(Me%Shear_Stress%CurrentU,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR310'
                     nullify(Me%Shear_Stress%CurrentU)
 
-                    deallocate(Me%Shear_Stress%CurrentV,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27c'
+                    deallocate(Me%Shear_Stress%CurrentV,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR320'
                     nullify(Me%Shear_Stress%CurrentV)
 
                     if (associated(Me%Shear_Stress%CurrentResidualU)) then
-                        deallocate(Me%Shear_Stress%CurrentResidualU,   STAT = STAT_CALL) 
-                        if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR290'
+                        deallocate(Me%Shear_Stress%CurrentResidualU,   STAT = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_) &
+                          stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR330'
                         nullify(Me%Shear_Stress%CurrentResidualU)
                     endif
 
                     if (associated(Me%Shear_Stress%CurrentResidualV)) then
-                        deallocate(Me%Shear_Stress%CurrentResidualV,   STAT = STAT_CALL) 
+                        deallocate(Me%Shear_Stress%CurrentResidualV,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR300'
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR340'
                         nullify(Me%Shear_Stress%CurrentResidualV)
                     endif
-                
-                    deallocate(Me%Shear_Stress%UFace,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27d'
+
+                    deallocate(Me%Shear_Stress%UFace,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater -ERR350'
                     nullify(Me%Shear_Stress%UFace)
 
-                    deallocate(Me%Shear_Stress%VFace,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27e'
+                    deallocate(Me%Shear_Stress%VFace,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater -ERR360'
                     nullify(Me%Shear_Stress%VFace)
 
+                endif
+
+                if (Me%RunSedimentModule) then
+
+                    deallocate(Me%Shear_Stress%EfficiencyFactorCurrent,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR370'
+                    nullify(Me%Shear_Stress%EfficiencyFactorCurrent)
 
                 endif
-                
-                if (Me%RunSedimentModule) then
-                
-                    deallocate(Me%Shear_Stress%EfficiencyFactorCurrent,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27f'
-                    nullify(Me%Shear_Stress%EfficiencyFactorCurrent)
-                
-                endif
-              
 
                 if (Me%WaveShear_Stress%Yes) then
 
-                    !Shear stress 
-                    deallocate(Me%WaveShear_Stress%Tension        ) 
+                    !Shear stress
+                    deallocate(Me%WaveShear_Stress%Tension        )
 
-                    deallocate(Me%WaveShear_Stress%ChezyVel       ) 
-                    
+                    deallocate(Me%WaveShear_Stress%ChezyVel       )
+
                     if (Me%Shear_Stress%Method==1) then
-                        deallocate(Me%WaveShear_Stress%Rugosity%Field ) 
+                        deallocate(Me%WaveShear_Stress%Rugosity%Field )
                     endif
 
                     if (Me%RunsSandTransport) then
-
-                        deallocate(Me%WaveShear_Stress%TensionCurrents) 
-
+                        deallocate(Me%WaveShear_Stress%TensionCurrents)
                     endif
-                    
+
                     if (Me%RunSedimentModule) then
-                        deallocate(Me%WaveShear_Stress%Cphi)
-                        deallocate(Me%WaveShear_Stress%CWphi)
-                        deallocate(Me%Shear_Stress%EfficiencyFactorMean)  
-                        deallocate(Me%Shear_Stress%EfficiencyFactorWaves)  
-                    endif                   
+                        deallocate(Me%WaveShear_Stress%Cphi, Me%WaveShear_Stress%CWphi)
+                        deallocate(Me%Shear_Stress%EfficiencyFactorMean)
+                        deallocate(Me%Shear_Stress%EfficiencyFactorWaves)
+                    endif
 
                 endif
-                
+
                 if (.not. Me%Chezy) then
 
                     if(Me%Manning)then
-                        deallocate(Me%ManningCoef%Field,    STAT = STAT_CALL) 
+                        deallocate(Me%ManningCoef%Field,    STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR28'
                         nullify(Me%ManningCoef%Field)
                     else
-                        deallocate(Me%Rugosity%Field,       STAT = STAT_CALL) 
+                        deallocate(Me%Rugosity%Field,       STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR29'
                         nullify(Me%Rugosity%Field)
                     endif
-                
-                endif
 
+                endif
 
 #ifndef _WAVES_
 
                 if (Me%ObjWaves /= 0) then
-
                     nUsers = DeassociateInstance (mWAVES_,Me%ObjWaves)
                     if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR30'
                 end if
 #endif
 
                 if(Me%Consolidation%Yes)then
-                    
-                    deallocate(Me%Consolidation%Flux,   STAT = STAT_CALL) 
+
+                    deallocate(Me%Consolidation%Flux,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR310'
                     nullify(Me%Consolidation%Flux)
-                    
+
                     if(Me%RunsSediments)then
-                        deallocate(Me%Consolidation%Rate%Field,   STAT = STAT_CALL) 
+                        deallocate(Me%Consolidation%Rate%Field,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR311'
                         nullify(Me%Consolidation%Rate%Field)
                     endif
-                    
-                endif   
+
+                endif
 
                 if(Me%Coupled%Erosion%Yes)then
 
-                    deallocate(Me%ErosionRate%Field,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR31'
+                    deallocate(Me%ErosionRate%Field,   STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR31'
                     nullify(Me%ErosionRate%Field)
 
-                    deallocate(Me%Critical_Shear_Deposition%Field,   STAT = STAT_CALL) 
+                    deallocate(Me%Critical_Shear_Deposition%Field,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR32'
                     nullify(Me%Critical_Shear_Deposition%Field)
 
-                    deallocate(Me%Critical_Shear_Erosion%Field,   STAT = STAT_CALL) 
+                    deallocate(Me%Critical_Shear_Erosion%Field,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR33'
                     nullify(Me%Critical_Shear_Erosion%Field)
 
                 end if
-                
+
                 if(Me%Coupled%Deposition%Yes)then
-                    deallocate(Me%DepositionProbability, STAT = STAT_CALL) 
+                    deallocate(Me%DepositionProbability, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41'
                     nullify(Me%DepositionProbability)
                 end if
 
                 if (Me%Coupled%Benthos%Yes) then
-                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL) 
+                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41a'
                 endif
 
 
                 if (Me%Coupled%CEQUALW2%Yes) then
-                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL) 
+                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41b'
                 endif
-                
-                
+
+
                 if (Me%Coupled%BenthicEcology%Yes) then
-                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL) 
+                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR601'
-                
-                
-                 deallocate(Me%ExtWater%WaterVolume, STAT = STAT_CALL) 
+
+
+                    deallocate(Me%ExtWater%WaterVolume, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR602'
-                     
-                deallocate(Me%ExtWater%Sediment, STAT = STAT_CALL) 
+
+                    deallocate(Me%ExtWater%Sediment, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR603'
-                     
-                deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL) 
+
+                    deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR604'
-              
-              
-                deallocate(Me%Seagrasses%UptakeNH4s2D, STAT = STAT_CALL) 
+
+
+                    deallocate(Me%Seagrasses%UptakeNH4s2D, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR605'
-                                
-                deallocate(Me%Seagrasses%UptakeNH4NO3w2D, STAT = STAT_CALL) 
+
+                    deallocate(Me%Seagrasses%UptakeNH4NO3w2D, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR606'
-                  
-                deallocate(Me%Seagrasses%UptakePO4w2D, STAT = STAT_CALL) 
+
+                    deallocate(Me%Seagrasses%UptakePO4w2D, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR607'
-                  
-                                                   
-                deallocate(Me%Seagrasses%LightFactor2D, STAT = STAT_CALL) 
+
+
+                    deallocate(Me%Seagrasses%LightFactor2D, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR608'
-                     
-              deallocate(Me%Seagrasses%UptakePO4s2D, STAT = STAT_CALL) 
+
+                    deallocate(Me%Seagrasses%UptakePO4s2D, STAT = STAT_CALL)
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR609'
-                
-               
-                               
+
                 endif
 
                 PropertyX => Me%FirstProperty
 
                 do while(associated(PropertyX))
-                    
-                    deallocate(PropertyX%Mass_Available,   STAT = STAT_CALL) 
+
+                    deallocate(PropertyX%Mass_Available,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36'
                     nullify(PropertyX%Mass_Available)
 
-                    deallocate(PropertyX%MassInKg,   STAT = STAT_CALL) 
+                    deallocate(PropertyX%MassInKg,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36a'
                     nullify(PropertyX%MassInKg)
-                    
-                    deallocate(PropertyX%Mass_FromWater,   STAT = STAT_CALL) 
+
+                    deallocate(PropertyX%Mass_FromWater,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36b'
                     nullify(PropertyX%Mass_FromWater)
-                    
+
 
                     if(PropertyX%Evolution%Deposition)then
 
-                        deallocate(PropertyX%DepositionFlux,   STAT = STAT_CALL) 
+                        deallocate(PropertyX%DepositionFlux,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR37'
                         nullify(PropertyX%DepositionFlux)
@@ -10156,12 +10141,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     if(PropertyX%Evolution%Erosion)then
 
-                        deallocate(PropertyX%ErosionCoefficient,   STAT = STAT_CALL) 
+                        deallocate(PropertyX%ErosionCoefficient,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR38'
                         nullify(PropertyX%ErosionCoefficient)
 
-                        deallocate(PropertyX%ErosionFlux,   STAT = STAT_CALL) 
+                        deallocate(PropertyX%ErosionFlux,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR39'
                         nullify(PropertyX%ErosionFlux)
@@ -10171,47 +10156,47 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     if((.not. PropertyX%ID%IsParticulate) .or. PropertyX%Evolution%WaterFluxes)then
 
-                        deallocate(PropertyX%WaterConcentration,   STAT = STAT_CALL) 
+                        deallocate(PropertyX%WaterConcentration,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR40'
                         nullify(PropertyX%WaterConcentration)
-                                                
+
                     end if
 
 
                     if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
-                        
-                        deallocate(PropertyX%FluxToWater,   STAT = STAT_CALL) 
+
+                        deallocate(PropertyX%FluxToWater,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41'
                         nullify(PropertyX%FluxToWater)
-                        
+
                     end if
 
                     if(PropertyX%Evolution%SedimentFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
-                        
-                        deallocate(PropertyX%FluxToSediment,   STAT = STAT_CALL) 
+
+                        deallocate(PropertyX%FluxToSediment,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41a'
                         nullify(PropertyX%FluxToSediment)
 
-                        deallocate(PropertyX%SedimentConcentration,   STAT = STAT_CALL) 
+                        deallocate(PropertyX%SedimentConcentration,   STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41b'
                         nullify(PropertyX%SedimentConcentration)
-                        
+
                     end if
 
 
                     PropertyX => PropertyX%Next
 
                 end do
-                
+
                 BenthicRateX => Me%FirstBenthicRate
 
                 do while(associated(BenthicRateX))
 
-                    deallocate(BenthicRateX%Field,   STAT = STAT_CALL) 
+                    deallocate(BenthicRateX%Field,   STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR42'
                     nullify(BenthicRateX%Field)
@@ -10219,7 +10204,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     BenthicRateX => BenthicRateX%Next
 
                 end do
-                
+
+                if (associated(Me%Shear_Stress%Residual_Tau_X)) then
+                    deallocate(Me%Shear_Stress%Residual_Tau_X)
+                    nullify   (Me%Shear_Stress%Residual_Tau_X)
+                endif
+
+                if (associated(Me%Shear_Stress%Residual_Tau_Y)) then
+                    deallocate(Me%Shear_Stress%Residual_Tau_Y)
+                    nullify   (Me%Shear_Stress%Residual_Tau_Y)
+                endif
+
+                if (associated(Me%Shear_Stress%Residual_Tau)) then
+                    deallocate(Me%Shear_Stress%Residual_Tau  )
+                    nullify   (Me%Shear_Stress%Residual_Tau  )
+                endif
+
                 !Deallocates Instance
                 call DeallocateInstance
 
@@ -10227,19 +10227,19 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 STAT_      = SUCCESS_
 
             end if
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-           
+
 
     end subroutine KillInterfaceSedimentWater
-        
+
 
     !------------------------------------------------------------------------
-    
-    
+
+
     subroutine DeallocateInstance ()
 
         !Arguments-------------------------------------------------------------
@@ -10266,9 +10266,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Deallocates instance
         deallocate (Me)
-        nullify    (Me) 
+        nullify    (Me)
 
-            
+
     end subroutine DeallocateInstance
 
     !--------------------------------------------------------------------------
@@ -10281,7 +10281,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Local--------------------------------------------------------------
         type(T_Property),           pointer     :: Property
         integer                                 :: ObjHDF5
-        character (Len = StringLength)          :: PropertyName
+        character (Len = StringLength)          :: PropertyName, GroupName
         integer                                 :: WorkILB, WorkIUB
         integer                                 :: WorkJLB, WorkJUB
         integer                                 :: WorkKLB, WorkKUB
@@ -10289,29 +10289,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer(4)                              :: HDF5_CREATE
         logical                                 :: Final_ = .false.
         character (Len = Pathlength)            :: filename
-        
+
         !----------------------------------------------------------------------
 
-        WorkILB = Me%WaterWorkSize3D%ILB 
-        WorkIUB = Me%WaterWorkSize3D%IUB 
-        WorkJLB = Me%WaterWorkSize3D%JLB 
-        WorkJUB = Me%WaterWorkSize3D%JUB 
-        WorkKLB = Me%WaterWorkSize3D%KLB 
-        WorkKUB = Me%WaterWorkSize3D%KUB 
+        WorkILB = Me%WaterWorkSize3D%ILB;  WorkJLB = Me%WaterWorkSize3D%JLB;  WorkKLB = Me%WaterWorkSize3D%KLB
+        WorkIUB = Me%WaterWorkSize3D%IUB;  WorkJUB = Me%WaterWorkSize3D%JUB;  WorkKUB = Me%WaterWorkSize3D%KUB
 
         if(present(Final)) Final_ = Final
 
-        !Checks if it's at the end of the run 
+        !Checks if it's at the end of the run
         !or !if it's supposed to overwrite the final HDF file
         if (Final_ .or. Me%Output%RestartOverwrite) then
-
             filename = trim(Me%Files%Final)
-
         else
-
             filename =  ChangeSuffix(Me%Files%Final,                         &
                             "_"//trim(TimeToString(Me%ExternalVar%Now))//".fin")
-
         endif
 
         !Gets File Access Code
@@ -10321,90 +10313,119 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5,trim(filename), HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR01'
-        
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
+
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-           stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR100'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR100'
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR20'
 
         !Writes the Grid
         call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
                               Array2D = Me%ExtWater%Bathymetry,                         &
                               STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR03'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR30'
 
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                                 &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR40'
 
         call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
                               Array3D = Me%ExtWater%WaterPoints3D,                      &
                               STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR04'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR50'
 
         !Writes SZZ
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                        &
                              WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR08'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR60'
 
         call HDF5WriteData  (ObjHDF5, "/Grid", "VerticalZ",                             &
                              "m", Array3D = Me%ExtWater%SZZ,                            &
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR09'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR70'
 
         !Writes OpenPoints
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                                 &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR80'
 
         call HDF5WriteData  (ObjHDF5, "/Grid", "OpenPoints",                            &
                              "-", Array3D = Me%ExtWater%OpenPoints3D,                   &
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR11'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR90'
 
 
         Property => Me%FirstProperty
 
         do while (associated(Property))
-      
+
             PropertyName = trim(Property%ID%name)
-            
+
             call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR12'
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR100'
 
             !Final concentration
             call HDF5WriteData  (ObjHDF5, "/Mass/"//Property%ID%Name,                   &
                                  Property%ID%Name, Property%ID%Units,                   &
                                  Array2D = Property%Mass_Available,                     &
                                  STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR13'
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR110'
 
             Property => Property%Next
 
         enddo
 
         nullify (Property)
-        
+
         if(Me%ComputeRugosity)then
             !Final rugosity
             call HDF5WriteData  (ObjHDF5, "/Rugosity/"//"Rugosity",                    &
                                  "Rugosity", "m",                                      &
                                  Array2D = Me%Rugosity%Field,                          &
                                  STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR13a'
-        endif            
-   
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR120'
+        endif
+
+
+        if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
+
+            PropertyName = GetPropertyName(ShearStressX_)
+            GroupName    = "/Residual/"//trim(PropertyName)
+
+            call HDF5WriteData  (HDF5ID        = ObjHDF5,                               &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  &
+                                Array2D        = Me%Shear_Stress%Residual_Tau_X,        &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR130'
+            endif
+
+            PropertyName = GetPropertyName(ShearStressY_)
+            GroupName    = "/Residual/"//trim(PropertyName)
+
+            call HDF5WriteData  (HDF5ID        = ObjHDF5,                               &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  &
+                                Array2D        = Me%Shear_Stress%Residual_Tau_Y,        &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR140'
+            endif
+        endif
+
         !Writes everything to disk
         call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR14'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR150'
 
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR15'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR160'
 
     end subroutine Write_Final_HDF
 
@@ -10420,7 +10441,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Ready (ObjInterfaceSedimentWater_ID, ready_) 
+    subroutine Ready (ObjInterfaceSedimentWater_ID, ready_)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjInterfaceSedimentWater_ID
@@ -10466,9 +10487,5 @@ end module ModuleInterfaceSedimentWater
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T?cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
-
-
-
-

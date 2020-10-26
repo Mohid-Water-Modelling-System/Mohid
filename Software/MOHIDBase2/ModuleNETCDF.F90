@@ -45,6 +45,7 @@ Module ModuleNETCDF
     public  :: NETCDFReadTime
     public  :: NETCDFReadGrid2D    
     public  :: NETCDFSetDimensions
+    public  :: NETCDFSet1D_Dimension
     public  :: NETCDFGetDimensions    
     public  :: NETCDFWriteLatLon
     public  :: NETCDFWriteLatLon1D    
@@ -71,6 +72,9 @@ Module ModuleNETCDF
         module procedure NETCDFWriteDataR8_3D
         module procedure NETCDFWriteDataI4_2D
         module procedure NETCDFWriteDataI4_3D
+        module procedure NETCDFWriteDataR4_1D                
+        module procedure NETCDFWriteDataR8_1D        
+        !module procedure NETCDFWriteDataI4_1D                
     end interface
     
 
@@ -797,19 +801,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(2)%ID%Name), Me%Dims(2)%UB, Me%Dims(2)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR02'
             
+            if (.not. SimpleGrid_) then  
+            
             !define the four horizontal cell vertices as a dimension
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(5)%ID%Name), Me%Dims(5)%UB, Me%Dims(5)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR04'
             
+            endif
             
             if(KUB > 0)then
                 !define layers as dimension
                 STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(3)%ID%Name), Me%Dims(3)%UB, Me%Dims(3)%ID%Number)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
                 
+                if (.not. SimpleGrid_) then  
                 !define the two layers vertices as a dimension                
                 STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(6)%ID%Name), Me%Dims(6)%UB, Me%Dims(6)%ID%Number)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
+                endif
                 
             end if
 
@@ -828,6 +837,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine NETCDFSetDimensions
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFSet1D_Dimension (NCDFID, IUB, DimName, Dim1DID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NCDFID
+        integer                                     :: IUB
+        character(Len=*)                            :: DimName
+        integer                                     :: Dim1DID
+        integer,          optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !enter definition mode
+            STAT_CALL = nf90_redef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFSet1D_Dimension - ModuleNETCDF - ERR10'
+
+            !define matrixes columns as a dimension
+            STAT_CALL = nf90_def_dim(Me%ncid, trim(DimName), IUB, Dim1DID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFSet1D_Dimension - ModuleNETCDF - ERR20'
+
+            !exit definition mode
+            STAT_CALL = nf90_enddef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFSet1D_Dimension - ModuleNETCDF - ERR30'
+            
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine NETCDFSet1D_Dimension
 
     !--------------------------------------------------------------------------
 
@@ -1623,6 +1681,197 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteDataR4_1D (NCDFID, Name, LongName, StandardName, Units,       &
+                                     ValidMin, ValidMax,  MinValue, MaxValue,           &
+                                     MissingValue, Array1D, DimID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        character(len=*), intent(IN)                    :: Name
+        character(len=*), intent(IN)                    :: Units
+        character(len=*), intent(IN), optional          :: LongName, StandardName
+        real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
+        real,             intent(IN), optional          :: MinValue, MaxValue
+        real(4), dimension(:),        pointer           :: Array1D
+        integer, optional                               :: DimID
+        integer,                      optional          :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+        integer                                         :: VarID
+        integer, dimension(1)                           :: Dims1ID
+        integer                                         :: FillValue, MissingValue_
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
+            
+            if (present(DimID)) then
+                Dims1ID(1) = DimID
+            else
+                Dims1ID(1) = Me%Dims(1)%ID%Number  ! ID
+            endif
+
+            FillValue       = FillValueInt
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = int(MissingValue)
+                MissingValue_   = int(MissingValue)
+            end if                    
+            
+            if     (STAT_CALL == nf90_enotvar)then
+
+                !enter definition mode
+                STAT_CALL = nf90_redef(ncid = Me%ncid)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_1D - ModuleNETCDF - ERR10'
+
+                STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims1ID, VarID)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_1D - ModuleNETCDF - ERR20'
+                
+                !call NETCDFWriteAttributes(VarID          = VarID,                      &
+                !                           LongName       = trim(LongName),             &
+                !                           StandardName   = trim(StandardName),         &
+                !                           Units          = trim(Units),                &
+                !                           iFillValue     = FillValue,                  &
+                !                           ValidMin       = ValidMin,                   &
+                !                           ValidMax       = ValidMax,                   &
+                !                           Minimum        = MinValue,                   &
+                !                           Maximum        = MaxValue,                   &
+                !                           iMissingValue  = MissingValue_)
+                !exit definition mode
+                STAT_CALL = nf90_enddef(ncid = Me%ncid)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_1D - ModuleNETCDF - ERR30'
+
+            elseif(STAT_CALL /= nf90_noerr)then
+
+                stop 'NETCDFWriteDataR4_1D - ModuleNETCDF - ERR40'
+
+            end if
+            
+            STAT_CALL = nf90_put_var(Me%ncid, VarID, Array1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_1D - ModuleNETCDF - ERR50' 
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine NETCDFWriteDataR4_1D
+    
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteDataR8_1D (NCDFID, Name, LongName, StandardName, Units,       &
+                                     ValidMin, ValidMax,  MinValue, MaxValue,           &
+                                     MissingValue, Array1D, DimID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        character(len=*), intent(IN)                    :: Name
+        character(len=*), intent(IN)                    :: Units
+        character(len=*), intent(IN), optional          :: LongName, StandardName
+        real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
+        real,             intent(IN), optional          :: MinValue, MaxValue
+        real(8), dimension(:),        pointer           :: Array1D
+        integer, optional                               :: DimID
+        integer,                      optional          :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+        integer                                         :: VarID
+        integer, dimension(1)                           :: Dims1ID
+        integer                                         :: FillValue, MissingValue_
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
+            
+            if (present(DimID)) then
+                Dims1ID(1) = DimID
+            else
+                Dims1ID(1) = Me%Dims(1)%ID%Number  ! ID
+            endif
+
+            FillValue       = FillValueInt
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = int(MissingValue)
+                MissingValue_   = int(MissingValue)
+            end if                    
+            
+            if     (STAT_CALL == nf90_enotvar)then
+
+                !enter definition mode
+                STAT_CALL = nf90_redef(ncid = Me%ncid)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_1D - ModuleNETCDF - ERR10'
+
+                STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims1ID, VarID)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_1D - ModuleNETCDF - ERR20'
+                
+                !call NETCDFWriteAttributes(VarID          = VarID,                      &
+                !                           LongName       = trim(LongName),             &
+                !                           StandardName   = trim(StandardName),         &
+                !                           Units          = trim(Units),                &
+                !                           iFillValue     = FillValue,                  &
+                !                           ValidMin       = ValidMin,                   &
+                !                           ValidMax       = ValidMax,                   &
+                !                           Minimum        = MinValue,                   &
+                !                           Maximum        = MaxValue,                   &
+                !                           iMissingValue  = MissingValue_)
+                !exit definition mode
+                STAT_CALL = nf90_enddef(ncid = Me%ncid)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_1D - ModuleNETCDF - ERR30'
+
+            elseif(STAT_CALL /= nf90_noerr)then
+
+                stop 'NETCDFWriteDataR8_1D - ModuleNETCDF - ERR40'
+
+            end if
+            
+            STAT_CALL = nf90_put_var(Me%ncid, VarID, Array1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_1D - ModuleNETCDF - ERR50' 
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine NETCDFWriteDataR8_1D
+    
+    !--------------------------------------------------------------------------
+    !
+    !--------------------------------------------------------------------------
+                                     
+
     subroutine NETCDFWriteTime(NCDFID, InitialDate, nInstants, Times, StartInstant, DefDimTime, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2207,8 +2456,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         real, dimension(:), pointer                     :: Lat1D, Lon1D
         real                                            :: FillValue, MissingValue
-        real                                            :: Scale, Aux1, Aux2, Aux3, Dif  
-        integer                                         :: i, j, nv, di, dj
+        !real                                            :: Scale, Aux1, Aux2, Aux3, Dif  
+        integer                                         :: i, j !, nv, di, dj
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
 

@@ -872,50 +872,14 @@ cd2 :           if (.not. BlockFound) then
         !Local----------------------------------------------------------------
         character(len = PathLength)                 :: FileName, FileNameList, aux
         integer                                     :: i, j, STAT_CALL
-        integer                                     :: length                                               
-        character (len=line_length)                 :: aux_str = ""    
+   
         !Begin-----------------------------------------------------------------
         
 
         call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR10'
 
-        !shorten filenames since SWAN has a limited number of charaters
-        !use only property initials
-        if (Me%ShortenFilename) then            
-            
-            aux_str = trim (PropName)
-            length  = len_trim(PropName)
-    
-            !first word letter
-            FileName = aux_str(1:1)
-                
-            !for other words 1st letter go through string and get first letter after space
-            do i = 2, length
-                if((aux_str (i-1:i-1) == " ") .AND.                   &
-                    (aux_str (i:i) /= " "))                    &
-                    FileName = trim(Filename) // aux_str (i:i)
-            end do
-
-
-            !go to upper case
-            do i = 1, len(FileName)
-                j = iachar(FileName(i:i))
-                if (j>= iachar("a") .and. j<=iachar("z") ) then
-                    FileName(i:i) = achar(iachar(FileName(i:i))-32)
-                endif
-            end do 
-
-            !Finally add time
-            FileName = trim(FileName)//'_'//trim(TimeName)//'.txt'
-
-        else            
-            FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
-
-            if (trim(Me%OutPutPath) /= '*') then
-                FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
-            endif
-        endif
+        FileName = FileNameOut(PropName, TimeName)
         
         open(Unit   = Me%Unit,                                                          &
              File   = FileName,                                                         &
@@ -1021,7 +985,7 @@ cd2 :           if (.not. BlockFound) then
             if (len_trim(Me%OutputListFolderName) == 0) then
                 write(Me%UnitProps(p),'(A30)') Filename
             else
-                aux = trim(Me%OutputListFolderName) //backslash// trim(Filename)
+                aux = trim(Me%OutputListFolderName) //"/"// trim(Filename)
                 write(Me%UnitProps(p),'(A100)') aux
             endif
             
@@ -1039,6 +1003,61 @@ cd2 :           if (.not. BlockFound) then
 
     end subroutine OutputSwanASCII
     
+    !----------------------------------------------------------------------------
+    
+    function FileNameOut(PropName, TimeName)
+    
+        !Arguments------------------------------------------------------------
+        character (len=PathLength)                  :: FileNameOut
+        character (len=*)                           :: PropName, TimeName
+        !Local----------------------------------------------------------------
+        character(len = PathLength)                 :: FileName
+        integer                                     :: i, j
+        integer                                     :: length                                               
+        character (len=line_length)                 :: aux_str = ""    
+        
+        !Begin-----------------------------------------------------------------        
+    
+        !shorten filenames since SWAN has a limited number of charaters
+        !use only property initials
+        if (Me%ShortenFilename) then            
+            
+            aux_str = trim (PropName)
+            length  = len_trim(PropName)
+    
+            !first word letter
+            FileName = aux_str(1:1)
+                
+            !for other words 1st letter go through string and get first letter after space
+            do i = 2, length
+                if((aux_str (i-1:i-1) == " ") .AND.                   &
+                    (aux_str (i:i) /= " "))                    &
+                    FileName = trim(Filename) // aux_str (i:i)
+            end do
+
+
+            !go to upper case
+            do i = 1, len(FileName)
+                j = iachar(FileName(i:i))
+                if (j>= iachar("a") .and. j<=iachar("z") ) then
+                    FileName(i:i) = achar(iachar(FileName(i:i))-32)
+                endif
+            end do 
+
+            !Finally add time
+            FileName = trim(FileName)//'_'//trim(TimeName)//'.txt'
+
+        else            
+            FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
+
+            if (trim(Me%OutPutPath) /= '*') then
+                FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
+            endif
+        endif    
+    
+        FileNameOut = FileName
+    
+    end function FileNameOut        
 
     !----------------------------------------------------------------------------
 
@@ -1052,8 +1071,6 @@ cd2 :           if (.not. BlockFound) then
         character(len = 14)                         :: TimeName
         character(len = PathLength)                 :: FileName, FileNameList, aux
         integer                                     :: i, j, STAT_CALL, n
-        integer                                     :: length                                               
-        character (len=line_length)                 :: aux_str = ""   
         real,   dimension(:)  , pointer             :: AuxTime
         !Begin-----------------------------------------------------------------
         
@@ -1072,49 +1089,17 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                     if (TimeName(j:j) ==' ') TimeName(j:j) = "0"
                 enddo                
                 
-                
-                
-                
+                call ReadSwanASCII(PropName = trim(Me%JoinVectorialPropUName),          &
+                                   TimeName = TimeName,                                 &
+                                   Aux2D    = Me%VectorialU) 
+                call ReadSwanASCII(PropName = trim(Me%JoinVectorialPropVName),          &
+                                   TimeName = TimeName,                                 &
+                                   Aux2D    = Me%VectorialV) 
                 
                 call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR10'
-
-                !shorten filenames since SWAN has a limited number of charaters
-                !use only property initials
-                if (Me%ShortenFilename) then            
-            
-                    aux_str = trim (PropName)
-                    length  = len_trim(PropName)
-    
-                    !first word letter
-                    FileName = aux_str(1:1)
                 
-                    !for other words 1st letter go through string and get first letter after space
-                    do i = 2, length
-                        if((aux_str (i-1:i-1) == " ") .AND.                   &
-                            (aux_str (i:i) /= " "))                    &
-                            FileName = trim(Filename) // aux_str (i:i)
-                    end do
-
-
-                    !go to upper case
-                    do i = 1, len(FileName)
-                        j = iachar(FileName(i:i))
-                        if (j>= iachar("a") .and. j<=iachar("z") ) then
-                            FileName(i:i) = achar(iachar(FileName(i:i))-32)
-                        endif
-                    end do 
-
-                    !Finally add time
-                    FileName = trim(FileName)//'_'//trim(TimeName)//'.txt'
-
-                else            
-                    FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
-
-                    if (trim(Me%OutPutPath) /= '*') then
-                        FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
-                    endif
-                endif
+                FileName = FileNameOut(PropName, TimeName)
         
                 open(Unit   = Me%Unit,                                                          &
                      File   = FileName,                                                         &
@@ -1239,7 +1224,7 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                     if (len_trim(Me%OutputListFolderName) == 0) then
                         write(Me%UnitProps(p),'(A30)') Filename
                     else
-                        aux = trim(Me%OutputListFolderName) //backslash// trim(Filename)
+                        aux = trim(Me%OutputListFolderName) //"/"// trim(Filename)
                         write(Me%UnitProps(p),'(A100)') aux
                     endif
             
@@ -1250,13 +1235,6 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                     endif
                 endif
                 
-                
-                
-                
-                
-                !always increase n and not make n point to a data that would be always > NextTime
-                !in subsequent properties
-                !n = Me%Output%Next
                 n = n + 1
                 if (n > Me%Output%Number) exit
 
@@ -1272,6 +1250,113 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
     end subroutine OutputSwanASCIIVectorial
     
 
+    !----------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadSwanASCII(PropName, TimeName, Aux2D) 
+
+        !Arguments-------------------------------------------------------------
+        character(len = *)                          :: PropName, TimeName
+        real,   dimension(:,:), pointer             :: Aux2D
+        !Local----------------------------------------------------------------
+        character(len = PathLength)                 :: FileName
+        integer                                     :: i, j, STAT_CALL
+   
+        !Begin-----------------------------------------------------------------
+        
+
+        call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadSwanASCII - ModuleHDF5ToASCIIandBIN - ERR10'
+
+        FileName = FileNameOut(PropName, TimeName)
+        
+        open(Unit   = Me%Unit,                                                          &
+             File   = FileName,                                                         &
+             Form   = 'FORMATTED',                                                      &
+             STATUS = 'UNKNOWN',                                                        &
+             Action = 'READ',                                                           &
+             IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadSwanASCII - ModuleHDF5ToASCIIandBIN - ERR20'
+
+
+        if      (Me%OutPutOption == Swan1_) then
+
+            do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+                read(Me%Unit,100) (Aux2D(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+            enddo
+
+        else if (Me%OutPutOption == Swan2_) then
+
+            do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                read(Me%Unit,10) Aux2D(i, j)
+
+            enddo
+            enddo
+
+        else if (Me%OutPutOption == Swan3_) then
+
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                read(Me%Unit,100) (Aux2D(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+            enddo
+
+        else if (Me%OutPutOption == Swan4_) then
+
+
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                read(Me%Unit,10) Aux2D(i, j)
+
+            enddo
+            enddo
+
+
+        else if (Me%OutPutOption == Swan5_) then
+
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                read(Me%Unit,100) (Aux2D(i, j),i=Me%WorkSize%ILB, Me%WorkSize%IUB)
+            enddo
+
+        else if (Me%OutPutOption == Swan6_) then
+
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                read(Me%Unit,10) Aux2D(i, j)
+
+            enddo
+            enddo
+
+        else if (Me%OutPutOption == SwanTable_) then
+
+
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                read(Me%Unit,30) Me%X2D, Me%Y2D, Aux2D(i, j)
+
+            enddo
+            enddo
+
+
+        else
+
+            stop 'ReadSwanASCII - ModuleHDF5ToASCIIandBIN - ERR30'
+
+        endif
+
+        call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadSwanASCII - ModuleHDF5ToASCIIandBIN - ERR40'
+
+10  format (F12.6)
+30  format (3F12.6)
+100 format (2000F12.6)
+        
+    end subroutine ReadSwanASCII
+    
     !----------------------------------------------------------------------------
     
     
@@ -1453,10 +1538,8 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
         
         if (n <= Me%Output%Number) then
 
-    !dw1:    do while (NextTime >= Me%Output%OutTime(n) .and. PrevTime <= Me%Output%OutTime(n))
-            
     dw1:    do while (NextTime >= Me%Output%OutTime(n))
-
+    
                 call ExtractDate(Me%Output%OutTime(n), AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6)) 
 
                 write(TimeName(1:14),"(I4,5I2)") int(AuxTime(1)), int(AuxTime(2)), int(AuxTime(3)), &
@@ -1465,7 +1548,7 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                 do j = 1, 14
                     if (TimeName(j:j) ==' ') TimeName(j:j) = "0"
                 enddo
-         
+                
                 dt1 = NextTime              - Me%Output%OutTime(n) 
                 dt2 = Me%Output%OutTime(n)  - PrevTime     
 
@@ -1475,25 +1558,16 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                 enddo
                 enddo
 
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ConvertProp(p) == NauticalToCartDegrees_) then
-                        Aux2D(i,j) = 270. - Aux2D(i,j)
-                    endif
-                enddo
-                enddo
+                if (Me%ConvertProp(p) == NauticalToCartDegrees_) then
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            Aux2D(i,j) = 270. - Aux2D(i,j)
+                    enddo
+                    enddo
+                endif                
 
                 if      (Me%OutPutOption < Mohid_) then
-                    
-                    !check if need to save scalar components of vectorial prop
-                    if (Me%JoinVectorialProp) then
-                        if (trim(Me%PropsName(p)) == trim(Me%JoinVectorialPropUName)) then
-                            call SetMatrixValue(Me%VectorialU, Me%Size, Aux2D)
-                        else if (trim(Me%PropsName(p)) == trim(Me%JoinVectorialPropVName)) then
-                            call SetMatrixValue(Me%VectorialV, Me%Size, Aux2D)
-                        endif
-                    endif
-                        
+
                     call OutputSwanASCII (trim(Me%PropsName(p)), TimeName, Aux2D, l, p)
                     
                 else if (Me%OutPutOption == Mohid_) then
@@ -1504,14 +1578,10 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
 
                 if (p==1) Me%Output%Next = Me%Output%Next + 1 
 
-                !always increase n and not make n point to a data that would be always > NextTime
-                !in subsequent properties
-                !n = Me%Output%Next
                 n = n + 1
                 if (n > Me%Output%Number) exit
 
             enddo dw1
-
         endif
 
 

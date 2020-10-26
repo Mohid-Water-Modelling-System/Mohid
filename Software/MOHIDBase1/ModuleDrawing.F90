@@ -55,10 +55,14 @@ Module ModuleDrawing
     
     public  ::    GetPolygonsNumber
     public  ::    GetSpecificPolygon 
-
+    public  ::    GetPolyLimits
     public  ::    VertPolygonInsidePolygon
+    public  ::    PolygonSphericalTypeArea
+    public  ::    PolygonTypeArea    
     
     private ::    PolyLimits_Intersect_PolyLimits
+    
+    
     
     public  ::    SliceCellIn4
     
@@ -74,6 +78,7 @@ Module ModuleDrawing
     end interface SegIntersectSeg    
    
     private ::    NewPolygon
+    private ::    NewPolygon_V2    
     private ::    NewXYZPoint
     private ::    NewXYZPoint_V2
     private ::    NewXYZPoint_V3
@@ -81,6 +86,7 @@ Module ModuleDrawing
     private ::    NewXYZPoint_V5
     interface     New
         module procedure NewPolygon
+        module procedure NewPolygon_V2        
         module procedure NewXYZPoint
         module procedure NewXYZPoint_V2 
         module procedure NewXYZPoint_V3 
@@ -340,6 +346,63 @@ if2 :               if (BlockFound) then
             if(STAT_CALL .ne. SUCCESS_)stop 'NewPolygon - ModuleDrawing - ERR06'
 
     end subroutine NewPolygon
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    subroutine NewPolygon_V2(Polygons, VectorX, VectorY)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_Polygon),                 pointer    :: Polygons
+        real,   dimension(:), pointer, intent(IN)   :: VectorX, VectorY
+
+        !Local-----------------------------------------------------------------
+        type(T_Polygon),                 pointer    :: Polygon
+        integer                                     :: i, nVert
+        logical                                     :: NeedToClose
+
+        !Begin-----------------------------------------------------------------
+
+        !Allocates new instance
+        allocate (Polygon)
+        nullify  (Polygon%Next)
+        
+        nVert = size(VectorX)
+        
+        if (VectorX(1) /= VectorX(nVert) .and. VectorY(1) /= VectorY(nVert)) then
+            nVert = nVert + 1
+            NeedToClose = .true.
+        else
+            NeedToClose = .false.
+        endif
+
+        Polygon%Count = nVert
+                    
+        allocate(Polygon%VerticesF(1:Polygon%Count))
+
+        do i = 1 , Polygon%Count - 1
+                            
+            Polygon%VerticesF(i)%X  = VectorX(i)
+            Polygon%VerticesF(i)%Y  = VectorY(i)
+                    
+        end do
+                                                   
+        if (NeedToClose) then
+            !Close polygon
+            Polygon%VerticesF(nVert)%X  = Polygon%VerticesF(1)%X
+            Polygon%VerticesF(nVert)%Y  = Polygon%VerticesF(1)%Y
+        else            
+            Polygon%VerticesF(nVert)%X  = VectorX(nVert)
+            Polygon%VerticesF(nVert)%Y  = VectorY(nVert)
+        endif    
+
+        call SetLimits(Polygon)
+                        
+        call Add(Polygons, Polygon)
+        nullify   (Polygon)
+        
+        
+    end subroutine NewPolygon_V2
     !--------------------------------------------------------------------------
 
     
@@ -923,7 +986,51 @@ d1:     do i=1, Polygon%Count
     end subroutine SetLimitsPolygon
     
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    
+    subroutine GetPolyLimits(PolyA, Left, Right, Bottom, Top)
 
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: PolyA
+        real,             intent (OUT)              :: Left, Right,Bottom, Top                          
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxPolyA        
+        real                                        :: XminA, XmaxA, YminA, YmaxA
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        auxPolyA => PolyA
+  
+         XminA = - FillValueReal
+         XmaxA = + FillValueReal
+         YminA = - FillValueReal
+         YmaxA = + FillValueReal       
+ 
+        
+da:     do while (associated(auxPolyA))
+            
+            if (auxPolyA%Limits%Left   <  XminA) XminA = auxPolyA%Limits%Left
+            if (auxPolyA%Limits%Right  >  XmaxA) XmaxA = auxPolyA%Limits%Right 
+            if (auxPolyA%Limits%Bottom <  YminA) YminA = auxPolyA%Limits%Bottom
+            if (auxPolyA%Limits%Top    >  YmaxA) YmaxA = auxPolyA%Limits%Top   
+            
+            auxPolyA => auxPolyA%Next
+            
+        enddo da
+
+        Left    = XminA
+        Right   = XmaxA   
+        Bottom  = YminA
+        Top     = YmaxA 
+        
+        nullify(auxPolyA)
+        
+                
+    end subroutine GetPolyLimits
+    
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
     
     logical function PolyLimits_Intersect_PolyLimits(PolyA, PolyB)
@@ -3923,7 +4030,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
         !Local------------------------------------------------------
         real(8)                             :: sumTotal
         type (T_Polygon), pointer           :: AuxX
-        real,       dimension(:), pointer   :: X, Y 
+        real(8),    dimension(:), pointer   :: X, Y 
         integer                             :: n       
         !Begin------------------------------------------------------
 
@@ -3953,6 +4060,75 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
             
 
     end function PolygonTypeArea  
+    
+    
+   
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes an area of polygon X define in spherical coordinatesusing  !
+!                   a Public-domain function by Darel Rex Finley, 2006.                 !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    real(8) function PolygonSphericalTypeArea(PolygonX, LatRef, LonRef)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+        real, optional                      :: LatRef, LonRef
+        !Local------------------------------------------------------
+        real(8)                             :: LatRef_, LonRef_       
+        real(8)                             :: sumTotal
+        type (T_Polygon), pointer           :: AuxX
+        real(8),   dimension(:), pointer    :: X, Y
+        real(8)                             :: Lat, Lon
+        integer                             :: n, i       
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        
+        sumTotal    = 0.
+        
+        if (present(LatRef)) then
+            LatRef_ = LatRef
+        else
+            LatRef_ = AuxX%VerticesF(1)%Y
+        endif
+
+        if (present(LonRef)) then
+            LonRef_ = LonRef
+        else
+            LonRef_ = AuxX%VerticesF(1)%X
+        endif        
+
+        do while(associated(AuxX)) 
+        
+            n = AuxX%Count
+            
+            allocate(X(1:n),Y(1:n))
+            
+            X(1:n) = AuxX%VerticesF(1:n)%X
+            Y(1:n) = AuxX%VerticesF(1:n)%Y    
+            
+            do i=1,n
+                Lat = Y(i)
+                Lon = X(i)
+                call SphericalToCart(Lat, Lon, X(i), Y(i), LonRef_, LatRef_)
+            enddo
+
+            sumTotal    = sumTotal  + PolygonArea(X, Y, n) 
+                
+            deallocate(X,Y)
+            
+            AuxX => AuxX%Next
+        enddo            
+                              
+        PolygonSphericalTypeArea = sumTotal
+        
+        nullify(AuxX)
+            
+
+    end function PolygonSphericalTypeArea  
+    
     
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

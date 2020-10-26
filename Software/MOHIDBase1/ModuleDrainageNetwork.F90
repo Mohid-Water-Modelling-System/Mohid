@@ -256,6 +256,7 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsOpenProcess
     public  :: GetChannelsActiveState
     public  :: GetHasProperties
+    public  :: GetHasTwoGridPoints
     public  :: GetDNnProperties
     public  :: GetDNPropertiesIDByIdx   
     public  :: GetHasToxicity
@@ -2647,7 +2648,7 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
 
         call ConnectNetwork
         
-        !if nodes were changed for DTM consistency give the user feedback
+        !if nodes were changed give the user feedback
         if (Me%ChangedNodes) call WriteNewDrainageNetwork()        
 
         if (Me%NumericalScheme == ImplicitScheme) then
@@ -3371,18 +3372,19 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         character(len=PathLength)                 :: filename
         type(T_Node), pointer                     :: CurrNode
         type(T_Reach), pointer                    :: CurrReach
+        character (Len = StringLength)            :: aux1, formatString
     
         LengthWithoutExt= len_trim(Me%Files%Network) - 4
         filename = Me%Files%Network(1:LengthWithoutExt)//"_v01.dnt"
         
         write(*,*)''
-        write(*,*)'Forced Drainage Network river points over DTM'
-        write(*,*)'Nodes changed to be consistent with DTM'
+        write(*,*)'Fixed Drainage Network '
+        write(*,*)'Nodes changed to be consistent'
         write(*,*)'Drainage Network corrected was written to ', filename
         write(*,*)''
         
         call UnitsManager (Unit, OPEN_FILE)
-        open (unit = unit, file = trim(filename), status = 'unknown')        
+        open (unit = unit, file = trim(filename), status = 'unknown', RECL=1024)        
         
         write (unit, *)"COORDINATE_TYPE   : ", Me%CoordType
         
@@ -3393,8 +3395,15 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             write (unit, *)"<BeginNode>"
             write (unit, *)"ID                 : ", CurrNode%ID
             write (unit, *)"COORDINATES        : ", CurrNode%X, CurrNode%Y
-            write (unit, *)"GRID_I             : ", CurrNode%GridI
-            write (unit, *)"GRID_J             : ", CurrNode%GridJ            
+            if (CurrNode%HasGrid) then
+                write (unit, *)"GRID_I             : ", CurrNode%GridI
+                write (unit, *)"GRID_J             : ", CurrNode%GridJ              
+            else if (CurrNode%HasTwoGridPoints) then
+                write (unit, *)"LEFT_GRID_I             : ", CurrNode%LeftGridI
+                write (unit, *)"LEFT_GRID_J             : ", CurrNode%LeftGridJ      
+                write (unit, *)"RIGHT_GRID_I             : ", CurrNode%RightGridI
+                write (unit, *)"RIGHT_GRID_J             : ", CurrNode%RightGridJ                  
+            endif
             write (unit, *)"CROSS_SECTION_TYPE : ", CurrNode%CrossSection%Form 
             write (unit, *)"BOTTOM_LEVEL       : ", CurrNode%CrossSection%BottomLevel
             
@@ -3412,6 +3421,10 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             
             elseif (CurrNode%CrossSection%Form == Tabular) then
                 write (unit, *)"N_STATIONS         : ", CurrNode%CrossSection%NStations
+                
+                !write inline or MOHID will not be able to read it
+                !write(aux1,*) CurrNode%CrossSection%NStations
+                !formatString = "("// trim(adjustl(adjustr(aux1))) //"F10.3)"
                 write (unit, *)"STATION            : ", (CurrNode%CrossSection%Station(i), i=1, CurrNode%CrossSection%NStations)
                 write (unit, *)"ELEVATION          : ", (CurrNode%CrossSection%Elevation(i), i=1, CurrNode%CrossSection%NStations)
 
@@ -3471,7 +3484,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
         !Local---------------------------------------------------------------------
         integer                                         :: N, i, IBL, NLevels, ilev, itab, itabZ
-        real                                            :: Z, ZLow, aux
+        real                                            :: Z, ZLow, aux, slopeAux, SlopeMax
         real                                            :: dH, Av,Pw, Sw, Bw, Sl, Sr        
         real, dimension(:), pointer                     :: Slope, Station, Elevation
         real, dimension(:), allocatable                 :: Elev2
@@ -3522,6 +3535,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 if(Me%CorrectBanks)then
                     write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
                     Elevation(i+1) = Elevation(i)
+                    Me%ChangedNodes = .true.
                 else
                     stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR03'
                 endif
@@ -3534,21 +3548,40 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 if(Me%CorrectBanks)then
                     write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
                     Elevation(i+1) = Elevation(i)
+                    Me%ChangedNodes = .true.
                 else
                     stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR04'
                 endif
             endif
         enddo
 
+        !if changed elevations update slopes will be needed next
+        !if (Me%ChangedNodes) then
+        !    do i = 1,N-1
+        !        aux = Elevation(i+1) - Elevation(i)
+        !        if (abs(aux) > AllmostZero) then
+        !            Slope(i) = (Station(i+1) - Station(i)) / aux
+        !        else
+        !            Slope(i) = null_real
+        !        endif
+        !    enddo            
+        !endif
+        
         !Check that Elevations start and end at the same value
         !Change station value to do this
-
+        !slopeMax = 200.0 !m horiz/ m vert (5 per mil)
         if (Elevation(1) /= Elevation(N)) then
 
             Z = min(Elevation(1), Elevation(N))
+            !Z = max(Elevation(1), Elevation(N))
             if (Elevation(1) /= Z) then
-
+                
                 aux = Station(1) + (Z - Elevation(1)) * Slope(1)
+                
+                !slopeAux = Slope(1)
+                !if (slopeAux < null_real / 2.0) slopeAux = -1.0 * slopeMax
+                !
+                !aux = Station(1) + (Z - Elevation(1)) * slopeAux
 
                 !write(*,*) 'Changed Station 1 in Node ', CurrNode%ID
                 !write(*,*) 'Old : ', Station(1), Elevation(1)
@@ -3556,13 +3589,19 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
                 write(AuxString,*) 'Changed station 1 in Node ', CurrNode%ID, ' to ', aux
                 call SetError(WARNING_, INTERNAL_, AuxString, ON)
-
+                Me%ChangedNodes = .true.
+                
                 Station(1) = aux
                 Elevation(1) = Z
             
-             else
+            else
 
                 aux = Station(N-1) + (Z - Elevation(N-1)) * Slope(N-1)
+                
+                !slopeAux = Slope(N-1)
+                !if (slopeAux < null_real / 2.0) slopeAux = slopeMax
+                !
+                !aux = Station(N-1) + (Z - Elevation(N-1)) * slopeAux
 
                 !write(*,*) 'Changed Station N in Node ', CurrNode%ID
                 !write(*,*) 'Old : ', Station(N), Elevation(N)
@@ -3570,7 +3609,8 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
                 write(AuxString,*) 'Changed station N in Node ', CurrNode%ID, ' to ', aux
                 call SetError(WARNING_, INTERNAL_, AuxString, ON)
-
+                Me%ChangedNodes = .true.
+                
                 Station(N) = aux
                 Elevation(N) = Z 
 
@@ -9322,7 +9362,53 @@ if0:    if (Me%HasProperties) then
     end subroutine GetHasProperties
 
     !---------------------------------------------------------------------------
+    
+    
+    subroutine GetHasTwoGridPoints (DrainageNetworkID, HasTwoGridPoints, STAT)
 
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: HasTwoGridPoints
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !If one has it, than set to true and exit
+            HasTwoGridPoints = .false.
+do1:        do NodeID = 1, Me%TotalNodes
+
+                CurrNode => Me%Nodes (NodeID)      
+                
+                if (CurrNode%HasTwoGridPoints) then     
+                    HasTwoGridPoints = .true.
+                    exit do1
+                    
+                endif
+            enddo do1
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetHasTwoGridPoints
+
+    !---------------------------------------------------------------------------    
+       
     subroutine GetDNConcentration(DrainageNetworkID, ConcentrationX, PropertyXIDNumber, &
                                 PropertyXUnits, STAT)
 

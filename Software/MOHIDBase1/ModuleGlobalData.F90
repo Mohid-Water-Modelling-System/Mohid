@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  97
+    integer, parameter  :: MaxModules           =  98
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -161,6 +161,7 @@ Module ModuleGlobalData
     character(LEN = 1), parameter :: semicolumn = char(59)   !";"
     character(LEN = 1), parameter :: tab        = char(9)    !" "
     character(LEN = 1), parameter :: backslash  = char(92)   !"\"
+    character(LEN = 1), parameter :: exclamation= char(33)   !"!"
 
     logical, parameter :: OFF    = .FALSE.
     logical, parameter :: ON     = .TRUE.
@@ -441,6 +442,8 @@ Module ModuleGlobalData
     integer, parameter :: MeridionalVelocity_               = 930
     !1 - low tide, 2 - flood, 3 - high tide, 4 - ebb 
     integer, parameter :: TideState_                        = 940
+    integer, parameter :: ShearStressX_                     = 950
+    integer, parameter :: ShearStressY_                     = 960    
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -764,7 +767,19 @@ Module ModuleGlobalData
     integer, parameter ::  WavePower_                      = 3535
     integer, parameter ::  TransportEnergyX_               = 3536
     integer, parameter ::  TransportEnergyY_               = 3537
-
+    integer, parameter ::  DirectionEnergyTransport_       = 3538
+    integer, parameter ::  SmoothedPeakPeriod_             = 3539    
+    integer, parameter ::  MeanAbsoluteWavePeriod_         = 3540
+    
+    integer, parameter ::  Swell01_SignificantWaveHeight_  = 3541
+    integer, parameter ::  Swell01_WavePeriod_             = 3542
+    integer, parameter ::  Swell01_WaveDirection_          = 3543
+    
+    integer, parameter ::  WindSea_SignificantWaveHeight_  = 3544
+    integer, parameter ::  WindSea_WavePeriod_             = 3545
+    integer, parameter ::  WindSea_WaveDirection_          = 3546
+    
+    integer, parameter ::  PeakWaveLength_                 = 3547
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -976,6 +991,7 @@ Module ModuleGlobalData
     integer, parameter :: DischDepth_                       = 3
     integer, parameter :: DischLayer_                       = 4
     integer, parameter :: DischUniform_                     = 5
+    integer, parameter :: DischProfile_                     = 6
 
 
 !_______________________________________________________________________________________________
@@ -1273,6 +1289,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_VelocityV_           = 'velocity V'
     character(StringLength), private, parameter :: Char_VelocityW_           = 'velocity W'
     character(StringLength), private, parameter :: Char_ShearStress_         = 'shear stress'
+    character(StringLength), private, parameter :: Char_ShearStressX_        = 'shear stress X'
+    character(StringLength), private, parameter :: Char_ShearStressY_        = 'shear stress Y'    
     character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
     character(StringLength), private, parameter :: Char_MeridionalVelocity_  = 'meridional velocity'
     character(StringLength), private, parameter :: Char_ZonalVelocity_       = 'zonal velocity'
@@ -1619,7 +1637,17 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WavePower                = 'wave power'    
     character(StringLength), private, parameter :: Char_TransportEnergyX         = 'transport energy X'
     character(StringLength), private, parameter :: Char_TransportEnergyY         = 'transport energy Y'
+    character(StringLength), private, parameter :: Char_DirectionEnergyTransport = 'direction energy transport'
+    character(StringLength), private, parameter :: Char_SmoothedPeakPeriod       = 'smoothed peak period'
+    character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
+    character(StringLength), private, parameter :: Char_PeakWaveLength           = 'peak wave length'
 
+    character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
+    character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
+    character(StringLength), private, parameter :: Char_Swell01_WaveDirection         = 'primary swell wave direction'
+    character(StringLength), private, parameter :: Char_WindSea_SignificantWaveHeight = 'wind sea significant wave height'
+    character(StringLength), private, parameter :: Char_WindSea_WavePeriod            = 'wind sea wave period'
+    character(StringLength), private, parameter :: Char_WindSea_WaveDirection         = 'wind sea wave direction'
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
     character(StringLength), private, parameter :: Char_Porosity                 = 'porosity'
@@ -1773,6 +1801,7 @@ Module ModuleGlobalData
     !Interpolation 2D
     integer, parameter                                      :: Bilinear2D_         = 1
     integer, parameter                                      :: NearestNeighbor2D_  = 2
+    integer, parameter                                      :: NoInterpolation2D_  = 3 
     
     !Extrapolation parameters
     integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
@@ -1950,6 +1979,7 @@ Module ModuleGlobalData
     integer, parameter ::  mTURBINE_                = 95
     integer, parameter ::  mLitter_                 = 96
     integer, parameter ::  mTwoWay_                 = 97
+    integer, parameter ::  mOutputGrid_             = 98
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2002,6 +2032,12 @@ Module ModuleGlobalData
         character(StringLength) :: Description       = null_str
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
+        integer                 :: ObjHorizontalGrid = null_int !Sobrinho
+        integer                 :: ObjHorizontalMap  = null_int !Sobrinho
+        integer                 :: ObjGeometry       = null_int !Sobrinho
+        integer                 :: ObjMap            = null_int !Sobrinho
+        integer                 :: ObjTwoWay         = null_int !Sobrinho
+        integer                 :: ObjBathymetry     = null_int !Sobrinho
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
         logical                 :: IsParticulate     = OFF
@@ -2071,7 +2107,8 @@ Module ModuleGlobalData
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
         T_Module(mIrrigation_            , "Irrigation"         ),   T_Module(mTURBINE_                , "Turbine"       ),        &
-        T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        )/)
+        T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        ),        &
+        T_Module(mOutputGrid_            , "OuputGrid"          )/)
         
 
     !Variables
@@ -3134,11 +3171,25 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (TransportEnergyX_,        Char_TransportEnergyX,           ListNumber)
             call AddPropList (TransportEnergyY_,        Char_TransportEnergyY,           ListNumber)
             call AddPropList (Ubw_,                     Char_Ubw,                        ListNumber)
+            call AddPropList (DirectionEnergyTransport_, Char_DirectionEnergyTransport,  ListNumber)
+            call AddPropList (SmoothedPeakPeriod_,      Char_SmoothedPeakPeriod,         ListNumber)
+            call AddPropList (MeanAbsoluteWavePeriod_,  Char_MeanAbsoluteWavePeriod,     ListNumber)
+            call AddPropList (PeakWaveLength_,          Char_PeakWaveLength,             ListNumber)
+            
+            call AddPropList (Swell01_SignificantWaveHeight_, Char_Swell01_SignificantWaveHeight, ListNumber)
+            call AddPropList (Swell01_WavePeriod_,            Char_Swell01_WavePeriod,            ListNumber)
+            call AddPropList (Swell01_WaveDirection_,         Char_Swell01_WaveDirection,         ListNumber)
+            
+            call AddPropList (WindSea_SignificantWaveHeight_, Char_WindSea_SignificantWaveHeight, ListNumber)
+            call AddPropList (WindSea_WavePeriod_,            Char_WindSea_WavePeriod,            ListNumber)
+            call AddPropList (WindSea_WaveDirection_,         Char_WindSea_WaveDirection,         ListNumber)            
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
             
             call AddPropList (ShearStress_,             Char_ShearStress_,               ListNumber)
+            call AddPropList (ShearStressX_,            Char_ShearStressX_,              ListNumber)            
+            call AddPropList (ShearStressY_,            Char_ShearStressY_,              ListNumber)                        
 
             call AddPropList (RefEvapotrans_,           Char_RefEvapotrans,              ListNumber)
             call AddPropList (TotalPlantBiomass_,       Char_TotalPlantBiomass,          ListNumber)

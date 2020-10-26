@@ -36,7 +36,8 @@ Module ModuleHorizontalGrid
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
-                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D
+                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
+                                  SphericalToCart
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -73,15 +74,15 @@ Module ModuleHorizontalGrid
     public  :: ConstructFatherGridLocation
     private ::      ConstructNewFatherGrid1D
     private ::      ConstructNewFatherGrid2D
-    private ::      ConstructIWDVel
     private ::      DetermineMaxRatio
     private ::      Add_FatherGrid
     private :: CheckGridBorder
     private :: DefineBorderPolygons
     private ::      DefinesBorderPoly
-
-    public  :: ConstructIWDTwoWay
-
+    public  :: ConstructP2C_IWD
+    public  ::      ConstructP2C_Avrg
+    private ::      ConstructIWDVel
+    
     !Modifier
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
@@ -116,8 +117,12 @@ Module ModuleHorizontalGrid
     public  :: GetFatherGridID
     public  :: GetGridCellArea
     private ::      Search_FatherGrid
+    public  :: GetCellIDfromIJ
+    public  :: GetCellIJfromID
+    public  :: GetCellIDfromIJArray
     public  :: GetXYCellZ
     public  :: GetXYCellZ_ThreadSafe
+    public  :: GetXYArrayIJ
     public  :: GetCellZ_XY
     public  :: GetCellZInterceptByLine
     public  :: GetCellZInterceptByPolygon
@@ -145,8 +150,8 @@ Module ModuleHorizontalGrid
 
     public  :: GetSonWindow
 
-    public  :: GetTwoWayAux
-    public  :: UnGetTwoWayAux
+    public  :: GetConnections
+    public  :: UnGetConnections
 
 
     public  :: UnGetHorizontalGrid
@@ -430,7 +435,7 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer :: ICross => null()
         integer, dimension(:,:), pointer :: JCross => null()
         
-        integer, dimension(:,:), pointer :: ILinkZ => null() !Joao Sobrinho
+        integer, dimension(:,:), pointer :: ILinkZ => null()
         integer, dimension(:,:), pointer :: JLinkZ => null()
         integer, dimension(:,:), pointer :: ILinkU => null()
         integer, dimension(:,:), pointer :: JLinkU => null()
@@ -536,12 +541,12 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
 
-        integer, dimension(:, :), allocatable   :: IWD_connections_U
-        integer, dimension(:, :), allocatable   :: IWD_connections_V
-        integer, dimension(:, :), allocatable   :: IWD_connections_Z
+        integer, dimension(:, :), allocatable   :: Connections_U
+        integer, dimension(:, :), allocatable   :: Connections_V
+        integer, dimension(:, :), allocatable   :: Connections_Z
         real, pointer, dimension(:)             :: IWD_Distances_U   => null()
         real, pointer, dimension(:)             :: IWD_Distances_V   => null()
-        real, pointer, dimension(:)             :: IWD_Distances_Z   => null()
+        real, dimension   (:),    allocatable   :: IWD_Distances_Z
         logical                                 :: UsedIWD_2Way      = .false.
         integer                                 :: IWD_Nodes_Z       = null_int
         integer                                 :: IWD_Nodes_U       = null_int
@@ -1902,16 +1907,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine GetSonWindow
 
     !--------------------------------------------------------------------------
-    subroutine GetTwoWayAux (HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets connections matrixes for the different twoway methods  
+    !>@param[in] HorizontalGridID, Connections_U, Connections_V, Connections_Z, IWD_Distances_U, IWD_Distances_V, &
+    !> IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V, STAT 
+    subroutine GetConnections (HorizontalGridID, Connections_U, Connections_V, Connections_Z, &
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
                              IWD_Nodes_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
-        integer, optional,        intent (OUT)    :: STAT
-        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
-        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        integer, intent(IN)                                       :: HorizontalGridID
+        integer, optional,                          intent(OUT)   :: IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
+        integer, optional,                          intent(INOUT) :: STAT
+        integer, dimension(:,:), pointer, optional, intent(OUT)   :: Connections_U, Connections_V, Connections_Z
+        real,    dimension(:  ), pointer, optional, intent(OUT)   :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
         !Local-----------------------------------------------------------------
-        integer                                   :: STAT_, ready_
+        integer                                                 :: STAT_, ready_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -1920,28 +1931,40 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            IWD_Connections_U => Me%IWD_Connections_U
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Connections_V => Me%IWD_Connections_V
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Connections_Z => Me%IWD_Connections_Z
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Distances_U => Me%IWD_Distances_U
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Distances_V => Me%IWD_Distances_V
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Distances_Z => Me%IWD_Distances_Z
-            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-
-            IWD_Nodes_U      = Me%IWD_Nodes_U
-            IWD_Nodes_V      = Me%IWD_Nodes_V
-            IWD_Nodes_Z      = Me%IWD_Nodes_Z
+            
+            if (present(Connections_U))then
+                Connections_U => Me%Connections_U
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(Connections_V))then
+                Connections_V => Me%Connections_V
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(Connections_Z))then
+                Connections_Z => Me%Connections_Z
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(IWD_Distances_U))then
+                IWD_Distances_U => Me%IWD_Distances_U
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(IWD_Distances_V))then
+                IWD_Distances_V => Me%IWD_Distances_V
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(IWD_Distances_Z))then
+                IWD_Distances_Z => Me%IWD_Distances_Z
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            if (present(IWD_Nodes_U))then
+                IWD_Nodes_U = Me%IWD_Nodes_U
+            endif
+            if (present(IWD_Nodes_V))then
+                IWD_Nodes_V = Me%IWD_Nodes_V
+            endif
+            if (present(IWD_Nodes_Z))then
+                IWD_Nodes_Z = Me%IWD_Nodes_Z
+            endif
 
             STAT_ = SUCCESS_
         else
@@ -1951,17 +1974,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (present(STAT)) &
             STAT = STAT_
 
-                             end subroutine GetTwoWayAux
+                             end subroutine GetConnections
     !--------------------------------------------------------------------------
-    subroutine UnGetTwoWayAux(HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets connections matrixes for the different twoway methods  
+    !>@param[in] HorizontalGridID, ConnectionsU, ConnectionsV, ConnectionsZ, IWD_Distances_U, IWD_Distances_V, &
+    !> IWD_Distances_Z, STAT 
+    subroutine UnGetConnections(HorizontalGridID, ConnectionsU, ConnectionsV, ConnectionsZ, &
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID
-        integer, optional,        intent (OUT)    :: STAT
-        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
-        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        integer                                     :: HorizontalGridID
+        integer, optional,        intent (OUT)      :: STAT
+        integer,  dimension(:,:), pointer, optional :: ConnectionsU, ConnectionsV, ConnectionsZ
+        real,     dimension(:  ), pointer           :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
         !Local-----------------------------------------------------------------
-        integer                                   :: STAT_, ready_
+        integer                                     :: STAT_, ready_
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
 
@@ -1970,18 +1998,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            nullify(IWD_Connections_U)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR01")
-            nullify(IWD_Connections_V)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR02")
-            nullify(IWD_Connections_Z)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR03")
+            nullify(ConnectionsU)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR010")
+            nullify(ConnectionsV)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR020")
+            nullify(ConnectionsZ)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR030")
             nullify(IWD_Distances_U)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR04")
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR040")
             nullify(IWD_Distances_V)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR05")
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR050")
             nullify(IWD_Distances_Z)
-            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR06")
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetConnections - ERR060")
 
             STAT_ = SUCCESS_
         else
@@ -1991,7 +2019,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (present(STAT)) &
             STAT = STAT_
 
-    end subroutine UnGetTwoWayAux
+    end subroutine UnGetConnections
 
     !--------------------------------------------------------------------------
 
@@ -2698,9 +2726,9 @@ do8:       do i = ILBwork, IUBwork
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Builds connection matrix between son and father grid on a IWD interpolation
+    !>Builds connection matrix between parent and child grid on a IWD interpolation
     !>@param[in] FatherID, SonID
-    subroutine ConstructIWDTwoWay(FatherID, SonID)
+    subroutine ConstructP2C_IWD(FatherID, SonID)
 
         !Arguments--------------------------------------------------------------
         type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
@@ -2721,82 +2749,82 @@ do8:       do i = ILBwork, IUBwork
 
         FatherLinkI      => Me%LastFatherGrid%ILinkZ
         FatherLinkJ      => Me%LastFatherGrid%JLinkZ
-
+            
         minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
-                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
         minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
-                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
         maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
-                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
         maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
-                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
-
-        nullify (FatherLinkI)
-        nullify (FatherLinkJ)
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        
+        nullify(FatherLinkI)
+        nullify(FatherLinkJ)
+        
         !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
         Nbr_Connections   = (maxJ - minJ + 2) * (maxI - minI + 2) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
-
         !Vectorials and scalars
-        allocate (Me%IWD_connections_Z (Nbr_Connections, 4))
+        allocate (Me%Connections_Z (Nbr_Connections, 4))
         allocate (Me%IWD_Distances_Z   (Nbr_Connections))
-        Me%IWD_connections_Z(:, :) = FillValueInt
+        Me%Connections_Z(:, :) = FillValueInt
         Me%IWD_Distances_Z(:)      = FillValueReal
-        allocate (Me%IWD_connections_U(Nbr_Connections, 4))
+        allocate (Me%Connections_U(Nbr_Connections, 4))
         allocate (Me%IWD_Distances_U  (Nbr_Connections))
-        Me%IWD_connections_U(:, :) = FillValueInt
+        Me%Connections_U(:, :) = FillValueInt
         Me%IWD_Distances_U(:)      = FillValueReal
-        allocate (Me%IWD_connections_V (Nbr_Connections, 4))
+        allocate (Me%Connections_V (Nbr_Connections, 4))
         allocate (Me%IWD_Distances_V   (Nbr_Connections))
-        Me%IWD_connections_V(:, :) = FillValueInt
+        Me%Connections_V(:, :) = FillValueInt
         Me%IWD_Distances_V(:)      = FillValueReal
+        
+        !i and j   -> father cell
+        !i2 and j2 -> son cell
+        do j = minJ, maxJ
+        do i = minI, maxI
 
+            !Find Father's cell center coordinates
+            FatherCenterX = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
+                                ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
+            FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
+                                ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
+            
+            SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
+                                                                (FatherCenterY - ObjHorizontalFather%YY(i))**2)
+
+                !Find and build matrix of correspondent son cells
+            do j2 = 1, Me%Size%JUB - 1
+            do i2 = 1, Me%Size%IUB - 1
+                SonCenterX = (( Me%XX_IE(i2, j2  ) +  Me%XX_IE(i2+1, j2  ))/2. + &
+                                ( Me%XX_IE(i2, j2+1) +  Me%XX_IE(i2+1, j2+1))/2.)/2.
+                SonCenterY = (( Me%YY_IE(i2, j2  ) +  Me%YY_IE(i2+1, j2  ))/2. + &
+                                ( Me%YY_IE(i2, j2+1) +  Me%YY_IE(i2+1, j2+1))/2.)/2.
+
+                DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
+                                        (SonCenterY - FatherCenterY)**2.0)
+                if (DistanceToFather <= SearchRadious) then
+                    Me%Connections_Z(index, 1) = i
+                    Me%Connections_Z(index, 2) = j
+                    Me%Connections_Z(index, 3) = i2
+                    Me%Connections_Z(index, 4) = j2
+
+                    if (DistanceToFather == 0)then
+                        Me%IWD_Distances_Z(index) = 1.e-5
+                    else
+                        Me%IWD_Distances_Z(index) = DistanceToFather
+                    endif
+                    index = index + 1
+                endif
+            enddo
+            enddo
+
+        enddo
+        enddo
+        Me%IWD_Nodes_Z = index - 1
+        
         call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
 
-            !i and j   -> father cell
-            !i2 and j2 -> son cell
-            do j = minJ, maxJ
-            do i = minI, maxI
-
-                !Find Father's cell center coordinates
-                FatherCenterX = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
-                                 ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
-                FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
-                                 ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
-
-                SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                                                    (FatherCenterY - ObjHorizontalFather%YY(i))**2)
-                 !Find and build matrix of correspondent son cells
-                do j2 = 1, Me%Size%JUB - 1
-                do i2 = 1, Me%Size%IUB - 1
-                    SonCenterX = (( Me%XX_IE(i2, j2  ) +  Me%XX_IE(i2+1, j2  ))/2. + &
-                                  ( Me%XX_IE(i2, j2+1) +  Me%XX_IE(i2+1, j2+1))/2.)/2.
-                    SonCenterY = (( Me%YY_IE(i2, j2  ) +  Me%YY_IE(i2+1, j2  ))/2. + &
-                                  ( Me%YY_IE(i2, j2+1) +  Me%YY_IE(i2+1, j2+1))/2.)/2.
-
-                    DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
-                                            (SonCenterY - FatherCenterY)**2.0)
-                    if (DistanceToFather <= SearchRadious) then
-                        Me%IWD_connections_Z(index, 1) = i
-                        Me%IWD_connections_Z(index, 2) = j
-                        Me%IWD_connections_Z(index, 3) = i2
-                        Me%IWD_connections_Z(index, 4) = j2
-
-                        if (DistanceToFather == 0)then
-                            Me%IWD_Distances_Z(index) = 1.e-5
-                        else
-                            Me%IWD_Distances_Z(index) = DistanceToFather
-                        endif
-
-                        index = index + 1
-                    endif
-                enddo
-                enddo
-
-            enddo
-            enddo
-           Me%IWD_Nodes_Z = index - 1
-
-    end subroutine ConstructIWDTwoWay
+    end subroutine ConstructP2C_IWD
 
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -2855,10 +2883,10 @@ do8:       do i = ILBwork, IUBwork
                                           (SonCenterY_V - FatherCenterY_V)**2.0)
 
                 if (DistanceToFather_U <= SearchRadious_U) then
-                    Me%IWD_connections_U(index_U, 1) = i
-                    Me%IWD_connections_U(index_U, 2) = j
-                    Me%IWD_connections_U(index_U, 3) = i2
-                    Me%IWD_connections_U(index_U, 4) = j2
+                    Me%Connections_U(index_U, 1) = i
+                    Me%Connections_U(index_U, 2) = j
+                    Me%Connections_U(index_U, 3) = i2
+                    Me%Connections_U(index_U, 4) = j2
 
                     if (DistanceToFather_U == 0)then
                         !The 0.001 is the reference distance. The if also avoids /0 in module functions
@@ -2871,10 +2899,10 @@ do8:       do i = ILBwork, IUBwork
                 endif
 
                 if (DistanceToFather_V <= SearchRadious_V) then
-                    Me%IWD_connections_V(index_V, 1) = i
-                    Me%IWD_connections_V(index_V, 2) = j
-                    Me%IWD_connections_V(index_V, 3) = i2
-                    Me%IWD_connections_V(index_V, 4) = j2
+                    Me%Connections_V(index_V, 1) = i
+                    Me%Connections_V(index_V, 2) = j
+                    Me%Connections_V(index_V, 3) = i2
+                    Me%Connections_V(index_V, 4) = j2
 
                     if (DistanceToFather_V == 0)then
                         !The 0.001 is the reference distance. The if also avoids /0 in module functions
@@ -2893,7 +2921,74 @@ do8:       do i = ILBwork, IUBwork
         Me%IWD_Nodes_U = index_U - 1
         Me%IWD_Nodes_V = index_V - 1
     end subroutine ConstructIWDVel
+    !---------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>builds Connection matrix for Z cells, which will be used to detect TwoWay momentum discharges
+    !>@param[in] FatherID, SonID     
+    subroutine ConstructP2C_Avrg(FatherID, SonID)
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        !Local------------------------------------------------------------------
+        integer                             :: FatherID, SonID
+        integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
+        integer                             :: i, j, i2, j2, ready_
+        integer, dimension (:, :), pointer  :: FatherLinkI, FatherLinkJ
+        !-------------------------------------------------------------------------
+        index = 1
+        call Ready (SonID, ready_)
 
+        call LocateObjFather        (ObjHorizontalFather, FatherID)
+        
+        FatherLinkI      => Me%LastFatherGrid%ILinkZ
+        FatherLinkJ      => Me%LastFatherGrid%JLinkZ
+            
+        minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+
+        
+        Nbr_Connections = Me%Size%JUB * Me%Size%IUB + 1
+        
+        allocate (Me%Connections_Z (Nbr_Connections, 4))
+        !i and j   -> father cell
+        !i2 and j2 -> son cell
+        do j = minJ, maxJ
+        do i = minI, maxI
+
+                !Find and build matrix of correspondent son cells
+            do j2 = 1, Me%Size%JUB - 1
+            do i2 = 1, Me%Size%IUB - 1
+
+                if (FatherLinkI(i2, j2) == i) then
+                    if (FatherLinkJ(i2, j2) == j) then
+                        
+                        Me%Connections_Z(index, 1) = i
+                        Me%Connections_Z(index, 2) = j
+                        Me%Connections_Z(index, 3) = i2
+                        Me%Connections_Z(index, 4) = j2
+
+                        index = index + 1
+                    endif
+                endif
+                
+            enddo
+            enddo
+
+        enddo
+        enddo
+        
+        nullify(FatherLinkI)
+        nullify(FatherLinkJ)
+        
+    end subroutine ConstructP2C_Avrg
+    
     !---------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
@@ -4248,7 +4343,8 @@ BF1:    if (Me%ReadCartCorners) then
         integer                             :: i, j, STATUS, k
         integer, dimension(2)               :: GridUTMmax, GridUTMmin, GridUTM
 
-        real(8)                             :: radians, Radius, Angle, EarthRadius, Rad_Lat, CosenLat
+        real(8)                             :: radians, Radius, Angle
+        !real(8)                             :: EarthRadius, Rad_Lat, CosenLat
 
         real                                :: MaxLon, MinLon, MaxLat, MinLat, MinX, MinY
 
@@ -4460,15 +4556,21 @@ cd33 :              if (Me%Grid_Angle .NE. 0.0) then
 
 ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
 
-                    radians      = Pi / 180.0
-                    EarthRadius  = 6378000.
 
+
+                    !radians      = Pi / 180.0
+                    !EarthRadius  = 6378000.
+                    !
                     do j = JLB, JUB + 1
                     do i = ILB, IUB + 1
-                        Rad_Lat     = Me%LatitudeConn(i,j)* radians
-                        CosenLat    = cos(Rad_Lat)
-                        XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
-                        YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
+                    !    Rad_Lat     = Me%LatitudeConn(i,j)* radians
+                    !    CosenLat    = cos(Rad_Lat)
+                    !    XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
+                    !    YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
+                        call FromSphericalToCart(Lat = Me%LatitudeConn (i, j),              &
+                                                 Lon = Me%LongitudeConn(i, j),              &
+                                                 X   = XX_IE(i, j),                         &
+                                                 Y   = YY_IE(i, j))    
                     enddo
                     enddo
 
@@ -4737,9 +4839,60 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     end subroutine Mercator
 
     !--------------------------------------------------------------------------
-    !This subroutine convert geographic coordinates in to sherical mercator projection
+    !This subroutine convert spherical coordinates in to cartesina coordinates
 
+    subroutine FromSphericalToCart(Lat, Lon, X, Y)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: Lat, Lon    
+        real(8), intent(Out)            :: X, Y
 
+        !Local-----------------------------------------------------------------
+        !real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        !radians      = Pi / 180.0
+        !EarthRadius  = 6378000.
+        !
+        !Rad_Lat     = Lat * radians
+        !CosenLat    = cos(Rad_Lat)
+        !X           = CosenLat * EarthRadius * (Lon - Me%Longitude) * radians
+        !Y           =            EarthRadius * (Lat - Me%Latitude ) * radians             
+
+        call SphericalToCart(Lat, Lon, X, Y, Me%Longitude, Me%Latitude)        
+
+    end subroutine FromSphericalToCart
+    
+    
+                
+    subroutine FromCartToSpherical(X, Y, Lat, Lon)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: X, Y   
+        real(8), intent(Out)            :: Lat, Lon
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+        
+        Lat          = Y / (EarthRadius * radians) + Me%Latitude
+        
+        Rad_Lat      = Lat * radians
+        CosenLat     = cos(Rad_Lat) 
+
+        if (CosenLat == 0.) then
+            stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
+        endif    
+        
+        Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
+        
+        
+    end subroutine FromCartToSpherical    
 
 #ifdef _USE_PROJ4
 
@@ -5511,7 +5664,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
         enddo
 
 
-        if (Me%GridBorderAlongGrid%Type_ == Rectang_) then
+        if (Me%GridBorderAlongGrid%Type_ == Rectang_ .or. Me%CoordType == SIMPLE_GEOG_) then
             Me%XX_AlongGrid(:, :)  = Me%XX_IE(:,:)
         else
 
@@ -5525,7 +5678,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
 
         endif
 
-        if (Me%GridBorderAlongGrid%Type_ == Rectang_) then
+        if (Me%GridBorderAlongGrid%Type_ == Rectang_ .or. Me%CoordType == SIMPLE_GEOG_) then
             Me%YY_AlongGrid(:,:)  = Me%YY_IE(:,:)
         else
 
@@ -8801,8 +8954,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ !Joao Sobrinho
-        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ !Joao Sobrinho
+        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ
+        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT
 
@@ -9853,201 +10006,215 @@ cd3 :       if (present(SurfaceMM5)) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetGridFileName
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Maps the IJ coordinates of a cell to a unique ID
+    !---------------------------------------------------------------------------
+    subroutine GetCellIDfromIJ(HorizontalGridID, I, J, ID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer,            intent(in)              :: I, J
+        integer,            intent(OUT)             :: ID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            ID = (I-1)*(Me%Size%JUB - Me%Size%JLB) + J
+        end if
+
+    end subroutine GetCellIDfromIJ
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the IJ coordinates of a cell given a unique ID
+    !---------------------------------------------------------------------------
+    subroutine GetCellIJfromID(HorizontalGridID, I, J, ID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer,            intent(OUT)             :: I, J
+        integer,            intent(in)              :: ID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            J = mod(ID, (Me%Size%JUB - Me%Size%JLB))
+            I = (ID-J)/(Me%Size%JUB - Me%Size%JLB) + 1            
+        end if
+
+    end subroutine GetCellIJfromID
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the ID coordinates array of an IJ array
+    !---------------------------------------------------------------------------
+    subroutine GetCellIDfromIJArray(HorizontalGridID, ArrayIJ, ArrayID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer, dimension(:,:), intent(in)         :: ArrayIJ
+        integer, dimension(:), intent(inout)        :: ArrayID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_, i
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            do i=1, size(ArrayID)
+                call GetCellIDfromIJ(HorizontalGridID, ArrayIJ(i,1), ArrayIJ(i,2), ArrayID(i))
+            end do
+        end if
+
+    end subroutine GetCellIDfromIJArray
 
     !--------------------------------------------------------------------------
 
     subroutine GetXYCellZ(HorizontalGridID, XPoint, YPoint, I, J, PercI, PercJ,         &
-                          Referential, Iold, Jold, STAT)
+        Referential, Iold, Jold, STAT)
+    !Arguments---------------------------------------------------------------
+    integer,            intent(IN)              :: HorizontalGridID
+    real,               intent(IN)              :: XPoint, YPoint
+    integer,            intent(OUT)             :: I, J
+    real,    optional,  intent(OUT)             :: PercI, PercJ
+    integer, optional,  intent(IN)              :: Referential
+    integer, optional,  intent(IN)              :: Iold, Jold
+    integer, optional,  intent(OUT)             :: STAT
+    !Local-------------------------------------------------------------------
+    real,   dimension(:,:), pointer             :: XX2D, YY2D
+    real,   dimension(:  ), pointer             :: XX1D, YY1D
+    real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
+    integer                                     :: STAT_
+    integer                                     :: ready_
+    real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
+    integer                                     :: Referential_, GetGridBorderType
+    integer                                     :: ILB, IUB, JLB, JUB
+    logical                                     :: CellLocated
+    integer                                     :: Iold_, Jold_
+    !------------------------------------------------------------------------
 
-        !Arguments---------------------------------------------------------------
-        integer,            intent(IN)              :: HorizontalGridID
-        real,               intent(IN)              :: XPoint, YPoint
-        integer,            intent(OUT)             :: I, J
-        real,    optional,  intent(OUT)             :: PercI, PercJ
-        integer, optional,  intent(IN)              :: Referential
-        integer, optional,  intent(IN)              :: Iold, Jold
-        integer, optional,  intent(OUT)             :: STAT
+    STAT_ = UNKNOWN_
+    call Ready(HorizontalGridID, ready_)
 
-        !Local-------------------------------------------------------------------
-        real,   dimension(:,:), pointer             :: XX2D, YY2D
-        real,   dimension(:  ), pointer             :: XX1D, YY1D
-        real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
-        integer                                     :: STAT_
-        integer                                     :: ready_
-        real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
-        integer                                     :: Referential_, GetGridBorderType
-        integer                                     :: ILB, IUB, JLB, JUB
-        logical                                     :: CellLocated
-        integer                                     :: Iold_, Jold_
-        !------------------------------------------------------------------------
+    if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        XX2D        => Me%XX_IE
+        YY2D        => Me%YY_IE
+        XX1D        => Me%Compute%XX_Cross
+        YY1D        => Me%Compute%YY_Cross
+        allocate(XX1D_Aux(JLB:JUB))
+        allocate(YY1D_Aux(ILB:IUB))
 
-        STAT_ = UNKNOWN_
+        if (present(Referential)) then
+            Referential_ = Referential
+        else
+            Referential_ = GridCoord_ !default  behaviour
+        end if
+        if (Referential_ == Cartesian_) GetGridBorderType = Me%GridBorderCart%Type_
+        if (Referential_ == GridCoord_) then
+            GetGridBorderType = Me%GridBorderCoord%Type_
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+                XX2D        => Me%LongitudeConn
+                YY2D        => Me%LatitudeConn
+            end if
+        end if
+        if (Referential_ == AlongGrid_) then
+            GetGridBorderType = Me%GridBorderAlongGrid%Type_
+            XX2D        => Me%XX_AlongGrid
+            YY2D        => Me%YY_AlongGrid
+        end if
 
-        call Ready(HorizontalGridID, ready_)
-
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
-            (ready_ == READ_LOCK_ERR_)) then
-
-            ILB = Me%Size%ILB
-            IUB = Me%Size%IUB
-
-            JLB = Me%Size%JLB
-            JUB = Me%Size%JUB
-
-            if (present(Referential)) then
-
-                Referential_ = Referential
-
+        if (GetGridBorderType == ComplexPolygon_) then
+            if (present(Iold) .and. present(Jold)) then
+                Iold_ = Iold
+                Jold_ = Jold
             else
+                Iold_ = FillValueInt
+                Jold_ = FillValueInt
+            end if
 
-                Referential_ = GridCoord_
+            call LocateCellPolygons(XX2D,                                           &
+                YY2D,                                           &
+                XPoint, YPoint, Me%DefineCellsMap,              &
+                !                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
+                !                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
+                Me%WorkSize%ILB, Me%WorkSize%IUB,           &
+                Me%WorkSize%JLB, Me%WorkSize%JUB,           &
+                I, J, CellLocated, Iold_, Jold_)
 
-            endif
+            if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+                STAT_ = OUT_OF_BOUNDS_ERR_
+                !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
+            else
+                if (present(PercI) .and. present(PercJ)) then
+                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
+                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
+                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
+                        Xe = XPoint,         Ye = YPoint,         &
+                        Xex= PercJ,          Yey= PercI)
+                end if
+            end if
+        else
+            XPoint2 = XPoint
+            YPoint2 = YPoint
 
+            if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
+                XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
+                YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
+            else
+                Xorig2  = Me%Xorig
+                Yorig2  = Me%Yorig
+                XPoint2 =  XPoint - Xorig2
+                YPoint2 =  YPoint - Yorig2
+                call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2)
+                XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
+                YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
+            end if
+            
+            call LocateCell (XX1D_Aux,                                           &
+                YY1D_Aux,                                           &
+                XPoint2, YPoint2,                                      &
+                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
+                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
+                I, J)
 
-            XX2D        => Me%XX_IE
-            YY2D        => Me%YY_IE
-
-            XX1D        => Me%Compute%XX_Cross
-            YY1D        => Me%Compute%YY_Cross
-
-            allocate(XX1D_Aux(JLB:JUB))
-            allocate(YY1D_Aux(ILB:IUB))
-
-            if (Referential_ == Cartesian_) then
-
-                GetGridBorderType = Me%GridBorderCart%Type_
-
-            endif
-
-            if (Referential_ == GridCoord_) then
-
-                GetGridBorderType = Me%GridBorderCoord%Type_
-
-                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
-
-                    XX2D        => Me%LongitudeConn
-                    YY2D        => Me%LatitudeConn
-
-                endif
-
-            endif
-
-            if (Referential_ == AlongGrid_) then
-
-                GetGridBorderType = Me%GridBorderAlongGrid%Type_
-
-                XX2D        => Me%XX_AlongGrid
-                YY2D        => Me%YY_AlongGrid
-
-            endif
-
-
-i2:         if (GetGridBorderType == ComplexPolygon_) then
-
-                if (present(Iold) .and. present(Jold)) then
-                    Iold_ = Iold
-                    Jold_ = Jold
-                else
-                    Iold_ = FillValueInt
-                    Jold_ = FillValueInt
-                endif
-
-                call LocateCellPolygons(XX2D,                                           &
-                                        YY2D,                                           &
-                                        XPoint, YPoint, Me%DefineCellsMap,              &
-!                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
-!                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
-                                        Me%WorkSize%ILB, Me%WorkSize%IUB,           &
-                                        Me%WorkSize%JLB, Me%WorkSize%JUB,           &
-                                        I, J, CellLocated, Iold_, Jold_)
-
-                if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+            if (present(PercI)) then
+                if (I < 0) then
                     STAT_ = OUT_OF_BOUNDS_ERR_
-                    !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
-
                 else
+                    PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
+                end if
+            end if
 
-                    if (present(PercI) .and. present(PercJ)) then
-                        !
-                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
-                                                          Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
-                                                          Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
-                                                          Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
-                                                          Xe = XPoint,         Ye = YPoint,         &
-                                                          Xex= PercJ,          Yey= PercI)
-                    endif
-
-                endif
-
-            else i2
-
-                XPoint2 = XPoint
-                YPoint2 = YPoint
-
-                if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
-
-                    XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
-                    YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
-
+            if (present(PercJ)) then
+                if (J < 0) then
+                    STAT_ = OUT_OF_BOUNDS_ERR_
                 else
+                    PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
+                end if
+            end if
+        end if
 
-                    Xorig2  = Me%Xorig
-                    Yorig2  = Me%Yorig
+        deallocate(XX1D_Aux)
+        deallocate(YY1D_Aux)
+        nullify(XX1D_Aux)
+        nullify(YY1D_Aux)
+        nullify(XX2D)
+        nullify(YY2D)
 
-                    XPoint2 =  XPoint - Xorig2
-                    YPoint2 =  YPoint - Yorig2
+        if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
 
-                    call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2)
+    else
+        STAT_ = ready_
+    end if
 
-                    XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
-                    YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
-
-                endif
-
-                call LocateCell (XX1D_Aux,                                           &
-                                 YY1D_Aux,                                           &
-                                 XPoint2, YPoint2,                                      &
-                                 Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
-                                 Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
-                                 I, J)
-
-                if (present(PercI)) then
-                    if (I < 0) then
-                        STAT_ = OUT_OF_BOUNDS_ERR_
-                    else
-                        PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
-                    endif
-                endif
-
-                if (present(PercJ)) then
-                    if (J < 0) then
-                        STAT_ = OUT_OF_BOUNDS_ERR_
-                    else
-                        PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
-                    endif
-                endif
-
-            endif i2
-
-            deallocate(XX1D_Aux)
-            deallocate(YY1D_Aux)
-
-            nullify(XX1D_Aux)
-            nullify(YY1D_Aux)
-
-            nullify(XX2D)
-            nullify(YY2D)
-
-            if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
-
-        else    i1
-
-            STAT_ = ready_
-
-        end if  i1
-
-        if (present(STAT)) STAT = STAT_
+    if (present(STAT)) STAT = STAT_
 
     end subroutine GetXYCellZ
 
@@ -10237,12 +10404,35 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetXYCellZ_ThreadSafe
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> mapps and array of XY point corrdinates to an array of IJ cell coordinates
+    !---------------------------------------------------------------------------
+    subroutine GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
+    integer, intent(inout) :: HorizontalGridID
+    real, dimension(:,:), intent(inout) :: mapArrayXY
+    integer, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer :: i
+    
+    mapArrayIJ = null_int
+    do i=1, size(mapArrayXY, 1)
+        if (GetXYInsideDomain(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2))) then
+            call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2),         &
+                                              mapArrayIJ(i,1), mapArrayIJ(i,2))
+        endif
+        !print*, 'id=',i, 'x=',mapArrayXY(i,1), 'y=',mapArrayXY(i,2)
+        !print*, 'I=',mapArrayIJ(i,1), 'J=',mapArrayIJ(i,2)
+    end do
+    
+    end subroutine GetXYArrayIJ
 
     !--------------------------------------------------------------------------
 
 
     subroutine GetCellZ_XY(HorizontalGridID, I, J, PercI, PercJ, XPoint, YPoint, &
-                           Referential, STAT)
+                           Xin, Yin, Referential, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(OUT)             :: HorizontalGridID
@@ -10250,6 +10440,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         real,               intent(IN )             :: PercI, PercJ
         real,               intent(OUT)             :: XPoint, YPoint
         integer, optional,  intent(IN )             :: Referential
+        real,    optional,  intent(IN )             :: Xin, Yin
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -10277,10 +10468,27 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
+            if (Me%CoordType == SIMPLE_GEOG_ .and. present(Xin) .and. present(Yin)) then 
+                
+                if (Referential_ == GridCoord_) then
+                    
+                    call FromCartToSpherical(Lat = YPoint,                              &
+                                             Lon = XPoint,                              &
+                                             X   = Xin,                                 &
+                                             Y   = Yin)    
+                else
+            
+                    call FromSphericalToCart(Lat = Yin,                                 &
+                                             Lon = Xin,                                 &
+                                             X   = XPoint,                              &
+                                             Y   = YPoint)    
+                endif
+                
+            else    
             XX2D        => Me%XX_IE
             YY2D        => Me%YY_IE
 
-            if (Referential_ == GridCoord_.and. (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_)) then
+                if (Referential_ == GridCoord_.and. (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_)) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn
@@ -10306,7 +10514,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             nullify(XX2D)
             nullify(YY2D)
-
+            endif                       
 
             STAT_ = SUCCESS_
         else    i1
@@ -15203,20 +15411,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%AuxPolygon%VerticesF)
                 deallocate(Me%AuxPolygon)
 
-                if (allocated(Me%IWD_connections_U)) then !Sobrinho
-                    deallocate(Me%IWD_connections_U)
+                if (allocated(Me%Connections_U)) then
+                    deallocate(Me%Connections_U)
                     deallocate(Me%IWD_Distances_U)
                     nullify   (Me%IWD_Distances_U)
                 endif
-                if (allocated(Me%IWD_connections_V)) then! Sobrinho
-                    deallocate(Me%IWD_connections_V)
+                if (allocated(Me%Connections_V)) then
+                    deallocate(Me%Connections_V)
                     deallocate(Me%IWD_Distances_V)
                     nullify   (Me%IWD_Distances_V)
                 endif
-                if (allocated(Me%IWD_connections_Z)) then !Sobrinho
-                    deallocate(Me%IWD_connections_Z)
+                if (allocated(Me%Connections_Z)) then
+                    deallocate(Me%Connections_Z)
+                endif
+                
+                if (allocated(Me%IWD_Distances_Z)) then
                     deallocate(Me%IWD_Distances_Z)
-                    nullify   (Me%IWD_Distances_Z)
                 endif
 
                 call KillFatherGridList
@@ -15338,9 +15548,7 @@ do1 :   do while(associated(FatherGrid))
                     nullify   (FatherGrid%ILinkZ)
                 endif
                 
-                if (associated(FatherGrid%JLinkZ)) then                
-                
-                    !Joao Sobrinho
+                if (associated(FatherGrid%JLinkZ)) then
                     !JLinkZ
                     deallocate(FatherGrid%JLinkZ, STAT = status)
                     if (status /= SUCCESS_)                                                 &
@@ -15402,8 +15610,7 @@ do1 :   do while(associated(FatherGrid))
                 endif                                        
                 
                 if (associated(FatherGrid%JLinkU)) then                
-                    !Joao Sobrinho
-                    !JLinkU
+
                     deallocate(FatherGrid%JLinkU, STAT = status)
 
                     if (status /= SUCCESS_)                                                 &
@@ -15449,8 +15656,7 @@ do1 :   do while(associated(FatherGrid))
 
                 nullify   (FatherGrid%JV)
                 
-                if (associated(FatherGrid%ILinkV)) then
-                    !Joao Sobrinho                
+                if (associated(FatherGrid%ILinkV)) then             
                     !ILinkV
                     deallocate(FatherGrid%ILinkV, STAT = status)
 
