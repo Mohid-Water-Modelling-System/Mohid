@@ -9,7 +9,7 @@
     ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
     ! DATE          : 30 Set 2013
     ! REVISION      : 23 Oct 2020 by Sofia Saraiva
-    ! DESCRIPTION   : Individual Based   Population (or individual) model for one/several bivalve
+    ! DESCRIPTION   : Individual Based Population (or individual) model for one/several bivalve
     !                 species following DED theory  
     !
     !-----------------------------------------------------------------------------------
