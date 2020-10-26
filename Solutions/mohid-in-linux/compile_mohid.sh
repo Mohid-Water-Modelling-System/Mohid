@@ -582,12 +582,12 @@ MOHID_BASE_2(){
     ModuleMap  \
     ModuleAdvectionDiffusion  \
     ModuleInterpolation  \
-    ModuleNETCDF  \
+    ModuleNETCDF \
+    ModuleTwoWay   \
     ModuleField4D  \
     ModuleFillMatrix  \
     ModuleChainReactions  \
-    ModuleAtmosphere      \
-    ModuleTwoWay )
+    ModuleAtmosphere)
 
   COMPILE_MOHID_BASE modules_Mohid_Base_2 "mohidbase2"
 }
