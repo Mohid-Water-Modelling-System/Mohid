@@ -10236,7 +10236,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         integer, dimension(:,:), pointer:: WaterPoints2D
         integer, dimension(:),   pointer:: VectorI, VectorJ, VectorK
         integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC, aux, k
-        integer                         :: SpatialEmission, nCells, DischVertical
+        integer                         :: SpatialEmission, nCells, DischVertical, NFieldsUV3D_Upscaling
         integer                         :: STAT_CALL
         real                            :: InterceptionRatio
 
@@ -10643,9 +10643,13 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
 
         endif i8
 
-        if (Me%Relaxation%Upscaling .and. Me%ComputeOptions%UpscalingDischarge) &
-            call Build_Upscaling_Discharge
-
+        if (Me%Relaxation%Upscaling) then
+            call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
+            if (Me%ComputeOptions%UpscalingDischarge .and. NFieldsUV3D_Upscaling > 0) then
+                call Build_Upscaling_Discharge
+            endif
+        endif
+        
         call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
@@ -10753,7 +10757,7 @@ i7:             if (.not. ContinuousGOTM)  then
         HorizontalGridID = Me%ObjHorizontalGrid
         if (present(SonHorizontalGridID)) HorizontalGridID = SonHorizontalGridID
         
-        HorizontalMapID = Me%ObjHorizontalGrid
+        HorizontalMapID = Me%ObjHorizontalMap
         if (present(SonHorizontalMapID)) HorizontalMapID = SonHorizontalMapID
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
@@ -10781,8 +10785,10 @@ i7:             if (.not. ContinuousGOTM)  then
         enddo
 
         if (.not. FoundDischarge) then
-            write (*,*) 'No upscaling discharges were found between SonID: ', trim(Me%ModelName), 'and its father/son'
-            stop 'Set_Upscaling_Discharges - Failed to find an upscaling Discharge'
+            write (*,*) 'No upscaling discharges were found between nested domains for discharge', DischargeID
+            write (*,*) 'if this is an offline upscaling implementation (by means of the assimilation module, '
+            write (*,*) 'and if the parent domain is ahead, of its upscaling source in time, then ignore this message.'
+            write (*,*) 'Otherwise check your implementation'
         endif
         
         !For waterproperties module to know. SonHorizontalGridID is only present for offline upscaling
@@ -49028,78 +49034,81 @@ do5:            do i = ILB, IUB
         
         call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
 
-        if (NFieldsUV3D_Upscaling == 0) stop 'Offline upscaling discharge without an upscaling assimilation field'
+        if (NFieldsUV3D_Upscaling == 0) then
+            write(*,*) 'Offline upscaling discharge without an upscaling assimilation field'
+        else
+            
+            if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
+                stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
+            endif
         
-        if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
-            stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
-        endif
-        
-        allocate(List3D(NFieldsUV3D_Upscaling))
+            allocate(List3D(NFieldsUV3D_Upscaling))
 
-        do iL = 1, NFieldsUV3D_Upscaling
-            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
-                                                Vel_ID = VelocityU_, Upscaling = .true.)
-            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
-                                                Vel_ID = VelocityV_, Upscaling = .true.)
-        enddo
+            do iL = 1, NFieldsUV3D_Upscaling
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
+                                                    Vel_ID = VelocityU_, Upscaling = .true.)
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
+                                                    Vel_ID = VelocityV_, Upscaling = .true.)
+            enddo
 
-        call GetTimeCoefs_2D (VelocityU_, CoefCold, DecayTime, Upscaling = .true.)
+            call GetTimeCoefs_2D (VelocityU_, CoefCold, DecayTime, Upscaling = .true.)
 
-        !---------------------------------------Finished initialization ------------------------------------------
+            !---------------------------------------Finished initialization ------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
         
-        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
         
-        do iL =1, NFieldsUV3D_Upscaling
-            !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
-            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
-                                    List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
-        enddo
+            do iL =1, NFieldsUV3D_Upscaling
+                !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
+                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
+                                        List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
+            enddo
         
-        call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
-                                            Flow            = Me%WaterFluxes%Discharges,                &
-                                            VelFather       = Me%Velocity%Horizontal%U%New,             &
-                                            VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                            DecayTime       = DecayTime,                                &
-                                            CoefCold        = CoefCold,                                 &
-                                            VelID           = VelocityU_,                               &
-                                            VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
+                                                Flow            = Me%WaterFluxes%Discharges,                &
+                                                VelFather       = Me%Velocity%Horizontal%U%New,             &
+                                                VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
+                                                DecayTime       = DecayTime,                                &
+                                                CoefCold        = CoefCold,                                 &
+                                                VelID           = VelocityU_,                               &
+                                                VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
                 
-        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
         
-        do iL =1, NFieldsUV3D_Upscaling
-            !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
-            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
-                                    List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V)
-        enddo
+            do iL =1, NFieldsUV3D_Upscaling
+                !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
+                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
+                                        List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V)
+            enddo
         
-        call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
-                                            Flow            = Me%WaterFluxes%Discharges,                &
-                                            VelFather       = Me%Velocity%Horizontal%V%New,             &
-                                            VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                            DecayTime       = DecayTime,                                &
-                                            CoefCold        = CoefCold,                                 &
-                                            VelID           = VelocityV_,                               &
-                                            VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
+                                                Flow            = Me%WaterFluxes%Discharges,                &
+                                                VelFather       = Me%Velocity%Horizontal%V%New,             &
+                                                VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
+                                                DecayTime       = DecayTime,                                &
+                                                CoefCold        = CoefCold,                                 &
+                                                VelID           = VelocityV_,                               &
+                                                VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
         
-        ! -------------------------------- Kill variables -------------------------------------------------------------
+            ! -------------------------------- Kill variables -------------------------------------------------------------
         
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
         
-        call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-        if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
+            call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
+            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
 
-        do iL =1, NFieldsUV3D_Upscaling
-            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
-            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
-        enddo
+            do iL =1, NFieldsUV3D_Upscaling
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_U, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_V, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
+            enddo
 
-        deallocate(List3D)
+            deallocate(List3D)
+        endif
 
     end subroutine Modify_Upscaling_Discharges
 

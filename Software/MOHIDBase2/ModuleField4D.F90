@@ -243,6 +243,7 @@ Module ModuleField4D
     type T_File
         character(PathLength)                           :: FileName             = null_str
         character(PathLength)                           :: FieldName            = null_str
+        character(PathLength)                           :: FieldName_2          = null_str
         logical                                         :: FieldNameArgument    = .false.
         type (T_Time)                                   :: StartTime
         type (T_Time)                                   :: EndTime
@@ -278,7 +279,9 @@ Module ModuleField4D
 
     type T_PropField
         character(PathLength)                       :: FieldName            = null_str
+        character(PathLength)                       :: FieldName_2          = null_str
         character(PathLength)                       :: VGroupPath           = null_str
+        character(PathLength)                       :: VGroupPath_2         = null_str
         real                                        :: MultiplyingFactor    = null_real
         logical                                     :: HasMultiplyingFactor = .false.
         real                                        :: AddingFactor         = null_real
@@ -414,7 +417,7 @@ Module ModuleField4D
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, OnlyReadGridFromFile,          &
+                                FileNameList, FieldName, FieldName_2, OnlyReadGridFromFile,  &
                                 DiscardFillValues, CheckHDF5_File, Upscaling, STAT)
 
         !Arguments---------------------------------------------------------------
@@ -438,7 +441,7 @@ Module ModuleField4D
         type (T_PropertyID),                  optional, intent(INOUT) :: PropertyID !Sobrinho
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList
-        character(*),                         optional, intent(IN )   :: FieldName
+        character(*),                         optional, intent(IN )   :: FieldName, FieldName_2
         logical,                              optional, intent(IN )   :: OnlyReadGridFromFile
         logical,                              optional, intent(IN )   :: DiscardFillValues
         logical,                              optional, intent(IN )   :: CheckHDF5_File
@@ -512,6 +515,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(FieldName)) then
                 Me%File%FieldNameArgument = ON
                 Me%File%FieldName         = trim(FieldName)
+                
+                Me%File%FieldName_2 = ' '
+                if (present(FieldName_2)) Me%File%FieldName_2       = trim(FieldName_2)
             endif
 
             Me%WindowWithData    = .true.
@@ -1593,7 +1599,7 @@ wwd1:       if (Me%WindowWithData) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: iflag
-        logical                                         :: LastGroupEqualField
+        logical                                         :: LastGroupEqualField, FieldNameExist
         integer                                         :: ExtractTypeBlock
         real                                            :: DT
         !---------------------------------------------------------------------
@@ -1696,9 +1702,19 @@ wwd1:       if (Me%WindowWithData) then
                              ClientModule = 'ModuleField4D',                            &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
+                
+                call GetData(PropField%FieldName_2,                                     &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'HDF_FIELD_NAME_2',                         &
+                             default      = trim(PropField%ID%Name),                    &
+                             ClientModule = 'ModuleField4D',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR85'
             endif
         else
             PropField%FieldName = Me%File%FieldName
+            PropField%FieldName_2 = Me%File%FieldName_2
         endif
 
         call GetData(LastGroupEqualField,                                               &
@@ -1875,9 +1891,35 @@ wwd1:       if (Me%WindowWithData) then
 
         endif
 
-        if (LastGroupEqualField)                                                        &
+        if (LastGroupEqualField) then
+            PropField%VGroupPath_2 = PropField%VGroupPath
             PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
-
+            PropField%VGroupPath_2=trim(PropField%VGroupPath_2)//"/"//trim(PropField%FieldName_2)
+        endif
+        
+        call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                GroupName   = trim(PropField%VGroupPath),           &
+                                Exist       = FieldNameExist,                       &
+                                STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-a'
+                
+        if (.not. FieldNameExist) then
+            write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+            !Model will stop, so now it will try with second Field name provided by user
+            PropField%VGroupPath = PropField%VGroupPath_2
+            PropField%FieldName  = PropField%FieldName_2
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
+                                    GroupName   = trim(PropField%VGroupPath),       &
+                                    Exist       = FieldNameExist,                   &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-b'
+            if ( .not. FieldNameExist) then
+                write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+                stop 'ReadOptions - ModuleField4D - ERR198-c'
+            endif
+        endif
+        
+        
         call GetData(PropField%SpaceDim,                                                &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -2295,7 +2337,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
 
                     call ConstructHDF5 (Me%File%ObjList(n), trim(Me%File%FileNameList(n)), HDF5_READ, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
-
+                    
                     if (Me%CheckHDF5_File) then
 
                         call GetHDF5AllDataSetsOK (HDF5ID   = Me%File%ObjList(n),       &
@@ -2793,7 +2835,9 @@ it:     if (NewPropField%ChangeInTime) then
                     end if
 
                 endif
-            end do d2
+    end do d2
+    
+    
 
     i4:     if(NewPropField%SpaceDim == Dim2D)then
 
@@ -3287,7 +3331,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 iaux = Instant
 
             endif
-
+            
             call GetHDF5ArrayDimensions(Obj, trim(NewPropField%VGroupPath),         &
                               trim(NewPropField%FieldName), OutputNumber = iaux,    &
                               Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)

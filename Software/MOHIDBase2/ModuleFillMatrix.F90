@@ -430,7 +430,9 @@ Module ModuleFillMatrix
     type T_Field4D
         character(PathLength)                       :: FileName             = null_str, &
                                                        VGroupPath           = null_str, &
-                                                       FieldName            = null_str
+                                                       VGroupPath_2         = null_str, &
+                                                       FieldName            = null_str, &
+                                                       FieldName_2          = null_str
         real                                        :: MultiplyingFactor    = null_real
         logical                                     :: HasMultiplyingFactor = .false.
         real                                        :: AddingFactor         = null_real
@@ -562,6 +564,7 @@ Module ModuleFillMatrix
 
         logical                                     :: ArgumentFileName     = .false.
         character(len=PathLength), dimension(2)     :: FileNameHDF          = null_str
+        logical                                     :: Skip_Block           = .false.
         type(T_ASCIIFile), pointer                  :: FirstASCIIFile
         type(T_TimeSerie), pointer                  :: FirstTimeSerie
         type(T_Field4D), pointer                    :: FirstHDF
@@ -620,7 +623,7 @@ Module ModuleFillMatrix
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, Skip_Block, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -645,6 +648,7 @@ Module ModuleFillMatrix
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
         logical,      optional, intent(IN )             :: NewDomain
+        logical,      optional, intent(OUT )            :: Skip_Block
 
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -692,6 +696,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Upscaling - Sobrinho
             if (present(NewDomain))                  Me%NewDomain                  = NewDomain
+            if (present(Skip_Block))                 Skip_Block                    = .false.
 
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -792,25 +797,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
             endif
 
-            !Is this a angle property? convert to cell referential angle
-            if (Me%RotateAngleToGrid) then
-                !angle referential
-                Prop => Me%PropertyID
-                Referential = Get_Angle_Referential(Prop)
+            if (.not. Me%Skip_Block)  then
+                !Skip_block activated only when Upscaling and when HDF file is not found
+                
+                !Is this a angle property? convert to cell referential angle
+                if (Me%RotateAngleToGrid) then
+                    !angle referential
+                    Prop => Me%PropertyID
+                    Referential = Get_Angle_Referential(Prop)
 
-                !!Need to rotate input field
-                call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,                 &
-                                                AngleIn           = Me%Matrix2DFieldAngle,                &
-                                                InReferential     = Referential,                          &
-                                                AngleOut          = Me%Matrix2DCellAngle,                 &
-                                                WaterPoints2D     = PointsToFill2D,                       &
-                                                Rotate            = .true.,                               &
-                                                STAT              = STAT_CALL)
+                    !!Need to rotate input field
+                    call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,                 &
+                                                    AngleIn           = Me%Matrix2DFieldAngle,                &
+                                                    InReferential     = Referential,                          &
+                                                    AngleOut          = Me%Matrix2DCellAngle,                 &
+                                                    WaterPoints2D     = PointsToFill2D,                       &
+                                                    Rotate            = .true.,                               &
+                                                    STAT              = STAT_CALL)
+                endif
+                
+            else
+                if (present(Skip_Block)) Skip_Block = Me%Skip_Block
             endif
-
-            nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20'
-
+            
             if (.not. Me%NewDomain .and. (present(TwoWayID))) then
                 nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
                 if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
@@ -819,20 +828,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (.not. Me%NewDomain .and. (present(GeometryID))) then
                 nUsers = DeassociateInstance(mGEOMETRY_, Me%ObjGeometry)
                 if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
-            endif
-
+                endif
+            nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
+            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20'
+            
             PropertyID%SolutionFromFile  = .true.
             if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
-
+                
             !Returns ID
             ObjFillMatrix_ = Me%InstanceID
             PropertyID%ObjFillMatrix = ObjFillMatrix_
             if (present(ObjFillMatrix)) ObjFillMatrix = ObjFillMatrix_
-
+            
             nullify(Me%Matrix2D, Me%Matrix2DFieldAngle, Me%Matrix2DCellAngle, Me%PointsToFill2D)
-
+            
             STAT_ = SUCCESS_
-
+            
         else cd0
             stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR02'
         end if cd0
@@ -1085,7 +1096,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      predictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, Skip_Block, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -1111,6 +1122,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
         logical,      optional, intent(IN )             :: NewDomain !Sobrinho
+        logical,      optional, intent(OUT )            :: Skip_Block !Sobrinho
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1149,7 +1161,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(SpongeFILE_DT))              Me%SpongeFILE_DT              = trim(SpongeFILE_DT)
             if (present(FillMatrix))                 FillMatrix_                   = FillMatrix
             if (present(NewDomain))                  Me%NewDomain                  = NewDomain
-
+            if (present(Skip_Block))                 Skip_Block                    = .false.
+            
             if (present(RotateAngleToGrid)) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
@@ -1247,26 +1260,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
             endif
+            
+            !Needs to be here because it is updated in FillWithUserOption routine
+            if (present(Skip_Block)) Skip_Block = Me%Skip_Block
+            
+            if (.not. Me%Skip_Block) then
+                !Skip_block activated only when Upscaling and when HDF file is not found
+                
+                !Is this a angle property? convert to cell referential angle
+                if (Me%RotateAngleToGrid) then
 
-            !Is this a angle property? convert to cell referential angle
-            if (Me%RotateAngleToGrid) then
+                    !angle referential
+                    Prop => Me%PropertyID
+                    Referential = Get_Angle_Referential(Prop)
 
-                !angle referential
-                Prop => Me%PropertyID
-                Referential = Get_Angle_Referential(Prop)
-
-                !!Need to rotate input field
-                call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,               &
-                                                AngleIn           = Me%Matrix3DFieldAngle,                &
-                                                InReferential     = Referential,                          &
-                                                AngleOut          = Me%Matrix3DCellAngle,                 &
-                                                WaterPoints3D     = PointsToFill3D,                       &
-                                                Rotate            = .true.,                               &
-                                                KLB               = Me%WorkSize3D%KLB,                    &
-                                                KUB               = Me%WorkSize3D%KUB,                    &
-                                                STAT              = STAT_CALL)
+                    !!Need to rotate input field
+                    call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,               &
+                                                    AngleIn           = Me%Matrix3DFieldAngle,                &
+                                                    InReferential     = Referential,                          &
+                                                    AngleOut          = Me%Matrix3DCellAngle,                 &
+                                                    WaterPoints3D     = PointsToFill3D,                       &
+                                                    Rotate            = .true.,                               &
+                                                    KLB               = Me%WorkSize3D%KLB,                    &
+                                                    KUB               = Me%WorkSize3D%KUB,                    &
+                                                    STAT              = STAT_CALL)
+                endif
             endif
-
+            
             if (Me%PropertyID%ObjTwoWay /= null_int) PropertyID = Me%PropertyID !Sobrinho
 
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
@@ -1289,8 +1309,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             nullify(Me%Matrix3D, Me%PointsToFill3D)
             nullify(Me%Matrix3DFieldAngle, Me%Matrix3DCellAngle)
 
-            STAT_ = SUCCESS_
-
+                STAT_ = SUCCESS_
         else cd0
             stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR02'
         end if cd0
@@ -1498,7 +1517,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
             endif
-
+                
             !!Need to rotate input field (Me%Matrix3DX and Me%Matrix3DY) to grid (Me%Matrix3DU and Me%Matrix3DV))
             call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid, &
                                             VectorInX         = Me%Matrix3DX,                         &
@@ -1544,8 +1563,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             nullify(Me%PointsToFill3D)
 
             STAT_ = SUCCESS_
-
-
+            
         else cd0
 
             stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR02'
@@ -6345,113 +6363,138 @@ i2:     if (Me%Dim == Dim2D) then
         !Local-----------------------------------------------------------------
         type (T_Field4D), pointer                       :: CurrentHDF
         integer                                         :: file
+        logical                                         :: FieldNameExist
         !Begin-----------------------------------------------------------------
 
         !get general options and list of HDF (one if scalar, two if vectorial prop)
         call ReadOptionsHDFinput(ExtractType, ClientID)
+        !Skip block implemented for the Upscaling when a parent domain is ahead of its child
+        if (.not. Me%Skip_Block) then
+            CurrentHDF => Me%FirstHDF
+            file = 1
+            do while (associated(CurrentHDF))
+
+                !Associate Matrix2D and Me%Matrix3D to the input field ones
+                if (Me%VectorialProp .or. Me%RotateAngleToGrid) call AssociateMatrixes(file)
+
+                call AllocateHDFInput(CurrentHDF)
 
 
-        CurrentHDF => Me%FirstHDF
-        file = 1
-        do while (associated(CurrentHDF))
+if4D:          if (CurrentHDF%Field4D) then
 
-            !Associate Matrix2D and Me%Matrix3D to the input field ones
-            if (Me%VectorialProp .or. Me%RotateAngleToGrid) call AssociateMatrixes(file)
+                    call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
 
-            call AllocateHDFInput(CurrentHDF)
+                    !Sobrinho
+                    if (CurrentHDF%Upscaling) then
+                        if (Me%NewDomain) call Build_Upscaling(CurrentHDF)
+                    endif
 
+                else if4D
 
-if4D:       if (CurrentHDF%Field4D) then
+                    call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
-                call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
+                    call ConstructHDF5 (CurrentHDF%ObjHDF5, trim(CurrentHDF%FileName), HDF5_READ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
+                
+                    call GetHDF5GroupExist (HDF5ID      = CurrentHDF%ObjHDF5,                   &
+                                            GroupName   = CurrentHDF%VGroupPath,                &
+                                            Exist       = FieldNameExist,                       &
+                                            STAT        = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR181'
+                
+                    if (.not. FieldNameExist) then
+                        write(*,*)'Could not find field name in HDF', CurrentHDF%VGroupPath
+                        !Model will stop, so now it will try with second Field name provided by user
+                        CurrentHDF%VGroupPath = CurrentHDF%VGroupPath_2
+                        CurrentHDF%FieldName  = CurrentHDF%FieldName_2
+                        call GetHDF5GroupExist (HDF5ID      = CurrentHDF%ObjHDF5,                   &
+                                                GroupName   = CurrentHDF%VGroupPath,                &
+                                                Exist       = FieldNameExist,                       &
+                                                STAT        = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR182'
+                        if ( .not. FieldNameExist) then
+                            write(*,*)'Could not find field name in HDF', CurrentHDF%VGroupPath
+                            stop 'ConstructHDFInput - ModuleFillMatrix - ERR183'
+                        endif
+                    endif
+                
 
-                !Sobrinho
-                if (CurrentHDF%Upscaling) then
-                    if (Me%NewDomain) call Build_Upscaling(CurrentHDF)
+                    if (Me%CheckHDF5_File) then
+
+                        call GetHDF5AllDataSetsOK (HDF5ID   = CurrentHDF%ObjHDF5,           &
+                                                   STAT     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR185'
+
+                    endif
+
+                    call GetHDF5GroupNumberOfItems(CurrentHDF%ObjHDF5, "/Time", &
+                                                   CurrentHDF%NumberOfInstants, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
+
+                endif if4D
+
+                CurrentHDF%StartTime = HDF5TimeInstant(1, CurrentHDF)
+                CurrentHDF%EndTime   = HDF5TimeInstant(CurrentHDF%NumberOfInstants, CurrentHDF)
+
+                !if only one instant is found then values remain constant
+                Me%RemainsConstant = .true.
+                if(CurrentHDF%NumberOfInstants == 1 .and. .not. CurrentHDF%HarmonicsON) then
+                    CurrentHDF%RemainsConstant = .true.
+                else
+                    !if any of the hdf do not remain constant then global is false
+                    Me%RemainsConstant = .false.
                 endif
 
-            else if4D
+                call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
 
-                call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-                call ConstructHDF5 (CurrentHDF%ObjHDF5, trim(CurrentHDF%FileName), HDF5_READ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR180'
-
-                if (Me%CheckHDF5_File) then
-
-                    call GetHDF5AllDataSetsOK (HDF5ID   = CurrentHDF%ObjHDF5,           &
-                                               STAT     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR185'
-
+                !Backtracking time inversion is also done in the ModuleField4D
+                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                    call BacktrackingTime(Now)
+                else
+                    Now = CurrentTime
                 endif
 
-                call GetHDF5GroupNumberOfItems(CurrentHDF%ObjHDF5, "/Time", &
-                                               CurrentHDF%NumberOfInstants, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
+                !Initial field
+    i1:         if (CurrentHDF%Generic4D%ON .or. (CurrentHDF%Field4D .and. CurrentHDF%HarmonicsOn)) then
 
-            endif if4D
+                    if (Me%Dim == Dim2D) call ModifyHDFInput2D (PointsToFill2D, CurrentHDF)
+                    if (Me%Dim == Dim3D) call ModifyHDFInput3D (PointsToFill3D, CurrentHDF)
 
-            CurrentHDF%StartTime = HDF5TimeInstant(1, CurrentHDF)
-            CurrentHDF%EndTime   = HDF5TimeInstant(CurrentHDF%NumberOfInstants, CurrentHDF)
+                else i1
 
-            !if only one instant is found then values remain constant
-            Me%RemainsConstant = .true.
-            if(CurrentHDF%NumberOfInstants == 1 .and. .not. CurrentHDF%HarmonicsON) then
-                CurrentHDF%RemainsConstant = .true.
-            else
-                !if any of the hdf do not remain constant then global is false
-                Me%RemainsConstant = .false.
-            endif
+    i2:             if(CurrentHDF%NumberOfInstants > 1)then
 
-            call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
+    i3:                 if (Me%PredictDTMethod == 2) then
+                            call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
+                        else i3
+                            call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
+                        endif i3
 
-            !Backtracking time inversion is also done in the ModuleField4D
-            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                call BacktrackingTime(Now)
-            else
-                Now = CurrentTime
-            endif
+                    elseif(CurrentHDF%NumberOfInstants == 1)then i2
 
-            !Initial field
-    i1:     if (CurrentHDF%Generic4D%ON .or. (CurrentHDF%Field4D .and. CurrentHDF%HarmonicsOn)) then
+                        call ConstructHDFOneInstant(Now, CurrentHDF)
 
-                if (Me%Dim == Dim2D) call ModifyHDFInput2D (PointsToFill2D, CurrentHDF)
-                if (Me%Dim == Dim3D) call ModifyHDFInput3D (PointsToFill3D, CurrentHDF)
+                    else i2
+                        write(*,*)
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'No time information found'
+                        stop 'ConstructHDFInput - ModuleFillMatrix - ERR300'
+                    end if i2
 
-            else i1
+    i4:             if (Me%PredictDTMethod == 1) then
+                        if(Me%Dim == Dim2D) call DTMethod_1_PrevNext2D(Now, PointsToFill2D, CurrentHDF)
+                        if(Me%Dim == Dim3D) call DTMethod_1_PrevNext3D(Now, PointsToFill3D, CurrentHDF)
+                    endif i4
 
-    i2:         if(CurrentHDF%NumberOfInstants > 1)then
-
-    i3:             if (Me%PredictDTMethod == 2) then
-                        call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
-                    else i3
-                        call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
-                    endif i3
-
-                elseif(CurrentHDF%NumberOfInstants == 1)then i2
-
-                    call ConstructHDFOneInstant(Now, CurrentHDF)
-
-                else i2
-                    write(*,*)
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'No time information found'
-                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR300'
-                end if i2
-
-    i4:         if (Me%PredictDTMethod == 1) then
-                    if(Me%Dim == Dim2D) call DTMethod_1_PrevNext2D(Now, PointsToFill2D, CurrentHDF)
-                    if(Me%Dim == Dim3D) call DTMethod_1_PrevNext3D(Now, PointsToFill3D, CurrentHDF)
-                endif i4
-
-            endif i1
+                endif i1
 
 
-            file = file + 1
-            CurrentHDF => CurrentHDF%Next
-        enddo
-
+                file = file + 1
+                CurrentHDF => CurrentHDF%Next
+            enddo
+        endif
+        
     end subroutine ConstructHDFInput
 
     !-----------------------------------------------------------------------------------
@@ -6508,12 +6551,12 @@ i0:     if(Me%Dim == Dim2D)then
         logical                                         :: MasterOrSlave, LastGroupEqualField
         character(len = PathLength  ), dimension(3)     :: FileName  = " "
         character(len = StringLength), dimension(3)     :: FieldName = " "
+        character(len = StringLength), dimension(3)     :: FieldName_2 = " "
         type(T_Field4D), pointer                        :: NewHDF, CurrentHDF
         integer                                         :: nHDFs           = 1
-        logical                                         :: exist
+        logical                                         :: exist, Upscaling 
         real                                            :: DT
         !Begin-----------------------------------------------------------------
-
         FileName(:) = " "
         FieldName(:) = " "
         Me%nHDFs = 0
@@ -6543,7 +6586,16 @@ i0:     if(Me%Dim == Dim2D)then
 
         !Always search for one filename
         if (.not. Me%ArgumentFileName) then
-
+            !Sobrinho
+            call GetData(Upscaling,                                                         &
+                         Me%ObjEnterData , iflag,                                           &
+                         SearchType   = ExtractType,                                        &
+                         keyword      = 'UPSCALING',                                        &
+                         default      = .false.,                                            &
+                         ClientModule = 'ModuleFillMatrix',                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR10'
+            
             call GetData(FileName(1),                                                      &
                             Me%ObjEnterData , iflag,                                       &
                             SearchType   = ExtractType,                                    &
@@ -6621,10 +6673,17 @@ i0:     if(Me%Dim == Dim2D)then
 
                 inquire (file=trim(FileName(1)), exist = exist)
                 if (.not. exist) then
-                    write(*,*)'Could not find file '//trim(FileName(1))
-                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR110'
+                    !When a parent domain is ahead, it will not have the HDF solution from the child, 
+                    !so it must disconnect upscaling
+                    if (Upscaling) then
+                        write(*,*)'Could not find Upscaling file '//trim(FileName(1))
+                        write(*,*)'Skipping property block and deactivating UPSCALING'
+                        Me%Skip_Block = .true.
+                    else
+                        write(*,*)'Could not find file '//trim(FileName(1))
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR110'
+                    endif
                 endif
-
             endif
         else
 
@@ -6636,352 +6695,357 @@ i0:     if(Me%Dim == Dim2D)then
             endif
         endif
 
+        if (.not. Me%Skip_Block) then
+            !Proceed only if 1) not using Upscaling or 2) using Upscaling, the hdf to be upscaled from is found
+            if (Me%VectorialProp) then
 
-        if (Me%VectorialProp) then
-
-            call GetData(FieldName(1),                                               &
-                         Me%ObjEnterData , iflag,                                    &
-                         SearchType   = ExtractType,                                 &
-                         keyword      = 'HDF_FIELD_NAME_X',                          &
-                         ClientModule = 'ModuleFillMatrix',                          &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR120'
-            if (iflag==0)then
-                write(*,*) 'HDF HDF_FIELD_NAME_X keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04b'
-            endif
-
-            call GetData(FieldName(2),                                               &
-                         Me%ObjEnterData , iflag,                                    &
-                         SearchType   = ExtractType,                                 &
-                         keyword      = 'HDF_FIELD_NAME_Y',                          &
-                         ClientModule = 'ModuleFillMatrix',                          &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR130'
-            if (iflag==0)then
-                write(*,*) 'HDF HDF_FIELD_NAME_Y keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04d'
-            endif
-
-            if (Me%Dim == Dim3D) then
-                Me%UseZ = .true.
-                call GetData(FieldName(3),                                               &
+                call GetData(FieldName(1),                                               &
                              Me%ObjEnterData , iflag,                                    &
                              SearchType   = ExtractType,                                 &
-                             keyword      = 'HDF_FIELD_NAME_Z',                          &
+                             keyword      = 'HDF_FIELD_NAME_X',                          &
                              ClientModule = 'ModuleFillMatrix',                          &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR140'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR120'
                 if (iflag==0)then
-                    Me%UseZ = .false.
-                    !write(*,*) 'HDF HDF_FIELD_NAME_Z keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
-                    !stop       'ConstructHDFInput - ModuleFillMatrix - ERR04f'
+                    write(*,*) 'HDF HDF_FIELD_NAME_X keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
+                    stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04b'
                 endif
 
-                !verify that user provided W omponent
-                if (Me%UseZ .and. .not. associated(Me%Matrix3DW)) then
-                    write(*,*) 'Constructing vectorial property that needs W component to be given'
-                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR150'
-                endif
-
-            endif
-
-            !Default
-            nHDFs = 2
-            !if second filename not defined, is the same as previous
-            if (FileName(2) == " ") FileName(2) = FileName(1)
-
-            if (Me%Dim == Dim3D .and. Me%UseZ) then
-                nHDFs = 3
-                if (FileName(3) == " ") FileName(3) = FileName(1)
-            endif
-
-
-        else
-
-            call GetData(FieldName(1),                                                      &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'HDF_FIELD_NAME',                                   &
-                         default      = trim(Me%PropertyID%Name),                           &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR160'
-
-        endif
-
-        call GetData(Me%CheckHDF5_File,                                                 &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'CHECK_HDF5_FILE',                                  &
-                     default      = .false.,                                            &
-                     ClientModule = 'ModuleFillMatrix',                                 &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR165'
-
-        do i = 1, nHDFs
-
-            nullify  (NewHDF)
-            allocate (NewHDF)
-            nullify  (NewHDF%Next)
-            nullify  (NewHDF%Prev)
-
-            NewHDF%Filename  = Filename(i)
-            NewHDF%FieldName = FieldName(i)
-
-
-            call InsertHDFToList(NewHDF)
-
-        enddo
-
-        CurrentHDF => Me%FirstHDF
-
-d1:     do while (associated(CurrentHDF))
-
-            call GetData(CurrentHDF%Generic4D%ON,                                           &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = '4D',                                               &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR170'
-
-
-            if (CurrentHDF%Generic4D%ON) call Generic4thDimension(ExtractType, CurrentHDF)
-
-
-            call GetData(CurrentHDF%VGroupPath,                                             &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'VGROUP_PATH',                                      &
-                         default      = "/Results",                                         &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR180'
-
-            call GetData(CurrentHDF%MultiplyingFactor,                                      &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'MULTIPLYING_FACTOR',                               &
-                         default      = 1.,                                                 &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR190'
-
-            if (iflag == 1)then
-                CurrentHDF%HasMultiplyingFactor = .true.
-            end if
-
-            call GetData(CurrentHDF%AddingFactor,                                               &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'ADDING_FACTOR',                                    &
-                         default      = 0.,                                                 &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR200'
-
-            if (iflag == 1)then
-                CurrentHDF%HasAddingFactor = .true.
-            end if
-
-
-            call GetData(LastGroupEqualField,                                               &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'LAST_GROUP_EQUAL_FIELD',                           &
-                         default      = .true.,                                             &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR230'
-
-            if (LastGroupEqualField)                                                        &
-                CurrentHDF%VGroupPath=trim(CurrentHDF%VGroupPath)//"/"//trim(CurrentHDF%FieldName)
-
-
-
-
-            call GetData(CurrentHDF%From3Dto2D,                                             &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'FROM_3D_TO_2D',                                    &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
-
-
-            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                                  MasterOrSlave    = MasterOrSlave,        &
-                                                  STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR260'
-
-
-            call GetData(CurrentHDF%Field4D,                                                    &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'FIELD4D',                                          &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
-
-            call GetData(CurrentHDF%From2Dto3D,                                             &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'FROM_2D_TO_3D',                                    &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
-
-            if (CurrentHDF%From2Dto3D .and. .not. CurrentHDF%Field4D) then
-
-                allocate(CurrentHDF%ReadField3D(ILB:IUB, JLB:JUB, 0:2), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR250'
-
-                CurrentHDF%ReadField3D(:,:,:) = FillValueReal
-
-            endif
-
-
-            if (CurrentHDF%Field4D) then
-                call GetData(CurrentHDF%Extrapolate,                                            &
-                             Me%ObjEnterData , iflag,                                       &
-                             SearchType   = ExtractType,                                    &
-                             keyword      = 'EXTRAPOLATE',                                  &
-                             default      = .false.,                                        &
-                             ClientModule = 'ModuleFillMatrix',                             &
+                call GetData(FieldName(2),                                               &
+                             Me%ObjEnterData , iflag,                                    &
+                             SearchType   = ExtractType,                                 &
+                             keyword      = 'HDF_FIELD_NAME_Y',                          &
+                             ClientModule = 'ModuleFillMatrix',                          &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
-
-                !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
-                call GetData(CurrentHDF%ExtrapolateMethod,                              &
-                             Me%ObjEnterData , iflag,                                   &
-                             SearchType   = ExtractType,                                &
-                             keyword      = 'EXTRAPOLATE_METHOD',                       &
-                             default      = ExtrapolAverage_,                           &
-                             ClientModule = 'ModuleFillMatrix',                         &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR290'
-
-                if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
-                    CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
-                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR300'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR130'
+                if (iflag==0)then
+                    write(*,*) 'HDF HDF_FIELD_NAME_Y keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
+                    stop       'ReadOptionsHDFinput - ModuleFillMatrix - ERR04d'
                 endif
 
-                if     (ExtractType == FromBlock)        then
-                    call ReadListFilesFromBlock         (CurrentHDF, ClientID)
-                elseif (ExtractType == FromBlockInBlock) then
-                    call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)
+                if (Me%Dim == Dim3D) then
+                    Me%UseZ = .true.
+                    call GetData(FieldName(3),                                               &
+                                 Me%ObjEnterData , iflag,                                    &
+                                 SearchType   = ExtractType,                                 &
+                                 keyword      = 'HDF_FIELD_NAME_Z',                          &
+                                 ClientModule = 'ModuleFillMatrix',                          &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR140'
+                    if (iflag==0)then
+                        Me%UseZ = .false.
+                        !write(*,*) 'HDF HDF_FIELD_NAME_Z keyword not given not given for vectorial property '//trim(Me%PropertyID%Name)
+                        !stop       'ConstructHDFInput - ModuleFillMatrix - ERR04f'
+                    endif
+
+                    !verify that user provided W omponent
+                    if (Me%UseZ .and. .not. associated(Me%Matrix3DW)) then
+                        write(*,*) 'Constructing vectorial property that needs W component to be given'
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR150'
+                    endif
+
                 endif
 
-            endif
+                !Default
+                nHDFs = 2
+                !if second filename not defined, is the same as previous
+                if (FileName(2) == " ") FileName(2) = FileName(1)
 
-            !The adding and multiplying functionalities are also available in ModuleField4D
-            !This way it is avoid adding and multiplying twice the AddingFactor and the MultiplyingFactor respectively
-            if (CurrentHDF%Field4D) then
-                CurrentHDF%HasMultiplyingFactor = .false.
-                CurrentHDF%HasAddingFactor      = .false.
-            endif
-
-            call GetData(CurrentHDF%HarmonicsON,                                            &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'HARMONICS',                                        &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR310'
-
-            if (CurrentHDF%HarmonicsON) then
-
-                CurrentHDF%From2Dto3D = .true.
-
-                call GetData(CurrentHDF%HarmonicsDT,                                        &
-                                Me%ObjEnterData , iflag,                                    &
-                                SearchType   = ExtractType,                                 &
-                                keyword      = 'HARMONICS_DT',                              &
-                                default      =  900.,                                       &
-                                ClientModule = 'ModuleField4D',                             &
-                                STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR315'
-
-                call GetComputeTimeStep(TimeID = Me%ObjTime, DT = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR317'
-
-                if (CurrentHDF%HarmonicsDT < DT) then
-                    CurrentHDF%HarmonicsDT = DT
+                if (Me%Dim == Dim3D .and. Me%UseZ) then
+                    nHDFs = 3
+                    if (FileName(3) == " ") FileName(3) = FileName(1)
                 endif
 
-            endif
 
-            call GetData(CurrentHDF%SpatialInterpolON,                                      &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'SPATIAL_INTERPOL',                                 &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'
+            else
 
-            CurrentHDF%InterpolOnlyVertically = .false.
-
-            if (CurrentHDF%SpatialInterpolON) then
-
-                call GetData(CurrentHDF%InterpolOnlyVertically,                             &
-                             Me%ObjEnterData , iflag,                                       &
-                             SearchType   = ExtractType,                                    &
-                             keyword      = 'INTERPOL_ONLY_VERTICALLY',                     &
-                             default      = .false.,                                        &
-                             ClientModule = 'ModuleFillMatrix',                             &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR330'
-
-            endif
-
-            call GetData(CurrentHDF%GenericYear,                                            &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'GENERIC_YEAR',                                     &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR340'
-
-            if (CurrentHDF%GenericYear) then
-                CurrentHDF%CyclicTimeON = .true.
-            endif
-
-            !Sobrinho
-            call GetData(CurrentHDF%Upscaling,                                              &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'UPSCALING',                                        &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR350'
-
-            !Sobrinho
-            if (CurrentHDF%Upscaling) then
-                call GetData(CurrentHDF%UpscalingMethod,                                              &
+                call GetData(FieldName(1),                                                      &
                              Me%ObjEnterData , iflag,                                           &
                              SearchType   = ExtractType,                                        &
-                             keyword      = 'UPSCALING_METHOD',                                 &
-                             default      = 1,                                                  &
+                             keyword      = 'HDF_FIELD_NAME',                                   &
+                             default      = trim(Me%PropertyID%Name),                           &
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR360'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR160-a'
+            
+                call GetData(FieldName_2(1),                                                    &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'HDF_FIELD_NAME_2',                                 &
+                             default      = trim(Me%PropertyID%Name),                           &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR160-b'
+
             endif
 
-            if (MasterOrSlave) CurrentHDF%Field4D = .true.
+            call GetData(Me%CheckHDF5_File,                                                 &
+                         Me%ObjEnterData , iflag,                                           &
+                         SearchType   = ExtractType,                                        &
+                         keyword      = 'CHECK_HDF5_FILE',                                  &
+                         default      = .false.,                                            &
+                         ClientModule = 'ModuleFillMatrix',                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR165'
 
-            CurrentHDF => CurrentHDF%Next
+            do i = 1, nHDFs
 
-        enddo d1
+                nullify  (NewHDF)
+                allocate (NewHDF)
+                nullify  (NewHDF%Next)
+                nullify  (NewHDF%Prev)
 
+                NewHDF%Filename  = Filename(i)
+                NewHDF%FieldName = FieldName(i)
+                NewHDF%FieldName_2 = FieldName_2(i)
+
+
+                call InsertHDFToList(NewHDF)
+
+            enddo
+
+            CurrentHDF => Me%FirstHDF
+
+    d1:     do while (associated(CurrentHDF))
+
+                call GetData(CurrentHDF%Generic4D%ON,                                           &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = '4D',                                               &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR170'
+
+
+                if (CurrentHDF%Generic4D%ON) call Generic4thDimension(ExtractType, CurrentHDF)
+
+
+                call GetData(CurrentHDF%VGroupPath,                                             &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'VGROUP_PATH',                                      &
+                             default      = "/Results",                                         &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR180'
+
+                call GetData(CurrentHDF%MultiplyingFactor,                                      &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'MULTIPLYING_FACTOR',                               &
+                             default      = 1.,                                                 &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR190'
+
+                if (iflag == 1)then
+                    CurrentHDF%HasMultiplyingFactor = .true.
+                end if
+
+                call GetData(CurrentHDF%AddingFactor,                                               &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'ADDING_FACTOR',                                    &
+                             default      = 0.,                                                 &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR200'
+
+                if (iflag == 1)then
+                    CurrentHDF%HasAddingFactor = .true.
+                end if
+
+
+                call GetData(LastGroupEqualField,                                               &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'LAST_GROUP_EQUAL_FIELD',                           &
+                             default      = .true.,                                             &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR230'
+
+                if (LastGroupEqualField) then
+                    CurrentHDF%VGroupPath=trim(CurrentHDF%VGroupPath)//"/"//trim(CurrentHDF%FieldName)
+                    CurrentHDF%VGroupPath_2=trim(CurrentHDF%VGroupPath)//"/"//trim(CurrentHDF%FieldName_2)
+                endif
+            
+
+
+
+                call GetData(CurrentHDF%From3Dto2D,                                             &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'FROM_3D_TO_2D',                                    &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
+
+
+                call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                      MasterOrSlave    = MasterOrSlave,        &
+                                                      STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR260'
+
+
+                call GetData(CurrentHDF%Field4D,                                                    &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'FIELD4D',                                          &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
+
+                call GetData(CurrentHDF%From2Dto3D,                                             &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'FROM_2D_TO_3D',                                    &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR240'
+
+                if (CurrentHDF%From2Dto3D .and. .not. CurrentHDF%Field4D) then
+
+                    allocate(CurrentHDF%ReadField3D(ILB:IUB, JLB:JUB, 0:2), STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR250'
+
+                    CurrentHDF%ReadField3D(:,:,:) = FillValueReal
+
+                endif
+
+
+                if (CurrentHDF%Field4D) then
+                    call GetData(CurrentHDF%Extrapolate,                                            &
+                                 Me%ObjEnterData , iflag,                                       &
+                                 SearchType   = ExtractType,                                    &
+                                 keyword      = 'EXTRAPOLATE',                                  &
+                                 default      = .false.,                                        &
+                                 ClientModule = 'ModuleFillMatrix',                             &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
+
+                    !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
+                    call GetData(CurrentHDF%ExtrapolateMethod,                              &
+                                 Me%ObjEnterData , iflag,                                   &
+                                 SearchType   = ExtractType,                                &
+                                 keyword      = 'EXTRAPOLATE_METHOD',                       &
+                                 default      = ExtrapolAverage_,                           &
+                                 ClientModule = 'ModuleFillMatrix',                         &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR290'
+
+                    if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
+                        CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR300'
+                    endif
+
+                    if     (ExtractType == FromBlock)        then
+                        call ReadListFilesFromBlock         (CurrentHDF, ClientID)
+                    elseif (ExtractType == FromBlockInBlock) then
+                        call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)
+                    endif
+
+                endif
+
+                !The adding and multiplying functionalities are also available in ModuleField4D
+                !This way it is avoid adding and multiplying twice the AddingFactor and the MultiplyingFactor respectively
+                if (CurrentHDF%Field4D) then
+                    CurrentHDF%HasMultiplyingFactor = .false.
+                    CurrentHDF%HasAddingFactor      = .false.
+                endif
+
+                call GetData(CurrentHDF%HarmonicsON,                                            &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'HARMONICS',                                        &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR310'
+
+                if (CurrentHDF%HarmonicsON) then
+
+                    CurrentHDF%From2Dto3D = .true.
+
+                    call GetData(CurrentHDF%HarmonicsDT,                                        &
+                                    Me%ObjEnterData , iflag,                                    &
+                                    SearchType   = ExtractType,                                 &
+                                    keyword      = 'HARMONICS_DT',                              &
+                                    default      =  900.,                                       &
+                                    ClientModule = 'ModuleField4D',                             &
+                                    STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR315'
+
+                    call GetComputeTimeStep(TimeID = Me%ObjTime, DT = DT, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR317'
+
+                    if (CurrentHDF%HarmonicsDT < DT) then
+                        CurrentHDF%HarmonicsDT = DT
+                    endif
+
+                endif
+
+                call GetData(CurrentHDF%SpatialInterpolON,                                      &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'SPATIAL_INTERPOL',                                 &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'
+
+                CurrentHDF%InterpolOnlyVertically = .false.
+
+                if (CurrentHDF%SpatialInterpolON) then
+
+                    call GetData(CurrentHDF%InterpolOnlyVertically,                             &
+                                 Me%ObjEnterData , iflag,                                       &
+                                 SearchType   = ExtractType,                                    &
+                                 keyword      = 'INTERPOL_ONLY_VERTICALLY',                     &
+                                 default      = .false.,                                        &
+                                 ClientModule = 'ModuleFillMatrix',                             &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR330'
+
+                endif
+
+                call GetData(CurrentHDF%GenericYear,                                            &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'GENERIC_YEAR',                                     &
+                             default      = .false.,                                            &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR340'
+
+                if (CurrentHDF%GenericYear) then
+                    CurrentHDF%CyclicTimeON = .true.
+                endif
+
+                CurrentHDF%Upscaling = Upscaling
+                !Sobrinho
+                if (CurrentHDF%Upscaling) then
+                    call GetData(CurrentHDF%UpscalingMethod,                                              &
+                                 Me%ObjEnterData , iflag,                                           &
+                                 SearchType   = ExtractType,                                        &
+                                 keyword      = 'UPSCALING_METHOD',                                 &
+                                 default      = 1,                                                  &
+                                 ClientModule = 'ModuleFillMatrix',                                 &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR360'
+                endif
+
+                if (MasterOrSlave) CurrentHDF%Field4D = .true.
+
+                CurrentHDF => CurrentHDF%Next
+
+            enddo d1
+        endif
+        
     end subroutine ReadOptionsHDFinput
 
     !-----------------------------------------------------------------------------
@@ -7192,6 +7256,7 @@ ifMS:       if (MasterOrSlave) then
                                   ExtractType       = ExtractType,                      &
                                   FileName          = CurrentHDF%FileName,              &
                                   FieldName         = CurrentHDF%FieldName,             &
+                                  FieldName_2       = CurrentHDF%FieldName_2,           &
                                   TimeID            = Me%ObjTime,                       &
                                   MaskDim           = Me%Dim,                           &
                                   LatReference      = LatDefault,                       &
@@ -7892,6 +7957,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   ExtractType       = ExtractType,                      &
                                   FileName          = CurrentHDF%FileName,              &
                                   FieldName         = CurrentHDF%FieldName,             &
+                                  FieldName_2       = CurrentHDF%FieldName_2,           &
                                   TimeID            = Me%ObjTime,                       &
                                   MaskDim           = Me%Dim,                           &
                                   LatReference      = LatDefault,                       &
@@ -13075,80 +13141,82 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     CurrentTimeSerie => CurrentTimeSerie%Next
 
                 enddo
+                !If a property block in assimilation is skipped, then HDF has not been allocated
+                if (.not. Me%Skip_Block) then
+                    CurrentHDF => Me%FirstHDF
+                    do while (associated(CurrentHDF))
 
-                CurrentHDF => Me%FirstHDF
-                do while (associated(CurrentHDF))
+                        if (CurrentHDF%ObjHDF5 /= 0 .or. CurrentHDF%ObjField4D /= 0 ) then
 
-                    if (CurrentHDF%ObjHDF5 /= 0 .or. CurrentHDF%ObjField4D /= 0 ) then
+                            if( associated(CurrentHDF%PreviousField2D))then
+                                deallocate(CurrentHDF%PreviousField2D)
+                                nullify   (CurrentHDF%PreviousField2D)
+                            end if
 
-                        if( associated(CurrentHDF%PreviousField2D))then
-                            deallocate(CurrentHDF%PreviousField2D)
-                            nullify   (CurrentHDF%PreviousField2D)
-                        end if
+                            if( associated(CurrentHDF%NextField2D))then
+                                deallocate(CurrentHDF%NextField2D)
+                                nullify   (CurrentHDF%NextField2D)
+                            end if
 
-                        if( associated(CurrentHDF%NextField2D))then
-                            deallocate(CurrentHDF%NextField2D)
-                            nullify   (CurrentHDF%NextField2D)
-                        end if
+                            if( associated(CurrentHDF%PreviousField3D))then
+                                deallocate(CurrentHDF%PreviousField3D)
+                                nullify   (CurrentHDF%PreviousField3D)
+                            end if
 
-                        if( associated(CurrentHDF%PreviousField3D))then
-                            deallocate(CurrentHDF%PreviousField3D)
-                            nullify   (CurrentHDF%PreviousField3D)
-                        end if
+                            if(associated (CurrentHDF%NextField3D))then
+                                deallocate(CurrentHDF%NextField3D)
+                                nullify   (CurrentHDF%NextField3D)
+                            end if
 
-                        if(associated (CurrentHDF%NextField3D))then
-                            deallocate(CurrentHDF%NextField3D)
-                            nullify   (CurrentHDF%NextField3D)
-                        end if
+                            if (associated(CurrentHDF%ReadField3D)) then
+                                deallocate(CurrentHDF%ReadField3D, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)stop 'KillFillMatrix - ModuleFillMatrix - ERR20'
+                                nullify   (CurrentHDF%ReadField3D)
+                            endif
 
-                        if (associated(CurrentHDF%ReadField3D)) then
-                            deallocate(CurrentHDF%ReadField3D, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)stop 'KillFillMatrix - ModuleFillMatrix - ERR20'
-                            nullify   (CurrentHDF%ReadField3D)
-                        endif
+        if4D:               if (CurrentHDF%Field4D) then
 
-    if4D:               if (CurrentHDF%Field4D) then
+                                if (CurrentHDF%SpatialInterpolON) then
 
-                            if (CurrentHDF%SpatialInterpolON) then
+                                    if (Me%Dim == Dim3D .and. .not. CurrentHDF%From2Dto3D) then
+                                         deallocate(CurrentHDF%Z)
+                                    endif
 
-                                if (Me%Dim == Dim3D .and. .not. CurrentHDF%From2Dto3D) then
-                                     deallocate(CurrentHDF%Z)
+                                    deallocate(CurrentHDF%X, CurrentHDF%Y, CurrentHDF%Prop, CurrentHDF%NoData)
+
                                 endif
 
-                                deallocate(CurrentHDF%X, CurrentHDF%Y, CurrentHDF%Prop, CurrentHDF%NoData)
+                                if (associated(CurrentHDF%FileNameList)) then
+                                    deallocate(CurrentHDF%FileNameList)
+                                endif
 
+                                if (CurrentHDF%Upscaling .and. CurrentHDF%ObjTwoWay /= 0) then
+                                    call KillTwoWay(CurrentHDF%ObjTwoWay, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR25'
+                                endif
+
+                                call KillField4D(CurrentHDF%ObjField4D, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'
+
+                            else if4D
+
+                                call KillHDF5(CurrentHDF%ObjHDF5, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR40'
+
+                            endif if4D
+
+                            if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
+                                call KillTimeSerie(CurrentHDF%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR50'
                             endif
 
-                            if (associated(CurrentHDF%FileNameList)) then
-                                deallocate(CurrentHDF%FileNameList)
-                            endif
-
-                            if (CurrentHDF%Upscaling .and. CurrentHDF%ObjTwoWay /= 0) then
-                                call KillTwoWay(CurrentHDF%ObjTwoWay, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR25'
-                            endif
-
-                            call KillField4D(CurrentHDF%ObjField4D, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'
-
-                        else if4D
-
-                            call KillHDF5(CurrentHDF%ObjHDF5, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR40'
-
-                        endif if4D
-
-                        if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
-                            call KillTimeSerie(CurrentHDF%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR50'
                         endif
 
-                    endif
+                        CurrentHDF => CurrentHDF%Next
 
-                    CurrentHDF => CurrentHDF%Next
-
-                enddo
-
+                    enddo
+                endif
+                
                 if (Me%AnalyticWave%ON) then
                     call KillAnalyticWave
                 endif
