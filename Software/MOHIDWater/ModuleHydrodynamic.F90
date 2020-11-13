@@ -2370,9 +2370,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Construct the Time Serie Obj
         if (Me%OutPut%TimeSerieON) call Construct_Time_Serie
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-            Me%OutW%OutPutWindowsON) then
+        if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON .or.                          &
+            Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON.or.                  &
+            Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
             call ConstructMatrixesOutput
         endif
 
@@ -49175,7 +49175,7 @@ do5:            do i = ILB, IUB
             endif
 
             if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-            OutPutSurfaceFileOK) then
+                OutPutSurfaceFileOK) then
 
                 call ModifyMatrixesOutput
 
@@ -49187,9 +49187,9 @@ do5:            do i = ILB, IUB
 
         else
 
-            if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-                Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON .or.                    &
-                Me%OutW%OutPutWindowsON)then
+            if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON          .or.             &
+                Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON .or.             &
+                Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
 
                 call ModifyMatrixesOutput
 
@@ -49320,7 +49320,10 @@ do5:            do i = ILB, IUB
 
         if (Me%OutPut%TurbineON)    &
             call OutPut_Turbine(Me%ObjTurbine)
-
+        
+        !!Do statistics analysis
+        call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
+                                Me%OutPut%ModulusH, Me%WaterLevel%New)
 
         !! $OMP SECTION
         if(Me%OutPut%WriteRestartFile .and. .not. Me%OutPut%Run_End)then
@@ -50853,11 +50856,11 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
 
 
-        !Do statistics analysis
-        if (.not. present(iW)) then
-            call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
-                                   Me%OutPut%ModulusH, Me%WaterLevel%New)
-        endif
+        !!Do statistics analysis
+        !if (.not. present(iW)) then
+        !    call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
+        !                           Me%OutPut%ModulusH, Me%WaterLevel%New)
+        !endif
 
         CHUNK = CHUNK_J(WorkJLB, WorkJUB)
 
@@ -55688,9 +55691,9 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         end if
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-            Me%OutW%OutPutWindowsON) then
+        if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON .or.                            &
+            Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+            Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
             call KillMatrixesOutput
         endif
 
