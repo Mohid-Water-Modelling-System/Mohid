@@ -13746,7 +13746,8 @@ D2:     do I=imax-1,2,-1
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
     subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: VelSon
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
@@ -13801,7 +13802,8 @@ D2:     do I=imax-1,2,-1
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: VelSon
         real(8),    dimension(:)            , intent(OUT)    :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
