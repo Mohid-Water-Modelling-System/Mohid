@@ -976,21 +976,31 @@ iJI:        if (Me%ReadWindowJI) then
 
                 ILB = Me%WindowLimitsJI%ILB
                 if (ILB < 1) then
+                    write (*,*) "ILB =", ILB
+                    write (*,*) "Filename=", trim(Me%File%FileName)
                     stop 'ReadGridFromFile - ModuleField4D - ERR80'
                 endif
 
                 IUB = Me%WindowLimitsJI%IUB
                 if (IUB > imax) then
+                    write (*,*) "IUB =", IUB
+                    write (*,*) "imax=", imax
+                    write (*,*) "Filename=", trim(Me%File%FileName)                    
                     stop 'ReadGridFromFile - ModuleField4D - ERR90'
                 endif
 
                 JLB = Me%WindowLimitsJI%JLB
                 if (JLB < 1) then
+                    write (*,*) "JLB =", JLB
+                    write (*,*) "Filename=", trim(Me%File%FileName)                    
                     stop 'ReadGridFromFile - ModuleField4D - ERR100'
                 endif
 
                 JUB = Me%WindowLimitsJI%JUB
                 if (JUB > jmax) then
+                    write (*,*) "JUB =", JUB
+                    write (*,*) "jmax=", jmax                    
+                    write (*,*) "Filename=", trim(Me%File%FileName)
                     stop 'ReadGridFromFile - ModuleField4D - ERR110'
                 endif
 

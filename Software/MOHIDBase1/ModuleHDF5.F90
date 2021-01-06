@@ -8119,7 +8119,7 @@ cd1:    if (HDF5ID > 0) then
         enddo
 
         if (.not. associated(Me)) then
-            write(*,*) Me%FileName
+            write(*,*) "HDF5ID =", HDF5ID
             stop 'ModuleHDF5 - LocateObjHDF5 - ERR01'
         endif            
 
