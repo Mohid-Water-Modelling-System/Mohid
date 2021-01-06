@@ -1794,6 +1794,8 @@ Module ModuleHydrodynamic
         character(len=PathLength)   :: FileName         = null_str
         !Instance of ModuleGridData
         integer                     :: ObjGridData      = 0
+        !Wave generate
+        logical                     :: WaveGenerate     = .false. 
         ! FOCAL DEPTH, MEASURED FROM MEAN EARTH SURFACE TO THE TOP EDGE OF FAULT PLANE
         real                        :: HH               = null_real
         ! LENGTH OF THE FAULT PLANE
@@ -1821,7 +1823,8 @@ Module ModuleHydrodynamic
     private :: T_Tsunami
     type T_Tsunami
         logical         :: ON       = .true.
-        type (T_Fault)  :: Fault
+        type (T_Fault), dimension(:), pointer  :: Fault
+        integer                                :: Fault_Number  = null_int
     end type T_Tsunami
 
     private :: T_Relaxation
@@ -2372,7 +2375,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON .or.                          &
             Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON.or.                  &
-            Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
+            Me%OutW%OutPutWindowsON) then
             call ConstructMatrixesOutput
         endif
 
@@ -4329,6 +4332,8 @@ d3:         do l = FirstLine+1, LastLine-1
 
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
+        integer                                 :: ifl, ClientNumber
+        logical                                 :: AtLeastOneBlock, BlockFound
 
         !----------------------------------------------------------------------
 
@@ -4343,226 +4348,302 @@ d3:         do l = FirstLine+1, LastLine-1
 
 i1:     if (Me%Tsunami%ON) then
 
-            ! TIME WHEN THE RUTPURE STARTS [YYYY MM DD HH MM SS]
-            call GetData(Me%Tsunami%Fault%T0,                                           &
+            call GetData(Me%Tsunami%Fault_Number,                                       &
                          Me%ObjEnterData, iflag,                                        &
-                         Keyword        = 'FAULT_RUTPURE_START_TIME',                   &
-                         default        = Me%BeginTime,                                 &
+                         Keyword        = 'FAULT_NUMBER',                               &
+                         Default        = 1,                                            &
                          SearchType     = FromFile,                                     &
                          ClientModule   = 'ModuleHydrodynamic',                         &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR20'   
+            
+            allocate(Me%Tsunami%Fault(Me%Tsunami%Fault_Number))
+            
+            AtLeastOneBlock = .false. 
+            
+do1 :       do ifl =1,Me%Tsunami%Fault_Number
+                call ExtractBlockFromBuffer(Me%ObjEnterData,                            &
+                                            ClientNumber    = ClientNumber,             &
+                                            block_begin     = "<begin_fault>",          &
+                                            block_end       = "<end_fault>",            &
+                                            BlockFound      = BlockFound,               &
+                                            STAT            = STAT_CALL)
+    cd1 :       if      (STAT_CALL .EQ. SUCCESS_     ) then
+    cd2 :           if (BlockFound) then
+    
+                        AtLeastOneBlock = .true.
 
+                        call TsunamiKeywords(FromBlock, ifl)
+                        
+                        if (ifl==Me%Tsunami%Fault_Number) then
+                            exit
+                        endif
 
-            ! Fault input method (0 - Okada 1985 Model, 1 - input grid data file)
-            call GetData(Me%Tsunami%Fault%InputMethod,                                  &
-                         Me%ObjEnterData, iflag,                                        &
-                         Keyword        = 'FAULT_INPUT_METHOD',                         &
-                         default        = FaultOkada1985_,                              &
-                         SearchType     = FromFile,                                     &
-                         ClientModule   = 'ModuleHydrodynamic',                         &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR30'
+                    else cd2
+        
+                        if (ifl==1) then
+                            call TsunamiKeywords(FromFile, ifl)
+                            exit
+                        else
+                            stop 'ConstructTsunami  - ModuleHydrodynamic - ERR030'
+                        endif
+                        
+                    endif cd2
+                    
+                else cd1 
+                    stop 'ConstructTsunami  - ModuleHydrodynamic - ERR040'
+                endif cd1
+                
+            enddo do1
 
-            if (Me%Tsunami%Fault%InputMethod /= FaultFile_ .and.                        &
-                Me%Tsunami%Fault%InputMethod /= FaultOkada1985_) then
-                stop 'ConstructTsunami - ModuleHydrodynamic - ERR40'
+            if (AtLeastOneBlock) then
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)       
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR050'
             endif
 
-            !  AMPLIFICATION OF THE TSUNAMI
-            call GetData(Me%Tsunami%Fault%Amplification,                            &
-                            Me%ObjEnterData, iflag,                                    &
-                            Keyword        = 'FAULT_AMPLIFICATION',                    &
-                            SearchType     = FromFile,                                 &
-                            ClientModule   = 'ModuleHydrodynamic',                     &
-                            default        = 1.,                                       &
-                            STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'
-
-i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
-
-                ! Fault filemane of the input grid data file
-                call GetData(Me%Tsunami%Fault%FileName,                                 &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_FILENAME',                         &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR50'
-
-                if (iflag == 0) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR60'
-                endif
-
-                call ConstructGridData(GridDataID       = Me%Tsunami%Fault%ObjGridData, &
-                                       HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                       FileName         = Me%Tsunami%Fault%FileName,    &
-                                       DefaultValue     = 0.,                           &
-                                       STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR70'
-
-
-            elseif  (Me%Tsunami%Fault%InputMethod == FaultOkada1985_) then i3
-
-                ! FOCAL DEPTH, MEASURED FROM MEAN EARTH SURFACE TO THE TOP EDGE OF FAULT PLANE [m]
-                call GetData(Me%Tsunami%Fault%HH,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_FOCAL_DEPTH',                      &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR80'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR90'
-                endif
-
-                ! LENGTH OF THE FAULT PLANE [m]
-                call GetData(Me%Tsunami%Fault%L,                                        &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_LENGTH',                           &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR100'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR110'
-                endif
-
-                ! WIDTH OF THE FAULT PLANE [m]
-                call GetData(Me%Tsunami%Fault%W,                                        &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_WIDTH',                            &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR120'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR130'
-                endif
-
-                ! DISLOCATION [m]
-                call GetData(Me%Tsunami%Fault%D,                                        &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_DISLOCATION',                      &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR50'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR140'
-                endif
-
-                ! (=THETA) STRIKE DIRECTION [º]
-                call GetData(Me%Tsunami%Fault%TH,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_STRIKE_DIRECTION',                 &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR150'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR160'
-                endif
-
-                ! (=DELTA) DIP ANGLE [º]
-                call GetData(Me%Tsunami%Fault%DL,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_DIP_ANGLE',                        &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR170'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR180'
-                endif
-
-                !  (=LAMDA) SLIP ANGLE [º]
-                call GetData(Me%Tsunami%Fault%RD,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_SLIP_ANGLE',                       &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR190'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR200'
-                endif
-
-                !  EPICENTER (LATITUDE)[º]
-                call GetData(Me%Tsunami%Fault%Y0,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_EPICENTER_Y',                      &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR210'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR220'
-                endif
-
-                !  EPICENTER (LONGITUDE)[º]
-                call GetData(Me%Tsunami%Fault%X0,                                       &
-                             Me%ObjEnterData, iflag,                                    &
-                             Keyword        = 'FAULT_EPICENTER_X',                      &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR230'
-
-                if (iflag /= 1) then
-                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR240'
-                endif
-
-            endif i3
-
+            
         endif i1
 
 
 i2:     if (Me%Tsunami%ON) then
-            if (Me%Tsunami%Fault%T0 <= Me%BeginTime) then
+    
+            do ifl = 1, Me%Tsunami%Fault_Number
+    
+                if (Me%Tsunami%Fault(ifl)%T0 <= Me%BeginTime .and. &
+                    .not. Me%Tsunami%Fault(ifl)%WaveGenerate) then
 
-                call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR250'
+                    call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR060'
 
-                call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                     &
-                                              GridLatitude  = Me%External_Var%LatitudeZ,&
-                                              GridLongitude = Me%External_Var%LongitudeZ,&
-                                              STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR260.'
+                    call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                     &
+                                                  GridLatitude  = Me%External_Var%LatitudeZ,&
+                                                  GridLongitude = Me%External_Var%LongitudeZ,&
+                                                  STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'ConstructTsunami  - ModuleHydrodynamic - ERR070'
 
-                call WaterLevel_Tsunami
+                    call WaterLevel_Tsunami(ifl)
 
-                Me%Tsunami%ON = .false.
+                    Me%Tsunami%Fault(ifl)%WaveGenerate = .true.
 
-                call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR270'
+                    call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR080'
 
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
-                                         Me%External_Var%LatitudeZ,                     &
-                                         STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ConstructTsunami - ModuleHydrodynamic. ERR280.'
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
+                                             Me%External_Var%LatitudeZ,                     &
+                                             STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'ConstructTsunami  - ModuleHydrodynamic - ERR090'
 
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
-                                         Me%External_Var%LongitudeZ,                    &
-                                         STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine ConstructTsunami - ModuleHydrodynamic. ERR290.'
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
+                                             Me%External_Var%LongitudeZ,                    &
+                                             STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'ConstructTsunami  - ModuleHydrodynamic - ERR100'
 
-            endif
+                endif
+                
+            enddo
         endif i2
 
 
     end subroutine ConstructTsunami
+
+    !--------------------------------------------------------------------------
+    
+    subroutine TsunamiKeywords(FromWhere, ifl)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                 :: FromWhere, ifl    
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL, iflag
+
+        !----------------------------------------------------------------------
+    
+    
+            ! TIME WHEN THE RUTPURE STARTS [YYYY MM DD HH MM SS]
+        call GetData(Me%Tsunami%Fault(ifl)%T0,                                          &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'FAULT_RUTPURE_START_TIME',                   &
+                         default        = Me%BeginTime,                                 &
+                        SearchType     = FromWhere,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR20'
+
+
+            ! Fault input method (0 - Okada 1985 Model, 1 - input grid data file)
+        call GetData(Me%Tsunami%Fault(ifl)%InputMethod,                                 &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'FAULT_INPUT_METHOD',                         &
+                         default        = FaultOkada1985_,                              &
+                        SearchType     = FromWhere,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR30'
+
+        if (Me%Tsunami%Fault(ifl)%InputMethod /= FaultFile_ .and.                       &
+            Me%Tsunami%Fault(ifl)%InputMethod /= FaultOkada1985_) then
+            stop 'TsunamiKeywords - ModuleHydrodynamic - ERR40'
+            endif
+
+            !  AMPLIFICATION OF THE TSUNAMI
+        call GetData(Me%Tsunami%Fault(ifl)%Amplification,                               &
+                            Me%ObjEnterData, iflag,                                    &
+                            Keyword        = 'FAULT_AMPLIFICATION',                    &
+                        SearchType     = FromWhere,                                     &
+                            ClientModule   = 'ModuleHydrodynamic',                     &
+                            default        = 1.,                                       &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR245'
+
+i3:         if      (Me%Tsunami%Fault(ifl)%InputMethod == FaultFile_     ) then
+
+                ! Fault filemane of the input grid data file
+            call GetData(Me%Tsunami%Fault(ifl)%FileName,                                &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_FILENAME',                         &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR50'
+
+                if (iflag == 0) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR60'
+                endif
+
+            call ConstructGridData(GridDataID       = Me%Tsunami%Fault(ifl)%ObjGridData,&
+                                       HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                    FileName         = Me%Tsunami%Fault(ifl)%FileName,  &
+                                       DefaultValue     = 0.,                           &
+                                       STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR70'
+
+
+        elseif  (Me%Tsunami%Fault(ifl)%InputMethod == FaultOkada1985_) then i3
+
+                ! FOCAL DEPTH, MEASURED FROM MEAN EARTH SURFACE TO THE TOP EDGE OF FAULT PLANE [m]
+            call GetData(Me%Tsunami%Fault(ifl)%HH,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_FOCAL_DEPTH',                      &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR80'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR90'
+                endif
+
+                ! LENGTH OF THE FAULT PLANE [m]
+            call GetData(Me%Tsunami%Fault(ifl)%L,                                       &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_LENGTH',                           &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR100'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR110'
+                endif
+
+                ! WIDTH OF THE FAULT PLANE [m]
+            call GetData(Me%Tsunami%Fault(ifl)%W,                                       &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_WIDTH',                            &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR120'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR130'
+                endif
+
+                ! DISLOCATION [m]
+            call GetData(Me%Tsunami%Fault(ifl)%D,                                       &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_DISLOCATION',                      &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR50'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR140'
+                endif
+
+                ! (=THETA) STRIKE DIRECTION [º]
+            call GetData(Me%Tsunami%Fault(ifl)%TH,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_STRIKE_DIRECTION',                 &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR150'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR160'
+                endif
+
+                ! (=DELTA) DIP ANGLE [º]
+            call GetData(Me%Tsunami%Fault(ifl)%DL,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_DIP_ANGLE',                        &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR170'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR180'
+                endif
+
+                !  (=LAMDA) SLIP ANGLE [º]
+            call GetData(Me%Tsunami%Fault(ifl)%RD,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_SLIP_ANGLE',                       &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR190'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR200'
+                endif
+
+                !  EPICENTER (LATITUDE)[º]
+            call GetData(Me%Tsunami%Fault(ifl)%Y0,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_EPICENTER_Y',                      &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR210'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR220'
+                endif
+
+                !  EPICENTER (LONGITUDE)[º]
+            call GetData(Me%Tsunami%Fault(ifl)%X0,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             Keyword        = 'FAULT_EPICENTER_X',                      &
+                            SearchType     = FromWhere,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TsunamiKeywords - ModuleHydrodynamic - ERR230'
+
+                if (iflag /= 1) then
+                stop 'TsunamiKeywords - ModuleHydrodynamic - ERR240'
+                endif
+
+            endif i3
+
+
+    end subroutine TsunamiKeywords
 
     !--------------------------------------------------------------------------
 
@@ -24671,6 +24752,7 @@ dok1:           do  k = Kbottom, KUB
         integer                             :: IUB, ILB, JUB, JLB
         integer                             :: IJmin, IJmax, JImin, JImax
         integer                             :: di, dj, DirectionXY
+        integer                             :: ifl
 
         !Begin----------------------------------------------------------------
 
@@ -24760,10 +24842,15 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         endif
 
         if (Me%Tsunami%ON) then
-            if (Me%Tsunami%Fault%T0 <= Me%CurrentTime) then
-                call WaterLevel_Tsunami
-                Me%Tsunami%ON = .false.
+            do ifl = 1, Me%Tsunami%Fault_Number
+            
+                if (Me%Tsunami%Fault(ifl)%T0 <= Me%CurrentTime .and.                    & 
+                    .not. Me%Tsunami%Fault(ifl)%WaveGenerate) then
+                    call WaterLevel_Tsunami(ifl)
+!                    Me%Tsunami%ON = .false.
+                    Me%Tsunami%Fault(ifl)%WaveGenerate = .true.
             endif
+            enddo
         endif
 
         if (Me%Relaxation%WaterLevel)                                                   &
@@ -24968,7 +25055,10 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 !      #. UPDATED ON FEB 16 2009 (XIAOMING WANG, GNS)
 !         1. ADD AN OPTION TO SELECT THE FOCUS LOCATION
 !----------------------------------------------------------------------
-    subroutine FaultOkada1985
+    subroutine FaultOkada1985(ifl)
+    
+        !Arguments----------------------------------------------------------------------
+        integer                         :: ifl    
 
         !Local--------------------------------------------------------------------------
 
@@ -24994,22 +25084,22 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         KUB = Me%WorkSize%KUB
 
 
-        ANG_L = RAD_DEG*Me%Tsunami%Fault%DL
-        ANG_R = RAD_DEG*Me%Tsunami%Fault%RD
-        ANG_T = RAD_DEG*Me%Tsunami%Fault%TH
-        HALFL = 0.5*Me%Tsunami%Fault%L
+        ANG_L = RAD_DEG*Me%Tsunami%Fault(ifl)%DL
+        ANG_R = RAD_DEG*Me%Tsunami%Fault(ifl)%RD
+        ANG_T = RAD_DEG*Me%Tsunami%Fault(ifl)%TH
+        HALFL = 0.5*Me%Tsunami%Fault(ifl)%L
         !.....CALCULATE FOCAL DEPTH USED FOR OKADA'S MODEL
-        HH = Me%Tsunami%Fault%HH+0.5*Me%Tsunami%Fault%W*SIN(ANG_L)
+        HH = Me%Tsunami%Fault(ifl)%HH+0.5*Me%Tsunami%Fault(ifl)%W*SIN(ANG_L)
         !.....DISPLACEMENT DUE TO DIFFERENT EPICENTER DEFINITION
         !      EPICENTER IS DEFINED AT THE CENTER OF FAULT PLANE
-        DEL_X = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*COS(ANG_T)
-        DEL_Y = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*SIN(ANG_T)
+        DEL_X = 0.5*Me%Tsunami%Fault(ifl)%W*COS(ANG_L)*COS(ANG_T)
+        DEL_Y = 0.5*Me%Tsunami%Fault(ifl)%W*COS(ANG_L)*SIN(ANG_T)
 
         H1 = HH/SIN(ANG_L)
-        H2 = HH/SIN(ANG_L)+Me%Tsunami%Fault%W
+        H2 = HH/SIN(ANG_L)+Me%Tsunami%Fault(ifl)%W
 
-        DS = Me%Tsunami%Fault%D*COS(ANG_R)
-        DD = Me%Tsunami%Fault%D*SIN(ANG_R)
+        DS = Me%Tsunami%Fault(ifl)%D*COS(ANG_R)
+        DD = Me%Tsunami%Fault(ifl)%D*SIN(ANG_R)
 
         SN = SIN(ANG_L)
         CS = COS(ANG_L)
@@ -25017,8 +25107,8 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         X_SHIFT = 0.0
         Y_SHIFT = 0.0
 
-        LON0    = Me%Tsunami%Fault%X0
-        LAT0    = Me%Tsunami%Fault%Y0
+        LON0    = Me%Tsunami%Fault(ifl)%X0
+        LAT0    = Me%Tsunami%Fault(ifl)%Y0
 
         do j = JLB, JUB
         do i = ILB, IUB
@@ -25040,14 +25130,14 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 P       = X2*CS+HH*SN
 
                 CALL Strike_Slip (X2,X1+HALFL,P                   ,ANG_L,HH,F1)
-                CALL Strike_Slip (X2,X1+HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,F2)
+                CALL Strike_Slip (X2,X1+HALFL,P-Me%Tsunami%Fault(ifl)%W,ANG_L,HH,F2)
                 CALL Strike_Slip (X2,X1-HALFL,P                   ,ANG_L,HH,F3)
-                CALL Strike_Slip (X2,X1-HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,F4)
+                CALL Strike_Slip (X2,X1-HALFL,P-Me%Tsunami%Fault(ifl)%W,ANG_L,HH,F4)
 
                 CALL Dip_Slip    (X2,X1+HALFL,P                   ,ANG_L,HH,G1)
-                CALL Dip_Slip    (X2,X1+HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,G2)
+                CALL Dip_Slip    (X2,X1+HALFL,P-Me%Tsunami%Fault(ifl)%W,ANG_L,HH,G2)
                 CALL Dip_Slip    (X2,X1-HALFL,P                   ,ANG_L,HH,G3)
-                CALL Dip_Slip    (X2,X1-HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,G4)
+                CALL Dip_Slip    (X2,X1-HALFL,P-Me%Tsunami%Fault(ifl)%W,ANG_L,HH,G4)
 
                 US = (F1-F2-F3+F4)*DS
                 UD = (G1-G2-G3+G4)*DD
@@ -25066,7 +25156,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 if (abs(UD) < 1e-5) UD = 0.
 
                 !Water level actualization
-                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + (US + UD) * Me%Tsunami%Fault%Amplification
+                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + (US + UD) * Me%Tsunami%Fault(ifl)%Amplification
 
             endif
         enddo
@@ -25077,7 +25167,10 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
     end subroutine FaultOkada1985
 
 !----------------------------------------------------------------------
-    subroutine FaultInputFile
+    subroutine FaultInputFile (ifl)
+    
+        !Arguments----------------------------------------------------------------------
+        integer                         :: ifl
 
         !Local--------------------------------------------------------------------------
         real,   dimension(:,:), pointer :: Tsunami2D
@@ -25091,7 +25184,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         JUB = Me%WorkSize%JUB
         KUB = Me%WorkSize%KUB
 
-        call GetGridData(GridDataID   = Me%Tsunami%Fault%ObjGridData,                   &
+        call GetGridData(GridDataID   = Me%Tsunami%Fault(ifl)%ObjGridData,              &
                          GridData2D   = Tsunami2D,                                      &
                          STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR10'
@@ -25100,17 +25193,17 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         do i = ILB, IUB
             if (Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then
                 !Water level actualization
-                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + Tsunami2D(i, j) * Me%Tsunami%Fault%Amplification
+                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + Tsunami2D(i, j) * Me%Tsunami%Fault(ifl)%Amplification
             endif
         enddo
         enddo
 
-        call UnGetGridData(GridDataID   = Me%Tsunami%Fault%ObjGridData,                 &
+        call UnGetGridData(GridDataID   = Me%Tsunami%Fault(ifl)%ObjGridData,            &
                            Array        = Tsunami2D,                                    &
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR20'
 
-        call KillGridData(GridDataID    = Me%Tsunami%Fault%ObjGridData,                 &
+        call KillGridData(GridDataID    = Me%Tsunami%Fault(ifl)%ObjGridData,            &
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR30'
 
@@ -25118,12 +25211,18 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
     !-----------------------------------------------------------------------------------
 
-    subroutine WaterLevel_Tsunami
+    subroutine WaterLevel_Tsunami(ifl)
 
-    if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
-        call FaultInputFile
-    elseif  (Me%Tsunami%Fault%InputMethod == FaultOkada1985_) then
-        call FaultOkada1985
+        !Arguments----------------------------------------------------------------------
+        integer                         :: ifl
+    
+        !Begin--------------------------------------------------------------------------
+        
+
+        if      (Me%Tsunami%Fault(ifl)%InputMethod == FaultFile_     ) then
+            call FaultInputFile(ifl)
+        elseif  (Me%Tsunami%Fault(ifl)%InputMethod == FaultOkada1985_) then
+            call FaultOkada1985(ifl)
     endif
 
     end subroutine WaterLevel_Tsunami
@@ -49174,8 +49273,8 @@ do5:            do i = ILB, IUB
                 if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
             endif
 
-            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-                OutPutSurfaceFileOK) then
+            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or.              &
+                OutPutWindowFileOK .or. OutPutSurfaceFileOK) then
 
                 call ModifyMatrixesOutput
 
@@ -49189,7 +49288,7 @@ do5:            do i = ILB, IUB
 
             if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON          .or.             &
                 Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON .or.             &
-                Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
+            Me%OutW%OutPutWindowsON)then
 
                 call ModifyMatrixesOutput
 
@@ -49205,6 +49304,11 @@ do5:            do i = ILB, IUB
 
         !! $OMP SECTION
         if (Me%OutPut%hdf5ON) then
+
+        !Statistics output
+            call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV,                &
+                                   Me%OutPut%CenterW, Me%OutPut%ModulusH,               &
+                                   Me%WaterLevel%New)            
 
             NextOutPut = Me%OutPut%NextOutPut
 
@@ -49321,9 +49425,6 @@ do5:            do i = ILB, IUB
         if (Me%OutPut%TurbineON)    &
             call OutPut_Turbine(Me%ObjTurbine)
         
-        !!Do statistics analysis
-        call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
-                                Me%OutPut%ModulusH, Me%WaterLevel%New)
 
         !! $OMP SECTION
         if(Me%OutPut%WriteRestartFile .and. .not. Me%OutPut%Run_End)then
@@ -49367,6 +49468,9 @@ do5:            do i = ILB, IUB
 
             enddo
         endif
+
+        
+  
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
@@ -54768,6 +54872,13 @@ cd1:    if (Me%State%BOXFLUXES) then
             if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR10.'
         endif cd1
 
+
+i111:  if (Me%Tsunami%ON) then
+    
+            deallocate(Me%Tsunami%Fault)
+            
+        endif i111
+
         !Disposes the rest of the energy buffer
         if (Me%ComputeOptions%Energy) call KillEnergy
 
@@ -55693,7 +55804,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         if (Me%OutPut%TimeSerieON   .or. Me%OutPut%hdf5ON .or.                            &
             Me%OutPut%ProfileON     .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-            Me%OutW%OutPutWindowsON .or. Me%Statistics%ON) then
+            Me%OutW%OutPutWindowsON) then
             call KillMatrixesOutput
         endif
 
