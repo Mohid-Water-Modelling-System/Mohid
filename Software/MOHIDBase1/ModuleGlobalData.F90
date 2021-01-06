@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  98
+    integer, parameter  :: MaxModules           =  99
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1980,6 +1980,7 @@ Module ModuleGlobalData
     integer, parameter ::  mLitter_                 = 96
     integer, parameter ::  mTwoWay_                 = 97
     integer, parameter ::  mOutputGrid_             = 98
+    integer, parameter ::  mMeshGlue_               = 99
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2108,7 +2109,7 @@ Module ModuleGlobalData
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
         T_Module(mIrrigation_            , "Irrigation"         ),   T_Module(mTURBINE_                , "Turbine"       ),        &
         T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        ),        &
-        T_Module(mOutputGrid_            , "OuputGrid"          )/)
+        T_Module(mOutputGrid_            , "OutputGrid"         ),   T_Module(mMeshGlue_               , "MeshGlue"      )/)
         
 
     !Variables
