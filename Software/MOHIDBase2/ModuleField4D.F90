@@ -1367,7 +1367,7 @@ wwd1:       if (Me%WindowWithData) then
 
         !Local-----------------------------------------------------------------
          real,      pointer, dimension(:,:,:)    :: SZZ
-         integer,   pointer, dimension(:,:,:)    :: mask
+         integer,   pointer, dimension(:,:,:)    :: mask, OpenPoints
          integer,   pointer, dimension(:,:  )    :: Array2D
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
          logical                                 :: Exist, Exist1, Exist2
@@ -1549,6 +1549,46 @@ wwd1:       if (Me%WindowWithData) then
                                     SZZ             = SZZ,                              &
                                     STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR140'
+        
+        if (Me%Upscaling) then
+            
+            if  (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
+                                                           JLB = JLB, JUB = JUB,            &
+                                                           KLB = KLB, KUB = KUB,          &
+                                     STAT   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR150'
+
+                call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/OpenPoints/OpenPoints_00001",&
+                                          Exist  = Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR160'
+
+                if (Exist) then
+                    !Get openpoints pointer to update
+                    call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR170'
+                    
+                    !Update OpenPoints3D
+                    call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                        GroupName     = "/Grid/OpenPoints",                 &
+                                        Name          = "OpenPoints_00001",                 &
+                                        Array3D       = OpenPoints,                         &
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR180'
+                    
+                    call UnGetMap(Me%ObjMap, OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR190'
+                    
+                else
+                    write (*,*) 'OpenPoints not found, and Upscaling needs OpenPoints3D from the HDF'
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR200'
+                endif
+            else
+                write (*,*) 'Upscaling not yet ready to recieve Netcdf files'
+                stop 'ReadMap3DFromFile - ModuleField4D - ERR210'
+            end if
+        end if
 
     end subroutine ReadMap3DFromFile
 
@@ -3438,7 +3478,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
         real,    dimension(:,:,:), pointer      :: Field, Aux3D, FieldAux, SZZ
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, OpenPoints
         real                                    :: HT
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k
@@ -3446,6 +3486,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer                                 :: SILB, SIUB, SJLB, SJUB, SKLB, SKUB
         integer                                 :: Obj, iaux, kbottom
         integer                                 :: nItems, iVert
+        logical                                 :: Exist
 
         !Begin-----------------------------------------------------------------
 
@@ -3647,6 +3688,55 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
          endif
 
          nullify(FieldAux)
+         
+        if (Me%Upscaling) then
+            
+            if  (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
+                                                           JLB = JLB, JUB = JUB,            &
+                                                           KLB = KLB, KUB = KUB,          &
+                                     STAT   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR150'
+
+                call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/OpenPoints/OpenPoints_00001",&
+                                          Exist  = Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR160'
+
+                if (Exist) then
+                    !Get openpoints pointer to update
+                    call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR170'
+                    
+                    !Update OpenPoints3D
+                    !call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                    !                    GroupName     = "/Grid/OpenPoints",                 &
+                    !                    Name          = "OpenPoints_00001",                 &
+                    !                    Array3D       = OpenPoints,                         &
+                    !                    STAT          = STAT_CALL)
+                    !if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR180'
+                    call HDF5ReadWindow(HDF5ID        = Obj,                                    &
+                                        GroupName     = "/Grid/OpenPoints",                     &
+                                        Name          = "OpenPoints",                           &
+                                        Array3D       = OpenPoints,                             &
+                                        OutputNumber  = iaux,                                   &
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)then
+                        write(*,*) "Can not read OpenPoints, instant number = iaux for current upscaling field"
+                        stop 'ReadMap3DFromFile - ModuleField4D - ERR185'
+                    endif
+                    call UnGetMap(Me%ObjMap, OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR190'
+                    
+                else
+                    write (*,*) 'OpenPoints not found, and Upscaling needs OpenPoints3D from the HDF'
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR200'
+                endif
+            else
+                write (*,*) 'Upscaling not yet ready to recieve Netcdf files'
+                stop 'ReadMap3DFromFile - ModuleField4D - ERR210'
+            end if
+        end if
 
         if(NewPropField%HasMultiplyingFactor)then
 
@@ -5198,12 +5288,13 @@ d2:     do N =1, NW
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, Matrix2D, Matrix3D, Instant, STAT)
+    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, FieldUpscalingID, Matrix2D, Matrix3D, Instant, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                 intent(IN)             :: Field4DID
         integer,                 intent(IN)             :: PropertyIDNumber
         type (T_Time),           intent(IN)             :: CurrentTime
+        integer,                 intent(IN),  optional  :: FieldUpscalingID
         real,    dimension(:, :),    pointer, optional  :: Matrix2D
         real,    dimension(:, :, :), pointer, optional  :: Matrix3D
         integer,                 intent(IN),  optional  :: Instant
@@ -5301,14 +5392,14 @@ d2:     do N =1, NW
 
             if (present(Matrix2D)) then
                 if (Me%Upscaling) then !Sobrinho
-                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid, FatherMatrix2D = Matrix2D, &
+                    call ModifyTwoWay (SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
                                        SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
                 else
                     Matrix2D(:,:) = Me%Matrix2D(:,:)
@@ -5318,15 +5409,16 @@ d2:     do N =1, NW
             if (present(Matrix3D)) then
 
                 if (Me%Upscaling) then !Sobrinho
-                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    
+                    call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid,                        &
+                    call ModifyTwoWay (SonID = FieldUpscalingID,                        &
                                         FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
                                         CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed UngetTwoWay call in ModifyField4D - ModuleField4D.'
 
                 else

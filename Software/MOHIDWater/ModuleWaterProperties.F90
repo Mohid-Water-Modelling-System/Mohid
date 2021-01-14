@@ -297,7 +297,8 @@ Module ModuleWaterProperties
 
     use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay,  &
                                           UpscaleDischarge_WP, GetUpscalingDischarge, &
-                                          Offline_Upscaling_Discharge_WP
+                                          Offline_Upscaling_Discharge_WP, GetSonVolInFather,   &
+                                          UnGetSonVolInFather
 
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -873,7 +874,7 @@ Module ModuleWaterProperties
     type       T_LocalAssimila
         real                                    :: scalar       = FillValueReal
         real, pointer       , dimension(:,:,:)  :: Field
-        real, allocatable   , dimension(:,:,:)  :: Field_Upscaling!Sobrinho
+        !real, allocatable   , dimension(:,:,:)  :: Field_Upscaling!Sobrinho
         real, pointer       , dimension(:,:,:)  :: DecayTime
         real, pointer       , dimension(:,:)    :: DecayTime2D !Sobrinho
         character(len=StringLength)             :: GroupOutPutName
@@ -20418,7 +20419,8 @@ dn:         do n=1, nCells
         integer                                         :: NumberOfFields, NumberOfFields_Upscaling
         real,    pointer, dimension(:,:,:)              :: PropAssimilation, DischargeFlow
         integer                                         :: N_Field, STAT_CALL
-        logical                                         :: SubModelON
+        logical                                         :: SubModelON, FoundDomain
+        real                                            :: CoefCold
         !Begin --------------------------------------------------------------------------------------------
         
             !Get matrix from hydrodynamic module
@@ -20445,14 +20447,32 @@ dn:         do n=1, nCells
                             call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, &
                                                         Upscaling = .True.)
                             
+                            call Get_Check_AssimilationCoef(Property, PropertyID, N_Field, CoefCold, Actual, &
+                                                            Upscaling = .True.)
+                            
                             call Offline_Upscaling_Discharge_WP(FatherID = Me%ObjTwoWay,                              &
-                                                PropAssimilation = PropAssimilation, Prop = Property%Concentration,   &
-                                                PropVector = Property%DischConc,       &
-                                                Flow = DischargeFlow, FlowVector = Me%Discharge%Flow,                 &
-                                                dI = Me%Discharge%i, dJ = Me%Discharge%j, dK = Me%Discharge%k,        &
-                                                Kmin = Me%Discharge%kmin, Kmax = Me%Discharge%kmin, AuxKmin = Kmin,   &
-                                                AuxKmax = Kmax, CellID = AuxCell, nCells = nCells, VectorI = VectorI, &
-                                                VectorJ = VectorJ, VectorK = VectorK)
+                                        PropAssimilation = PropAssimilation, Prop = Property%Concentration,           &
+                                        PropVector = Property%DischConc, Flow = DischargeFlow,       &
+                                        FlowVector = Me%Discharge%Flow, DecayTime = Property%Assimilation%DecayTime2D,&
+                                        CoefCold = CoefCold, DTProp = Property%Evolution%DTInterval,     &
+                                        FatherVolume =  Me%ExternalVar%VolumeZ, dI = Me%Discharge%i,           &
+                                        dJ = Me%Discharge%j, dK = Me%Discharge%k, Kmin = Me%Discharge%kmin,   &
+                                        Kmax = Me%Discharge%kmin, AuxKmin = Kmin, AuxKmax = Kmax, CellID = AuxCell,   &
+                                        nCells = nCells, VectorI = VectorI, VectorJ = VectorJ, VectorK = VectorK, &
+                                        FoundDomain = FoundDomain)
+                            !call Offline_Upscaling_Discharge_WP(FatherID = Me%ObjTwoWay,                              &
+                            !                    PropAssimilation = PropAssimilation, Prop = Property%Concentration,   &
+                            !                    PropVector = Property%DischConc,       &
+                            !                    Flow = DischargeFlow, FlowVector = Me%Discharge%Flow,                 &
+                            !                    dI = Me%Discharge%i, dJ = Me%Discharge%j, dK = Me%Discharge%k,        &
+                            !                    Kmin = Me%Discharge%kmin, Kmax = Me%Discharge%kmin, AuxKmin = Kmin,   &
+                            !                    AuxKmax = Kmax, CellID = AuxCell, nCells = nCells, VectorI = VectorI, &
+                            !                    VectorJ = VectorJ, VectorK = VectorK, FoundDomain = FoundDomain)
+                            call UnGetAssimilation(Me%ObjAssimilation, Property%Assimilation%DecayTime2D, &
+                                                STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) &
+                                call CloseAllAndStop ('Modify_Upscaling_Discharges; WaterProperties. ERR20')
+                            if (FoundDomain) exit
                         enddo
                     endif
                 endif
@@ -20536,11 +20556,11 @@ dn:         do n=1, nCells
                                         STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('GetNumberOfPropFields; WaterProperties. ERR02')
 
-        if (NumberOfFields_Upscaling > 0) then
-            if (.not. allocated(Property%Assimilation%Field_Upscaling)) &
-            allocate(Property%Assimilation%Field_Upscaling( Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, &
-                                                            Me%Size%KLB:Me%Size%KUB))
-        endif
+        !if (NumberOfFields_Upscaling > 0) then
+        !    if (.not. allocated(Property%Assimilation%Field_Upscaling)) &
+        !    allocate(Property%Assimilation%Field_Upscaling( Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, &
+        !                                                    Me%Size%KLB:Me%Size%KUB))
+        !endif
 
     end subroutine GetNumberOfPropFields
 
@@ -20634,9 +20654,12 @@ dn:         do n=1, nCells
         logical, optional              , intent(IN)     :: Upscaling
         !Local -----------------------------------------------------------------
         integer                                         :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
-        real                                            :: AuxDecay
-        integer                                         :: STAT_CALL, CHUNK
+        real                                            :: AuxDecay, Vol_Rat
+        integer                                         :: STAT_CALL, CHUNK, status
         logical                                         :: Upscaling_
+        real, dimension(:,:,:), pointer                 :: Conc_Aux, SonVolInFather3D
+        real, dimension(:,:), pointer                   :: DecayTime
+        integer, dimension(:,:,:), pointer              :: Openpoints
         !Begin--------------------------------------------------------------------
         Upscaling_ = .false.
         if (present(Upscaling)) Upscaling_ = Upscaling
@@ -20646,25 +20669,33 @@ dn:         do n=1, nCells
 
         CHUNK = CHUNK_K(KLB, KUB)
         if (Upscaling_) then
+            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)!Sobrinho - adicionar erro
             !Need to find a way to get connection matrix in order to reduce number of iterations. (carefull with MPI)
-            !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
+            !$OMP PARALLEL PRIVATE(i,j,k, AuxDecay, Vol_Rat)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
-                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-
-                    AuxDecay = DTProp / (Property%Assimilation%DecayTime2D(i, j))/ CoefCold
-
-                    ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
-                    Property%Concentration(i, j, k) = (Property%Concentration(i, j, k)                        &
-                                                    +  PropAssimilation(i, j, k) * AuxDecay) / (1. + AuxDecay)
+                if (Property%Assimilation%DecayTime2D(i, j) > 0) then
+                    if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                        if (PropAssimilation(i, j, k) /= FillValueReal) then
+                            !The assimilation module sets PropAssimilation to FillValueReal when an upscaling domain does 
+                            !not have values that intersect the father domain in the k direction
+                            Vol_Rat = SonVolInFather3D(i,j,k) / Me%ExternalVar%VolumeZ(i,j,k)
+                            AuxDecay = (DTProp / Property%Assimilation%DecayTime2D(i, j)) * Vol_Rat * CoefCold
+                            !AuxDecay = DTProp / (Property%Assimilation%DecayTime2D(i, j))/ CoefCold
+                            ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
+                            Property%Concentration(i, j, k) = (Property%Concentration(i, j, k)                        &
+                                                            +  PropAssimilation(i, j, k) * AuxDecay) / (1. + AuxDecay)
+                        endif
+                    endif
                 endif
             enddo
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
+            call UnGetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D)
         else
             !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -20789,7 +20820,7 @@ dn:         do n=1, nCells
                                         STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('FillAssimilationField; WaterProperties. ERR10')
 
-            Property%Assimilation%Field_Upscaling(:,:,:) = PropAssimilation(:,:,:)
+            !Property%Assimilation%Field_Upscaling(:,:,:) = PropAssimilation(:,:,:)
         else
             if (Property%Evolution%DataAssimilation == NudgingToRef .or.            &
                 Property%Evolution%DataAssimilation == Hybrid) then
@@ -21490,7 +21521,8 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                         if (WaterPoints3D(i, j, k) == 1) then
 
                             if (T(i, j, k)<-20. .or. T(i, j, k)>100. .or. S(i, j, k) < -5 .or. S(i, j, k)>100.) then
-                                write(*,'(A256)') trim(ModelName)
+                                !write(*,'(A256)') trim(ModelName)
+                                write(*,*) 'Model name', trim(adjustl(Me%ModelName))
                                 write(*,*) 'T,S,i,j,k'
                                 write(*,*) T(i, j, k), S(i, j, k), i+di_out,j+dj_out,k
 

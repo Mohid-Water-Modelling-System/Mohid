@@ -2111,13 +2111,14 @@ Module ModuleFunctions
         !$OMP END PARALLEL
     end subroutine SumMatrixes_R4
 
-    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix, Mask)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
         real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
         type (T_Size3D)                                       :: Size
         integer, dimension(:,:), pointer, intent(IN)          :: KFloor
         integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        real, optional, intent(IN)                            :: Mask
         !Local-----------------------------------------------------------------
         integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
         !Begin-----------------------------------------------------------------
@@ -2125,19 +2126,36 @@ Module ModuleFunctions
         KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
 
         CHUNK = CHUNK_J(JLB, JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k)
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            if (MapMatrix(i, j, KUB) == 1) then
-                kbottom = KFloor(i, j)
-                do k = kbottom, KUB
-                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
-                enddo
-            endif
-        enddo
-        enddo
-        !$OMP END DO
+        !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
+        if (present(Mask)) then
+            !$OMP DO SCHEDULE(STATIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        if (MatrixB(i, j, k) > Mask) then
+                            MatrixA(i, j, k) = MatrixB(i, j, k)
+                        endif
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO 
+        else
+            !$OMP DO SCHEDULE(STATIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+        endif
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes_jik
@@ -6410,14 +6428,14 @@ d5:     do k = klast + 1,KUB
     !>Computes son mass in father cells using an volume weighted average method. routine for water level
     !>@param[in] MassInFather2D, SonMatrix2D, Open3DSon, SizeFather, SizeSon, ILink, &
     !>JLink, VolumeSon2D, IgnoreOBCells
-    subroutine Upscaling_Avrg_WL(FatherMatrix2D, SonMatrix2D, SonMask, SizeSon, ILink, &
+    subroutine Upscaling_Avrg_WL(FatherMatrix2D, SonMatrix2D, FatherMask, SonMask, SizeFather, SizeSon, ILink, &
     JLink, VolumeSon2D, TotSonIn2D)
         !Arguments---------------------------------------------------------------------------------
-        type(T_Size3D)                    , intent(IN)      :: SizeSon
+        type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
         real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeSon2D
         real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D
         real,    dimension(:,:),   pointer, intent(IN)      :: TotSonIn2D
-        integer, dimension(:,:,:), pointer, intent(IN)      :: SonMask
+        integer, dimension(:,:,:), pointer, intent(IN)      :: SonMask, FatherMask
         integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
         real,    dimension(:,:),   pointer, intent(INOUT)   :: FatherMatrix2D
         !Local variables --------------------------------------------------------------------------------
@@ -6431,14 +6449,16 @@ d5:     do k = klast + 1,KUB
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             ifather = ILink(i, j) ; jfather = JLink(i, j)
-            FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
+            if (SonMask(i, j, KUBSon) == 1) then
+                FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
                                              + SonMatrix2D(i, j) * VolumeSon2D(i, j) * SonMask(i, j, KUBSon)
+            endif
         enddo
         enddo
 
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            if (TotSonIn2D(i, j) > 0) then
+            if (TotSonIn2D(i, j) > 0.1 .and. FatherMask(i, j, SizeFather%KUB)==1) then
                 ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
                 FatherMatrix2D(i, j) = FatherMatrix2D(i, j) / TotSonIn2D(i, j)
             endif
@@ -6543,8 +6563,8 @@ d5:     do k = klast + 1,KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
@@ -6558,8 +6578,8 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         DecayFactor = DT / DecayTime
 
@@ -6669,8 +6689,8 @@ d5:     do k = klast + 1,KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
@@ -6684,8 +6704,8 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         DecayFactor = DT / DecayTime
         do k = SizeFather%KLB, SizeFather%KUB
@@ -6711,7 +6731,7 @@ d5:     do k = klast + 1,KUB
     !>Computes son mass in each father cell. routine for Z types
     !>@param[in] SonMassInFather, SonMatrix, Open3DSon, SizeFather, SizeSon, ILink, &
     !>JLink, KLink, VolumeSon, IgnoreOBCells
-    subroutine Upscaling_Avrg(FatherMatrix, SonMatrix, SonMask, SizeFather, SizeSon, ILink, &
+    subroutine Upscaling_Avrg(FatherMatrix, SonMatrix, FatherMask, SonMask, SizeFather, SizeSon, ILink, &
     JLink, KLink, VolumeSon, TotSonIn)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
@@ -6720,36 +6740,57 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:,:), pointer, intent(IN)    :: TotSonIn
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
-        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask, KLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask, KLink, FatherMask
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
                                                              KUBSon, ifather, jfather, kfather, CHUNK
+        integer                                           :: FatherI_min, FatherI_max, FatherJ_min, FatherJ_max, &
+                                                             FatherK_min, FatherK_max
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+        
+        FatherI_max = maxval(ILink)
+        FatherJ_max = maxval(JLink)
+        FatherK_max = maxval(KLink)
+        FatherI_min = minval(ILink, MASK=ILink .GT. 0.0)
+        FatherJ_min = minval(JLink, MASK=JLink .GT. 0.0)
+        FatherK_min = minval(KLink, MASK=KLink .GT. 0.0)
+        
+        do k=SizeFather%KLB, SizeFather%KUB
+        do j=FatherJ_min, FatherJ_max
+        do i=FatherI_min, FatherI_max
+            FatherMatrix(i, j, k) = FillValueReal
+        end do
+        end do
+        end do
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            if (KLink(i, j, k) /= FillValueInt) then
-                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
-                FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
+            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
+            if (kfather /= FillValueInt) then
+                if (FatherMatrix(ifather,jfather,kfather) > HalfFillValueReal) then
+                    FatherMatrix(ifather,jfather,kfather) = FatherMatrix(ifather, jfather, kfather) +   &
                                                             SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+                elseif (SonMask(i, j, k) == 1) then
+                    FatherMatrix(ifather,jfather,kfather) = SonMatrix(i, j, k) * VolumeSon(i, j, k)
+                endif
             endif
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
-        do k = SizeFather%KLB, SizeFather%KUB
-        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            if (TotSonIn(i, j, k) > 0) then
+        do k = FatherK_min, FatherK_max
+        do j = FatherJ_min, FatherJ_max
+        do i = FatherI_min, FatherI_max
+            if (TotSonIn(i, j, k) > 0.1 .and. FatherMask(i, j, k) == 1) then
                 ! [X]                 = (X * [m3])            / ([m3]
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / TotSonIn(i, j, k)
             endif
@@ -13810,16 +13851,17 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - V direction
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
-    subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold)
+    subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, &
+    SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU, SonVolInFather, FatherVolume
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
         real                                , intent(IN)         :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
         integer                                                  :: line, i, j, k, MaxSize
-        real                                                     :: F_West, F_East, TimeCoef
+        real                                                     :: F_West, F_East, TimeCoef, VolRat_W, VolRat_E
         real                                                     :: Est_VelFather_East, Est_VelFather_West
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
@@ -13830,13 +13872,21 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-
+                F_West = 0
+                F_East = 0
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
-                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
-                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
-
-                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
-                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                VolRat_W = SonVolInFather(i,j,k) / FatherVolume(i,j,k)
+                VolRat_E = SonVolInFather(i,j+1,k) / FatherVolume(i,j+1,k)
+                !In principle HalfFillValueReal should be used, but this way we make sure the model does not read bad values
+                if (VelSon(i, j , k) > -10) then
+                    Est_VelFather_West = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_W
+                    F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                endif
+                
+                if (VelSon(i, j+1, k) > -10) then
+                    Est_VelFather_East = VelFather(i,j+1,k) + (VelSon(i,j+1,k)-VelFather(i,j+1,k))*TimeCoef*VolRat_E
+                    F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                endif
 
                 Flow(line) = F_East + F_West
             enddo
@@ -13845,13 +13895,20 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-
+                F_West = 0
+                F_East = 0
                 TimeCoef = VelDT / DecayTime(i, j)
-                Est_VelFather_West = VelFather(i, j  , k) + (VelSon(i, j  , k) - VelFather(i, j  , k)) * TimeCoef
-                Est_VelFather_East = VelFather(i, j+1, k) + (VelSon(i, j+1, k) - VelFather(i, j+1, k)) * TimeCoef
-
-                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
-                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                VolRat_W = SonVolInFather(i,j,k) / FatherVolume(i,j,k)
+                VolRat_E = SonVolInFather(i,j+1,k) / FatherVolume(i,j+1,k)
+                if (VelSon(i, j , k) > -10) then
+                    Est_VelFather_West = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_W
+                    F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                endif
+                
+                if (VelSon(i, j+1, k) > -10) then
+                    Est_VelFather_East = VelFather(i,j+1,k) + (VelSon(i,j+1,k)-VelFather(i,j+1,k))*TimeCoef*VolRat_E
+                    F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                endif
 
                 Flow(line) = F_East + F_West
             enddo
@@ -13865,16 +13922,17 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - U direction
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
-    subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
+    subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, &
+    SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV, SonVolInFather, FatherVolume
         real(8),    dimension(:)            , intent(OUT)    :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
         real                                , intent(IN)     :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
-        real                                                 :: F_North, F_South, TimeCoef
+        real                                                 :: F_North, F_South, TimeCoef, VolRat_S, VolRat_N
         real                                                 :: Est_VelFather_South, Est_VelFather_North
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
@@ -13884,13 +13942,21 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-
+                
+                F_South = 0
+                F_North = 0
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
-                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
-                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
-
-                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
-                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                VolRat_S = SonVolInFather(i,j,k) / FatherVolume(i,j,k)
+                VolRat_N = SonVolInFather(i+1,j,k) / FatherVolume(i+1,j,k)
+                if (VelSon(i, j , k) > -10) then
+                    Est_VelFather_South = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_S
+                    F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                endif
+                
+                if (VelSon(i+1, j, k) > -10) then
+                    Est_VelFather_North = VelFather(i+1,j,k) + (VelSon(i+1,j,k)-VelFather(i+1,j,k)) * TimeCoef*VolRat_N
+                    F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                endif
 
                 Flow(line) = Flow(line) + F_South + F_North
             enddo
@@ -13899,13 +13965,20 @@ D2:     do I=imax-1,2,-1
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-
+                F_South = 0
+                F_North = 0
                 TimeCoef = VelDT / DecayTime(i, j)
-                Est_VelFather_South = VelFather(i  , j, k) + (VelSon(i  , j, k) - VelFather(i  , j, k)) * TimeCoef
-                Est_VelFather_North = VelFather(i+1, j, k) + (VelSon(i+1, j, k) - VelFather(i+1, j, k)) * TimeCoef
-
-                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
-                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                VolRat_S = SonVolInFather(i,j,k) / FatherVolume(i,j,k)
+                VolRat_N = SonVolInFather(i+1,j,k) / FatherVolume(i+1,j,k)
+                if (VelSon(i, j , k) > -10) then
+                    Est_VelFather_South = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_S
+                    F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                endif
+                
+                if (VelSon(i+1, j, k) > -10) then
+                    Est_VelFather_North = VelFather(i+1,j,k) + (VelSon(i+1,j,k)-VelFather(i+1,j,k)) * TimeCoef*VolRat_N
+                    F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                endif
 
                 Flow(line) = Flow(line) + F_South + F_North
             enddo

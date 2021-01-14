@@ -1077,9 +1077,9 @@ Module ModuleTwoWay
 
         if (present(Volume_3D) .and. .not. offline) then
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
+            !!$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
             if (present(SonComputeFaces))then
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1092,9 +1092,9 @@ Module ModuleTwoWay
                 enddo
                 enddo
                 enddo
-                !$OMP END DO
+                !!$OMP END DO
             else
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1107,9 +1107,9 @@ Module ModuleTwoWay
                 enddo
                 enddo
                 enddo
-                !$OMP END DO
+                !!$OMP END DO
             endif
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         elseif (present(Volume_2D) .and. .not. offline) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1140,12 +1140,11 @@ Module ModuleTwoWay
         integer                                        :: CHUNK
         !Begin------------------------------------------------------------------------------------
         KLB = Me%WorkSize%KLB; KUB = Me%WorkSize%KUB
-
         if (present(Volume_3D)) then
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
-            !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1153,20 +1152,20 @@ Module ModuleTwoWay
                     ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
                     Me%Father%TotSonIn(ifather,jfather,kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
                                                                 + Volume_3D(i, j, k)                            &
-                                                                * Me%External_Var%WaterPoints3D(i,j,k)
+                                                                * Me%External_Var%Open3D(i, j, k)
                 endif
             enddo
             enddo
             enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
+            !!$OMP END DO
+            !!$OMP END PARALLEL
 
         elseif (present(Volume_2D)) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 ifather = ILink(i, j); jfather = JLink(i, j)
                 Me%Father%TotSonIn_2D(ifather, jfather) = Me%Father%TotSonIn_2D(ifather, jfather) &
-                                                        + Volume_2D(i, j) * Me%External_Var%WaterPoints3D(i, j, KUB)
+                                                        + Volume_2D(i, j) * Me%External_Var%Open3D(i, j, KUB)
             enddo
             enddo
         endif
@@ -1290,13 +1289,13 @@ Module ModuleTwoWay
         type (T_TwoWay), pointer                                    :: ObjFather
         integer                                                     :: ready_father
         !Begin ----------------------------------------------------------------
-
         if (present(FatherMatrix)) then
             !3D
             !compute nudging Z type cell
             call Upscaling_Avrg (   FatherMatrix     = FatherMatrix,                        &
                                     SonMatrix        = SonMatrix,                           &
-                                    SonMask          = Me%External_Var%WaterPoints3D,       &
+                                    FatherMask       = Me%Father%External_Var%Open3D,       &
+                                    SonMask          = Me%External_Var%Open3D,              &
                                     SizeFather       = Me%Father%WorkSize,                  &
                                     SizeSon          = Me%WorkSize,                         &
                                     Ilink            = Me%External_Var%IZ,                  &
@@ -1311,7 +1310,9 @@ Module ModuleTwoWay
         else
             call Upscaling_Avrg_WL (    FatherMatrix2D   = FatherMatrix2D,                      &
                                         SonMatrix2D      = SonMatrix2D,                         &
-                                        SonMask          = Me%External_Var%WaterPoints3D,       &
+                                        FatherMask       = Me%Father%External_Var%Open3D,       &
+                                        SonMask          = Me%External_Var%Open3D,              &
+                                        SizeFather       = Me%Father%WorkSize,                  &
                                         SizeSon          = Me%WorkSize,                         &
                                         Ilink            = Me%External_Var%IZ,                  &
                                         Jlink            = Me%External_Var%JZ,                  &
@@ -1534,11 +1535,12 @@ Module ModuleTwoWay
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
     !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT
-    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT)
+    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, &
+    SonVolInFather, FatherVolume, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
-        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon
+        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon, SonVolInFather, FatherVolume
         real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
         real                              , intent(IN   ) :: CoefCold, VelDT
         integer                           , intent(IN   ) :: VelID
@@ -1572,6 +1574,8 @@ Module ModuleTwoWay
                                                     AreaU               = AreaU,                                &
                                                     DecayTime           = DecayTime,                            &
                                                     VelDT               = VelDT,                                &
+                                                    SonVolInFather      = SonVolInFather,                       &
+                                                    FatherVolume        = FatherVolume,                         &
                                                     CoefCold            = CoefCold)
                     else
                         
@@ -1582,6 +1586,8 @@ Module ModuleTwoWay
                                                     AreaV               = AreaV,                                &
                                                     DecayTime           = DecayTime,                            &
                                                     VelDT               = VelDT,                                &
+                                                    SonVolInFather      = SonVolInFather,                       &
+                                                    FatherVolume        = FatherVolume,                         &
                                                     CoefCold            = CoefCold)
                     endif
                     
@@ -1621,23 +1627,30 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
-    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, STAT
-    subroutine Offline_Upscaling_Discharge_WP (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, &
-    dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, VectorK, STAT)
+    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    !> DecayTime, CoefCold, DTProp, FatherVolume, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, &
+    !> VectorK, FoundDomain, STAT
+    subroutine Offline_Upscaling_Discharge_WP (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    DecayTime, CoefCold, DTProp, FatherVolume, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, &
+    VectorK, FoundDomain, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN )     :: FatherID, CellID, nCells
-        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation
-        real,    dimension(:    ), pointer, intent(INOUT)     :: FlowVector, PropVector
-        integer, dimension(:    ), pointer, intent(INOUT)     :: Kmin, Kmax
+        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation, FatherVolume
+        real,    dimension(:    ), pointer, intent(INOUT)   :: FlowVector, PropVector
+        real,    dimension(:,:  ), pointer, intent(IN)      :: DecayTime
+        integer, dimension(:    ), pointer, intent(INOUT)   :: Kmin, Kmax
         integer, dimension(:    ), pointer, intent(IN )     :: VectorI, VectorJ, VectorK
         integer,                            intent(IN )     :: AuxKmin, AuxKmax
-        integer, dimension(:    ), pointer, intent(INOUT)     :: dI, dJ, dK
+        real,                               intent(IN)      :: CoefCold, DTProp
+        integer, dimension(:    ), pointer, intent(INOUT)   :: dI, dJ, dK
+        logical                           , intent(OUT )    :: FoundDomain
         integer, optional                 , intent(OUT)     :: STAT
         !Locals-----------------------------------------------------------------
-        integer                                             :: i, STAT_CALL, STAT_, ready_
+        integer                                             :: i, j, k, STAT_CALL, STAT_, ready_
         type (T_TwoWay), pointer                            :: SonObj
-        integer                                             :: Aux
+        integer                                             :: Aux, iSon, ifather, jfather, kfather
         integer, dimension(:,: ), pointer                   :: Connections_Z
+        real                                                :: Vol_Rat, TimeCoef, Est_Conc
         !Begin------------------------------------------------------------------
         STAT_ = UNKNOWN_
         
@@ -1659,19 +1672,26 @@ Module ModuleTwoWay
                         if (CellID == 0) Aux = 1
 
                         do i = Aux, nCells + CellID
-                            dI        (i) = VectorI(i)
-                            dJ        (i) = VectorJ(i)
-                            dK        (i) = VectorK(i)
+                            iSon          = i-CellID
+                            dI        (i) = VectorI(iSon)
+                            dJ        (i) = VectorJ(iSon)
+                            dK        (i) = VectorK(iSon)
                             Kmin      (i) = AuxKmin
                             Kmax      (i) = AuxKmax
-                            FlowVector(i) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                            FlowVector(i) = Flow(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
                         
                             if (FlowVector(i) >= 0) then
-                                PropVector(i) = PropAssimilation(VectorI(i), VectorJ(i), VectorK(i))
+                                ifather = VectorI(iSon) ; jfather = VectorJ(iSon) ; kfather = VectorK(iSon)
+                                Vol_Rat = Me%TotSonIn(ifather,jfather,kfather) / FatherVolume(ifather ,jfather,kfather)
+                                TimeCoef = (DTProp / DecayTime(ifather, jfather)) * Vol_Rat * CoefCold
+                                PropVector(i) = (Prop            (ifather, jfather, kfather) + &
+                                                 PropAssimilation(ifather, jfather, kfather) * TimeCoef) / (1 + TimeCoef)
+                                !PropVector(i) = PropAssimilation(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
                             else
-                                PropVector(i) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                                PropVector(i) = Prop(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
                             endif
                         enddo
+                        FoundDomain = .true.
                     endif
                 endif
                 SonObj => SonObj%Next
@@ -1723,7 +1743,8 @@ Module ModuleTwoWay
             !and the matrix is 2D so there is not much performance loss.
             do j = JLB, JUB
             do i = ILB, IUB
-                Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
+                !Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
+                Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
                     IFather = Me%External_Var%IZ(i, j)  ;  JFather = Me%External_Var%JZ(i, j)
 

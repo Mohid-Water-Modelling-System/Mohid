@@ -8566,6 +8566,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           &
                                    CurrentTime      = CurrentTime,                      &
+                                   FieldUpscalingID = Me%PropertyID%ObjTwoWay,          &
                                    Matrix3D         = Field,                            &
                                    Instant          = Instant,                          &
                                    STAT             = STAT_CALL)
@@ -11946,6 +11947,7 @@ i2:         if (Me%PredictDTMethod == 2) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL
         type (T_Time)                                   :: CurrentTime
+        type (T_Time)                                   :: Auxtime
         logical                                         :: ReadNewField_
 
         !Begin----------------------------------------------------------------
@@ -11962,10 +11964,10 @@ i2:         if (Me%PredictDTMethod == 2) then
         endif
 
         ReadNewField_ = .false.
-
+        Auxtime = CurrentHDF%NextTime !Sobrinho
         if (.not. Me%AccumulateValues) then
         !Backtracking time inversion is also done in the ModuleField4D
-        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
                 if (Now .le. CurrentHDF%NextTime) ReadNewField_ = .true.
             else
                 if (Now .ge. CurrentHDF%NextTime) ReadNewField_ = .true.

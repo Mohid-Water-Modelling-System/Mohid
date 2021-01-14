@@ -167,7 +167,9 @@ Module ModuleAssimilation
     private :: T_Field
     type       T_Field
         real, dimension(:,:  ), pointer         :: R2D                  => null()
+        logical                                 :: R2D_aloc             = .true.
         real, dimension(:,:,:), pointer         :: R3D                  => null()
+        logical                                 :: R3D_aloc             = .true.
         real                                    :: Minimum              = null_real
         real                                    :: DefaultValue         = null_real
         integer                                 :: TypeZUV              = null_int
@@ -366,7 +368,7 @@ Module ModuleAssimilation
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: ready_         
-
+        real                                            :: teste1, teste2, teste3, teste4
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
  
@@ -401,7 +403,6 @@ Module ModuleAssimilation
             call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%ActualTime, &
                                       EndTime = Me%EndTime, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR01'
-
 
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, &
                                  STAT = STAT_CALL)
@@ -3423,12 +3424,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         type (T_Property), pointer                  :: PropertyX    
         logical                                     :: DomainIsAssociated
         !----------------------------------------------------------------------
-        AssociatedDomain = .false.
+        DomainIsAssociated = .false.
             
         PropertyX => Me%FirstAssimilationProp
 
         do while (associated(PropertyX)) 
-                
             if (PropertyX%Upscaling .and. (PropertyX%UpscalingDomain == NewProperty%UpscalingDomain)) then
                 !Son ID for use in fillmatrix and field4D
                 NewProperty%ID%ObjTwoWay         = PropertyX%ID%ObjTwoWay
@@ -3466,9 +3466,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                 if (GetPropertyIDNumber(PropertyX%ID%Name) == GetPropertyIDNumber(NewProperty%ID%Name)) then
                     if (NewProperty%Dim == Dim_2D) then
                         NewProperty%Field%R2D => PropertyX%Field%R2D
+                        NewProperty%Field%R2D_aloc = .false.
                         IsAllocated = .true.
                     elseif (NewProperty%Dim == Dim_3D) then
                         NewProperty%Field%R3D => PropertyX%Field%R3D
+                        NewProperty%Field%R3D_aloc = .false.
                         IsAllocated = .true.
                     else
                         write(*,*) "Z type must be 2D or 3D - upscaling field ", trim(NewProperty%ID%Name)
@@ -5515,10 +5517,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 do1 :   do while(associated(PropertyX))  
 
 cd1:        if (PropertyX%Dim == Dim_2D) then        
-
-                deallocate(PropertyX%Field%R2D, STAT = STAT_CALL)
+                if (PropertyX%Field%R2D_aloc) &
+                    deallocate(PropertyX%Field%R2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR01') 
+                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR01')
 
                 nullify   (PropertyX%Field%R2D)
 
@@ -5533,9 +5535,9 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
                 endif
 
 
-            else if (PropertyX%Dim == Dim_3D) then  cd1                      
-
-                deallocate(PropertyX%Field%R3D, STAT = STAT_CALL)
+            else if (PropertyX%Dim == Dim_3D) then  cd1             !AQUI         
+                if (PropertyX%Field%R3D_aloc) &
+                    deallocate(PropertyX%Field%R3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
                     call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR03') 
 
@@ -5545,6 +5547,7 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
                     deallocate(PropertyX%CoefField%R2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR04')
+                    nullify   (PropertyX%CoefField%R2D)
                 else   
                     deallocate(PropertyX%CoefField%R3D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
