@@ -471,6 +471,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_ConstantAllocatable
         module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
+        module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
     end interface SetMatrixValueAllocatable
 
     interface GetPointer
@@ -1379,7 +1380,72 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrixAllocatable
+    
+    !--------------------------------------------------------------------------
+    subroutine SetMatrixValues3D_R_FromMatrixAllocatable_jik(Matrix, Size, KFloor, InMatrix, MapMatrix, MaskValue)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        type (T_Size3D)                      , intent(IN)    :: Size
+        integer, dimension(:,:), pointer, intent(IN)         :: KFloor
+        real, dimension(:, :, :), pointer    , intent(IN)    :: InMatrix
+        integer, dimension(:, :, :), pointer, optional       :: MapMatrix
+        real, optional                                       :: MaskValue
 
+        !Local-----------------------------------------------------------------
+        integer                                              :: i, j, k
+        integer                                              :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+        
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, Size%KUB) == 1) then
+                    do k = KFloor(i, j), Size%KUB
+                        if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                            Matrix (i, j, k) = InMatrix(i, j, k)
+                        endif
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                
+                if (MapMatrix(i, j, Size%KUB) == 1) then
+                    do k = KFloor(i, j), Size%KUB
+                        if (MapMatrix(i, j, k) == 1) then
+                            Matrix (i, j, k) = InMatrix(i, j, k)
+                        endif
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(STATIC)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+    end subroutine SetMatrixValues3D_R_FromMatrixAllocatable_jik
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -1771,13 +1837,14 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+    subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
         real(8), dimension(:, :, :), pointer            :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real, optional                                  :: MaskValue
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
@@ -1786,7 +1853,21 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        if (present(MapMatrix)) then
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB

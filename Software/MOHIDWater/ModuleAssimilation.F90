@@ -82,6 +82,7 @@ Module ModuleAssimilation
     private ::                  ConstructAssimilationField_3D
     private ::                      SetMappingAndMatrix3D
     private ::                      Check_ComputeFacesVelocity3D
+    private ::                          ComputeFacesVelocity3D_Upscaling
     private ::              ConstructPropertyCoefficients
     private ::                  ConstructPropertyCoefficients_2D
     private ::                  ConstructPropertyCoefficients_3D
@@ -2144,18 +2145,85 @@ cd2 :           if (BlockFound) then
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
+        if (Property%Upscaling) then
+            call ComputeFacesVelocity3D_Upscaling(Property, PointsToFill3D, Matrix3D)
+        else
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                    Property%Field%R3D(i,j,k) = 0.
+                    
+                    CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
+                    
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif
+
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                    Property%Field%R3D(i,j,k) = 0.
+                    
+                    CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
+
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif            
+        endif
+    
+    end subroutine Check_ComputeFacesVelocity3D
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes cell face velocity (by interpolation)
+    !>@param[in] Property, PointsToFill3D, Matrix3D 
+    subroutine ComputeFacesVelocity3D_Upscaling(Property, PointsToFill3D, Matrix3D)
+        !Arguments-------------------------------------------------------------
+        type(T_property),          pointer, intent(OUT)   :: Property
+        integer, dimension(:,:,:), pointer, intent(IN)    :: PointsToFill3D
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Matrix3D
+        !Locals ----------------------------------------------------------------
+        integer                                           :: CellFaceIsOpen
+        integer                                           :: CHUNK, i, j, k
+        !Begin------------------------------------------------------------------
+        CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        
         if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
-            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    
+                
                 Property%Field%R3D(i,j,k) = 0.
-                    
-                CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
-                    
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                !If matrix3D is 0 or FillValueReal then the CD does not have cells inside this PD cell
+                ! and computation should be avoided.
+                if ((Matrix3D(i,j,k) /= 0.0) .and. (Matrix3D(i,j,k) /= FillValueReal)) then
+                    if ((Matrix3D(i,j-1,k) /= 0.0) .and. (Matrix3D(i,j-1,k) /= FillValueReal)) then
+                        
+                        if ((PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)) == 2) then
+                            Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                        endif
+                    endif
+                endif
             enddo
             enddo
             enddo
@@ -2170,12 +2238,16 @@ cd2 :           if (BlockFound) then
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    
+                
                 Property%Field%R3D(i,j,k) = 0.
-                    
-                CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
-
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                if ((Matrix3D(i,j,k) /= 0.0) .and. (Matrix3D(i,j,k) /= FillValueReal)) then
+                    if ((Matrix3D(i-1,j,k) /= 0.0) .and. (Matrix3D(i-1,j,k) /= FillValueReal)) then
+                        
+                        if ((PointsToFill3D(i-1,j,k) + PointsToFill3D(i,j  ,k)) == 2) then
+                            Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                        endif
+                    endif
+                endif
             enddo
             enddo
             enddo
@@ -2184,7 +2256,7 @@ cd2 :           if (BlockFound) then
             deallocate(Matrix3D)
         endif
     
-    end subroutine Check_ComputeFacesVelocity3D
+    end subroutine ComputeFacesVelocity3D_Upscaling
     
     subroutine ConstructPropertyCoefficients(NewProperty, ClientNumber)
 

@@ -38507,12 +38507,15 @@ do3:            do k = kbottom, KUB
             Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Relaxation%Assim_ModelVel(:,:,:)
             
             do iL =1, NFieldsUV3D_Upscaling
-                !Use of Mask to avoid almost halffillvaluereal set in Check_ComputeFacesVelocity3D of module assimilation
-                !when an upcaling cell has FillValueReal and the left(or below) cell has a normal value and 
+                !Use of Mask to avoid 0.0 values set in Check_ComputeFacesVelocity3D_upscaling of module assimilation
+                !when an upcaling cell has value 0 and the left(or below) cell has a normal value and 
                 !both are waterpoints
-                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                !call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                !                     List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV,       & 
+                !                     Mask = 0.0)
+                call SetMatrixValueAllocatable(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                      List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV,       & 
-                                     Mask = HalfFillValueReal/2)
+                                     MaskValue = 0.0)
                 where (List2D_DecayTime(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
                     Me%Relaxation%DecayTime_Upscale(:,:) = List2D_DecayTime(iL)%Prop_DecayTime(:,:)
             enddo
@@ -49113,9 +49116,9 @@ do5:            do i = ILB, IUB
                 !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
                 !call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
                 !                        List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
-                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
-                                        List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U,       & 
-                                        Mask = FillValueReal)
+                call SetMatrixValueAllocatable(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
+                                    Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
                 where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
                         Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
             enddo

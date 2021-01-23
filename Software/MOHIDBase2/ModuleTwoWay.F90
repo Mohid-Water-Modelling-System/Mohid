@@ -1076,6 +1076,7 @@ Module ModuleTwoWay
         endif
 
         if (present(Volume_3D) .and. .not. offline) then
+            
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
             !!$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
             if (present(SonComputeFaces))then
@@ -1305,7 +1306,12 @@ Module ModuleTwoWay
                                     TotSonIn         = GetPointer(Me%Father%TotSonIn))
 
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
-            if (.not. associated(ObjFather%TotSonIn)) ObjFather%TotSonIn => Me%Father%TotSonIn
+            if (.not. associated(ObjFather%TotSonIn)) then
+                ObjFather%TotSonIn => Me%Father%TotSonIn
+            else
+                where (Me%Father%TotSonIn(:,:,:) /= 0) ObjFather%TotSonIn(:,:,:) = Me%Father%TotSonIn
+            endif
+            
 
         else
             call Upscaling_Avrg_WL (    FatherMatrix2D   = FatherMatrix2D,                      &
@@ -1320,7 +1326,12 @@ Module ModuleTwoWay
                                         TotSonIn2D       = GetPointer(Me%Father%TotSonIn_2D))
 
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
-            if (.not. associated(ObjFather%TotSonIn_2D)) ObjFather%TotSonIn_2D => Me%Father%TotSonIn_2D
+            if (.not. associated(ObjFather%TotSonIn_2D)) then
+                ObjFather%TotSonIn_2D => Me%Father%TotSonIn_2D
+            else
+                 where (ObjFather%TotSonIn_2D(:,:) /= 0) ObjFather%TotSonIn_2D(:,:) = Me%Father%TotSonIn_2D
+            endif
+            
         endif
 
     end subroutine Nudging_average_offline
