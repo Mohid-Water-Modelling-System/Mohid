@@ -78,6 +78,7 @@ Module ModuleFunctions
     end interface  SumMatrixes
 
     public  :: SumMatrixes_jik
+    public  :: SumMatrixes_jik_V2
     public  :: AddMatrix2D_To_3D_jik
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
@@ -1432,6 +1433,22 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
+        elseif (present(MaskValue)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, Size%KUB) == 1) then
+                    do k = KFloor(i, j), Size%KUB
+                        if (InMatrix(i, j, k) /= MaskValue) then
+                            Matrix (i, j, k) = InMatrix(i, j, k)
+                        endif
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(STATIC)
@@ -2192,14 +2209,13 @@ Module ModuleFunctions
         !$OMP END PARALLEL
     end subroutine SumMatrixes_R4
 
-    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix, Mask)
+    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
-        real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
-        type (T_Size3D)                                       :: Size
-        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
-        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
-        real, optional, intent(IN)                            :: Mask
+        real, dimension(:, :, :), allocatable, intent (INOUT)       :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)              :: MatrixB
+        type (T_Size3D)                                             :: Size
+        integer, dimension(:,:), pointer, intent(IN)                :: KFloor
+        integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
         !Local-----------------------------------------------------------------
         integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
         !Begin-----------------------------------------------------------------
@@ -2208,23 +2224,8 @@ Module ModuleFunctions
 
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
-        if (present(Mask)) then
-            !$OMP DO SCHEDULE(STATIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (MapMatrix(i, j, KUB) == 1) then
-                    kbottom = KFloor(i, j)
-                    do k = kbottom, KUB
-                        if (MatrixB(i, j, k) > Mask) then
-                            MatrixA(i, j, k) = MatrixB(i, j, k)
-                        endif
-                    enddo
-                endif
-            enddo
-            enddo
-            !$OMP END DO 
-        else
-            !$OMP DO SCHEDULE(STATIC, CHUNK)
+        if (present(MapMatrix)) then
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 if (MapMatrix(i, j, KUB) == 1) then
@@ -2236,10 +2237,65 @@ Module ModuleFunctions
             enddo
             enddo
             !$OMP END DO
+        else
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            enddo
+            enddo
+            !$OMP END DO
         endif
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes_jik
+    
+    subroutine SumMatrixes_jik_V2(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT)           :: MatrixA
+        real, dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
+        type (T_Size3D)                                             :: Size
+        integer, dimension(:,:), pointer, intent(IN)                :: KFloor
+        integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
+        if (present(MapMatrix)) then
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+        else
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            enddo
+            enddo
+            !$OMP END DO
+        endif
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_jik_V2
 
     subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------

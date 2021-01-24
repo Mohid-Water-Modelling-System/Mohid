@@ -451,6 +451,7 @@ Module ModuleHydrodynamic
 
     private ::          ModifyWaterDischarges
     private ::              Modify_Upscaling_Discharges
+    private ::              Modify_Upscaling_DischargesV2
 
     private ::      ComputeResidualFlowProperties
     private ::      ComputeEmersionTime
@@ -812,6 +813,10 @@ Module ModuleHydrodynamic
     character(LEN = StringLength), parameter :: relax_wave_stress_end   = '<end_relax_wave_stress>'
 
     integer, parameter        :: UpscalingDischargeByVolume = 1
+    
+    !Upscaling method
+    integer, parameter        :: Nudging_ = 1
+    integer, parameter        :: Discharge_ = 3
 
 
     !Types---------------------------------------------------------------------
@@ -983,6 +988,7 @@ Module ModuleHydrodynamic
         real(8), dimension(:,:,:), pointer     :: DischargesVelV  => null()
         real(8), dimension(:,:,:), pointer     :: DischargesVelUV => null()
         real                                   :: New_Old = null_real
+        real, dimension(:,:,:), allocatable    :: Upscaling_Discharges
     end type T_WaterFluxes
 
     private :: T_Residual
@@ -1836,6 +1842,7 @@ Module ModuleHydrodynamic
         logical                             :: Force                = .false.
         logical                             :: Geometry             = .false.
         logical                             :: Upscaling            = .false.
+        integer                             :: Upscaling_Method     = 1
         logical                             :: WaveStress           = .false.
         integer                             :: ReferenceVelocity    = TotalVel_
         real,   dimension(:,:,:), pointer   :: DecayTimeGeo         => null()
@@ -13232,15 +13239,35 @@ cd2 :           if (IC3D(i,j,k)>0) then
                     SearchType = FromFile,                                        &
                     ClientModule ='ModuleHydrodynamic',                           &
                     STAT       = status)
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR220")
 
         !Sobrinho
         if (Me%Relaxation%Upscaling) then
-            allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of VelReference_Upscale")
-            allocate (Me%Relaxation%DecayTime_Upscale(ILB:IUB, JLB:JUB), STAT = status)
-            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of relaxation DecayTime")
-            Me%Relaxation%DecayTime_Upscale(:,:) = FillValueReal
+        !Sobrinho
+            call GetData(Me%Relaxation%Upscaling_Method,                             &
+                        Me%ObjEnterData, iflag,                                       &
+                        keyword = 'UPSCALING_METHOD',                                 &
+                        default = Nudging_,                                           &
+                        SearchType = FromFile,                                        &
+                        ClientModule ='ModuleHydrodynamic',                           &
+                        STAT       = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR230")
+            
+            if (Me%Relaxation%Upscaling_Method /= Nudging_ .and. &
+                Me%Relaxation%Upscaling_Method /= Discharge_) then
+                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 2')
+            endif 
+                
+            if (Me%Relaxation%Upscaling_Method == Nudging_) then
+                allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of VelReference_Upscale")
+                allocate (Me%Relaxation%DecayTime_Upscale(ILB:IUB, JLB:JUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of relaxation DecayTime")
+                Me%Relaxation%DecayTime_Upscale(:,:) = FillValueReal
+            else
+                allocate (Me%WaterFluxes%Upscaling_Discharges(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Upscaling_Discharges")
+            endif
         endif
 
     end subroutine ConstructRelaxation
@@ -38411,12 +38438,6 @@ do3:            do k = kbottom, KUB
         if ((NFieldsUV2D + NFieldsUV3D ) > 0) Downscaling = .true.
         if (NFieldsUV3D_Upscaling        > 0) Upscaling   = .true.  !Sobrinho
 
-        if (NFieldsUV3D_Upscaling > 0) then
-            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
-            if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "Failed get SonVolInFather3D - ModifyRelaxAceleration")
-        endif
-
         allocate(List3D_Upscaling(NFieldsUV3D_Upscaling), List2D_DecayTime(NFieldsUV3D_Upscaling))
         allocate(List2D(NFieldsUV2D), List3D(NFieldsUV3D))
 
@@ -38444,7 +38465,13 @@ do3:            do k = kbottom, KUB
             !if (.not. Me%ComputeOptions%OfflineUpscalingDischarge) & !Means decay time has not been filled yet
             call GetTimeCoefs_2D (Vel_ID, iL, CoefCold_Upscale, List2D_DecayTime(iL)%Prop_DecayTime, Upscaling)
         enddo
-
+        
+        if (NFieldsUV3D_Upscaling > 0) then
+            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
+            if (status /= SUCCESS_) &
+                call SetError (FATAL_, INTERNAL_, "Failed get SonVolInFather3D - ModifyRelaxAceleration")
+        endif
+        
         if (Downscaling) call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
 
 !------------------------------------------Finished initialization --------------------------------------------
@@ -38510,9 +38537,6 @@ do3:            do k = kbottom, KUB
                 !Use of Mask to avoid 0.0 values set in Check_ComputeFacesVelocity3D_upscaling of module assimilation
                 !when an upcaling cell has value 0 and the left(or below) cell has a normal value and 
                 !both are waterpoints
-                !call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
-                !                     List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV,       & 
-                !                     Mask = 0.0)
                 call SetMatrixValueAllocatable(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                      List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV,       & 
                                      MaskValue = 0.0)
@@ -48758,13 +48782,18 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
 
 do1:        do DischargeID = 1, DischargesNumber
                 if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling) then
+                    !Online coupling
                     call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle
                 elseif (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling) then
                     !Discharge computed from offline upscaling field
-                    call Modify_Upscaling_Discharges !Sobrinho
-                    cycle
+                     if (Me%Relaxation%Upscaling_Method == Discharge_) then
+                         call Modify_Upscaling_DischargesV2
+                     else
+                        call Modify_Upscaling_Discharges !Sobrinho
+                        cycle
+                     endif
                 endif
                 
 
@@ -49114,8 +49143,6 @@ do5:            do i = ILB, IUB
             
             do iL =1, NFieldsUV3D_Upscaling
                 !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
-                !call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
-                !                        List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
                 call SetMatrixValueAllocatable(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
                                     Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
                                     Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
@@ -49139,9 +49166,9 @@ do5:            do i = ILB, IUB
         
             do iL =1, NFieldsUV3D_Upscaling
                 !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
-                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
-                                        List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V, &
-                                        Mask = FillValueReal)
+                call SetMatrixValueAllocatable(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
+                                    Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
             enddo
         
             call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
@@ -49175,6 +49202,75 @@ do5:            do i = ILB, IUB
         endif
 
     end subroutine Modify_Upscaling_Discharges
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Modifies discharge flow from offline upscaling fields with upscaling method 3 (discharge only)
+    subroutine Modify_Upscaling_DischargesV2
+        !Local---------------------------------------------------------------------
+        type T_Matrix3D
+            real,    dimension(:,:,:), pointer       :: Flux3D_U
+            real,    dimension(:,:,:), pointer       :: Flux3D_V
+        end type T_Matrix3D
+        
+        type (T_Matrix3D), dimension(:)    , pointer :: List3D
+        integer                                      :: iL, NFieldsUV3D_Upscaling, status, STAT_CALL
+        !-----------------------------------initialization-------------------------------------------------------
+        
+        call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
+
+        if (NFieldsUV3D_Upscaling == 0) then
+            write(*,*) 'Offline upscaling discharge without an upscaling assimilation field'
+        else
+        
+            allocate(List3D(NFieldsUV3D_Upscaling))
+
+            do iL = 1, NFieldsUV3D_Upscaling
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%Flux3D_U, &
+                                                    Vel_ID = VelocityU_, Upscaling = .true.)
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%Flux3D_V, &
+                                                    Vel_ID = VelocityV_, Upscaling = .true.)
+            enddo
+
+            !---------------------------------------Finished initialization ------------------------------------------
+
+            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_DischargesV2")
+            !Add U component------------------------------------------------------------------------------------
+            Me%WaterFluxes%Upscaling_Discharges(:,:,:) = 0.0
+            
+            do iL =1, NFieldsUV3D_Upscaling
+                call SetMatrixValueAllocatable(Me%WaterFluxes%Upscaling_Discharges, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_Z, List3D(iL)%Flux3D_U, MaskValue = 0.0)
+            enddo
+            
+            call SumMatrixes_jik_V2(Me%WaterFluxes%Discharges, Me%WorkSize, Me%External_Var%KFloor_Z, &
+                                 Me%WaterFluxes%Upscaling_Discharges)
+            !AddV component------------------------------------------------------------------------------------
+            Me%WaterFluxes%Upscaling_Discharges(:,:,:) = 0.0
+        
+            do iL =1, NFieldsUV3D_Upscaling
+                call SetMatrixValueAllocatable(Me%WaterFluxes%Upscaling_Discharges, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_Z, List3D(iL)%Flux3D_V, MaskValue = 0.0)
+            enddo
+        
+            call SumMatrixes_jik_V2(Me%WaterFluxes%Discharges, Me%WorkSize, Me%External_Var%KFloor_Z, &
+                                 Me%WaterFluxes%Upscaling_Discharges)
+        
+            ! -------------------------------- Kill variables -------------------------------------------------------------
+        
+            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_DischargesV2")
+
+            do iL =1, NFieldsUV3D_Upscaling
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%Flux3D_U, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_DischargesV2 - Hydrodynamic - ERR04'
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%Flux3D_V, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_DischargesV2 - Hydrodynamic - ERR05'
+            enddo
+
+            deallocate(List3D)
+        endif
+
+    end subroutine Modify_Upscaling_DischargesV2
 
     !End------------------------------------------------------------------------------
     subroutine Hydrodynamic_OutPut

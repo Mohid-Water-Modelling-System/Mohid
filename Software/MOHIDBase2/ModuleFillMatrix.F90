@@ -822,12 +822,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (.not. Me%NewDomain .and. (present(TwoWayID))) then
                 nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
-                if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+                if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR01'
             endif
 
             if (.not. Me%NewDomain .and. (present(GeometryID))) then
                 nUsers = DeassociateInstance(mGEOMETRY_, Me%ObjGeometry)
-                if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+                if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR01'
                 endif
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20'
@@ -13236,7 +13236,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%ObjTwoWay /= 0 .and. Me%NewDomain) then
                     nUsers = DeassociateInstance(mTWOWAY_, Me%ObjTwoWay)
-                    if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR90'
+                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR90'
                 endif
 
                 !Deallocates Instance

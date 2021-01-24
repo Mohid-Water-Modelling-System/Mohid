@@ -5395,10 +5395,17 @@ d2:     do N =1, NW
                     call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call ModifyTwoWay (SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
-                                       SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
-
+                    if (PropertyIDNumber == VelocityU_ .or. PropertyIDNumber == VelocityV_) then
+                        call ModifyTwoWay ( SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
+                                            SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, &
+                                            VelocityID = PropertyIDNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    else
+                        call ModifyTwoWay (SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
+                                           SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    endif
+                    
                     call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
                 else
@@ -5412,12 +5419,19 @@ d2:     do N =1, NW
                     
                     call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
-
-                    call ModifyTwoWay (SonID = FieldUpscalingID,                        &
-                                        FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
-                                        CallerID = mField4D_, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
-
+                    
+                    if (PropertyIDNumber == VelocityU_ .or. PropertyIDNumber == VelocityV_) then
+                        call ModifyTwoWay (SonID = FieldUpscalingID,                        &
+                                            FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
+                                            CallerID = mField4D_, VelocityID = PropertyIDNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    else
+                        call ModifyTwoWay (SonID = FieldUpscalingID,                        &
+                                            FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
+                                            CallerID = mField4D_, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    endif
+                    
                     call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed UngetTwoWay call in ModifyField4D - ModuleField4D.'
 
