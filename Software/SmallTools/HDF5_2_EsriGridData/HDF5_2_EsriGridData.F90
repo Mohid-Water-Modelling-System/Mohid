@@ -82,6 +82,8 @@ Program HDF5_2_EsriGridData
         logical                                             :: TransferToOutGrid
         logical                                             :: ExportXYZ    
         logical                                             :: ExportXY_Vector
+        logical                                             :: VectorON
+        character(len=StringLength)                         :: Vector_X, Vector_Y
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -158,10 +160,10 @@ Program HDF5_2_EsriGridData
             call GetHorizontalGridSize(Me%ObjHorizontalGridOut, Me%SizeOut, Me%WorkSizeOut, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
 
-            call ConstructFatherGridLocation(Me%ObjHorizontalGridOut, Me%ObjHorizontalGrid, &
-                                             OkCross = .false., OkZ = .true.,               &
-                                             OkU = .false., OkV = .false., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
+            !call ConstructFatherGridLocation(Me%ObjHorizontalGridOut, Me%ObjHorizontalGrid, &
+            !                                 OkCross = .false., OkZ = .true.,               &
+            !                                 OkU = .false., OkV = .false., STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
             
         endif            
         
@@ -373,6 +375,37 @@ d2:     do l= 1, Me%FieldNumber
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR120'
         
  
+        call GetData(Me%VectorON,                                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'VECTOR_ON',                                        &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR130'
+        
+        if (Me%VectorON) then
+
+            call GetData(Me%Vector_X,                                                   &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'VECTOR_X',                                     &
+                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR140'        
+            if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR150'        
+
+            call GetData(Me%Vector_Y,                                                   &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'VECTOR_Y',                                     &
+                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR160'   
+            if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR170'        
+            
+        endif
+        
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
@@ -597,6 +630,7 @@ d2:     do l= 1, Me%InstantNumber
         logical                                         :: Found2Blanks
         real,  dimension(:,:), pointer                  :: CoordX, CoordY
         real,  dimension(:,:), pointer                  :: CoordXout, CoordYout
+        integer, dimension(:,:), pointer                :: InPutMap2D
         logical                                         :: Exist
         type (T_PointF),                pointer         :: Point
         
@@ -639,6 +673,7 @@ d2:     do l= 1, Me%InstantNumber
             allocate(Aux2DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB))
             
             allocate(Me%InPutMap (Me%Size%ILB   :Me%Size%IUB   , Me%Size%JLB   :Me%Size%JUB,1: Me%KUB))
+            allocate(   InPutMap2D (Me%Size%ILB   :Me%Size%IUB   , Me%Size%JLB   :Me%Size%JUB   ))            
             allocate(Me%OutPutMap(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB))
             
             
@@ -750,17 +785,44 @@ d11:    do l = 1, Me%FieldNumber
                     Aux3DOut(:,:,:) = Me%FillValue
      
                 Aux2D   (:,:  ) = Aux3D(:,:,k)
+                if (Me%LandMaskON) then
+                    InPutMap2D   (:,:)  = Me%InPutMap(:,:,k)                
+                else
+                    InPutMap2D   (:,:)  = 1
+                endif
                     
                 if (Me%InterpolOut) then
 
-                    call InterpolRegularGrid(HorizontalGridSonID      = Me%ObjHorizontalGridOut,&
-                                             HorizontalGridFatherID   = Me%ObjHorizontalGrid,   &
+                    !if (Me%Regular) then
+                    !
+                    !    call InterpolRegularGrid(HorizontalGridSonID      = Me%ObjHorizontalGridOut,&
+                    !                             HorizontalGridFatherID   = Me%ObjHorizontalGrid,   &
+                    !                             Field2DFather            = Aux2D,                  & 
+                    !                             Field2DSon               = Aux2DOut,               &
+                    !                             ComputeFather            = Me%InPutMap,            &
+                    !                             KUBFather                = k,                      &
+                    !                             STAT                     = STAT_CALL)
+                    !    if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR80'
+                    !
+                    !else
+                    
+
+                        
+                    do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
+                    do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
+
+                        Aux2DOut(i,j) = InterpolXYPoint(HorizontalGridID = Me%ObjHorizontalGrid,    &
                                              Field2DFather            = Aux2D,                  & 
-                                             Field2DSon               = Aux2DOut,               &
-                                             ComputeFather            = Me%InPutMap,            &
-                                             KUBFather                = k,                      &
+                                                        ComputeFather    = InPutMap2D,      &
+                                                        XInput           = CoordXout(i, j), &
+                                                        YInput           = CoordYout(i, j), &
                                              STAT                     = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR80'
+                    
+                    enddo
+                    enddo
+                
+                    !endif
                     
                     Aux3DOut(:,:,k) = Aux2DOut(:,:)
                     
@@ -796,7 +858,7 @@ d11:    do l = 1, Me%FieldNumber
                 
                 if (Me%ExportXYZ) then
                 
-                    call Export_To_XYZ(Aux3DOut, k, ILB, IUB, JLB, JUB, Me%OutputESRI(l))
+                call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
                 
                 endif 
                 
@@ -832,6 +894,7 @@ d11:    do l = 1, Me%FieldNumber
         if (Me%TransferToOutGrid) then
             deallocate(Aux3DOut)
             deallocate(Aux2DOut)
+            deallocate(InPutMap2D)
         endif            
         
 
@@ -1178,9 +1241,9 @@ do2:    do l  = 1, Me%PropNumber
         
         do i = ILB, IUB
             do j = JLB, JUB
-                if (Aux3D(i,j,k) == FillValueReal) then
-                    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
-                else
+                if (Aux3D(i,j,k) > FillValueReal .and. Aux3D(i,j,k) /= Me%FillValue) then
+                !    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
+                !else
                 write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
                 endif
             enddo

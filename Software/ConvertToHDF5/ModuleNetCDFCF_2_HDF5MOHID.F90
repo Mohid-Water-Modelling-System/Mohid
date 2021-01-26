@@ -133,6 +133,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Starts180W
         integer                                 :: CorrectJDown, CorrectJUp, BreakJ
         integer                                 :: dij
+        logical                                 :: CorrectLongON
     end type  T_LongLat
 
 
@@ -281,6 +282,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Bathym)                          :: Bathym
         logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY
         logical                                 :: ReadInvertLat
+        logical                                 :: ReadInvertLat_V2        
+        logical                                 :: ReadMirrorLon        
         logical                                 :: Nan_2_Null
         integer                                 :: OutCountProp = 0
         type(T_WindowOut)                       :: WindowOut
@@ -2540,6 +2543,24 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
         
+        call GetData(Me%ReadInvertLat_V2,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'READ_INVERT_LAT_V2',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR132'        
+        
+        call GetData(Me%ReadMirrorLon,                                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'READ_MIRROR_LON',                                  &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR135'        
+        
 
         call GetData(Aux4,                                                              &
                      Me%ObjEnterData, iflag,                                            &
@@ -2948,6 +2969,15 @@ BF:         if (BlockFound) then
                              default      = .true.,                                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                
+                call GetData(Me%LongLat%CorrectLongON,                                  &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'CORRECT_LONG_ON',                          &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .true.,                                     &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR35'
                 
                 Me%LongLat%LatIn%DataType  = Real8_
                 Me%LongLat%LongIn%DataType = Real8_
@@ -4727,6 +4757,7 @@ BF:             if (BlockFound) then
         endif
         
         if (.not. Me%Bathym%FromMapping) then
+            call WriteBathymASCII
             if (Me%OutHDF5  ) call WriteBathymHDF5        
             if (Me%OutNetCDF) call WriteBathymNetCDF       
         endif
@@ -6675,6 +6706,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         enddo
         enddo            
         
+        if (Me%LongLat%CorrectLongON) then
+        
         do j=1, Me%LongLat%jmax-1
             Aux1 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j,   Dim2 = 1  )
             Aux2 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j+1, Dim2 = 1  )            
@@ -6699,7 +6732,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                 exit
             endif
         enddo    
-        
+        endif
         
         !Build HDF5 MOHID Grid
         Me%WorkSize%ILB = Me%LongLat%dij
@@ -6739,12 +6772,18 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             Y3 = GetNetCDFValue(Me%LongLat%LatIn,  Dim1 = j,   Dim2 = i+1)
             Y4 = GetNetCDFValue(Me%LongLat%LatIn,  Dim1 = j+1, Dim2 = i+1)
             
-            Me%LongLat%LongOut(i, j) = (X1 + X2 + X3 + X4) / 4.
+            
             if (Me%ReadInvertLat) then
                 Me%LongLat%LatOut (Me%WorkSize%IUB+1+Me%WorkSize%ILB-i, j) = (Y1 + Y2 + Y3 + Y4) / 4.
             else
                 Me%LongLat%LatOut (i, j) = (Y1 + Y2 + Y3 + Y4) / 4.
             endif                
+            
+            if (Me%ReadMirrorLon) then
+                Me%LongLat%LongOut(i, j) = -(X1 + X2 + X3 + X4) / 4.
+            else
+                Me%LongLat%LongOut(i, j) =  (X1 + X2 + X3 + X4) / 4.                
+            endif                  
             
         enddo
         enddo
@@ -8165,9 +8204,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             Dim2_ = Dim1
         endif      
         
-        if (Me%ReadInvertLat .and. Dim >=2) then
+        if ((Me%ReadInvertLat .or. Me%ReadInvertLat_V2).and. Dim >=2) then
             Dim2_ = Me%LongLat%imax - Dim2_ + 1 
         endif  
+
+        if (Me%ReadMirrorLon .and. Dim >=2) then
+            Dim1_ = Me%LongLat%jmax - Dim1_ + 1 
+        endif          
 
         if      (Dim==1) then
         
@@ -8292,9 +8335,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             Dim2_ = Dim1
         endif         
         
-        if (Me%ReadInvertLat .and. Dim >=2) then
+        if ((Me%ReadInvertLat .or. Me%ReadInvertLat_V2) .and. Dim >=2) then
             Dim2_ = Me%LongLat%imax - Dim2_ + 1 
         endif          
+        
+        if (Me%ReadMirrorLon .and. Dim >=2) then
+            Dim1_ = Me%LongLat%jmax - Dim1_ + 1 
+        endif        
         
         if      (Dim==1) then
         
