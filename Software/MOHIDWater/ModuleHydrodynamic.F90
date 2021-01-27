@@ -1641,6 +1641,7 @@ Module ModuleHydrodynamic
 
         logical                         :: AssimilaOneField         = .false.
         logical                         :: MatrixesOutputOpt        = .false.
+        logical							:: OperationalDefault    = .false. 
 
     end type T_HydroOptions
 
@@ -8815,13 +8816,12 @@ cd21:   if (Baroclinic) then
         integer                             :: iflag, FromFile
         integer                             :: STAT_CALL
         integer                             :: i, j
-        logical                             :: OperationalModel
 
         !----------------------------------------------------------------------
 
         call GetExtractType(FromFile = FromFile)
 
-        call GetData(OperationalModel,                                                  &
+        call GetData(Me%ComputeOptions%OperationalDefault,                              &
                       Me%ObjEnterData, iflag,                                           &
                       keyword      = 'OPERATIONAL_MODEL_DEFAULT',                       &
                       default      = .false.,                                           &
@@ -8835,7 +8835,7 @@ cd21:   if (Baroclinic) then
 
         Me%ComputeOptions%AssimilaOneField = .false.
 
-        if (OperationalModel) then
+        if (Me%ComputeOptions%OperationalDefault) then
 
             call GetData(Me%ComputeOptions%AssimilaOneField,                            &
                           Me%ObjEnterData, iflag,                                       &
@@ -8885,8 +8885,14 @@ cd21:   if (Baroclinic) then
 
             !RADIATION                 : 2
             Me%ComputeOptions%BarotropicRadia       = FlatherLocalSolution_
+            
+            if (Me%ComputeOptions%InvertBarometer) then
+                !LOCAL_SOLUTION            : 8
+                Me%ComputeOptions%LocalSolution         = AssimilaGauge_        
+            else
             !LOCAL_SOLUTION            : 3
             Me%ComputeOptions%LocalSolution         = AssimilationField_
+            endif
 
             Me%ComputeOptions%MinLeavingVelocity    = 1e-6
             Me%ComputeOptions%MinLeavingComponent   = 1e-3
@@ -13026,6 +13032,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
         integer                          :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                          :: ILBWork, IUBWork, JLBWork, JUBWork, KLBWork, KUBWork
         integer                          :: STATUS, iflag,fromfile
+        logical							 :: LogDefault
         !Begin --------------------------------------------------------------------
 
         IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
@@ -13223,10 +13230,17 @@ cd2 :           if (IC3D(i,j,k)>0) then
             Me%Relaxation%ReferenceVelocity /= BaroclVel_)                  &
             call SetError(FATAL_, KEYWORD_, 'ConstructRelaxation - Hydrodynamic - ERR31.')
 
+                
+        if (Me%ComputeOptions%OperationalDefault) then
+            LogDefault = Me%Relaxation%Force
+        else
+            LogDefault = .false.
+        endif
+
          call GetData(Me%Relaxation%Force,                                  &
                       Me%ObjEnterData, iflag,                               &
                       keyword = 'BRFORCE',                                               &
-                      default = .false.,                                                 &
+                      default = LogDefault,												&
                       SearchType = FromFile,                                             &
                       ClientModule ='ModuleHydrodynamic',                                &
                       STAT       = status)

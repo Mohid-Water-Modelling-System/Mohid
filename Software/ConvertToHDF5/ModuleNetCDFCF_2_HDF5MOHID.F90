@@ -5531,7 +5531,7 @@ i5:         if (Me%OutHDF5) then
                             write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
                             write(*,*) 'Above Max limit=', Me%Field(iP)%MaxLimit
                             
-                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR40' 
                             
                         endif
                         
@@ -5542,7 +5542,7 @@ i5:         if (Me%OutHDF5) then
                             write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
                             write(*,*) 'Below min limit=', Me%Field(iP)%MinLimit
                             
-                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR50' 
                             
                         endif                         
                     
