@@ -370,7 +370,6 @@ Module ModuleAssimilation
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: ready_         
-        real                                            :: teste1, teste2, teste3, teste4
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
  
@@ -1581,7 +1580,6 @@ cd2 :           if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
                         NewProperty%Field%R3D(:,:,:) = FillValueReal
                     endif
-                    
                     call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
                                                         WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
                     !only for Upscaling
@@ -1786,8 +1784,8 @@ cd2 :           if (BlockFound) then
                             STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'failed to read UPSCALING_METHOD in field block of assimilation'
             
-            if (NewProperty%UpscalingMethod /= 1 .and. NewProperty%UpscalingMethod /= 2) then
-                stop 'UPSCALING_METHOD in assimilation.dat property block must be either 1 or 2'
+            if (NewProperty%UpscalingMethod /= 1 .and. NewProperty%UpscalingMethod /= 3) then
+                stop 'UPSCALING_METHOD in assimilation.dat property block must be either 1 or 3'
             endif
             
         endif
@@ -2219,9 +2217,14 @@ cd2 :           if (BlockFound) then
         integer                                           :: CHUNK, i, j, k
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
-        if (Property%UpscalingMethod == 2) then
+        if (Property%UpscalingMethod == 3) then
             !Only upscaling discharge - no nudging
-            deallocate(Matrix3D)
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_ .or. &
+                GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+                Property%Field%R3D(:,:,:) = Matrix3D(:,:,:)
+                deallocate(Matrix3D)
+            endif
+            
         elseif (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -2246,9 +2249,7 @@ cd2 :           if (BlockFound) then
             !$OMP END DO
             !$OMP END PARALLEL
             deallocate(Matrix3D)
-        endif
-
-        if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+        elseif (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB

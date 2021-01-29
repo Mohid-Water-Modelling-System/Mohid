@@ -344,7 +344,7 @@ Module ModuleGeometry
 
     type T_Geometry
         integer                                 :: InstanceID   = null_int !initialization: Jauch
-        integer                                 :: FacesOption  = null_int !initialization: Jauch
+        integer                                 :: FacesOption  = 2 !initialization: Joao Sobrinho
         type (T_External)                       :: ExternalVar
         type (T_Distances)                      :: Distances
         type (T_Areas)                          :: Areas

@@ -83,7 +83,7 @@ Module ModuleFillMatrix
                                        KillField4D
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
-    use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay
+    use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay, InterpolUpscaling_Velocity
 
 
     implicit none
@@ -7287,7 +7287,7 @@ ifMS:       if (MasterOrSlave) then
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
-        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k, STAT_CALL
         !Begin-----------------------------------------------------------------
 
         ILB = Me%Size3D%ILB
@@ -7364,7 +7364,13 @@ ifMS:       if (MasterOrSlave) then
                                                    Matrix2          = CurrentHDF%NextField3D,      &
                                                    MatrixOut        = Me%Matrix3D,                 &
                                                    PointsToFill3D   = PointsToFill3D)
-
+                    if (CurrentHDF%Upscaling .and. CurrentHDF%UpscalingMethod == 3) then
+                        !Sobrinho
+                        call InterpolUpscaling_Velocity (Me%PropertyID%ObjTwoWay, Me%PropertyID%IDNumber, now, &
+                                                    CurrentHDF%PreviousTime, CurrentHDF%NextTime, PointsToFill3D, &
+                                                    STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput3DStandard - ModuleFillMatrix - ERR01'
+                    endif
                 endif
             endif
 
@@ -11326,7 +11332,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, dimension(:, :, :), pointer            :: PointsToFill3D
         type(T_Field4D)                                 :: CurrentHDF
         !Local----------------------------------------------------------------
-        integer                                         :: n, i, j, k
+        integer                                         :: n, i, j, k, STAT_CALL
         type (T_Time)                                   :: Now
 
         !Begin----------------------------------------------------------------
@@ -11404,6 +11410,13 @@ i5:         if (Me%PreviousInstantValues) then
                                                    Matrix2          = CurrentHDF%NextField3D,      &
                                                    MatrixOut        = Me%Matrix3D,                 &
                                                    PointsToFill3D   = PointsToFill3D)
+                    if (CurrentHDF%Upscaling .and. CurrentHDF%UpscalingMethod == 3) then
+                        !Sobrinho
+                        call InterpolUpscaling_Velocity (Me%PropertyID%ObjTwoWay, Me%PropertyID%IDNumber, now, &
+                                                    CurrentHDF%PreviousTime, CurrentHDF%NextTime, PointsToFill3D, &
+                                                    STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput3DStandard - ModuleFillMatrix - ERR01'
+                    endif
                 endif
             endif i5
         else i3

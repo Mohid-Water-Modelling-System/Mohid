@@ -68,6 +68,8 @@ Module ModuleFunctions
     !Matrix Operations
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
+    public  :: SetMatrixValues_R_ConstantAllocatable
+    public  :: SetMatrixValueAllocatable_jik
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
@@ -180,12 +182,14 @@ Module ModuleFunctions
     public  :: InterpolateValueInTime
     public  :: InterpolateMatrix2DInTime
     public  :: InterpolateMatrix3DInTime
+    public  :: InterpolateMatrix3DInTime_Alloc
     public  :: InterpolateAngle2DInTime
     public  :: InterpolateAngle3DInTime
 
     public  :: LinearInterpolation
     public  :: InterpolateLinearyMatrix2D
     public  :: InterpolateLinearyMatrix3D
+    public  :: InterpolateLinearyMatrix3D_Alloc
 
     !Extrapolation
     public  :: ExtraPol2DNearestCell
@@ -472,8 +476,11 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_ConstantAllocatable
         module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
-        module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
     end interface SetMatrixValueAllocatable
+    
+    interface SetMatrixValueAllocatable_jik
+        module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
+    end interface SetMatrixValueAllocatable_jik
 
     interface GetPointer
         module procedure GetPointer2D_I4
@@ -1433,22 +1440,6 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        elseif (present(MaskValue)) then
-            !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = Size%JLB, Size%JUB
-            do i = Size%ILB, Size%IUB
-                if (MapMatrix(i, j, Size%KUB) == 1) then
-                    do k = KFloor(i, j), Size%KUB
-                        if (InMatrix(i, j, k) /= MaskValue) then
-                            Matrix (i, j, k) = InMatrix(i, j, k)
-                        endif
-                    enddo
-                endif
-            enddo
-            enddo
-            !$OMP END DO NOWAIT
-            !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(STATIC)
@@ -1710,6 +1701,53 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R8_ConstantAllocatable
+    
+    subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, dummy)
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable           :: Matrix
+        type (T_Size3D)                                 :: Size
+        real, intent (IN)                               :: ValueX
+        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        integer                             , optional  :: dummy
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = ValueX
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(STATIC)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = ValueX
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine SetMatrixValues_R_ConstantAllocatable
 
     !--------------------------------------------------------------------------
 
@@ -2224,31 +2262,18 @@ Module ModuleFunctions
 
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
-        if (present(MapMatrix)) then
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (MapMatrix(i, j, KUB) == 1) then
-                    kbottom = KFloor(i, j)
-                    do k = kbottom, KUB
-                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
-                    enddo
-                endif
-            enddo
-            enddo
-            !$OMP END DO
-        else
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
                 kbottom = KFloor(i, j)
                 do k = kbottom, KUB
                     MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
                 enddo
-            enddo
-            enddo
-            !$OMP END DO
-        endif
+            endif
+        enddo
+        enddo
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes_jik
@@ -2268,31 +2293,18 @@ Module ModuleFunctions
 
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
-        if (present(MapMatrix)) then
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (MapMatrix(i, j, KUB) == 1) then
-                    kbottom = KFloor(i, j)
-                    do k = kbottom, KUB
-                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
-                    enddo
-                endif
-            enddo
-            enddo
-            !$OMP END DO
-        else
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
                 kbottom = KFloor(i, j)
                 do k = kbottom, KUB
                     MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
                 enddo
-            enddo
-            enddo
-            !$OMP END DO
-        endif
+            endif
+        enddo
+        enddo
+        !$OMP END DO
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes_jik_V2
@@ -5341,6 +5353,34 @@ end function
                                         X2, Matrix2, MatrixOUT, PointsToFill3D)
 
     end subroutine InterpolateMatrix3DInTime
+    
+    subroutine InterpolateMatrix3DInTime_Alloc(ActualTime, Size, Time1, Matrix1, &
+                                         Time2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)                   :: ActualTime
+        type(T_Size3D)                                  :: Size
+        type(T_Time),      intent(IN)                   :: Time1
+        real, dimension(:,:,:), allocatable             :: Matrix1
+        type(T_Time),      intent(IN)                   :: Time2
+        real, dimension(:,:,:), allocatable             :: Matrix2
+        real, dimension(:,:,:), allocatable             :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local-----------------------------------------------------------------
+        real                                            :: X1, X, X2
+
+        !Begin-----------------------------------------------------------------
+
+        !Time1 = 0
+        X1       = 0.
+        X        = ActualTime - Time1
+        X2       = Time2 - Time1
+
+        call InterpolateLinearyMatrix3D_Alloc(X, Size, X1, Matrix1,                           &
+                                        X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+    end subroutine InterpolateMatrix3DInTime_Alloc
 
     !--------------------------------------------------------------------------
 
@@ -5501,6 +5541,69 @@ end function
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
 
     end subroutine InterpolateLinearyMatrix3D
+    
+    subroutine InterpolateLinearyMatrix3D_Alloc(X, Size, X1, Matrix1, &
+                                         X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        real                                            :: X1, X2, X
+        type(T_Size3D)                                  :: Size
+        real, dimension(:,:,:), Allocatable             :: Matrix1, Matrix2, MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k, CHUNK
+        real                                            :: DT1, DT2, DTtotal
+        !Begin-----------------------------------------------------------------
+
+        DT1      = X - X1
+        DT2      = X2 - X
+        DTtotal  = DT1 + DT2
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D_Alloc")
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if(present(PointsToFill3D))then
+
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                if(PointsToFill3D(i,j,k) == 1)then
+
+                    MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal
+
+                endif
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        else
+
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        end if
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D_Alloc")
+
+    end subroutine InterpolateLinearyMatrix3D_Alloc
 
     !--------------------------------------------------------------------------
 
