@@ -6514,6 +6514,17 @@ dnP:    do nP = 1,nPoints
 
                 call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR50'
+                
+                if (PercI < 0 .or. PercI >1) then
+                    write(*,*) 'Wrong 0<PercI<1 =',PercI, 'Cell i,j=',i, j
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR55'
+                endif
+                
+                if (PercJ < 0 .or. PercJ >1) then
+                    write(*,*) 'Wrong 0<PercJ<1 =',PercJ, 'Cell i,j=',i, j
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR57'
+                endif
+                
 
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
                     

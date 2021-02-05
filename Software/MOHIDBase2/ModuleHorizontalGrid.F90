@@ -3090,6 +3090,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: ClientNumber
         logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
         integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
+        logical                             :: CornersOverlap
 
         !----------------------------------------------------------------------
 
@@ -3448,6 +3449,67 @@ BF:     if (BlockFound) then
 
             end do
             end do
+
+            CornersOverlap = .false.
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+                
+                if (Me%XX_IE(ii, jj) == FillValueReal) Cycle
+
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j
+                    CornersOverlap = .true.
+                    
+                endif
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii, jj+1) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i,j+1
+                    CornersOverlap = .true.
+                    
+                endif                    
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj+1) .and.                      &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j+1
+                    CornersOverlap = .true.
+                    
+                endif                                        
+
+            end do
+            end do            
+            
+            if (CornersOverlap) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR235'
+            endif
 
 
             if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
@@ -10179,7 +10241,8 @@ cd3 :       if (present(SurfaceMM5)) then
                 !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
             else
                 if (present(PercI) .and. present(PercJ)) then
-                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                    call RelativePosition4VertPolygon(                                  &
+                        Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
                         Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                         Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                         Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
