@@ -20110,9 +20110,9 @@ dd:     do dis = 1, Me%Discharge%Number
                 endif
                 
                 if (Me%Coupled%OfflineUpscalingDischarge%Yes) then
-                    
+                    !write(*,*) 'Begin Discharge number', dis
                     call Modify_Upscaling_Discharges(VectorI, VectorJ, VectorK, kmin, kmax, AuxCell, nCells)
-                   
+                    !write(*,*) 'End Discharge number', dis
                 endif
 
                 AuxCell = AuxCell + nCells
@@ -20445,13 +20445,16 @@ dn:         do n=1, nCells
                         call CloseAllAndStop ('Modify_Upscaling_Discharges; WaterProperties. ERR10')
                         
                         call GetNumberOfPropFields(PropertyID, NumberOfFields, NumberOfFields_Upscaling)
-                        
+                        !write(*,*) 'Begin Property : ', Property%ID%Name
+                        !write(*,*) 'Number of Upscaling Fields : ', NumberOfFields_Upscaling
                         do N_Field = 1, NumberOfFields_Upscaling
                             
                             SubModelON = .false.
                             FoundDomain = .false.
+                            !write(*,*) 'Begin Field Number : ', N_Field
                             call FillAssimilationField (Property, PropertyID, N_Field, SubModelON, PropAssimilation, &
                                                         Upscaling = .True.)
+                            !write(*,*) 'Check concentration : ', PropAssimilation(VectorI(1), VectorJ(1), Me%WorkSize%KUB)
                             if (PropAssimilation(VectorI(1), VectorJ(1), Me%WorkSize%KUB) == 0.0) then
                                 cycle
                             endif
@@ -20489,9 +20492,16 @@ dn:         do n=1, nCells
                                             FoundDomain = FoundDomain)
                                 
                             endif
-                            
+                            !write(*,*) 'End Field Number : ', N_Field
                             if (FoundDomain) exit
                         enddo
+                        if (.not. FoundDomain) then
+                            write (*,*) 'Something went wrong : Check if you do not have more upscaling IDs '
+                            write (*,*) 'than the number of upscaling fields'
+                            stop
+                        endif
+                        !
+                        !write(*,*) 'End Property : ', Property%ID%Name
                     endif
                 endif
                 Property => Property%Next

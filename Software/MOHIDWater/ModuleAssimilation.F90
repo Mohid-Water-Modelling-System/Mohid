@@ -3727,8 +3727,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             do while (associated(PropertyX)) 
                 if ((PropertyX%ID%IDNumber==PropertyXIDNumber) .and. PropertyX%Upscaling) then
             
-                    Counter     = Counter + 1
-                    if (N_Field_ == Counter) exit         
+                    !Counter     = Counter + 1
+                    !if (N_Field_ == Counter) exit
+                    if (PropertyX%UpscalingDomain == N_Field_) exit
                 endif
                 PropertyX => PropertyX%Next                 
             end do    

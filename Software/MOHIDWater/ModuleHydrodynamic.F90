@@ -10553,7 +10553,16 @@ c1:                 select case (DischVertical)
 
                         case (DischLayer_)
 
-                            VectorK(:) = Kd                
+                            VectorK(:) = Kd
+                            if (Me%WorkSize%KUB > 1) then !Sobrinho - Discharges
+                                do nC=1,nCells
+                                    if (WaterPoints3D(VectorI(nC), VectorJ(nC), kd) /= WaterPoint) then
+                                        write(*,*) "Discharge in land cell : ", trim(DischargeName)
+                                        write(*,*) "i, j, k : ", VectorI(nC), VectorJ(nC), kd
+                                        stop 'Construct_Sub_Modules - ModuleDischarges. ERR315'
+                                    endif
+                                enddo
+                            endif
 
                         case (DischDepth_)
 
@@ -10593,16 +10602,6 @@ n1:                         do nC =1, nCells
                             stop 'Construct_Sub_Modules - ModuleDischarges. ERR350'
 
                         end select c1
-
-                    if (Me%WorkSize%KUB > 1) then !Sobrinho - Discharges
-                        do nC=1,nCells
-                            if (WaterPoints3D(VectorI(nC), VectorJ(nC), VectorK(nC)) /= WaterPoint) then
-                                write(*,*) "Discharge in land cell : ", trim(DischargeName)
-                                write(*,*) "i, j, k : ", VectorI(nC), VectorJ(nC), VectorK(nC)
-                                stop 'Construct_Sub_Modules - ModuleDischarges. ERR365'
-                            endif
-                        enddo
-                    endif
                     
                     if (SpatialEmission /= DischPoint_) then
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)

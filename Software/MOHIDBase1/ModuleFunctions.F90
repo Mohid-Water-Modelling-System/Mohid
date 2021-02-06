@@ -68,7 +68,6 @@ Module ModuleFunctions
     !Matrix Operations
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
-    public  :: SetMatrixValues_R_ConstantAllocatable
     public  :: SetMatrixValueAllocatable_jik
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
@@ -476,6 +475,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_ConstantAllocatable
         module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
+        !module procedure SetMatrixValues_R_ConstantAllocatable
     end interface SetMatrixValueAllocatable
     
     interface SetMatrixValueAllocatable_jik
@@ -1702,23 +1702,24 @@ Module ModuleFunctions
 
     end subroutine SetMatrixValues3D_R8_ConstantAllocatable
     
-    subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, dummy)
+    subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, Dummy)
 
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), allocatable           :: Matrix
         type (T_Size3D)                                 :: Size
         real, intent (IN)                               :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
-        integer                             , optional  :: dummy
+        logical                            , optional   :: Dummy
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
+        logical                                         :: Dummy_
 
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-
+        if (present(Dummy)) Dummy_ = Dummy
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
