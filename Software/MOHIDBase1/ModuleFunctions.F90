@@ -249,6 +249,7 @@ Module ModuleFunctions
 
     !Polygon
     public  :: RelativePosition4VertPolygon
+    public  :: RelativePosition4VertPolygonIWD
     public  :: PolygonArea
     public  :: FromGeo2Meters
 
@@ -7927,19 +7928,126 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         real                :: Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey
 
         !Local-------------------------------------------------------------------
-        !real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg
-        !real(8)             :: MinDx
-        !real(8)             :: a1, b1, a2, b2, a3, b3, a4, b4
-        !real(8)             :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
-        !real(8)             :: Xf, Yf, Xg, Yg, Xh, Yh, Xi, Yi, TgX, TgY
+        real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg
+        real(8)             :: MinDx
+        real(8)             :: a1, b1, a2, b2, a3, b3, a4, b4
+        real(8)             :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
+        real(8)             :: Xf, Yf, Xg, Yg, Xh, Yh, Xi, Yi, TgX, TgY
         real(8)             :: SumAux        
         real(8)             :: XaR8, YaR8, XbR8, YbR8, XcR8, YcR8, XdR8, YdR8, XeR8, YeR8
-        real(8)             :: da, db, dc, dd
         !Begin-------------------------------------------------------------------
 
         XaR8 = dble(Xa); YaR8 = dble(Ya); XbR8 = dble(Xb); YbR8 = dble(Yb); XcR8 = dble(Xc)
         YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
 
+
+            
+
+        !the four segments of the cell
+        DXdc = XdR8 - XcR8
+        DXba = XbR8 - XaR8
+        DYac = YaR8 - YcR8
+        DYbd = YbR8 - YdR8
+        
+        SumAux = abs(DXdc + DXba + DYac + DYbd)
+        
+        if (SumAux > 0) then
+            MinDx  = SumAux * 1.e-16            
+        else
+            MinDx  = 1.e-16
+        endif
+        
+        if (abs(DXdc)<MinDx) DXdc = MinDx
+        if (abs(DXba)<MinDx) DXba = MinDx
+        if (abs(DYac)<MinDx) DYac = MinDx
+        if (abs(DYbd)<MinDx) DYbd = MinDx
+        
+        a1 = (XdR8*YcR8 - XcR8*YdR8) / DXdc
+        b1 = (   YdR8 -    YcR8) / DXdc
+        
+        a2 = (XbR8*YaR8 - XaR8*YbR8) / DXba
+        b2 = (   YbR8 -    YaR8) / DXba
+        
+        a3 = (XcR8*YaR8 - XaR8*YcR8) / DYac
+        b3 = (   XaR8 -    XcR8) / DYac
+        
+        a4 = (XdR8*YbR8 - XbR8*YdR8) / DYbd
+        b4 = (   XbR8 -    XdR8) / DYbd
+        
+        !intersection points
+        if (b2/=b1) then
+        
+            !F point intersection point of X faces
+            Xf = (a1 - a2) / (b2 - b1)
+            Yf = a1 + b1*Xf
+        
+            !H point intersection with segment CA
+            DXef = XeR8 - Xf
+        
+            if (abs(DXef)==0.) DXef = MinDx
+            TgX = (YeR8 - Yf) / DXef
+        else
+            !H point intersection with segment CA
+            TgX = b1
+        endif
+        
+        Yh  = (YeR8 + (a3 - XeR8) * TgX) / (1. - b3*TgX)
+        Xh  = a3 + b3 * Yh
+        
+        
+        if (b4/=b3) then
+        
+            !G point intersection point of X faces
+            Yg = (a3 - a4) / (b4 - b3)
+            Xg = a3 + b3*Yg
+        
+            !i point intersection with segment CA
+            DYeg = YeR8 - Yg
+        
+            if (abs(DYeg)==0.) DYeg = MinDx
+            TgY = (XeR8 - Xg) / DYeg
+        else
+        
+            !i point intersection with segment CA
+            TgY = b3
+        endif
+        
+        Xi  = (XeR8 + (a1 - YeR8) * TgY) / (1. - b1*TgY)
+        Yi  =  a1 + b1 * Xi
+        
+        
+        Seg_ac = sqrt((XaR8-XcR8)*(XaR8-XcR8) + (YaR8-YcR8)*(YaR8-YcR8))
+        Seg_dc = sqrt((XdR8-XcR8)*(XdR8-XcR8) + (YdR8-YcR8)*(YdR8-YcR8))
+        Seg_hc = sqrt((Xh  -XcR8)*(Xh  -XcR8) + (Yh  -YcR8)*(Yh  -YcR8))
+        Seg_ic = sqrt((Xi  -XcR8)*(Xi  -XcR8) + (Yi  -YcR8)*(Yi  -YcR8))
+        
+        Xex = Seg_ic / Seg_dc
+        Yey = Seg_hc / Seg_ac
+        
+        if (Xex < 0. .or. Xex > 1 .or. Yey < 0. .or. Yey > 1) then
+            call RelativePosition4VertPolygonIWD(Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey)
+        endif
+        
+
+    end subroutine RelativePosition4VertPolygon
+    !--------------------------------------------------------------------------
+    
+    subroutine RelativePosition4VertPolygonIWD(Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey)
+
+        !Arguments---------------------------------------------------------------
+        real                :: Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey
+
+        !Local-------------------------------------------------------------------
+        real(8)             :: SumAux        
+        real(8)             :: XaR8, YaR8, XbR8, YbR8, XcR8, YcR8, XdR8, YdR8, XeR8, YeR8
+        real(8)             :: da, db, dc, dd, pw
+        !Begin-------------------------------------------------------------------
+
+        XaR8 = dble(Xa); YaR8 = dble(Ya); XbR8 = dble(Xb); YbR8 = dble(Yb); XcR8 = dble(Xc)
+        YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
+        
+        pw = 2
+        
         !using a IDW - Inverse distance weighting method
         !(Xa,Ya) = (Xex = 0, Yey =1)
         !(Xb,Yb) = (Xex = 1, Yey =1)        
@@ -7969,105 +8077,24 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             Xex = 1
             Yey = 0
         else
-            SumAux = ((1./da)**2+(1./db)**2+(1./dc)**2+(1./dd)**2)
-            Xex    = ((1./db)**2+(1./dd)**2) / SumAux
-            Yey    = ((1./da)**2+(1./db)**2) / SumAux            
+            SumAux = ((1./da)**pw+(1./db)**pw+(1./dc)**pw+(1./dd)**pw)
+            Xex    = ((1./db)**pw+(1./dd)**pw) / SumAux
+            Yey    = ((1./da)**pw+(1./db)**pw) / SumAux            
         endif
 
 
-
-        !!the four segments of the cell
-        !DXdc = XdR8 - XcR8
-        !DXba = XbR8 - XaR8
-        !DYac = YaR8 - YcR8
-        !DYbd = YbR8 - YdR8
-        !
-        !SumAux = abs(DXdc + DXba + DYac + DYbd)
-        !
-        !if (SumAux > 0) then
-        !    MinDx  = SumAux * 1.e-16            
-        !else
-        !    MinDx  = 1.e-16
-        !endif
-        !
-        !if (abs(DXdc)<MinDx) DXdc = MinDx
-        !if (abs(DXba)<MinDx) DXba = MinDx
-        !if (abs(DYac)<MinDx) DYac = MinDx
-        !if (abs(DYbd)<MinDx) DYbd = MinDx
-        !
-        !a1 = (XdR8*YcR8 - XcR8*YdR8) / DXdc
-        !b1 = (   YdR8 -    YcR8) / DXdc
-        !
-        !a2 = (XbR8*YaR8 - XaR8*YbR8) / DXba
-        !b2 = (   YbR8 -    YaR8) / DXba
-        !
-        !a3 = (XcR8*YaR8 - XaR8*YcR8) / DYac
-        !b3 = (   XaR8 -    XcR8) / DYac
-        !
-        !a4 = (XdR8*YbR8 - XbR8*YdR8) / DYbd
-        !b4 = (   XbR8 -    XdR8) / DYbd
-        !
-        !!intersection points
-        !if (b2/=b1) then
-        !
-        !    !F point intersection point of X faces
-        !    Xf = (a1 - a2) / (b2 - b1)
-        !    Yf = a1 + b1*Xf
-        !
-        !    !H point intersection with segment CA
-        !    DXef = XeR8 - Xf
-        !
-        !    if (abs(DXef)==0.) DXef = MinDx
-        !    TgX = (YeR8 - Yf) / DXef
-        !else
-        !    !H point intersection with segment CA
-        !    TgX = b1
-        !endif
-        !
-        !Yh  = (YeR8 + (a3 - XeR8) * TgX) / (1. - b3*TgX)
-        !Xh  = a3 + b3 * Yh
-        !
-        !
-        !if (b4/=b3) then
-        !
-        !    !G point intersection point of X faces
-        !    Yg = (a3 - a4) / (b4 - b3)
-        !    Xg = a3 + b3*Yg
-        !
-        !    !i point intersection with segment CA
-        !    DYeg = YeR8 - Yg
-        !
-        !    if (abs(DYeg)==0.) DYeg = MinDx
-        !    TgY = (XeR8 - Xg) / DYeg
-        !else
-        !
-        !    !i point intersection with segment CA
-        !    TgY = b3
-        !endif
-        !
-        !Xi  = (XeR8 + (a1 - YeR8) * TgY) / (1. - b1*TgY)
-        !Yi  =  a1 + b1 * Xi
-        !
-        !
-        !Seg_ac = sqrt((XaR8-XcR8)*(XaR8-XcR8) + (YaR8-YcR8)*(YaR8-YcR8))
-        !Seg_dc = sqrt((XdR8-XcR8)*(XdR8-XcR8) + (YdR8-YcR8)*(YdR8-YcR8))
-        !Seg_hc = sqrt((Xh  -XcR8)*(Xh  -XcR8) + (Yh  -YcR8)*(Yh  -YcR8))
-        !Seg_ic = sqrt((Xi  -XcR8)*(Xi  -XcR8) + (Yi  -YcR8)*(Yi  -YcR8))
-        !
-        !Xex = Seg_ic / Seg_dc
-        !Yey = Seg_hc / Seg_ac
-
         if (Xex < 0. .or. Xex > 1) then
-            stop 'Function - RelativePosition4VertPolygon - ERR10'
+            stop 'Function - RelativePosition4VertPolygonIWD - ERR10'
         endif
 
         if (Yey < 0. .or. Yey > 1) then
-            stop 'Function - RelativePosition4VertPolygon - ERR20'
+            stop 'Function - RelativePosition4VertPolygonIWD - ERR20'
         endif
 
 
-    end subroutine RelativePosition4VertPolygon
+    end subroutine RelativePosition4VertPolygonIWD
     !--------------------------------------------------------------------------
+    
 
 
 !!  Public-domain function by Darel Rex Finley, 2006.
