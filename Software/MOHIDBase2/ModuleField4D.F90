@@ -914,6 +914,12 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 #endif
         endif
 
+        if (LatStag(     1, 1) /= LatStag(     1,Jmax+1) .or.                           &
+            LatStag(Imax+1, 1) /= LatStag(Imax+1,Jmax+1)) then
+            !Grid with some degree of distortion - not able to read a window
+            Me%ReadWindow = .false.
+        endif
+
 
 irw:    if (Me%ReadWindow) then
 
@@ -1052,7 +1058,7 @@ wwd1:       if (Me%WindowWithData) then
         deallocate(Lon    )
         deallocate(LatStag)
         deallocate(LonStag)
-        if (Me%ReadWindowXY .and. Me%WindowWithData) then
+        if (Me%ReadWindow .and. Me%ReadWindowXY .and. Me%WindowWithData) then
             deallocate(LatStagW)
             deallocate(LonStagW)
         endif
@@ -5749,7 +5755,9 @@ dnP:    do nP = 1,nPoints
                 endif
 
                 call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
+                endif
 
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
 
