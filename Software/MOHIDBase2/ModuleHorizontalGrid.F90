@@ -3480,10 +3480,13 @@ BF:     if (BlockFound) then
                 
                 if (Me%XX_IE(ii, jj) == FillValueReal) Cycle
 
+                 line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
+
                 if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj) .and.                        &
                     Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj)) then
                     
                     write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j
+                    write(*,*) 'Line =', Line
                     CornersOverlap = .true.
                     
                 endif
@@ -3492,6 +3495,7 @@ BF:     if (BlockFound) then
                     Me%YY_IE(ii, jj) == Me%YY_IE(ii, jj+1)) then
                     
                     write(*,*) 'Corners (i,j) overlap',i,j,'vs',i,j+1
+                    write(*,*) 'Line =', Line
                     CornersOverlap = .true.
                     
                 endif                    
@@ -3500,6 +3504,7 @@ BF:     if (BlockFound) then
                     Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj+1)) then
                     
                     write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j+1
+                    write(*,*) 'Line =', Line                    
                     CornersOverlap = .true.
                     
                 endif                                        
@@ -4170,7 +4175,6 @@ BF1:    if (Me%ReadCartCorners) then
 
         Me%Distortion      = .false.
         Me%RegularRotation = .false.
-        Me%CornersXYInput  = .false.
 
         Me%CornersXYInput = .true.
 
@@ -10413,8 +10417,8 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 else
 
                     if (present(PercI) .and. present(PercJ)) then
-                        !
-                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                            call RelativePosition4VertPolygon(                          &
+                                Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),               &
                                                           Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                                                           Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                                                           Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
@@ -18542,7 +18546,7 @@ f4:         if(SearchCell)then
 
                     IsPointInside = .false.
 
-                    !Construct 4 polygons NW, NE, SW, SE
+                    !Construct 4 polygons SW, SE, NW, WE
                     do pi = 1, 4
 
                         !All polygons are defined anti-Clockwise
