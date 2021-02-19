@@ -3478,7 +3478,7 @@ BF:     if (BlockFound) then
                     jj = j
                 endif
                 
-                if (Me%XX_IE(ii, jj) == FillValueReal) Cycle
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) Cycle
 
                  line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
 
