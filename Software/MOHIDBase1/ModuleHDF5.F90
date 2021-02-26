@@ -7458,7 +7458,7 @@ if11 :              if (size == 8) then
 
                 allocate (offset_in (rank))
                 allocate (count_in  (rank))
-                offset_in(:) = 1
+                offset_in(:) = 0
 
                 count_in (:) = 1
 
@@ -7506,7 +7506,7 @@ if11 :              if (size == 8) then
                 
                 NumType = H5T_NATIVE_REAL
 
-                call h5dread_f (dset_id, NumType, ValueOut(1),&
+                call h5dread_f (dset_id, NumType, ValueOut(1:1),&
                                 dims_mem, STAT, memspace_id, space_id)
                 if (STAT /= SUCCESS_) then
                     write(*,*) "FileName  =",trim(Me%Filename)
@@ -7529,6 +7529,11 @@ if11 :              if (size == 8) then
                 if (STAT /= SUCCESS_) then
                     stop 'CheckAllDataSets - ModuleHDF5 - ERR110'
                 endif
+                
+                call h5sclose_f     (memspace_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR115'
+                endif                
                
 
 
