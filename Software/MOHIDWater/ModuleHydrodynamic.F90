@@ -10398,6 +10398,8 @@ d1:             do dn = 1, DischargesNumber
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR70'
 
                             if (IgnoreOK) then
+                                write(*,*) 'I    , J  =', Id, Jd
+                                write(*,*) 'STAT_CALL =', STAT_CALL
                                 write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
                                 cycle
                             else

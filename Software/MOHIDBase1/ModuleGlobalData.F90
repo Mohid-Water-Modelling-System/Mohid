@@ -78,8 +78,10 @@ Module ModuleGlobalData
     !Parameter-----------------------------------------------------------------
     integer, parameter  :: MaxModules           =  99
 
-#ifdef _INCREASE_MAXINSTANCES
+#if   defined(_INCREASE_MAXINSTANCES)
     integer, parameter  :: MaxInstances         = 2000
+#elif defined(_INCREASE_MAXINSTANCES_EXTRA)    
+    integer, parameter  :: MaxInstances         = 20000
 #else
     integer, parameter  :: MaxInstances         = 500
 #endif

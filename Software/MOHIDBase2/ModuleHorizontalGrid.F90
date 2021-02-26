@@ -590,6 +590,7 @@ Module ModuleHorizontalGrid
         logical                                 :: CornersXYInput  = .false.
         logical                                 :: Distortion      = .false.
         logical                                 :: RegularRotation = .false.
+        logical                                 :: GostCorners     = .false. 
 
         integer, dimension(:,:), pointer        :: DefineCellsMap  => null()
         integer, dimension(:,:), pointer        :: DefineFacesUMap => null()
@@ -3478,7 +3479,10 @@ BF:     if (BlockFound) then
                     jj = j
                 endif
                 
-                if (Me%XX_IE(ii, jj) < FillValueReal/2) Cycle
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GostCorners = .true. 
+                    Cycle
+                endif
 
                  line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
 
