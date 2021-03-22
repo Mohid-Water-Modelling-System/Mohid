@@ -68,6 +68,7 @@ Module ModuleFunctions
     !Matrix Operations
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
+    public  :: SetMatrixValueAllocatableV2
     public  :: SetMatrixValueAllocatable_jik
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
@@ -464,6 +465,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8ToR4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
+        module procedure SetMatrixValues3D_R8_FromMatrix_Alloc
     end interface SetMatrixValue
 
     interface SetMatrixValueAllocatable
@@ -475,8 +477,12 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_ConstantAllocatable
         module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
-        !module procedure SetMatrixValues_R_ConstantAllocatable
     end interface SetMatrixValueAllocatable
+    
+    interface SetMatrixValueAllocatableV2
+        module procedure SetMatrixValues3D_R4_FromMatrixPointer
+        module procedure SetMatrixValues3D_R8_FromMatrixPointer
+    end interface SetMatrixValueAllocatableV2
     
     interface SetMatrixValueAllocatable_jik
         module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
@@ -1390,6 +1396,53 @@ Module ModuleFunctions
     end subroutine SetMatrixValues3D_R8_FromMatrixAllocatable
     
     !--------------------------------------------------------------------------
+    subroutine SetMatrixValues3D_R8_FromMatrixPointer(Matrix, Size, InMatrix, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        type (T_Size3D), intent(in)                             :: Size
+        real(8), dimension(:, :, :), pointer, intent(IN)        :: InMatrix
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(STATIC)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+    
+    end subroutine SetMatrixValues3D_R8_FromMatrixPointer
+    
+    !--------------------------------------------------------------------------
     subroutine SetMatrixValues3D_R_FromMatrixAllocatable_jik(Matrix, Size, KFloor, InMatrix, MapMatrix, MaskValue)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
@@ -1891,8 +1944,54 @@ Module ModuleFunctions
 
     end subroutine SetMatrixValues3D_R4_FromMatrixAllocatable
 
-    !--------------------------------------------------------------------------
+subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMatrix)
 
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        type (T_Size3D)                                         :: Size
+        real(4), dimension(:, :, :), pointer, intent(IN)        :: InMatrix
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(STATIC)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine SetMatrixValues3D_R4_FromMatrixPointer
+    
+    !--------------------------------------------------------------------------
+    
     subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
@@ -1952,6 +2051,70 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine SetMatrixValues3D_R8_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
+        type (T_Size3D)                     , intent(IN)            :: Size
+        real(8), dimension(:, :, :), allocatable, intent(IN)        :: InMatrix
+        integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
+        real, optional                                , intent(IN)  :: MaskValue
+
+        !Local-----------------------------------------------------------------
+        integer                                                     :: i, j, k
+        integer                                                     :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MaskValue)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine SetMatrixValues3D_R8_FromMatrix_Alloc
 
     !--------------------------------------------------------------------------
 
@@ -2325,7 +2488,7 @@ Module ModuleFunctions
 
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (MapMatrix(i, j, KUB) == 1) then
@@ -14034,7 +14197,7 @@ D2:     do I=imax-1,2,-1
     !--------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Computes volume to be added or removed due to upscaling discharge
+    !> Computes volume to be added or removed due to upscaling discharge U direction
     !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
     subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
@@ -14061,7 +14224,7 @@ D2:     do I=imax-1,2,-1
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Computes flow to be added or removed due to upscaling discharge
+    !> Computes flow to be added or removed due to upscaling discharge V direction
     !>@param[in] FatherU_old, FatherU, AreaU, Flow, DischargeConnection
     subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------

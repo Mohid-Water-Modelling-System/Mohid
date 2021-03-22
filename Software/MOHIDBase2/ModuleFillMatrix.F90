@@ -7185,7 +7185,7 @@ i0:     if(Me%Dim == Dim2D)then
         call ConstructFatherKGridLocation(Me%PropertyID%ObjGeometry, Me%ObjGeometry, STAT = STAT_CALL)!Sobrinho
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 
-        call AllocateTwoWayAux(Me%ObjTwoWay, Me%PropertyID%ObjTwoWay)
+        call AllocateTwoWayAux(Me%ObjTwoWay, Me%PropertyID%ObjTwoWay, mFILLMATRIX_)
 
     end subroutine Build_Upscaling
     !--------------------------------------------------------------------------
