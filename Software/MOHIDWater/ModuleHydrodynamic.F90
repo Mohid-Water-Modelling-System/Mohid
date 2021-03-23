@@ -126,7 +126,8 @@ Module ModuleHydrodynamic
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
                                        GetTimeSerieValue, WriteTimeSerie,                &
                                        GetTimeSerieName, WriteTimeSerieLine,             &
-                                       GetTimeSerieNextOutput, KillTimeSerie
+                                       GetTimeSerieNextOutput, SetIgnoreTimeSerie,       &
+                                       KillTimeSerie
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetBoundaryFaces,&
                                        GetExteriorBoundaryFaces, UnGetHorizontalMap,     &
                                        GetLandPoints2D
@@ -148,7 +149,7 @@ Module ModuleHydrodynamic
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea, GetConnections, &
-                                       GetCornersCoordinates
+                                       GetCornersCoordinates, GetGhostCorners
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay,                    &
                                        UngetTwoWayExternal_Vars, &
@@ -12344,7 +12345,7 @@ iStart: if (OutputOk) then
 
         !Local-----------------------------------------------------------------
         real                                                :: CoordX, CoordY
-        logical                                             :: CoordON, IgnoreOK
+        logical                                             :: CoordON, IgnoreOK, GhostCorners
         integer                                             :: nProperties
         integer                                             :: STAT_CALL
         integer                                             :: iflag, dn, Id, Jd, TimeSerieNumber, i, j
@@ -12386,11 +12387,14 @@ iStart: if (OutputOk) then
                      ClientModule = 'ModuleHydrodynamic',                               &
                      Default      = Me%Files%ConstructData,                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR30'
 
         call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
                                      Polygon          = ModelDomainLimit, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR35'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR40'
+        
+        GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR50'
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -12398,19 +12402,22 @@ iStart: if (OutputOk) then
                             PropertyList, "srh",                                        &
                             WaterPoints3D = Me%External_Var%WaterPoints3D,              &
                             ModelName     = Me%ModelName,                               &
-                            ModelDomain   = ModelDomainLimit, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR40")
+                            ModelDomain   = ModelDomainLimit,                           &
+                            GhostCorners  = GhostCorners,                               &
+                            STAT          = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR60")
 
         call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, Polygon= ModelDomainLimit, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR45'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR70'
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR50")
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR80")
 
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
 
         do dn = 1, TimeSerieNumber
 
@@ -12421,24 +12428,35 @@ iStart: if (OutputOk) then
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
                                       CoordX = CoordX, CoordY = CoordY, CoordON = CoordON, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR110'
 
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR80'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'
 
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) &
-                    stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_) then
+                    if (GhostCorners) then
+                        
+                        call SetIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK = .true., STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR130'                        
+
+                        cycle
+                    endif
+                else
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR140'
+                    endif
+                endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR150'
 
             endif i1
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn, LocalizationI  = Id, LocalizationJ = Jd, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR160'
 
             if (Me%External_Var%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) &
                  write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
@@ -12447,7 +12465,7 @@ i1:         if (CoordON) then
 
         call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR140")
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR170")
 
     end subroutine Construct_Time_Serie
 
@@ -52351,6 +52369,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
         integer                                 :: STAT_CALL, TimeSerieNumber, dn, id, jd, kd
         logical                                 :: DepthON, IgnoreOK
         integer                                 :: IUB,ILB,JUB,JLB,KUB,KLB
+        character(len=StringLength)             :: TimeSerieName
         !Begin-------------------------------------------------------------------
         IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
         ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
@@ -52398,7 +52417,11 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 if (Me%External_Var%WaterPoints3D(Id, JD, kd) /= WaterPoint .and. Me%FirstIteration) then
 
-                    write(*,*) 'Time serie station I=',Id, 'J=',Jd,'K=',Kd,'is located in land'
+                    call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'                    
+
+                    write(*,*) 'Time serie station ', trim(TimeSerieName), ' is located in land'
+                    write(*,*) 'Time serie station I=',Id, 'J=',Jd,'K=',Kd
                     write(*,*) 'OutPut_TimeSeries - ModuleHydrodynamic - WRN100'
 
                 endif

@@ -148,6 +148,7 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompMapping2D
     public  :: GetDDecompMPI_ID
     public  :: GetDDecompON
+    public  :: GetGhostCorners
 
     public  :: GetSonWindow
 
@@ -590,7 +591,7 @@ Module ModuleHorizontalGrid
         logical                                 :: CornersXYInput  = .false.
         logical                                 :: Distortion      = .false.
         logical                                 :: RegularRotation = .false.
-        logical                                 :: GostCorners     = .false. 
+        logical                                 :: GhostCorners    = .false. 
 
         integer, dimension(:,:), pointer        :: DefineCellsMap  => null()
         integer, dimension(:,:), pointer        :: DefineFacesUMap => null()
@@ -3480,7 +3481,7 @@ BF:     if (BlockFound) then
                 endif
                 
                 if (Me%XX_IE(ii, jj) < FillValueReal/2) then
-                    Me%GostCorners = .true. 
+                    Me%GhostCorners = .true. 
                     Cycle
                 endif
 
@@ -11811,7 +11812,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompMPI_ID
 
     !--------------------------------------------------------------------------
-     !--------------------------------------------------------------------------
 
     logical function GetDDecompON(HorizontalGridID, STAT)
 
@@ -11853,6 +11853,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompON
 
     !--------------------------------------------------------------------------
+
+
+    logical function GetGhostCorners(HorizontalGridID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetGhostCorners = .false.
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            GetGhostCorners  = Me%GhostCorners
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetGhostCorners
 
     !--------------------------------------------------------------------------
 
@@ -18416,6 +18456,50 @@ cd1:    if      (SumON > 0) then
         Point%X = XPoint
         Point%Y = YPoint
 
+    f0: if (Me%GhostCorners)  then 
+            
+    dj1:    do j = JLB, JUB
+    di1:    do i = ILB, IUB
+    
+                if(DefinedPoint(i,j) == 1)then
+    
+                    Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(i  ,j  )
+                    Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(i  ,j  )
+    
+                    Me%AuxPolygon%VerticesF(2)%X  = XX2D_Z(i+1,j  )
+                    Me%AuxPolygon%VerticesF(2)%Y  = YY2D_Z(i+1,j  )
+    
+                    Me%AuxPolygon%VerticesF(3)%X  = XX2D_Z(i+1,j+1)
+                    Me%AuxPolygon%VerticesF(3)%Y  = YY2D_Z(i+1,j+1)
+    
+                    Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(i  ,j+1)
+                    Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(i  ,j+1)
+    
+                    !close polygon
+                    Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
+                    Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
+    
+                    call SetLimits(Me%AuxPolygon)
+    
+                    if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
+    
+                        SearchCell = .false.
+                        CellFound  = .true.
+    
+                        IZ         = i
+                        JZ         = j
+    
+                        exit dj1
+    
+                    endif
+    
+                endif                
+                
+            enddo di1
+            enddo dj1
+            
+        else f0
+
         !check if
 f1:     if (present(Iold) .and. present(Jold)) then
 
@@ -18485,8 +18569,8 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                     IUpper = IUB
                 end if
 
-                do j = JLower, JUpper
-                do i = ILower, IUpper
+dj2:                do j = JLower, JUpper
+di2:                do i = ILower, IUpper
 
                     if(i == iold .and. j == jold) cycle
 
@@ -18518,15 +18602,14 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                             IZ         = i
                             JZ         = j
 
-                            exit
+                                exit dj2
 
                         endif
 
                     endif
 
-                enddo
-                if(CellFound) exit  !exit do J loop
-                enddo
+                    enddo di2
+                    enddo dj2
 
             end if f3
 
@@ -18690,6 +18773,8 @@ f4:         if(SearchCell)then
             endif f4
 
         endif f2
+    
+        endif f0
 
         if (present(CellLocated)) CellLocated = CellFound
 
