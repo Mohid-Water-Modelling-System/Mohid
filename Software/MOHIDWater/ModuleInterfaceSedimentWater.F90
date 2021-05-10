@@ -1297,6 +1297,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                 !Gets File Access Code
                 call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
+                ObjHDF5 = 0
+
                 !Opens HDF5 File
                 call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR50'

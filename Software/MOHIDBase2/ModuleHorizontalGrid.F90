@@ -86,6 +86,7 @@ Module ModuleHorizontalGrid
     !Modifier
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
+    public  :: WriteGridData_ASCII
     public  :: LocateCell
     public  :: LocateCell1D
     public  :: LocateCellPolygons
@@ -147,6 +148,7 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompMapping2D
     public  :: GetDDecompMPI_ID
     public  :: GetDDecompON
+    public  :: GetGhostCorners
 
     public  :: GetSonWindow
 
@@ -589,6 +591,7 @@ Module ModuleHorizontalGrid
         logical                                 :: CornersXYInput  = .false.
         logical                                 :: Distortion      = .false.
         logical                                 :: RegularRotation = .false.
+        logical                                 :: GhostCorners    = .false. 
 
         integer, dimension(:,:), pointer        :: DefineCellsMap  => null()
         integer, dimension(:,:), pointer        :: DefineFacesUMap => null()
@@ -3089,6 +3092,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: ClientNumber
         logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
         integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
+        logical                             :: CornersOverlap
 
         !----------------------------------------------------------------------
 
@@ -3448,6 +3452,75 @@ BF:     if (BlockFound) then
             end do
             end do
 
+            CornersOverlap = .false.
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                    Cycle
+                endif
+
+                 line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
+
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii, jj+1) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i,j+1
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif                    
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj+1) .and.                      &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j+1
+                    write(*,*) 'Line =', Line                    
+                    CornersOverlap = .true.
+                    
+                endif                                        
+
+            end do
+            end do            
+            
+            if (CornersOverlap) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR235'
+            endif
+
 
             if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
 
@@ -3635,6 +3708,13 @@ iconY:      if (ConstantSpacingY) Then
 
                         Me%YY(ii) = Aux
 
+                        if (ii >1) then
+                            if (Me%YY(ii) <  Me%YY(ii-1)) then
+                                write(*,*) 'Block <BeginYY>/<EndYY> need to be written in an ascending way'
+                                stop       'ConstructGlobalVariables - HorizontalGrid - ERR305'
+                            endif
+                        endif
+
                     end do
                 end if
 
@@ -3729,6 +3809,14 @@ iconX:      if (ConstantSpacingX) Then
 
                         Me%XX(jj) = Aux
 
+                        
+                        if (jj >1) then
+                            if (Me%XX(jj) <  Me%XX(jj-1)) then
+                                write(*,*) 'Block <BeginXX>/<EndXX> need to be written in an ascending way'
+                                stop       'ConstructGlobalVariables - HorizontalGrid - ERR375'
+                            endif
+                        endif
+                        
                     end do
                 end if
 
@@ -4092,7 +4180,6 @@ BF1:    if (Me%ReadCartCorners) then
 
         Me%Distortion      = .false.
         Me%RegularRotation = .false.
-        Me%CornersXYInput  = .false.
 
         Me%CornersXYInput = .true.
 
@@ -4347,7 +4434,9 @@ BF1:    if (Me%ReadCartCorners) then
         !real(8)                             :: EarthRadius, Rad_Lat, CosenLat
 
         real                                :: MaxLon, MinLon, MaxLat, MinLat, MinX, MinY
+        real(8)                             :: X1_r8, Y1_r8, X2_r8, Y2_r8
 
+        !Begin-----------------------------------------------------------------        
 
         !Worksize
         ILB = Me%WorkSize%ILB
@@ -4567,10 +4656,15 @@ ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
                     !    CosenLat    = cos(Rad_Lat)
                     !    XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
                     !    YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
-                        call FromSphericalToCart(Lat = Me%LatitudeConn (i, j),              &
-                                                 Lon = Me%LongitudeConn(i, j),              &
-                                                 X   = XX_IE(i, j),                         &
-                                                 Y   = YY_IE(i, j))    
+                        
+                        X1_r8 = Me%LongitudeConn(i, j)
+                        Y1_r8 = Me%LatitudeConn (i, j)
+                        
+                        call FromSphericalToCart(Lat = Y1_r8, Lon = X1_r8, X = X2_r8, Y = Y2_r8)    
+                        
+                        XX_IE(i, j) = X2_r8
+                        YY_IE(i, j) = Y2_r8
+                        
                     enddo
                     enddo
 
@@ -4849,6 +4943,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         !Local-----------------------------------------------------------------
         !real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+        real(8)                         :: LatRef, LonRef
 
         !Begin-----------------------------------------------------------------
                 
@@ -4860,7 +4955,10 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         !X           = CosenLat * EarthRadius * (Lon - Me%Longitude) * radians
         !Y           =            EarthRadius * (Lat - Me%Latitude ) * radians             
 
-        call SphericalToCart(Lat, Lon, X, Y, Me%Longitude, Me%Latitude)        
+        LonRef = Me%Longitude
+        LatRef = Me%Latitude
+        
+        call SphericalToCart(Lat, Lon, X, Y, LonRef, LatRef)
 
     end subroutine FromSphericalToCart
     
@@ -10152,7 +10250,8 @@ cd3 :       if (present(SurfaceMM5)) then
                 !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
             else
                 if (present(PercI) .and. present(PercJ)) then
-                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                    call RelativePosition4VertPolygon(                                  &
+                        Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
                         Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                         Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                         Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
@@ -10323,8 +10422,8 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 else
 
                     if (present(PercI) .and. present(PercJ)) then
-                        !
-                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                            call RelativePosition4VertPolygon(                          &
+                                Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),               &
                                                           Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                                                           Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                                                           Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
@@ -10449,6 +10548,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         integer                                     :: ready_
         real                                        :: xac, yac, xbd, ybd
         integer                                     :: Referential_
+        real(8)                                     :: Xin_r8, Yin_r8, XPoint_r8, YPoint_r8
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -10468,21 +10568,30 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
+            
             if (Me%CoordType == SIMPLE_GEOG_ .and. present(Xin) .and. present(Yin)) then 
+                
+                Xin_r8 = Xin
+                Yin_r8 = Yin
                 
                 if (Referential_ == GridCoord_) then
                     
-                    call FromCartToSpherical(Lat = YPoint,                              &
-                                             Lon = XPoint,                              &
-                                             X   = Xin,                                 &
-                                             Y   = Yin)    
+                    call FromCartToSpherical(Lat = YPoint_r8,                           &
+                                             Lon = XPoint_r8,                           &
+                                             X   = Xin_r8,                              &
+                                             Y   = Yin_r8)    
                 else
             
-                    call FromSphericalToCart(Lat = Yin,                                 &
-                                             Lon = Xin,                                 &
-                                             X   = XPoint,                              &
-                                             Y   = YPoint)    
+                    call FromSphericalToCart(Lat = Yin_r8,                              &
+                                             Lon = Xin_r8,                              &
+                                             X   = XPoint_r8,                           &
+                                             Y   = YPoint_r8)    
                 endif
+                
+                XPoint = XPoint_r8
+                YPoint = YPoint_r8
+                
+                
                 
             else    
             XX2D        => Me%XX_IE
@@ -11703,7 +11812,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompMPI_ID
 
     !--------------------------------------------------------------------------
-     !--------------------------------------------------------------------------
 
     logical function GetDDecompON(HorizontalGridID, STAT)
 
@@ -11745,6 +11853,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompON
 
     !--------------------------------------------------------------------------
+
+
+    logical function GetGhostCorners(HorizontalGridID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetGhostCorners = .false.
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            GetGhostCorners  = Me%GhostCorners
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetGhostCorners
 
     !--------------------------------------------------------------------------
 
@@ -12257,10 +12405,10 @@ id:         if (InsideDomain) then
                     YYLower  = YYFather(Ilower)
                     YYUpper  = YYFather(Iupper)
 
-                    XPosition = XInput
-                    YPosition = YInput
+                    XPosition = XInput - Me%Xorig
+                    YPosition = YInput - Me%Yorig
 
-                    call RODAXY(-Me%Xorig, -Me%Yorig, -Me%Grid_Angle, XPosition, YPosition)
+                    call RODAXY(0., 0., -Me%Grid_Angle, XPosition, YPosition)
 
                 else
 
@@ -13960,6 +14108,329 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
     end subroutine WriteHorizontalGrid_UV
 
     !--------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------------
+
+    subroutine WriteGridData_ASCII (FileName,                                           &
+                                    COMENT1, COMENT2,                                   &
+                                    HorizontalGridID,                                   &
+                                    FillValue, Overwrite,                               &
+                                    DistortionYes,                                      &    
+                                    STAT)                                                                           
+        
+        !Arguments---------------------------------------------------------------
+        character(LEN = *), intent(IN)              :: FileName
+        character(LEN = *), intent(IN)              :: COMENT1          
+        character(LEN = *), intent(IN)              :: COMENT2   
+        integer                                     :: HorizontalGridID       
+        real                                        :: FillValue
+        logical, intent(IN)                         :: Overwrite
+        logical, optional, intent(IN)               :: DistortionYes
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-------------------------------------------------------------------
+        real                                        :: Xorig      
+        real                                        :: Yorig       
+        real                                        :: GRID_ANGLE  
+        integer                                     :: Zone        
+        real                                        :: Longitude
+        real                                        :: Latitude    
+        integer                                     :: CoordType  
+        
+        real, pointer,           dimension(:  )     :: XX, YY
+        real, pointer,           dimension(:,:)     :: XX_IE, YY_IE
+        real, pointer,           dimension(:,:)     :: LatConn, LongConn
+                
+        real, pointer,           dimension(:  )     :: XX_Out, YY_Out
+        real, pointer,           dimension(:,:)     :: XX_IE_Out, YY_IE_Out
+        real, pointer,           dimension(:,:)     :: LatConn_Out, LongConn_Out
+        
+        type (T_Size2D)                             :: WorkSize, Global
+
+        integer                                     :: Unit
+        integer                                     :: STAT_CALL
+        integer                                     :: UTM_, MIL_PORT_
+        integer                                     :: PORTUGUESE_UTM_ZONE_, SIMPLE_GEOG_
+        logical                                     :: exist, DistortionYes_
+        integer                                     :: i, j
+
+        logical                                     :: ON, Master, MasterOrSlave
+
+        !------------------------------------------------------------------------
+
+        
+        !Gets Origin
+        call GetGridOrigin(HorizontalGridID, Xorig, Yorig, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR20'
+        
+        !Gets GridAngle
+        call GetGridAngle(HorizontalGridID, GRID_ANGLE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR30'
+
+        !Gets GridZone
+        call GetGridZone (HorizontalGridID, Zone, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR40'
+
+        !Gets Lat/lon
+        call GetLatitudeLongitude (HorizontalGridID, Latitude, Longitude, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR50'
+        
+        !Gets Lat/lon
+        call GetGridCoordType (HorizontalGridID, CoordType, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR60'
+        
+        !Gets XX/ YY and XX_IE, YY_IE
+        call GetHorizontalGrid(HorizontalGridID, XX = XX, YY = YY, XX_IE = XX_IE, YY_IE = YY_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR70'
+
+        call GetGridLatitudeLongitude(HorizontalGridID,                     &
+                                      GridLatitudeConn  = LatConn,          &
+                                      GridLongitudeConn = LongConn,         &
+                                      STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR80'
+        
+        if (present(DistortionYes)) then
+            
+            DistortionYes_ = DistortionYes
+            
+        else            
+
+            call GetCheckDistortion(HorizontalGridID, DistortionYes_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR90'
+        
+        endif
+
+        !Gets WorkSize
+        call GetHorizontalGridSize(HorizontalGridID, WorkSize = WorkSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR100'
+
+        call GetDDecompParameters                                                   &
+                             (HorizontalGridID = HorizontalGridID,                  &
+                              ON               = ON,                     &
+                              Master           = Master,                 &
+                              MasterOrSlave    = MasterOrSlave,          &
+                              Global           = Global,                 &  
+                              STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR110'
+        
+        
+
+if3:    if (.not. MasterOrSlave .or. Master) then
+
+            call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR120'
+            
+            if(.not. Overwrite)then
+                !Verifies if file exists
+                inquire (file = FileName, exist = exist)
+                if (exist) then
+                    write(*,* )'Cannot write Grid Data. File Exists already!'
+                    write(*, *)trim(adjustl(FileName))
+                    stop 'WriteGridData_ASCII - ModuleGridData - ERR130' 
+                endif
+
+                !Opens file
+                open (Unit, file = FileName, status = 'new', IOSTAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR140'
+            else
+                !Opens file
+                open (Unit, file = FileName, status = 'replace', IOSTAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) then 
+                    write(*,*) 'Was not possible to write to file ', FileName
+                    write(*,*) 'OPEN returned IOSTAT = ', STAT_CALL
+                    stop 'WriteGridData_ASCII - ModuleGridData - ERR150'
+                endif
+            end if
+        
+        endif if3        
+
+        
+if1:    if (MasterOrSlave) then
+
+            WorkSize = Global
+            
+#ifdef _USE_MPI                        
+                        
+            if (DistortionYes_) then
+                if (CoordType .EQ. SIMPLE_GEOG_) then
+                    call JoinGridData(HorizontalGridID = HorizontalGridID,              &
+                                      In2D             = LongConn,                      &
+                                      Out2D            = LongConn_Out,                  &
+                                      dj               = 1,                             &
+                                      di               = 1,                             &
+                                      STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR210'
+                    call JoinGridData(HorizontalGridID = HorizontalGridID,              &
+                                      In2D             = LatConn,                       &
+                                      Out2D            = LatConn_Out,                   &
+                                      dj               = 1,                             &
+                                      di               = 1,                             &
+                                      STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR220'
+                else
+                    call JoinGridData(HorizontalGridID = HorizontalGridID,              &
+                                      In2D             = XX_IE,                         &
+                                      Out2D            = XX_IE_Out,                     &
+                                      dj               = 1,                             &
+                                      di               = 1,                             &
+                                      STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR230'
+                    call JoinGridData(HorizontalGridID = HorizontalGridID,              &
+                                      In2D             = YY_IE,                         &
+                                      Out2D            = YY_IE_Out,                     &
+                                      dj               = 1,                             &
+                                      di               = 1,                             &
+                                      STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR240'
+                end if
+            else
+                call JoinGridData(HorizontalGridID = HorizontalGridID,                  &
+                                  In1D             = XX,                                &
+                                  Out1D            = XX_Out,                            &
+                                  Type1DIJ         = Type1DJ,                           &
+                                  dj               = 1,                                 &
+                                  STAT             = STAT_CALL)
+                 if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR250'
+
+                call JoinGridData(HorizontalGridID = HorizontalGridID,                  &
+                                  In1D             = YY,                                &
+                                  Out1D            = YY_Out,                            &
+                                  Type1DIJ         = Type1DI,                           &
+                                  di               = 1,                                 &                                  
+                                  STAT             = STAT_CALL)
+                 if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR260'
+            endif       
+            
+#endif _USE_MPI                             
+           
+        else if1
+
+            XX_Out              => XX
+            YY_Out              => YY
+            XX_IE_Out           => XX_IE
+            YY_IE_Out           => YY_IE
+            LatConn_Out         => LatConn
+            LongConn_Out        => LongConn
+        
+        endif if1
+        
+if2:    if (.not. MasterOrSlave .or. Master) then
+
+            call WriteDataLine(unit, 'COMENT1', COMENT1)
+            call WriteDataLine(unit, 'COMENT2', COMENT2)
+            write(unit, *)                                                                                                      
+            write(unit, *)                                                                                                      
+                           
+            write(unit, *) 'ILB_IUB    :', WorkSize%ILB, WorkSize%IUB
+            write(unit, *) 'JLB_JUB    :', WorkSize%JLB, WorkSize%JUB
+            
+            write(unit, *) 'COORD_TIP  :', CoordType
+
+            call GetCoordTypeList(UTM = UTM_, MIL_PORT = MIL_PORT_, &
+                                  PORTUGUESE_UTM_ZONE = PORTUGUESE_UTM_ZONE_, &
+                                  SIMPLE_GEOG = SIMPLE_GEOG_)
+            if ((CoordType .EQ. UTM_) .OR. (CoordType .EQ. MIL_PORT_)) then
+                if (CoordType .EQ. MIL_PORT_) then
+                    write(unit, *)  'ZONE       :', PORTUGUESE_UTM_ZONE_
+                else
+                    write(unit, *)  'ZONE       :', Zone
+                endif
+            end if
+
+            write(unit, *) 'ORIGIN     :', Xorig, Yorig
+            write(unit, *) 'GRID_ANGLE :', GRID_ANGLE
+            write(unit, *) 'LATITUDE   :', Latitude           
+            write(unit, *) 'LONGITUDE  :', Longitude             
+            write(unit, *) 'FILL_VALUE :', FillValue
+            write(unit, *) 
+            write(unit, *) 
+
+            if (DistortionYes_) then
+
+                write(unit, *) "<CornersXY>"
+
+                if (CoordType .EQ. SIMPLE_GEOG_) then
+                    
+                    do i = WorkSize%ILB, WorkSize%IUB+1
+                    do j = WorkSize%JLB, WorkSize%JUB+1 
+                        write(unit, *) LongConn_Out(i,j), LatConn_Out(i,j)
+                    end do
+                    end do
+
+                else
+
+                    do i = WorkSize%ILB, WorkSize%IUB+1
+                    do j = WorkSize%JLB, WorkSize%JUB+1 
+                        write(unit, *) XX_IE_Out(i,j),YY_IE_Out(i,j)
+                    end do
+                    end do
+
+                end if
+
+                write(unit, *) "<"//backslash//"CornersXY>"             
+    !            write(unit, *) "<\CornersXY>"
+
+
+            else
+
+                write(unit, *) "<BeginXX>"
+                do j = WorkSize%JLB, WorkSize%JUB+1 
+                    write(unit, *) XX_Out(j)                       
+                end do
+                write(unit, *) "<EndXX>"
+
+
+                write(unit, *) "<BeginYY>"
+                do i = WorkSize%ILB, WorkSize%IUB+1
+                    write(unit, *) YY_Out(i)  
+                end do
+                write(unit, *) "<EndYY>"
+
+            endif
+        
+            !Closes Files             
+            call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR270'
+
+        endif if2
+
+        !Ungets XX, YY
+        call UngetHorizontalGrid (HorizontalGridID, XX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR280'
+
+        call UngetHorizontalGrid (HorizontalGridID, YY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR290'
+
+        call UngetHorizontalGrid(HorizontalGridID, XX_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR300'
+
+        call UngetHorizontalGrid(HorizontalGridID, YY_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR310'
+
+        call UngetHorizontalGrid(HorizontalGridID, LatConn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR320'
+
+        call UngetHorizontalGrid(HorizontalGridID, LongConn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_ASCII - ModuleGridData - ERR330'
+
+
+if31:   if (MasterOrSlave) then
+
+            if (associated(XX_Out             )) deallocate(XX_Out                )
+            if (associated(YY_Out             )) deallocate(YY_Out                )
+            if (associated(XX_IE_Out          )) deallocate(XX_IE_Out             )
+            if (associated(YY_IE_Out          )) deallocate(YY_IE_Out             )
+            if (associated(LatConn_Out        )) deallocate(LatConn_Out           )
+            if (associated(LongConn_Out       )) deallocate(LongConn_Out          )    
+        
+        endif if31            
+
+        if (present(STAT)) STAT = SUCCESS_
+
+        !------------------------------------------------------------------------
+
+    end subroutine WriteGridData_ASCII
+    
 
     subroutine ReadHDF5HorizontalGrid ()
 
@@ -17985,6 +18456,50 @@ cd1:    if      (SumON > 0) then
         Point%X = XPoint
         Point%Y = YPoint
 
+    f0: if (Me%GhostCorners)  then 
+            
+    dj1:    do j = JLB, JUB
+    di1:    do i = ILB, IUB
+    
+                if(DefinedPoint(i,j) == 1)then
+    
+                    Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(i  ,j  )
+                    Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(i  ,j  )
+    
+                    Me%AuxPolygon%VerticesF(2)%X  = XX2D_Z(i+1,j  )
+                    Me%AuxPolygon%VerticesF(2)%Y  = YY2D_Z(i+1,j  )
+    
+                    Me%AuxPolygon%VerticesF(3)%X  = XX2D_Z(i+1,j+1)
+                    Me%AuxPolygon%VerticesF(3)%Y  = YY2D_Z(i+1,j+1)
+    
+                    Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(i  ,j+1)
+                    Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(i  ,j+1)
+    
+                    !close polygon
+                    Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
+                    Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
+    
+                    call SetLimits(Me%AuxPolygon)
+    
+                    if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
+    
+                        SearchCell = .false.
+                        CellFound  = .true.
+    
+                        IZ         = i
+                        JZ         = j
+    
+                        exit dj1
+    
+                    endif
+    
+                endif                
+                
+            enddo di1
+            enddo dj1
+            
+        else f0
+
         !check if
 f1:     if (present(Iold) .and. present(Jold)) then
 
@@ -18054,8 +18569,8 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                     IUpper = IUB
                 end if
 
-                do j = JLower, JUpper
-                do i = ILower, IUpper
+dj2:                do j = JLower, JUpper
+di2:                do i = ILower, IUpper
 
                     if(i == iold .and. j == jold) cycle
 
@@ -18087,15 +18602,14 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                             IZ         = i
                             JZ         = j
 
-                            exit
+                                exit dj2
 
                         endif
 
                     endif
 
-                enddo
-                if(CellFound) exit  !exit do J loop
-                enddo
+                    enddo di2
+                    enddo dj2
 
             end if f3
 
@@ -18119,7 +18633,7 @@ f4:         if(SearchCell)then
 
                     IsPointInside = .false.
 
-                    !Construct 4 polygons NW, NE, SW, SE
+                    !Construct 4 polygons SW, SE, NW, WE
                     do pi = 1, 4
 
                         !All polygons are defined anti-Clockwise
@@ -18259,6 +18773,8 @@ f4:         if(SearchCell)then
             endif f4
 
         endif f2
+    
+        endif f0
 
         if (present(CellLocated)) CellLocated = CellFound
 
@@ -18306,6 +18822,9 @@ f4:         if(SearchCell)then
 
 
     end function InsideDomainPolygon
+    
+    
+
 
 
 #ifdef _OPENMI_

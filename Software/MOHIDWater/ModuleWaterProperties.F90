@@ -2754,9 +2754,9 @@ do1:        do while (associated(ObjCohort%Next))
 
         !Begin-----------------------------------------------------------------
 
-        if (Species%LarvaeTransport) then
-            call AllocateAuxLarvae(NewCohort)
-        end if
+
+        call AllocateLarvae(NewCohort, Species%LarvaeTransport)
+
 
         !Cohorts Name
         write(CohortIDStr, ('(i5)'))NewCohort%ID%ID
@@ -2915,10 +2915,11 @@ do1:        do while (associated(ObjCohort%Next))
 
     !--------------------------------------------------------------------------
 
-    subroutine AllocateAuxLarvae(NewCohort)
+    subroutine AllocateLarvae(NewCohort, LarvaeTransport)
 
         !Arguments-------------------------------------------------------------
         type(T_Cohort), pointer             :: NewCohort
+        logical, intent(in)                 :: LarvaeTransport
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL
@@ -2939,33 +2940,37 @@ do1:        do while (associated(ObjCohort%Next))
 
         allocate(NewCohort%Larvae(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeL(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if(LarvaeTransport)then
+            
+            allocate(NewCohort%AuxLarvaeL(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeME(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeME(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMV(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMV(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMH(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMH(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMR(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMR(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
+            
+        endif
 
-    end subroutine AllocateAuxLarvae
+    end subroutine AllocateLarvae
 
     !--------------------------------------------------------------------------
 
@@ -3292,9 +3297,7 @@ do6 :                       do K = WKLB, WKUB
         NewCohort%ID%Name = trim(adjustl(Species%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
         write(*,*)trim(adjustl(NewCohort%ID%Name))
 
-        if (Species%LarvaeTransport) then
-            call AllocateAuxLarvae(NewCohort)
-        end if
+        call AllocateLarvae(NewCohort, Species%LarvaeTransport)
 
         !Newborns properties, from bivalve?
         call GetBivalveNewBornParameters (Bivalve_ID      = Me%ObjBivalve,          &
@@ -17083,7 +17086,7 @@ cd5:                if (TotalVolume > 0.) then
                     Property_L%Concentration(i,j,k) .le. LarvaeMaxSize .and. &
                     Property_N%Concentration(i,j,k) .gt. 0.0) then
                     Cohort%Larvae(i,j,k) = 1
-                else
+                    else
                     Cohort%Larvae(i,j,k) = 0
                 endif
 
@@ -17847,7 +17850,8 @@ TOut:   if (CurrentTime >= OutTime) then
                 SpeciesID = Me%Bivalve%ListNewbornsIDs(iSpeciesID)
 
                 if (Species%ID%IDNumber .eq. SpeciesID) then !this species has new borns
-
+                    
+                    nullify(NewCohort)
                     allocate(NewCohort)
 
                     call AddCohort (Species, NewCohort)

@@ -14,7 +14,7 @@
 !
 !------------------------------------------------------------------------------
 
-!Nomfich.dat:
+!nomfich.dat:
 !
 !   IN_MODEL                : char                  [-]     !Path to the input file with
 !                                                           !user's instructions (DataFile)                                                                

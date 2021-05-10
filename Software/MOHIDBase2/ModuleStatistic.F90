@@ -3607,6 +3607,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         real, dimension(:, :, :), pointer           :: AuxMatrix3D
         real, dimension(:, :   ), pointer           :: AuxMatrix2D
         real                                        :: Aux, d1, d2
+        real                                        :: AuxFreq
         real(8), dimension(:), allocatable          :: P,C
         real(8)                                     :: Px,Cx, sumFreq
         integer                                     :: nc, n
@@ -4351,7 +4352,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                     do iClass = 1, nc
 
-                        sumFreq = sumFreq + Me%Classification%Frequency(i, j, k, iClass)
+                        AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                        sumFreq = sumFreq + AuxFreq
 
                     enddo
                     
@@ -4359,7 +4362,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                         do iClass = 1, nc
 
-                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) / sumFreq * 100.
+                            AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                            P(iClass + 1) = P(iClass) + AuxFreq / sumFreq * 100.
 
                         enddo
 
@@ -4367,7 +4372,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                         do iClass = 1, nc
 
-                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+                            AuxFreq = Me%Classification%Frequency(i, j, k, iClass) 
+
+                            P(iClass + 1) = P(iClass) + AuxFreq * 100.
 
                         enddo
                         
@@ -4377,7 +4384,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 
 doClass1:           do iClass = 1, nc
 
-                        P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+                        AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                        P(iClass + 1) = P(iClass) + AuxFreq * 100.
 
                     enddo doClass1                
                     
