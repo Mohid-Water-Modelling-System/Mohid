@@ -1520,7 +1520,8 @@ Module ModuleTwoWay
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
-        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon
+        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather
+        real,    dimension(:,:,:), allocatable, intent(IN   ) :: VelSon
         real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
         real                              , intent(IN   ) :: CoefCold, VelDT
         integer                           , intent(IN   ) :: VelID

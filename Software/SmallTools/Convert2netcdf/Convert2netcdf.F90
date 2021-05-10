@@ -2439,18 +2439,34 @@ program Convert2netcdf
                 
 ! Next 2 keywords are not CF compliant
             case("mean_wave_direction_X")
+                
                 NCDFName        = "wave_X"
+                
+                if (Me%OdysseaProject) then
+                    LongName        = "eastward wave direction unit vector"
+                    StandardName    = "eastward_wave_direction_unit_vector"                
+                else
                 LongName        = "mean wave direction X"
                 StandardName    = "mean_wave_direction_X"
+                endif
+                
                 Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
                 MissingValue    = Me%MissingValue
 
             case("mean_wave_direction_Y")
+                
                 NCDFName        = "wave_Y"
+                
+                if (Me%OdysseaProject) then                
+                    LongName        = "northward wave direction unit vector"
+                    StandardName    = "northward_wave_direction_unit_vector"                
+                else                
                 LongName        = "mean wave direction Y"
                 StandardName    = "mean_wave_direction_Y"
+                endif
+                
                 Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.

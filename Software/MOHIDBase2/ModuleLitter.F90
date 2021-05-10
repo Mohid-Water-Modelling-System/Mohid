@@ -327,7 +327,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            Me%Files%Nomfich        = "Nomfich.dat"
+            Me%Files%Nomfich        = "nomfich.dat"
             
             allocate(VectorX(5), VectorY(5))
             

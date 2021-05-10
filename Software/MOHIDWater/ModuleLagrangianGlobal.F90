@@ -1257,7 +1257,7 @@ Module ModuleLagrangianGlobal
          logical                                :: NetCDF               = .false.
          integer                                :: ObjNETCDF            = null_int
          integer                                :: NetCDF_DimID         = null_int
-         
+         logical                                :: AmbientConc          = OFF
     end type T_OutPut
 
   
@@ -4185,6 +4185,16 @@ d2:     do em =1, Me%EulerModelNumber
 
         call GetComputeTimeStep(Me%ExternalVar%ObjTime, DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR70'
+        
+        call GetData(Me%OutPut%AmbientConc,                                             & 
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='OUTPUT_AMBIENT_CONC',                               &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR75'
 
         !Get time step for particle from file
         DT_PARTIC = null_real
@@ -25784,7 +25794,9 @@ i1:             if (nP>0) then
                         enddo
                         
                         if (CurrentOrigin%State%VariableGeom) then
-                            call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                            if(Me%Output%AmbientConc)then
+                                call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                            endif
                         endif                                
 
                         deallocate  (Matrix1D)
@@ -26845,10 +26857,11 @@ thick:                      do while (associated(CurrentOrigin))
 
                         enddo
                         
-                       if (Me%State%VariableGeom) then
-                            call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                        if (Me%State%VariableGeom) then
+                            if(Me%Output%AmbientConc)then
+                                call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                            endif
                         endif                                      
-
 
                         deallocate  (Matrix1D)
 

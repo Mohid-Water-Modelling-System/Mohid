@@ -1493,7 +1493,7 @@ i111:           if (Me%FlagFilter(i) == 1) then
                     
                     jaux = int(real(iaux)/2.) + 1
                     
-                    write(Me%iSmooth,*) Me%TimeTS(i)-Me%BeginTime, SortArray(jaux)
+                    write(Me%iSmooth,*) Me%TimeTS(i)-Me%BeginTime, SortArray(jaux), Me%DataMatrix(i,Me%DataColumn)   
                     !write(Me%iSmooth,*) Me%TimeTS(i)-Me%BeginTime, sum(SortArray(1:iaux))/iaux
                     
                     deallocate(SortArray)

@@ -2272,7 +2272,7 @@ doi:                do i = ILB, IUB
 
             if (Me%ExternalVar%StopOnBathymetryChange) then
                 if (.not.MasterOrSlave .or. (MasterOrSlave .and. Master)) then
-                    write(*,*)'Modify the file Nomfich.dat and Re-run the model'
+                    write(*,*)'Modify the file nomfich.dat and Re-run the model'
                     stop 'VerifyBathymetry - Geometry - ERR170'
                 endif
             endif
