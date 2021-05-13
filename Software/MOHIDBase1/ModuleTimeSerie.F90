@@ -1674,7 +1674,7 @@ cd1 :       if (present(ResultFileName)) then
                 if (STAT_CALL /= SUCCESS_) then
                     write(*,*) 'Error opening time series file ',                       &
                                 trim(Me%TimeSerie(iTimeSerie)%FileName)
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR30'
                 endif            
             
                 inquire (file      = FileName,                                          &
@@ -1683,13 +1683,13 @@ cd1 :       if (present(ResultFileName)) then
                 if (STAT_CALL /= SUCCESS_) then                     
                     write(*,*) 'Error inquiring if time series file has already opened', &
                                 trim(Me%TimeSerie(iTimeSerie)%FileName)
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR30'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR40'
                 endif
                 
                 i = i + 1
                 
                 if (i >100) then
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR40'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
                 endif                    
                 
                 if (Action_ == 'READ') then
@@ -1715,7 +1715,7 @@ cd1 :       if (present(ResultFileName)) then
                     if (STAT_CALL /= SUCCESS_) then
                         write(*,*) 'Error closing time series file ',                   &
                                     trim(Me%TimeSerie(iTimeSerie)%FileName)
-                        stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                        stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR60'
                     endif                    
                     
                 else
