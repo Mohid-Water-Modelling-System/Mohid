@@ -900,7 +900,7 @@ iIC:                    if (IsolatedCell) then
         write(*,*)''
         
         if (Me%StopOnBathymetryChange) then
-            write(*,*)'Modify the file Nomfich.dat and Re-run the model'
+            write(*,*)'Modify the file nomfich.dat and Re-run the model'
             stop 'CorrectIsolatedCells - ModuleMap - ERR60'
         endif
         

@@ -914,6 +914,12 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 #endif
         endif
 
+        if (LatStag(     1, 1) /= LatStag(     1,Jmax+1) .or.                           &
+            LatStag(Imax+1, 1) /= LatStag(Imax+1,Jmax+1)) then
+            !Grid with some degree of distortion - not able to read a window
+            Me%ReadWindow = .false.
+        endif
+
 
 irw:    if (Me%ReadWindow) then
 
@@ -976,21 +982,31 @@ iJI:        if (Me%ReadWindowJI) then
 
                 ILB = Me%WindowLimitsJI%ILB
                 if (ILB < 1) then
+                    write (*,*) "ILB =", ILB
+                    write (*,*) "Filename=", trim(Me%File%FileName)
                     stop 'ReadGridFromFile - ModuleField4D - ERR80'
                 endif
 
                 IUB = Me%WindowLimitsJI%IUB
                 if (IUB > imax) then
+                    write (*,*) "IUB =", IUB
+                    write (*,*) "imax=", imax
+                    write (*,*) "Filename=", trim(Me%File%FileName)                    
                     stop 'ReadGridFromFile - ModuleField4D - ERR90'
                 endif
 
                 JLB = Me%WindowLimitsJI%JLB
                 if (JLB < 1) then
+                    write (*,*) "JLB =", JLB
+                    write (*,*) "Filename=", trim(Me%File%FileName)                    
                     stop 'ReadGridFromFile - ModuleField4D - ERR100'
                 endif
 
                 JUB = Me%WindowLimitsJI%JUB
                 if (JUB > jmax) then
+                    write (*,*) "JUB =", JUB
+                    write (*,*) "jmax=", jmax                    
+                    write (*,*) "Filename=", trim(Me%File%FileName)
                     stop 'ReadGridFromFile - ModuleField4D - ERR110'
                 endif
 
@@ -1042,7 +1058,7 @@ wwd1:       if (Me%WindowWithData) then
         deallocate(Lon    )
         deallocate(LatStag)
         deallocate(LonStag)
-        if (Me%ReadWindowXY .and. Me%WindowWithData) then
+        if (Me%ReadWindow .and. Me%ReadWindowXY .and. Me%WindowWithData) then
             deallocate(LatStagW)
             deallocate(LonStagW)
         endif
@@ -5739,7 +5755,9 @@ dnP:    do nP = 1,nPoints
                 endif
 
                 call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
+                endif
 
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
 
@@ -6504,6 +6522,17 @@ dnP:    do nP = 1,nPoints
 
                 call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR50'
+                
+                if (PercI < 0 .or. PercI >1) then
+                    write(*,*) 'Wrong 0<PercI<1 =',PercI, 'Cell i,j=',i, j
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR55'
+                endif
+                
+                if (PercJ < 0 .or. PercJ >1) then
+                    write(*,*) 'Wrong 0<PercJ<1 =',PercJ, 'Cell i,j=',i, j
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR57'
+                endif
+                
 
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
                     

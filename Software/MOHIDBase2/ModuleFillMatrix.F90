@@ -4662,9 +4662,9 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
                 call ConstructGridData(CurrentASCIIFile%GridDataID, Me%ObjHorizontalGrid,        &
                                        FileName     = CurrentASCIIFile%FileName,                 &
-                                       KLB          = Me%Worksize3D%KLB,                     &
-                                       KUB          = Me%Worksize3D%KUB,                     &
-                                       DefaultValue = Me%DefaultValue(i),                    &
+                                       KLB          = Me%Worksize3D%KLB,                         &
+                                       KUB          = Me%Worksize3D%KUB,                         &
+                                       DefaultValue = Me%DefaultValue(file),                     &
                                        STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR08'
 

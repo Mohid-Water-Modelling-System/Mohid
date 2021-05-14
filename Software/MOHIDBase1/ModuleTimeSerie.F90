@@ -64,6 +64,7 @@ Module ModuleTimeSerie
     public  :: WriteSpecificTimeSerieLine
     public  :: CorrectsCellsTimeSerie
     public  :: TryIgnoreTimeSerie
+    public  :: SetIgnoreTimeSerie
     public  :: ReseatCurrentIndex
 
     !Selector
@@ -183,6 +184,7 @@ Module ModuleTimeSerie
         logical                                     :: TimeSerie1D          = .false.
         logical                                     :: ComputeResidual      = .true.
         !logical                                     :: IgnoreON             = .false.
+        logical                                     :: GhostCorners         = .false.         
 
         !TimeSerieInput 
         logical                                     :: TimeCycle            = .false.
@@ -239,7 +241,8 @@ Module ModuleTimeSerie
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
                               ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              HavePath, Comment, ModelDomain, ReplacePath, STAT)
+                              HavePath, Comment, ModelDomain, ReplacePath, GhostCorners, &
+                              STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: TimeSerieID
@@ -260,6 +263,7 @@ Module ModuleTimeSerie
         character(len=*), optional, intent(IN )         :: Comment
         type (T_Polygon), pointer, optional             :: ModelDomain
         character(len=*), optional, intent(IN )         :: ReplacePath
+        logical, optional, intent(IN )                  :: GhostCorners
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -317,6 +321,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ModelDomainON = .false.
             endif
             
+            if (present(GhostCorners)) then
+                Me%GhostCorners = GhostCorners
+            else
+                Me%GhostCorners = .false.
+            endif            
+            
 
             !Constructs EnterData
             call ConstructEnterData(Me%ObjEnterData, TimeSerieDataFile, STAT = STAT_CALL)
@@ -365,17 +375,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (flag > 0) Me%ReplacePathON = .true. 
                 
             endif                
-
-            !call GetData(Me%IgnoreON,                                           &
-            !             Me%ObjEnterData,                                       &
-            !             flag,                                                  &
-            !             SearchType   = FromFile,                               &
-            !             keyword      ='IGNORE_ON',                             &
-            !             Default      = .false.,                                &
-            !             ClientModule ='ModuleTimeSerie',                       &
-            !             STAT         = STAT_CALL)        
-            !if (STAT_CALL .NE. SUCCESS_)                                        &
-            !    call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR50") 
 
             !Stores the number of properties
             Me%NumberOfProperties = size(PropertyList)
@@ -903,10 +902,15 @@ i12:        if (Me%TimeSerie(iTimeSerie)%CoordON .and. Me%ModelDomainON) then
                 TimeSeriesXY%X = Me%TimeSerie(iTimeSerie)%CoordX
                 TimeSeriesXY%Y = Me%TimeSerie(iTimeSerie)%CoordY
             
+                Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
+                
+                if (Me%GhostCorners) then
+                    Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
+                else
                 if (.not. IsPointInsidePolygon(TimeSeriesXY, Me%ModelDomain)) then
                     Me%TimeSerie(iTimeSerie)%IgnoreON = .true. 
                 endif
-                
+                endif
                 deallocate(TimeSeriesXY)
                 
             endif i12
@@ -1670,7 +1674,7 @@ cd1 :       if (present(ResultFileName)) then
                 if (STAT_CALL /= SUCCESS_) then
                     write(*,*) 'Error opening time series file ',                       &
                                 trim(Me%TimeSerie(iTimeSerie)%FileName)
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR30'
                 endif            
             
                 inquire (file      = FileName,                                          &
@@ -1679,13 +1683,13 @@ cd1 :       if (present(ResultFileName)) then
                 if (STAT_CALL /= SUCCESS_) then                     
                     write(*,*) 'Error inquiring if time series file has already opened', &
                                 trim(Me%TimeSerie(iTimeSerie)%FileName)
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR30'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR40'
                 endif
                 
                 i = i + 1
                 
                 if (i >100) then
-                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR40'
+                    stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
                 endif                    
                 
                 if (Action_ == 'READ') then
@@ -1711,7 +1715,7 @@ cd1 :       if (present(ResultFileName)) then
                     if (STAT_CALL /= SUCCESS_) then
                         write(*,*) 'Error closing time series file ',                   &
                                     trim(Me%TimeSerie(iTimeSerie)%FileName)
-                        stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR50'
+                        stop 'OpenTimeSerieFiles - ModuleTimeSerie - ERR60'
                     endif                    
                     
                 else
@@ -3523,6 +3527,60 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine TryIgnoreTimeSerie
+    
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetIgnoreTimeSerie(TimeSerieID, Number, IgnoreOK, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: TimeSerieID       
+        integer, intent(IN)                         :: Number
+        logical, intent(IN)                         :: IgnoreOK
+        integer, intent(OUT), optional              :: STAT
+
+
+                  
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            Me%TimeSerie(Number)%IgnoreON = IgnoreOK
+            
+            if (IgnoreOK) then
+                call UnitsManager(unit      = Me%TimeSerie(Number)%UnitNumber,          &              
+                                  OPENCLOSE = CLOSE_FILE,                               &
+                                  STATUS    ='DELETE',                                  &
+                                  STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*) 'SetIgnoreTimeSerie - ModuleTimeSerie - WRN10'
+                endif
+            endif
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetIgnoreTimeSerie
+    
 
     !--------------------------------------------------------------------------
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

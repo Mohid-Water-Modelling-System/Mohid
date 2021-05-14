@@ -2098,7 +2098,7 @@ cd2 :               if (BlockFound) then
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
                      keyword      = 'POROSITY',                                          &
-                     default      = 0.1,                                                 &
+                     default      = 0.4,                                                 &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
         if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR200'
@@ -3707,7 +3707,7 @@ ifMS:   if (MasterOrSlave) then
     subroutine MeyerPeterTransport
         !Local-----------------------------------------------------------------
         real    :: Tr1,Tr2,Tr3, DeltaTau, Miu, CChezy, Clinha, Depth
-        real    :: DeltaTauNoDim
+        real    :: DeltaTauNoDim, Tau
         integer :: i, j
 
         !----------------------------------------------------------------------
@@ -3729,8 +3729,10 @@ ifMS:   if (MasterOrSlave) then
                 Clinha= 18.*LOG10(12.*Depth/Me%D90%Field2D(I,J))
                 Miu   = (CChezy/Clinha)**1.5
 
+                Tau = Me%ExternalVar%TauTotal(I,J) 
+
                 !N/m2    = [kg * m/s^2 * m]  
-                DeltaTau = min(Miu*Me%ExternalVar%TauTotal(I,J),Me%TauMax)-Me%TauCritic(I,J)      
+                DeltaTau = min(Miu*Tau,Me%TauMax)-Me%TauCritic(I,J)      
                 
                 ![ ]     = [kg * m/s^2 * m] / [kg] / [m/s^2] / [m]  
                 DeltaTauNoDim = DeltaTau / (Me%RhoSl * Gravity * Me%D50%Field2D(I,J))
@@ -3745,7 +3747,7 @@ ifMS:   if (MasterOrSlave) then
                     Tr2                         = Me%D50%Field2D(I,J)**1.5
                     ![ ]                        = [ ]
                     Tr3                         = DeltaTauNoDim**1.5
-                    ![ ]                        
+                    ![m2/s]                        
                     Me%TransportCapacity(i, j)  = 8.*Tr1*Tr2*Tr3
                 
                 endif
