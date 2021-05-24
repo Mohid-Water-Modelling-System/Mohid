@@ -28289,7 +28289,8 @@ d1:     do em =1, Me%EulerModelNumber
         real                                            :: VolCell, VolAllPart
                                 
         !Begin----------------------------------------------------------------------
-
+        nullify(FirstProperty, CurrentProperty)
+        
         Me%ExternalVar%LastConcCompute = Me%Now
         
 d1:     do em = 1, Me%EulerModelNumber 
