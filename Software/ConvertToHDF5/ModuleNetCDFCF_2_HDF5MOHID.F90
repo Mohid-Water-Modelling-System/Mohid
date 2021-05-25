@@ -128,6 +128,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real, dimension(:,:),     pointer       :: LongOut, LatOut, RotationX, RotationY
         integer                                 :: imax, jmax
         logical                                 :: Imposed
+        logical                                 :: ImposedRegular        
+        character(Len=PathLength)               :: MohidGrid        
         real                                    :: LongOrig, dLong
         real                                    :: LatOrig,  dLat        
         logical                                 :: Starts180W
@@ -160,6 +162,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: NetCDFNameFaceOff = .false.
         integer                                 :: RemoveNsurfLayers = 0
         real                                    :: Offset = 0.
+        logical                                 :: ZXYT = .false.
     end type  T_Depth
 
     private :: T_Bathym
@@ -3318,6 +3321,15 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'  
 
+                call GetData(Me%Depth%ZXYT,                                             &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'ZXYT',                                     &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR175'                  
+                
 
                 call GetData(Me%LongLat%Imposed,                                        &
                              Me%ObjEnterData, iflag,                                    &
@@ -3329,6 +3341,21 @@ BF:         if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR180'  
                 
                 if (Me%LongLat%Imposed) then
+
+                    call GetData(Me%LongLat%MohidGrid,                                  &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'MOHID_GRID',                           &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR183'  
+                    
+                    if (iflag == 0) then
+                        Me%LongLat%ImposedRegular = .true.
+                    else
+                        Me%LongLat%ImposedRegular = .false.
+                    endif
+                
 
                     call GetData(Me%LongLat%LongOrig,                                   &
                                  Me%ObjEnterData, iflag,                                &
@@ -4643,6 +4670,98 @@ BF:             if (BlockFound) then
     end subroutine ImposedRegularGrid                       
 
    !------------------------------------------------------------------------
+    subroutine ImposedMohidGrid(ncid)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ncid
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: status, numDims, i, j
+        integer                                         :: RhVarIdLong
+        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLong
+        integer                                         :: ObjHorizontalGrid
+        
+        !Begin-----------------------------------------------------------------        
+
+
+        
+        status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLong),RhVarIdLong)
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, ndims = numDims)
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, dimids = rhDimIdsLong(:numDims))
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR30'  
+
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR50'         
+        
+        if (Me%ReadInvertXY) then
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
+            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
+            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+        
+        endif
+        
+    
+        !Build HDF5 MOHID Grid
+        Me%WorkSize%ILB = Me%LongLat%dij
+        Me%WorkSize%IUB = Me%LongLat%imax - 1 - Me%LongLat%dij
+        Me%WorkSize%JLB = Me%LongLat%dij
+        Me%WorkSize%JUB = Me%LongLat%jmax - 1 - Me%LongLat%dij
+
+        
+        !to warn the user before the model crashes
+        !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
+        if ((Me%WorkSize%IUB < 1) .or. (Me%WorkSize%JUB < 1)) then
+            write (*,*)
+            write (*,*) 'Please use a NETCDF file with more than'
+            write (*,*) '2x2 points so that the grid can be correctly extracted'
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+        endif
+
+        Me%Size%ILB     = Me%WorkSize%ILB - 1
+        Me%Size%IUB     = Me%WorkSize%IUB + 1
+        Me%Size%JLB     = Me%WorkSize%JLB - 1
+        Me%Size%JUB     = Me%WorkSize%JUB + 1    
+        
+        allocate(Me%LongLat%LongOut   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%LongLat%LatOut    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+       
+        call ConstructHorizontalGrid(HorizontalGridID   = ObjHorizontalGrid,            &                  
+                                     DataFile           = Me%LongLat%MohidGrid,         &
+                                     STAT               = status)        
+        if (status /= SUCCESS_) then
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR90'         
+        endif
+        
+        call GetCornersCoordinates(HorizontalGridID   = ObjHorizontalGrid,              &                   
+                                   CoordX             = Me%LongLat%LongOut,             &
+                                   CoordY             = Me%LongLat%LatOut,              &
+                                   STAT               = status)        
+        if (status /= SUCCESS_) then
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR100'         
+        endif        
+       
+        call KillHorizontalGrid(HorizontalGridID   = ObjHorizontalGrid,                 &                  
+                                STAT               = status)        
+        if (status /= SUCCESS_) then
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR110'         
+        endif
+                
+            
+    end subroutine ImposedMohidGrid                       
+
+   !------------------------------------------------------------------------
+    
+
+   !------------------------------------------------------------------------
     subroutine ReadWriteGrid2D(ncid)
         !Arguments-------------------------------------------------------------
         integer                                         :: ncid
@@ -4657,7 +4776,11 @@ BF:             if (BlockFound) then
         !Begin-----------------------------------------------------------------
         
         if (Me%LongLat%Imposed) then
+            if (Me%LongLat%ImposedRegular) then
             call ImposedRegularGrid(ncid)
+        else
+                call ImposedMohidGrid  (ncid)
+            endif
         else
             call ReadGrid2DNetCDF(ncid)
         endif            
@@ -5531,7 +5654,7 @@ i5:         if (Me%OutHDF5) then
                             write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
                             write(*,*) 'Above Max limit=', Me%Field(iP)%MaxLimit
                             
-                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR40' 
                             
                         endif
                         
@@ -5542,7 +5665,7 @@ i5:         if (Me%OutHDF5) then
                             write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
                             write(*,*) 'Below min limit=', Me%Field(iP)%MinLimit
                             
-                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR50' 
                             
                         endif                         
                     
@@ -6235,7 +6358,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         integer                                 :: ncid
         
         !Local-----------------------------------------------------------------
-        character(Len=StringLength)             :: ref_date
+        !character(Len=StringLength)             :: ref_date
+        character(Len=60)                            :: ref_date
         real, dimension(6)                      :: AuxTime
         real(8)                                 :: Aux, HundredDays, Aux1
         integer                                 :: n, status, dimid, i, tmax, jmax
@@ -6861,11 +6985,21 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                                                              Dim3 = Me%Date%NumberInst)
                                                              
                 else if (numDims == 4) then      
+                    !ZXYT
+                    if (Me%Depth%ZXYT) then
+                        
+                        call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = 1,                  &
+                                                                 Dim2 = Me%LongLat%jmax,    &
+                                                                 Dim3 = Me%LongLat%imax,    &
+                                                                 Dim4 = Me%Date%NumberInst)                        
+                        
+                    else
                     call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = Me%LongLat%jmax,        &
                                                              Dim2 = Me%LongLat%imax,        &
                                                              Dim3 = 1,                      &
                                                              Dim4 = Me%Date%NumberInst)
                 endif        
+            endif     
             endif     
 
             call GetNetCDFMatrix(ncid, mn, Me%Mapping%ValueIn)         
@@ -6982,7 +7116,12 @@ i2:                 if (Me%Depth%Interpolate) then
                     else if (Me%Mapping%ValueIn%Dim == 2) then
                         Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1,   Dim2 = i+1)
                     else if (Me%Mapping%ValueIn%Dim == 4) then
+                        !ZXYT
+                        if (Me%Depth%ZXYT) then
+                            Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 =   1,   Dim2 = j+1, Dim3 = i+1, Dim4 = Me%Mapping%Instant)
+                        else
                         Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1,   Dim2 = i+1, Dim3 = 1, Dim4 = Me%Mapping%Instant)
+                    endif
                     endif
 
                     if (Me%Mapping%Limit <= 1) then
@@ -7281,13 +7420,13 @@ i2:                 if (Me%Depth%Interpolate) then
 
         if (status == nf90_noerr) then
             status = nf90_inquire_variable(ncid, pn, ndims = numDims)
-            if (status /= nf90_noerr) stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            if (status /= nf90_noerr) stop 'ReadWaterLevelNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
             Me%Depth%WLValueIn%Dim = numDims
         else 
             write(*,*) 'possible error causes:'
             write(*,*) '  Variable not found.=', trim(Me%Depth%NetCDFNameWL)
             write(*,*) '  The specified netCDF ID does not refer to an open netCDF dataset.'
-            stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+            stop 'ReadWaterLevelNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
         endif
         
 
@@ -7890,6 +8029,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: Dim1, Dim2, Dim3, Dim4
         integer                                 :: iSt1, iSt2, iSt3, iSt4
+        integer                                 :: i, j
         
         !Begin-----------------------------------------------------------------        
         
@@ -8009,18 +8149,62 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
         else if (Dim==4) then     
         
-            if (present(inst)) then  
-                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+            !ZXYT
+            if (Me%Depth%ZXYT) then
+                status = nf90_inquire_dimension(ncid, dimIDs(2), len = xdim)
                 if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
 
+                status = nf90_inquire_dimension(ncid, dimIDs(3), len = ydim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR172'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = zdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR174'         
+            else
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR176'
+
                 status = nf90_inquire_dimension(ncid, dimIDs(2), len = ydim)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR178'
 
                 status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR190'         
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'         
+            
+                
+            endif            
+        
+            if (present(inst)) then  
+                
+                !ZXYT
+                if (Me%Depth%ZXYT) then
+                    status = nf90_inquire_dimension(ncid, dimIDs(2), len = xdim)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
+
+                    status = nf90_inquire_dimension(ncid, dimIDs(3), len = ydim)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR172'
+
+                    status = nf90_inquire_dimension(ncid, dimIDs(1), len = zdim)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR174'         
+                
+                else
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR176'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(2), len = ydim)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR178'
+
+                    status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
+
+                endif
                 
                 status = nf90_inquire_dimension(ncid, dimIDs(4), len = tdim)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR191'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR182'                    
+                
+
+                  
+            endif
+            
+               
 
                 if (JUB-JLB+1 /= xdim) then
                     stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR192'
@@ -8030,11 +8214,6 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR194'
                 endif
                   
-            endif
-            
-               
-
-            
 
             if      (DataTypeIn == Real8_   ) then
 
@@ -8066,6 +8245,25 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     
                     else
                     
+                        !ZXYT
+                        if (Me%Depth%ZXYT) then                        
+                            
+                            allocate(AuxR8D4(1:zdim,1:xdim,1:ydim,1:1))
+                        
+                            status = nf90_get_var(ncid,n,AuxR8D4,                           &
+                                    start = (/    1,    1,    1, inst /),                   &
+                                    count = (/ zdim, xdim, ydim,    1 /))                
+                            if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR204'    
+                            
+                            do i =ILB,IUB
+                            do j =JLB, JUB
+                                ValueIn%R84D(j,i,1:zdim,1:1) = AuxR8D4(1:zdim,j,i,1:1)                            
+                            enddo
+                            enddo
+                    
+                           
+                        else
+
                         allocate(AuxR8D4(1:xdim,1:ydim,1:zdim,1:1))
                         
                         status = nf90_get_var(ncid,n,AuxR8D4,                           &
@@ -8074,6 +8272,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR202'                
                         
                         ValueIn%R84D(JLB:JUB,ILB:IUB,1:zdim,1:1) = AuxR8D4(1:xdim,1:ydim,1:zdim,1:1)
+                    
+                        endif
+                        
                     
                         deallocate(AuxR8D4)                    
 
@@ -8120,8 +8321,41 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                 else
 
-                    status = NF90_GET_VAR(ncid,n,ValueIn%R44D)
-                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR216'
+                        !ZXYT
+                        if (Me%Depth%ZXYT) then                        
+                            
+                            allocate(AuxR4D4(1:zdim,1:xdim,1:ydim,1:1))
+                        
+                            status = nf90_get_var(ncid,n,AuxR4D4,                           &
+                                    start = (/    1,    1,    1,    1 /),                   &
+                                    count = (/ zdim, xdim, ydim,    1 /))                
+                            if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR204'    
+                            
+                            do i =ILB,IUB
+                            do j =JLB, JUB
+                                ValueIn%R44D(j,i,1:zdim,1:1) = AuxR4D4(1:zdim,j,i,1:1)                            
+                            enddo
+                            enddo
+                    
+                           
+                        else
+
+                            allocate(AuxR4D4(1:xdim,1:ydim,1:zdim,1:1))
+                        
+                            status = nf90_get_var(ncid,n,AuxR4D4,                           &
+                                    start = (/    1,    1,    1,    1 /),                   &
+                                    count = (/ xdim, ydim, zdim,    1 /))                
+                            if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR202'                
+                            
+                            ValueIn%R44D(JLB:JUB,ILB:IUB,1:zdim,1:1) = AuxR4D4(1:xdim,1:ydim,1:zdim,1:1)
+                            
+                        endif
+                        
+                    
+                        deallocate(AuxR4D4)                        
+
+                    !status = NF90_GET_VAR(ncid,n,ValueIn%R44D)
+                    !if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR216'
 
                 endif
                             
@@ -8211,6 +8445,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         if (Me%ReadMirrorLon .and. Dim >=2) then
             Dim1_ = Me%LongLat%jmax - Dim1_ + 1 
         endif          
+        
+        !!ZXYT
+        !if (Me%Depth%ZXYT .and. Dim > 3) then        
+        !    Dim2_ = Dim4
+        !    Dim3_ = Dim2
+        !    Dim4_ = Dim3
+        !endif
 
         if      (Dim==1) then
         

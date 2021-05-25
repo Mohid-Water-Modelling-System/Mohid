@@ -1833,6 +1833,7 @@ Module ModuleLagrangianGlobal
 
         type(T_EulerModel ), pointer, dimension(:) :: EulerModel        => null()
         integer                                 :: EulerModelNumber     = null_int
+        logical                                 :: GeoGrid              = .false. 
         
         type (T_Polygon), pointer               :: GridsBounds          => null()        
         type (T_Polygon), pointer               :: CoastLine            => null()
@@ -2082,10 +2083,18 @@ em1:        do em =1, Me%EulerModelNumber
             !Gets Pointer to External modules
             call ReadLockExternalVar()
 
+            !By default grid geo coord true
+            Me%GeoGrid = .true. 
+
 em4:        do em =1, Me%EulerModelNumber
                 ! Constructs the Particle Grid
                 EulerModel => Me%EulerModel(em)
                 call ConstructParticleGrid(EulerModel)
+                if (em >1) then
+                    if (Me%EulerModel(em)%Grid%CoordType /= Me%EulerModel(em-1)%Grid%CoordType) then
+                        stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR55'
+                    endif
+                endif
                 nullify(EulerModel)
             enddo em4 
             
@@ -3959,9 +3968,11 @@ d2:     do em =1, Me%EulerModelNumber
         if (CoordType == GEOG .or. CoordType == UTM .or. CoordType == SIMPLE_GEOG)      &
             EulerModel%Grid%HaveLatLongGrid = .true.
 
-        if (CoordType == GEOG .or. CoordType == SIMPLE_GEOG)                            &
+        if (CoordType == GEOG .or. CoordType == SIMPLE_GEOG)  then
             EulerModel%Grid%GeoGrid = .true.
-
+        else
+            Me%GeoGrid = .false.
+        endif
 
         call GetLatitudeLongitude(EulerModel%ObjHorizontalGrid, Latitude  = EulerModel%Grid%LatDefault,  &
                                                                 Longitude = EulerModel%Grid%LongDefault, & 
@@ -12068,6 +12079,8 @@ em1:    do em =1, Me%EulerModelNumber
             
 #ifdef _GOOGLEMAPS  
 
+            if (Me%GeoGrid) then
+
             allocate(Aux1DX(1:Count))
             allocate(Aux1DY(1:Count))            
     
@@ -12099,6 +12112,7 @@ em1:    do em =1, Me%EulerModelNumber
             deallocate(Aux1DX)
             deallocate(Aux1DY)                            
 
+            endif
 #endif             
 
             deallocate(Matrix1DX)
@@ -25226,6 +25240,7 @@ i1:             if (nP>0) then
                             deallocate   (Aux1DY)                                
                             
 #ifdef _GOOGLEMAPS  
+                            if (Me%GeoGrid) then
 
                             allocate   (Aux1DX(CurrentOrigin%nParticle))
                             allocate   (Aux1DY(CurrentOrigin%nParticle))
@@ -25309,6 +25324,8 @@ i1:             if (nP>0) then
     
                             deallocate   (Aux1DX)
                             deallocate   (Aux1DY)    
+                                
+                            endif
 #endif                                
                             
                         endif
@@ -26119,6 +26136,8 @@ iTP:                    if (TotParticle(ig) == 0) then
                         deallocate  (Aux1DX, Aux1DY)
 #ifdef _GOOGLEMAPS  
 
+                        if (Me%GeoGrid) then
+
                         allocate   (Aux1DX(TotParticle(ig)))
                         allocate   (Aux1DY(TotParticle(ig)))
                         Aux1DX(:) = FillValueReal
@@ -26201,6 +26220,8 @@ iTP:                    if (TotParticle(ig) == 0) then
 
                         deallocate   (Aux1DX)
                         deallocate   (Aux1DY)    
+                        
+                        endif
 #endif 
 
                         deallocate   (Matrix1DX)
@@ -28268,7 +28289,8 @@ d1:     do em =1, Me%EulerModelNumber
         real                                            :: VolCell, VolAllPart
                                 
         !Begin----------------------------------------------------------------------
-
+        nullify(FirstProperty, CurrentProperty)
+        
         Me%ExternalVar%LastConcCompute = Me%Now
         
 d1:     do em = 1, Me%EulerModelNumber 

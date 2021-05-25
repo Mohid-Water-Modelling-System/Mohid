@@ -103,6 +103,7 @@ Module ModuleHorizontalGrid
     public  :: GetLatitudeLongitude
     public  :: GetGridCoordType
     public  :: GetCoordTypeList
+    public  :: GetGeoCoordON
     public  :: GetGridMeanLatLong
     public  :: GetCoriolisFrequency
     public  :: GetGridLatitudeLongitude
@@ -148,6 +149,7 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompMapping2D
     public  :: GetDDecompMPI_ID
     public  :: GetDDecompON
+    public  :: GetGhostCorners
 
     public  :: GetSonWindow
 
@@ -590,6 +592,7 @@ Module ModuleHorizontalGrid
         logical                                 :: CornersXYInput  = .false.
         logical                                 :: Distortion      = .false.
         logical                                 :: RegularRotation = .false.
+        logical                                 :: GhostCorners    = .false. 
 
         integer, dimension(:,:), pointer        :: DefineCellsMap  => null()
         integer, dimension(:,:), pointer        :: DefineFacesUMap => null()
@@ -3090,6 +3093,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: ClientNumber
         logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
         integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
+        logical                             :: CornersOverlap
 
         !----------------------------------------------------------------------
 
@@ -3249,12 +3253,26 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
 
+        if (flag == 1) then
+            if (Me%Latitude < -360 .or. Me%Latitude > 360.) then
+                write(*,*) 'Wrong Latitude =', Me%Latitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
+            endif
+        endif 
+
         !Reads Longitude (Reference longitude. If externally specificed is the center of domain)
         call GetData(Me%Longitude, Me%ObjEnterData, flag,                                  &
                      keyword      = 'LONGITUDE',                                        &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
+
+        if (flag == 1) then
+            if (Me%Longitude < -90 .or. Me%Longitude > 90.) then
+                write(*,*) 'Wrong Longitude =', Me%Longitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
+            endif
+        endif         
 
         call GetData(Me%Datum, Me%ObjEnterData, flag,                                      &
                      keyword      = 'DATUM',                                            &
@@ -3448,6 +3466,75 @@ BF:     if (BlockFound) then
 
             end do
             end do
+
+            CornersOverlap = .false.
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                    Cycle
+                endif
+
+                 line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
+
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii, jj+1) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i,j+1
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif                    
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj+1) .and.                      &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j+1
+                    write(*,*) 'Line =', Line                    
+                    CornersOverlap = .true.
+                    
+                endif                                        
+
+            end do
+            end do            
+            
+            if (CornersOverlap) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR235'
+            endif
 
 
             if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
@@ -4108,7 +4195,6 @@ BF1:    if (Me%ReadCartCorners) then
 
         Me%Distortion      = .false.
         Me%RegularRotation = .false.
-        Me%CornersXYInput  = .false.
 
         Me%CornersXYInput = .true.
 
@@ -9463,6 +9549,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetGeoCoordON(GeoCoordON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        logical,           intent(OUT)              :: GeoCoordON
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+                GeoCoordON = .true.
+            else
+                GeoCoordON = .false.
+            endif
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+
+    end subroutine GetGeoCoordON
+
+    !--------------------------------------------------------------------------
+    
 
     subroutine GetGridMeanLatLong(HorizontalGridID, Latitude, Longitude, STAT)
 
@@ -10179,7 +10305,8 @@ cd3 :       if (present(SurfaceMM5)) then
                 !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
             else
                 if (present(PercI) .and. present(PercJ)) then
-                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                    call RelativePosition4VertPolygon(                                  &
+                        Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
                         Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                         Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                         Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
@@ -10350,8 +10477,8 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 else
 
                     if (present(PercI) .and. present(PercJ)) then
-                        !
-                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                            call RelativePosition4VertPolygon(                          &
+                                Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),               &
                                                           Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                                                           Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
                                                           Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
@@ -11740,7 +11867,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompMPI_ID
 
     !--------------------------------------------------------------------------
-     !--------------------------------------------------------------------------
 
     logical function GetDDecompON(HorizontalGridID, STAT)
 
@@ -11782,6 +11908,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompON
 
     !--------------------------------------------------------------------------
+
+
+    logical function GetGhostCorners(HorizontalGridID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetGhostCorners = .false.
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            GetGhostCorners  = Me%GhostCorners
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetGhostCorners
 
     !--------------------------------------------------------------------------
 
@@ -18345,6 +18511,50 @@ cd1:    if      (SumON > 0) then
         Point%X = XPoint
         Point%Y = YPoint
 
+    f0: if (Me%GhostCorners)  then 
+            
+    dj1:    do j = JLB, JUB
+    di1:    do i = ILB, IUB
+    
+                if(DefinedPoint(i,j) == 1)then
+    
+                    Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(i  ,j  )
+                    Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(i  ,j  )
+    
+                    Me%AuxPolygon%VerticesF(2)%X  = XX2D_Z(i+1,j  )
+                    Me%AuxPolygon%VerticesF(2)%Y  = YY2D_Z(i+1,j  )
+    
+                    Me%AuxPolygon%VerticesF(3)%X  = XX2D_Z(i+1,j+1)
+                    Me%AuxPolygon%VerticesF(3)%Y  = YY2D_Z(i+1,j+1)
+    
+                    Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(i  ,j+1)
+                    Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(i  ,j+1)
+    
+                    !close polygon
+                    Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
+                    Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
+    
+                    call SetLimits(Me%AuxPolygon)
+    
+                    if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
+    
+                        SearchCell = .false.
+                        CellFound  = .true.
+    
+                        IZ         = i
+                        JZ         = j
+    
+                        exit dj1
+    
+                    endif
+    
+                endif                
+                
+            enddo di1
+            enddo dj1
+            
+        else f0
+
         !check if
 f1:     if (present(Iold) .and. present(Jold)) then
 
@@ -18414,8 +18624,8 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                     IUpper = IUB
                 end if
 
-                do j = JLower, JUpper
-                do i = ILower, IUpper
+dj2:                do j = JLower, JUpper
+di2:                do i = ILower, IUpper
 
                     if(i == iold .and. j == jold) cycle
 
@@ -18447,15 +18657,14 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                             IZ         = i
                             JZ         = j
 
-                            exit
+                                exit dj2
 
                         endif
 
                     endif
 
-                enddo
-                if(CellFound) exit  !exit do J loop
-                enddo
+                    enddo di2
+                    enddo dj2
 
             end if f3
 
@@ -18479,7 +18688,7 @@ f4:         if(SearchCell)then
 
                     IsPointInside = .false.
 
-                    !Construct 4 polygons NW, NE, SW, SE
+                    !Construct 4 polygons SW, SE, NW, WE
                     do pi = 1, 4
 
                         !All polygons are defined anti-Clockwise
@@ -18619,6 +18828,8 @@ f4:         if(SearchCell)then
             endif f4
 
         endif f2
+    
+        endif f0
 
         if (present(CellLocated)) CellLocated = CellFound
 

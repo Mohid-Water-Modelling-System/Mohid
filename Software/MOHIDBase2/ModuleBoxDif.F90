@@ -1013,7 +1013,11 @@ cd2 :           if (BlockFound) then
                          SearchType  = FromBlock,                        &
                          Buffer_Line = Line,                             &
                          STAT        = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)stop 'ConstructBox2D - ModuleBoxDif - ERR20'
+            
+            if(STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Line=',Line
+                stop 'ConstructBox2D - ModuleBoxDif - ERR20'
+            endif
 
             select case (Me%CoordinateType)
 

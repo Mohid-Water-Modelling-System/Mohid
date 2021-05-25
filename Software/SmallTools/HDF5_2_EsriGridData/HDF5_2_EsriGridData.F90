@@ -35,6 +35,7 @@ Program HDF5_2_EsriGridData
 
     !Parameters----------------------------------------------------------------
     integer, parameter  :: HDF5_2_ESRI = 1, ESRI_2_HDF5 = 2
+    integer, parameter  :: InstField_  = 1, AverageField_ = 2, SumField_ = 3
 
     
 
@@ -84,6 +85,10 @@ Program HDF5_2_EsriGridData
         logical                                             :: ExportXY_Vector
         logical                                             :: VectorON
         character(len=StringLength)                         :: Vector_X, Vector_Y
+        
+        type(T_Time)                                        :: StartTime, EndTime
+        integer                                             :: ComputeOption
+        
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -269,7 +274,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'INPUT_GRID_FILENAME',                              &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR10'
         if (iflag     == 0)        stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR20'
@@ -280,7 +285,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'WINDOW_ON',                                        &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR30'
         
@@ -289,7 +294,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'WINDOW',                                           &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR30'
 
@@ -300,7 +305,7 @@ d2:     do l= 1, Me%FieldNumber
                      SearchType   = FromFile,                                           &
                      keyword      = 'FILL_VALUE',                                       &
                      default      = -99.,                                               &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR40'
         
@@ -310,7 +315,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'CONVERSION_TYPE',                                  &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      default      = HDF5_2_ESRI,                                        &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR50'
@@ -322,7 +327,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'TRANSFER_TO_OUT_GRID',                             &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR70'
@@ -333,7 +338,7 @@ d2:     do l= 1, Me%FieldNumber
                          Me%ObjEnterData, iflag,                                            &
                          SearchType   = FromFile,                                           &
                          keyword      = 'OUTPUT_GRID_FILENAME',                             &
-                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         ClientModule = 'HDF5_2_EsriGridData',                          &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR80'
             if (iflag     == 0)        stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR90'
@@ -344,7 +349,7 @@ d2:     do l= 1, Me%FieldNumber
                          SearchType   = FromFile,                                       &
                          keyword      = 'INTERPOL_OUTPUT',                              &
                          default      = .false.,                                        &  
-                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         ClientModule = 'HDF5_2_EsriGridData',                          &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR100'
             
@@ -352,7 +357,7 @@ d2:     do l= 1, Me%FieldNumber
                          Me%ObjEnterData, iflag,                                        &
                          SearchType   = FromFile,                                       &
                          keyword      = 'LAND_MASK_FILE',                               &
-                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         ClientModule = 'HDF5_2_EsriGridData',                          &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR110'
                 
@@ -379,7 +384,7 @@ d2:     do l= 1, Me%FieldNumber
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'VECTOR_ON',                                        &
-                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
                      default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR130'
@@ -390,7 +395,7 @@ d2:     do l= 1, Me%FieldNumber
                          Me%ObjEnterData, iflag,                                        &
                          SearchType   = FromFile,                                       &
                          keyword      = 'VECTOR_X',                                     &
-                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         ClientModule = 'HDF5_2_EsriGridData',                          &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR140'        
             if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR150'        
@@ -399,12 +404,45 @@ d2:     do l= 1, Me%FieldNumber
                          Me%ObjEnterData, iflag,                                        &
                          SearchType   = FromFile,                                       &
                          keyword      = 'VECTOR_Y',                                     &
-                         ClientModule = 'HDF5ToASCIIandBIN',                            &
+                         ClientModule = 'HDF5_2_EsriGridData',                          &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR160'   
             if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR170'        
             
         endif
+        
+        call GetData(Me%ComputeOption,                                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'COMPUTE_OPTION',                                   &
+                     default      = InstField_,                                         &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR180'    
+        
+        
+        if (Me%ComputeOption > InstField_) then
+            
+            !Reads Begin Time
+            call GetData(value          = Me%StartTime,                                 &
+                         EnterDataID    = Me%ObjEnterData,                              &
+                         flag           = iflag,                                        & 
+                         keyword        = 'START',                                      &
+                         SearchType     = FromFile,                                     &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR190'
+
+            !Reads End Time
+            call GetData(value          = Me%EndTime,                                   &
+                         EnterDataID    = Me%ObjEnterData,                              &
+                         flag           = iflag,                                        & 
+                         keyword        = 'END',                                        &
+                         SearchType     = FromFile,                                     &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR200'    
+        
+        endif          
+
         
     end subroutine ReadGlobalOptions
 
@@ -742,6 +780,8 @@ d11:    do l = 1, Me%FieldNumber
                 
                 Field  = AuxChar(i+1:j)
 
+                if (Me%ComputeOption == InstField_) then
+                    
                 call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName =trim(Me%FieldName(l)),&
                                           Exist = Exist, STAT= STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
@@ -760,6 +800,12 @@ d11:    do l = 1, Me%FieldNumber
                                    STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
                 
+                else
+                    
+                    call ReadHDF5_FieldInTime (Aux3D, Vgroup, Field)                    
+                    
+                endif
+                    
                 call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR60'
 
@@ -1283,6 +1329,164 @@ do2:    do l  = 1, Me%PropNumber
         
     end subroutine WriteHDF5_To_GridData
     
-    
     !--------------------------------------------------------------------------   
+    
+    subroutine ReadHDF5_FieldInTime (Aux3D, Vgroup, Field)
+        
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D
+        character (len=*)                               :: Vgroup, Field
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3DInst        
+        real                                            :: dt, dt_sum, dt_old
+        integer                                         :: i, j, k, n
+        integer                                         :: NumberOfInstants, STAT_CALL
+        type (T_Time)                                   :: CurrentTime, NextTime
+        logical                                         :: Exist
+        
+        !Begin-----------------------------------------------------------------
+        
+        call GetHDF5GroupExist (HDF5ID      = Me%ObjHDF5,                               &
+                                GroupName   = trim(Vgroup),                             &
+                                Exist       = Exist,                                    &
+                                STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR10'
+                    
+        if (.not.Exist) then
+            write(*,*) 'The Vgroup'
+            write(*,*) trim(Vgroup)
+            write(*,*) 'does not exist'
+            stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR20'
+        endif                     
+        
+    
+        allocate(Aux3DInst     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))
+        
+        Aux3D    (:,:,:) = 0.
+        Aux3DInst(:,:,:) = 0.
+    
+        call GetHDF5GroupNumberOfItems(Me%ObjHDF5, "/Time",                             &
+                                       NumberOfInstants, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR030'
+
+        dt_sum = 0.
+        dt_old = 0
+        
+        do n=1, NumberOfInstants
+            
+            CurrentTime = HDF5TimeInstant(n  , Me%ObjHDF5)
+            
+            if (n < NumberOfInstants) then
+                NextTime    = HDF5TimeInstant(n+1, Me%ObjHDF5)
+            else
+                NextTime    = CurrentTime
+            endif
+            
+            if (NextTime > Me%EndTime) then
+                NextTime = CurrentTime
+            endif
+            
+            if (CurrentTime >= Me%StartTime .and. CurrentTime <= Me%EndTime) then
+                
+                call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,        &
+                                   Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR40'
+                
+                call HDF5ReadData(HDF5ID         = Me%ObjHDF5,                          &
+                                  GroupName      = trim(Vgroup),                        &
+                                  Name           = trim(Field),                         &
+                                  Array3D        = Aux3DInst,                           &
+                                  OutputNumber   = n,                                   &
+                                  STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR50'
+                
+                dt      = dt_old + (NextTime - CurrentTime)/2
+                dt_sum  = dt_sum + dt
+                
+                if (Me%ComputeOption == AverageField_) then
+                                
+                    do i=Me%Size%ILB,Me%Size%IUB
+                    do j=Me%Size%JLB,Me%Size%JUB
+                    do k=1          ,Me%KUB
+                        Aux3D(i, j, k) =  Aux3D(i, j, k) + Aux3DInst(i, j, k) * dt 
+                    enddo
+                    enddo
+                    enddo
+                    
+                elseif (Me%ComputeOption  == SumField_) then
+
+                    do i=Me%Size%ILB,Me%Size%IUB
+                    do j=Me%Size%JLB,Me%Size%JUB
+                    do k=1          ,Me%KUB
+                        Aux3D(i, j, k) =  Aux3D(i, j, k) + Aux3DInst(i, j, k)
+                    enddo
+                    enddo
+                    enddo                    
+                
+                endif
+            endif
+            
+        enddo
+        
+        if (Me%ComputeOption == AverageField_) then
+            if (dt_sum > 0.) then
+            
+                do i=Me%Size%ILB,Me%Size%IUB
+                do j=Me%Size%JLB,Me%Size%JUB
+                do k=1          ,Me%KUB
+                    Aux3D(i, j, k) = Aux3D(i, j, k) / dt_sum
+                enddo
+                enddo
+                enddo            
+            else
+                
+                stop 'ReadHDF5_FieldInTime - HDF5_2_EsriGridData - ERR60'             
+                
+            endif
+        endif        
+        
+        deallocate(Aux3DInst)
+        
+        
+    end subroutine ReadHDF5_FieldInTime
+    
+   !----------------------------------------------------------------------------
+
+
+    type(T_Time) function HDF5TimeInstant(Instant, ObjHDF5)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: Instant
+        integer                                 :: ObjHDF5
+
+        !Local-----------------------------------------------------------------
+        real,    dimension(:), pointer          :: TimeVector
+        integer                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+
+        allocate(TimeVector(6))
+
+        call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Time",                                  &
+                             Name           = "Time",                                   &
+                             Array1D        = TimeVector,                               &
+                             OutputNumber   = Instant,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - HDF5_2_EsriGridData - ERR10'
+
+        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+
+
+        deallocate(TimeVector)
+
+    end function HDF5TimeInstant
+    
+    
     End Program HDF5_2_EsriGridData
+    

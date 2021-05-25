@@ -58,6 +58,10 @@ Module ModuleMeshGlue
         logical                     :: Flip_IJ          = .false.
         logical                     :: RowFlip          = .false.
         logical                     :: ColumnFlip       = .false.
+        integer                     :: ILB              = null_int
+        integer                     :: IUB              = null_int
+        integer                     :: JLB              = null_int
+        integer                     :: JUB              = null_int
     end type T_Grid
 
    
@@ -259,6 +263,7 @@ cd2 :           if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
+        type(T_Size2D)                          :: WorkSize
 
         !----------------------------------------------------------------------
     
@@ -280,16 +285,22 @@ cd2 :           if (BlockFound) then
                                      STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR30'
 
+
+        call GetHorizontalGridSize(HorizontalGridID  = Grid%ObjHorizontalGrid,          &
+                                    WorkSize         = WorkSize,                        &
+                                    STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR40'            
+
         call GetData(Grid%IO,                                                           &
                         Me%ObjEnterData, iflag,                                         &
                         Keyword        = 'IO',                                          &
                         SearchType     = FromWhere,                                     &
                         ClientModule   = 'ModuleMeshGlue',                              &
                         STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR50'
 
         if (iflag /= 1) then
-            stop 'ReadGridKeywords - ModuleMeshGlue - ERR50'
+            stop 'ReadGridKeywords - ModuleMeshGlue - ERR60'
         endif
 
         call GetData(Grid%JO,                                                           &
@@ -298,12 +309,11 @@ cd2 :           if (BlockFound) then
                         SearchType     = FromWhere,                                     &
                         ClientModule   = 'ModuleMeshGlue',                              &
                         STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR70'
 
         if (iflag /= 1) then
-            stop 'ReadGridKeywords - ModuleMeshGlue - ERR70'
+            stop 'ReadGridKeywords - ModuleMeshGlue - ERR80'
         endif
-        
         
         call GetData(Grid%Flip_IJ,                                                      &    
                         Me%ObjEnterData, iflag,                                         &
@@ -312,9 +322,61 @@ cd2 :           if (BlockFound) then
                         default        = .false.,                                       &                    
                         ClientModule   = 'ModuleMeshGlue',                              &
                         STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR90'
+    
+        call GetData(Grid%RowFlip,                                                      &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'ROW_FLIP',                                    &
+                        SearchType     = FromWhere,                                     &
+                        default        = .false.,                                       &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR100'
+        
+        call GetData(Grid%ColumnFlip,                                                   &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'COLUMN_FLIP',                                 &
+                        SearchType     = FromWhere,                                     &
+                        default        = .false.,                                       &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR110'        
+        
+        call GetData(Grid%ILB,                                                          &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'ILB',                                         &
+                        SearchType     = FromWhere,                                     &
+                        default        = WorkSize%ILB,                                  &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR120'
     
+        call GetData(Grid%IUB,                                                          &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'IUB',                                         &
+                        SearchType     = FromWhere,                                     &
+                        default        = WorkSize%IUB,                                  &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR130'            
         
+        call GetData(Grid%JLB,                                                          &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'JLB',                                         &
+                        SearchType     = FromWhere,                                     &
+                        default        = WorkSize%JLB,                                  &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR140'
+        
+        call GetData(Grid%JUB,                                                          &
+                        Me%ObjEnterData, iflag,                                         &
+                        Keyword        = 'JUB',                                         &
+                        SearchType     = FromWhere,                                     &
+                        default        = WorkSize%JUB,                                  &
+                        ClientModule   = 'ModuleMeshGlue',                              &
+                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridKeywords - ModuleMeshGlue - ERR150'        
         
     
     end subroutine ReadGridKeywords
@@ -504,21 +566,17 @@ cd2 :           if (BlockFound) then
     
         !Local-----------------------------------------------------------------
         real,   pointer, dimension(:,:)         :: XX_IE, YY_IE
+        real,   pointer, dimension(:,:)         :: XX_Aux, YY_Aux, Aux2D
         real,   pointer, dimension(:)           :: Dummy
         real                                    :: Latitude, Longitude
-        type(T_Size2D)                          :: Size, WorkSize
         integer                                 :: STAT_CALL, ifl, io, jo, di, dj
+        integer                                 :: ILB, IUB, JLB, JUB, i, j
 
         !Begin-----------------------------------------------------------------
         
         
         do ifl =1, Me%GridIn_Number
             
-            call GetHorizontalGridSize(HorizontalGridID = Me%GridIn(ifl)%ObjHorizontalGrid,     &
-                                       Size             = Size,                                 &
-                                       WorkSize         = WorkSize,                             &
-                                       STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteNewGrid - ModuleMeshGlue - ERR10'            
             
             call GetGridLatitudeLongitude(HorizontalGridID  = Me%GridIn(ifl)%ObjHorizontalGrid, &
                                           GridLatitudeConn  = YY_IE,                            &
@@ -532,24 +590,90 @@ cd2 :           if (BlockFound) then
             
             if (Me%GridIn(ifl)%Flip_IJ) then
 
+                ILB = Me%GridIn(ifl)%JLB
+                IUB = Me%GridIn(ifl)%JUB
+                JLB = Me%GridIn(ifl)%ILB
+                JUB = Me%GridIn(ifl)%IUB
+                
+                allocate(XX_Aux(ILB:IUB+1,JLB:JUB+1))
+                allocate(YY_Aux(ILB:IUB+1,JLB:JUB+1))                
+                
+                do i = ILB, IUB + 1
+                do j = JLB, JUB + 1
+                    XX_Aux(i, j) = XX_IE(j, i)
+                    YY_Aux(i, j) = YY_IE(j, i)
+                enddo
+                enddo
+
+            else
+                
+                ILB = Me%GridIn(ifl)%ILB
+                IUB = Me%GridIn(ifl)%IUB
+                JLB = Me%GridIn(ifl)%JLB
+                JUB = Me%GridIn(ifl)%JUB
+                
+                allocate(XX_Aux(ILB:IUB+1,JLB:JUB+1))
+                allocate(YY_Aux(ILB:IUB+1,JLB:JUB+1))                
+                
+                XX_Aux(ILB:IUB+1,JLB:JUB+1) = XX_IE(ILB:IUB+1,JLB:JUB+1)
+                YY_Aux(ILB:IUB+1,JLB:JUB+1) = YY_IE(ILB:IUB+1,JLB:JUB+1)
+                
             endif   
             
             if (Me%GridIn(ifl)%RowFlip) then
+
+                allocate(Aux2D(ILB:IUB+1,JLB:JUB+1))
+                
+                Aux2D(:,:) = XX_Aux(:,:)
+
+                do i = ILB, IUB + 1
+                do j = JLB, JUB + 1
+                    XX_Aux(i, j) = Aux2D(IUB + 2 - i, j)
+                enddo
+                enddo                
+                
+                Aux2D(:,:) = YY_Aux(:,:)
+
+                do i = ILB, IUB + 1
+                do j = JLB, JUB + 1
+                    YY_Aux(i, j) = Aux2D(IUB + 2 - i, j)
+                enddo
+                enddo                                
 
             endif   
 
             if (Me%GridIn(ifl)%ColumnFlip) then
 
+                allocate(Aux2D(ILB:IUB+1,JLB:JUB+1))
+                
+                Aux2D(:,:) = XX_Aux(:,:)
+
+                do i = ILB, IUB + 1
+                do j = JLB, JUB + 1
+                    XX_Aux(i, j) = Aux2D(i, JUB + 2 - j)
+                enddo
+                enddo                
+                
+                Aux2D(:,:) = YY_Aux(:,:)
+
+                do i = ILB, IUB + 1
+                do j = JLB, JUB + 1
+                    YY_Aux(i, j) = Aux2D(i, JUB + 2 - j)
+                enddo
+                enddo                 
+
             endif
             
-            dj = WorkSize%JUB + 1 - WorkSize%JLB 
-            di = WorkSize%IUB + 1 - WorkSize%ILB 
+            dj = JUB + 1 - JLB 
+            di = IUB + 1 - ILB 
             
-            Me%XX_IE(io:io+di,jo:jo+dj) = XX_IE(WorkSize%ILB:WorkSize%IUB+1,            &
-                                                WorkSize%JLB:WorkSize%JUB+1)
+            Me%XX_IE(io:io+di,jo:jo+dj) = XX_Aux(ILB:IUB+1, JLB:JUB+1)
             
-            Me%YY_IE(io:io+di,jo:jo+dj) = YY_IE(WorkSize%ILB:WorkSize%IUB+1,            &
-                                                WorkSize%JLB:WorkSize%JUB+1)
+            Me%YY_IE(io:io+di,jo:jo+dj) = YY_Aux(ILB:IUB+1, JLB:JUB+1)
+            
+            deallocate(XX_Aux, YY_Aux)
+            
+            if (associated(Aux2D)) deallocate(Aux2D)
            
         enddo
         
