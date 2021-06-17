@@ -3254,7 +3254,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
 
         if (flag == 1) then
-            if (Me%Latitude < -360 .or. Me%Latitude > 360.) then
+            if (Me%Latitude < -90. .or. Me%Latitude > 90.) then
                 write(*,*) 'Wrong Latitude =', Me%Latitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
             endif
@@ -3268,7 +3268,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
 
         if (flag == 1) then
-            if (Me%Longitude < -90 .or. Me%Longitude > 90.) then
+            if (Me%Longitude < -360. .or. Me%Longitude > 360.) then
                 write(*,*) 'Wrong Longitude =', Me%Longitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
             endif
