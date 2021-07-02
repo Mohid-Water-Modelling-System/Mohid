@@ -9551,7 +9551,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetGeoCoordON(GeoCoordON, STAT)
+    subroutine GetGeoCoordON(HorizontalGridID, GeoCoordON, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -11155,9 +11155,9 @@ dw:         do while (associated(CurrentXYZPoints))
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
+    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D,           &
+                                       VectorI, VectorJ, VectorK, nCell, OnlyFirstLine, &
+                                       STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(IN)              :: HorizontalGridID
@@ -11165,6 +11165,7 @@ dw:         do while (associated(CurrentXYZPoints))
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
+        logical, optional,  intent(IN)              :: OnlyFirstLine
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -11276,6 +11277,12 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
                 enddo d1
 
+                if (present(OnlyFirstLine)) then
+                    if (OnlyFirstLine) then
+                        exit
+                    endif
+                endif
+                
                 CurrentLine => CurrentLine%Next
 
             enddo dw
@@ -11317,8 +11324,6 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
     end subroutine GetCellZInterceptByLine
 
     !--------------------------------------------------------------------------
-
-   !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByPolygon(HorizontalGridID, Polygon, WaterPoints2D,     &
                                           VectorI, VectorJ, VectorK, nCell, STAT)

@@ -17465,14 +17465,14 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
                     endif
 
-                    ! First step - compute the modulus of turbulent vector
+                    ! First step - compute the random step
                         
                     call random_number(RAND)
                         
                     !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
                     HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
 
-                    ! Second step - Compute the modulus of each component of the turbulent vector
+                    ! Second step - Compute each component of the random movement
                     call random_number(RAND)
 
                     !   From 0 to Pi/2 cos and sin have positive values

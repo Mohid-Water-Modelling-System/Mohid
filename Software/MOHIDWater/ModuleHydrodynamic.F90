@@ -26706,9 +26706,10 @@ cd2:            if   (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IU
                     if (Me%CyclicBoundary%Direction == DirectionY_ .or. &
                         Me%CyclicBoundary%Direction == DirectionXY_) then
 
-                        if (BoundaryPoints(ILB, j) == Boundary) x(ILB) = x(IUB - 1)
-                        if (BoundaryPoints(IUB, j) == Boundary) x(IUB) = x(ILB + 1)
-
+                        if (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IUB, j) == Boundary) then
+                            x(ILB) = x(IUB - 1)
+                            x(IUB) = x(ILB + 1)
+                        endif
                     endif
 
                 endif cd2
