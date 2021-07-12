@@ -908,6 +908,9 @@ Module ModuleHydrodynamic
         type(T_Time)                    :: StartWindow      
         type(T_Time)                    :: EndWindow              
         type(T_Time)                    :: RefGaugeTime
+        integer                         :: RefIcell             =  null_int
+        integer                         :: RefJcell             =  null_int        
+        logical                         :: RelativeDelay        = .false.     
         real                            :: BackwardDT           =  null_real
         real                            :: ForwardDT            =  null_real
         integer                         :: NextOuput            =  null_int
@@ -4717,6 +4720,37 @@ i1:     if (Me%HighLowTide%ON) then
                          ClientModule   = 'ModuleHydrodynamic',                         &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR80'   
+            
+             call GetData(Me%HighLowTide%RelativeDelay,                                 &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'DELAY_RELATIVE_REFERENCE_GAUGE',             &
+                         Default        = .false.,                                      &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR80'   
+            
+            if (Me%HighLowTide%RelativeDelay) then
+                 call GetData(Me%HighLowTide%RefIcell,                                      &
+                             Me%ObjEnterData, iflag,                                        &
+                             Keyword        = 'REFERENCE_GAUGE_I_CELL',                     &
+                             Default        = FillValueInt,                                 &
+                             SearchType     = FromFile,                                     &
+                             ClientModule   = 'ModuleHydrodynamic',                         &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR90'
+                if (iflag     == 0       ) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR100'
+                
+                 call GetData(Me%HighLowTide%RefJcell,                                      &
+                             Me%ObjEnterData, iflag,                                        &
+                             Keyword        = 'REFERENCE_GAUGE_J_CELL',                     &
+                             Default        = FillValueInt,                                 &
+                             SearchType     = FromFile,                                     &
+                             ClientModule   = 'ModuleHydrodynamic',                         &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR110'
+                if (iflag     == 0       ) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR120'                
+            endif
             
             FileNameLength              = len_trim(Me%Files%OutPutFields) + 1
             Extension                   = trim(Me%Files%OutPutFields(FileNameLength-4:FileNameLength))
@@ -26672,9 +26706,10 @@ cd2:            if   (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IU
                     if (Me%CyclicBoundary%Direction == DirectionY_ .or. &
                         Me%CyclicBoundary%Direction == DirectionXY_) then
 
-                        if (BoundaryPoints(ILB, j) == Boundary) x(ILB) = x(IUB - 1)
-                        if (BoundaryPoints(IUB, j) == Boundary) x(IUB) = x(ILB + 1)
-
+                        if (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IUB, j) == Boundary) then
+                            x(ILB) = x(IUB - 1)
+                            x(IUB) = x(ILB + 1)
+                        endif
                     endif
 
                 endif cd2
@@ -49527,8 +49562,7 @@ do5:            do i = ILB, IUB
         integer                                 :: STAT_CALL, i, j, Index
         integer                                 :: ILB, IUB, JLB, JUB
         logical                                 :: TimeCycle
-
-
+        integer                                 :: iref, jref, tRef
         !---------------------------------------------------------------------- 
         
         JLB = Me%WorkSize%JLB
@@ -49567,6 +49601,25 @@ i1:     if (Me%HighLowTide%ON) then
                                      Array2D = Me%HighLowTide%SeaLevel,                 &
                                      OutputNumber = Index, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHighLowTideOutput - ModuleHydrodynamic - ERR30'    
+                
+                
+                 if (Me%HighLowTide%RelativeDelay) then
+                     
+                     iref = Me%HighLowTide%RefIcell
+                     jref = Me%HighLowTide%RefJcell                     
+                     tRef = Me%HighLowTide%Instant(iref, jref)
+                     
+                     write(*,*) 'Time Ref Delay', tRef
+                     
+                    do  j = JLB, JUB
+                    do  i = ILB, IUB  
+                        if (Me%HighLowTide%Instant(i, j) > FillValueReal) then
+                            Me%HighLowTide%Instant(i, j) = Me%HighLowTide%Instant(i, j) - tRef
+                        endif
+                    enddo
+                    enddo
+                    
+                endif
                 
                 call HDF5WriteData  (Me%HighLowTide%ObjHDF5,                            &
                                      "/Results/"//"Phase_Delay",                        &

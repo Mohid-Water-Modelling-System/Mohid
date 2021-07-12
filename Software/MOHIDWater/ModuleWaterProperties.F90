@@ -20290,13 +20290,17 @@ dn:         do n=1, nCells
                                         !by default is consider that the concentration is zero
                                         DischargeConc = 0.
 
-                                        !if property is temperature, warn user
-                                        if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
+                                        !if property is temperature
+                                        if  (PropertyX%ID%IDNumber == Temperature_) then
+                                            !gfranz
+                                            DischargeConc = PropertyX%Concentration(i , j , k)
 
-                                            call SetError(WARNING_, INTERNAL_, &
-                                   "Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
-                                            Me%TempFirstTimeWarning = .true.
-
+                                            if (.not. Me%TempFirstTimeWarning) then
+                                                call SetError(WARNING_, INTERNAL_, &
+                                       "Positive discharge without user defined concentration - discharge temperature = inside temperature", ON)
+                                       !"Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
+                                                Me%TempFirstTimeWarning = .true.
+                                            endif
                                         endif
                                     else
                                         call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR140')

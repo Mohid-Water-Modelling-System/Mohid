@@ -8159,6 +8159,16 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                 status = nf90_inquire_dimension(ncid, dimIDs(1), len = zdim)
                 if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR174'         
+            else
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR176'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(2), len = ydim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR178'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'         
+            
                 
             endif            
         
@@ -8191,6 +8201,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR182'                    
                 
 
+                  
+            endif
+            
+               
+
                 if (JUB-JLB+1 /= xdim) then
                     stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR192'
                 endif
@@ -8199,11 +8214,6 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR194'
                 endif
                   
-            endif
-            
-               
-
-            
 
             if      (DataTypeIn == Real8_   ) then
 
