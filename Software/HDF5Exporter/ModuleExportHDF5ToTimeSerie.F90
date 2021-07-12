@@ -193,7 +193,7 @@ Module ModuleExportHDF5ToTimeSerie
     ! Definition of type T_HDF5File
     type       T_HDF5File
         integer                                     :: HDFID = 0
-        character(len=StringLength)                 :: Name
+        character(len=PathLength)                   :: Name
         type(T_Time)                                :: StartTime
         type(T_Time)                                :: EndTime
         type(T_Time)                                :: StartFieldTime
