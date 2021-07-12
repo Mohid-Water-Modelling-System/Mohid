@@ -496,6 +496,9 @@ Module ModuleRunOff
         real                                        :: MaxDtmForBoundary    = null_real
         integer                                     :: BoundaryMethod       = null_int
         integer, dimension(:,:), pointer            :: BoundaryCells        => null()
+        logical                                     :: BoundaryLineON       = OFF
+        character(PathLength)                       :: BoundaryLineFile     = null_str
+        type (T_Lines),   pointer                   :: BoundaryLine         => null()
         type (T_ImposedLevelTS)                     :: ImposedLevelTS
 !        integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
@@ -1085,7 +1088,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         call GetData(Me%StopOnWrongDate,                                    &
-                     Me%ObjEnterData, iflag,                                   &
+                     Me%ObjEnterData, iflag,                                &
                      SearchType   = FromFile,                               &
                      keyword      = 'STOP_ON_WRONG_DATE',                   &
                      default      = .true.,                                 &
@@ -1095,7 +1098,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Impose Boundary Value
         call GetData(Me%ImposeBoundaryValue,                                    &
-                     Me%ObjEnterData, iflag,                                       &  
+                     Me%ObjEnterData, iflag,                                    &  
                      keyword      = 'IMPOSE_BOUNDARY_VALUE',                    &
                      ClientModule = 'ModuleRunOff',                             &
                      SearchType   = FromFile,                                   &
@@ -2800,6 +2803,8 @@ cd5 :           if (opened) then
         !Local-----------------------------------------------------------------
         integer                                      :: CHUNK, i, j, di, dj
         real                                         :: Sum
+        integer                                      :: nCells, STAT_CALL, n
+        integer, dimension(:),   pointer             :: VectorI, VectorJ, VectorK
         !Begin-----------------------------------------------------------------
 
    
@@ -2816,8 +2821,10 @@ do3:            do dj = -1, 1
 do4:            do di = -1, 1
                     Sum = dj + di
                     if ((Me%ExtVar%BasinPoints(i+di, j+dj) == 0) .and. (Sum .eq. -1 .or. Sum .eq. 1)) then
-                        Me%BoundaryCells(i,j) = BasinPoint
-                        exit do3 
+                        if(Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary)then
+                            Me%BoundaryCells(i,j) = BasinPoint
+                            exit do3 
+                        endif
                     endif
                 enddo do4
                 enddo do3
@@ -2827,6 +2834,28 @@ do4:            do di = -1, 1
         enddo do1
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        if(Me%BoundaryLineON)then
+
+            nCells = 0
+        
+            call GetCellZInterceptByLine(Me%ObjHorizontalGrid, Me%BoundaryLine,             &
+                                         Me%ExtVar%BasinPoints, VectorI, VectorJ, VectorK,  &
+                                         nCells, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckBoundaryCells - ModuleRunOff - ERR01' 
+
+            if (nCells < 1) then
+                write(*,*) 'Boundary line does not intercept any cells'       
+                stop 'CheckBoundaryCells - ModuleRunOff - ERR01' 
+            endif
+        
+            do n = 1, nCells
+            
+                Me%BoundaryCells(VectorI(n),VectorJ(n)) = BasinPoint
+            
+            enddo
+
+        endif
         
     end subroutine CheckBoundaryCells
     
@@ -2845,7 +2874,7 @@ do4:            do di = -1, 1
 
 
         call GetData(Me%MaxDtmForBoundary,                                  &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'MAX_DTM_FOR_BOUNDARY',                 &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -2911,6 +2940,37 @@ do4:            do di = -1, 1
         
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR0130'
+        
+        call GetData(Me%BoundaryLineON,                                     &
+                     Me%ObjEnterData, iflag,                                &  
+                     keyword      = 'SET_BOUNDARY_LINE',                    &
+                     Default      = OFF,                                    &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR400'        
+
+        if(Me%BoundaryLineON)then
+            
+            call GetData(Me%BoundaryLineFile,                               &
+                         Me%ObjEnterData, iflag,                            &  
+                         keyword      = 'BOUNDARY_LINE_FILENAME',           &
+                         ClientModule = 'ModuleRunOff',                     &
+                         SearchType   = FromFile,                           &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR410'
+            
+            if(iflag == 0)then
+                write(*,*)"Open boundary along a line is active "
+                write(*,*)"but line filepath was not defined."
+                write(*,*)"plese set keyword BOUNDARY_LINE_FILENAME"
+                write(*,*)"in RunOff input data file."
+                stop 'ReadDataFile - ModuleRunOff - ERR420'
+            endif
+
+            call New(Me%BoundaryLine, Me%BoundaryLineFile)
+            
+        endif
         
         
         
@@ -10318,7 +10378,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint .and.          &      !BasinPoint
                 Me%BoundaryCells     (i,j)   == BasinPoint .and.          &      !BoundaryPoints
-                Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &      !Low land point where to imposes BC
+                !Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &      !Low land point where to imposes BC
                 (Me%AllowBoundaryInflow                    .or.           &
                  Me%myWaterLevel      (i, j)  > Me%BoundaryValue)) then          !Level higher then imposed level
 
@@ -10415,7 +10475,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint       .and.    &   !BasinPoint
                 Me%BoundaryCells     (i,j)   == BasinPoint       .and.    &   !BoundaryPoints
-                Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &   !Low land point where to imposes BC
+                !Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary .and. &   !Low land point where to imposes BC
                 (Me%AllowBoundaryInflow                          .or.     &
                  Me%myWaterLevel      (i, j)  > Me%BoundaryValue)) then        !Level higher then imposed level
 

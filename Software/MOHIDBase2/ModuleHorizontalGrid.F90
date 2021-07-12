@@ -103,6 +103,7 @@ Module ModuleHorizontalGrid
     public  :: GetLatitudeLongitude
     public  :: GetGridCoordType
     public  :: GetCoordTypeList
+    public  :: GetGeoCoordON
     public  :: GetGridMeanLatLong
     public  :: GetCoriolisFrequency
     public  :: GetGridLatitudeLongitude
@@ -3252,12 +3253,26 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
 
+        if (flag == 1) then
+            if (Me%Latitude < -90. .or. Me%Latitude > 90.) then
+                write(*,*) 'Wrong Latitude =', Me%Latitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
+            endif
+        endif 
+
         !Reads Longitude (Reference longitude. If externally specificed is the center of domain)
         call GetData(Me%Longitude, Me%ObjEnterData, flag,                                  &
                      keyword      = 'LONGITUDE',                                        &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
+
+        if (flag == 1) then
+            if (Me%Longitude < -360. .or. Me%Longitude > 360.) then
+                write(*,*) 'Wrong Longitude =', Me%Longitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
+            endif
+        endif         
 
         call GetData(Me%Datum, Me%ObjEnterData, flag,                                      &
                      keyword      = 'DATUM',                                            &
@@ -9534,6 +9549,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetGeoCoordON(HorizontalGridID, GeoCoordON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        logical,           intent(OUT)              :: GeoCoordON
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+                GeoCoordON = .true.
+            else
+                GeoCoordON = .false.
+            endif
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+
+    end subroutine GetGeoCoordON
+
+    !--------------------------------------------------------------------------
+    
 
     subroutine GetGridMeanLatLong(HorizontalGridID, Latitude, Longitude, STAT)
 
@@ -11100,9 +11155,9 @@ dw:         do while (associated(CurrentXYZPoints))
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
+    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D,           &
+                                       VectorI, VectorJ, VectorK, nCell, OnlyFirstLine, &
+                                       STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(IN)              :: HorizontalGridID
@@ -11110,6 +11165,7 @@ dw:         do while (associated(CurrentXYZPoints))
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
+        logical, optional,  intent(IN)              :: OnlyFirstLine
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -11221,6 +11277,12 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
                 enddo d1
 
+                if (present(OnlyFirstLine)) then
+                    if (OnlyFirstLine) then
+                        exit
+                    endif
+                endif
+                
                 CurrentLine => CurrentLine%Next
 
             enddo dw
@@ -11262,8 +11324,6 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
     end subroutine GetCellZInterceptByLine
 
     !--------------------------------------------------------------------------
-
-   !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByPolygon(HorizontalGridID, Polygon, WaterPoints2D,     &
                                           VectorI, VectorJ, VectorK, nCell, STAT)

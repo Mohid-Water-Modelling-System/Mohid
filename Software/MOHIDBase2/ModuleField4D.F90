@@ -276,6 +276,12 @@ Module ModuleField4D
 
     end type T_File
 
+    type T_MapIn
+        character (len=PathLength)                  :: Filename             = null_str
+        integer,   dimension(:,:), pointer          :: Map2D                => null() 
+    end type T_MapIn
+    
+
     type T_PropField
         character(PathLength)                       :: FieldName            = null_str
         character(PathLength)                       :: VGroupPath           = null_str
@@ -294,13 +300,15 @@ Module ModuleField4D
         type (T_PropertyID)                         :: ID
         type(T_Generic4D)                           :: Generic4D
         type (T_Harmonics)                          :: Harmonics
+        type (T_MapIn     )                         :: MapIn
         !2D/3D
         integer                                     :: SpaceDim             = null_int
         !Z/U/V
         integer                                     :: TypeZUV              = null_int
 
         logical                                     :: ChangeInTime         = .false.
-        logical                                     :: Extrapolate          = .false.
+        logical                                     :: ExtrapolateGrid      = .false.
+        logical                                     :: ExtrapolatePoint     = .false.        
         integer                                     :: ExtrapolateMethod    = null_int
         integer                                     :: InterpolMethod       = null_int
         logical                                     :: DiscardFillValues    = .false.
@@ -370,7 +378,7 @@ Module ModuleField4D
         logical                                     :: BuildGeometry        = .false.
         logical                                     :: BuildMap             = .false.
 
-        logical                                     :: Extrapolate          = .false.
+        logical                                     :: ExtrapolateGrid      = .false.
         integer                                     :: ExtrapolateMethod    = null_int
         logical                                     :: DiscardFillValues    = .true.
         logical                                     :: Upscaling            = .false.
@@ -471,14 +479,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%ClientID          = FillValueInt
             Me%MaskDim           = DimUnknown
-            Me%Extrapolate       = .true.
+            Me%ExtrapolateGrid   = .true.
             Me%ExtrapolateMethod = ExtrapolAverage_
             Me%DiscardFillValues = .true.
             Me%Upscaling         = .false.
 
             if (present(MaskDim))           Me%MaskDim           = MaskDim
             if (present(ClientID))          Me%ClientID          = ClientID
-            if (present(Extrapolate))       Me%Extrapolate       = Extrapolate
+            if (present(Extrapolate))       Me%ExtrapolateGrid   = Extrapolate
             if (present(ExtrapolateMethod)) Me%ExtrapolateMethod = ExtrapolateMethod
             if (present(DiscardFillValues)) Me%DiscardFillValues = DiscardFillValues
             if (present(Upscaling))         Me%Upscaling         = Upscaling
@@ -1980,11 +1988,11 @@ wwd1:       if (Me%WindowWithData) then
         if (iflag==1) then
             PropField%MaxValueON = .true.
         endif
-        call GetData(PropField%Extrapolate,                                             &
+        call GetData(PropField%ExtrapolateGrid,                                         &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
                      keyword      = 'EXTRAPOLATE',                                      &
-                     default      = Me%Extrapolate,                                     &
+                     default      = Me%ExtrapolateGrid,                                 &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR270'
@@ -2014,6 +2022,20 @@ wwd1:       if (Me%WindowWithData) then
             PropField%InterpolMethod /= NoInterpolation2D_) then
             stop 'ReadOptions - ModuleField4D - ERR300'
         endif
+
+        ! Nearest Neighbor 2D with a specific mapping:
+        !                                 0       - return false, 
+        !                                 1       - valid cell for interpolation, 
+        !                                 2       - cell equal to Nearest Neighbor (cell = 1)
+        ! Mapping only 2D. Only implemmented is this phase in two properties (e.g. water level)
+        call GetData(PropField%ExtrapolatePoint,                                        &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'EXTRAPOLATE_POINT',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR270'            
 
 
         call GetData(PropField%Zdepths,                                                 &
@@ -2051,10 +2073,140 @@ wwd1:       if (Me%WindowWithData) then
         if (Me%Upscaling) PropField%Upscaling = .true.
 
 
+        if (PropField%ExtrapolatePoint) then
+            call ReadPropFieldMap(PropField, ExtractType)
+        endif
+
+
+
 
     end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
+
+    subroutine ReadPropFieldMap(PropField, ExtractType)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer                     :: PropField
+        integer                                         :: ExtractType
+        
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: iflag
+        integer                                         :: ILB, IUB, JLB, JUB
+        integer                                         :: ILBS, IUBS, JLBS, JUBS        
+        integer                                         :: i, j, ObjEnterData
+        integer                                         :: FirstLine, LastLine, Line
+        integer                                         :: NLines, NCells, ClientNumber
+        logical                                         :: BlockFound
+        
+        !Begin----------------------------------------------------------------    
+       
+        
+        call GetData(PropField%MapIn%Filename,                                          &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FILENAME_MAP_IN',                                  &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR010'
+        if (iflag     ==        0) stop 'ReadPropFieldMap - ModuleField4D - ERR020'
+            
+        
+        ILB = Me%WorkSize2D%ILB
+        IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB
+        JUB = Me%WorkSize2D%JUB
+        
+        ILBS = Me%Size2D%ILB
+        IUBS = Me%Size2D%IUB
+        JLBS = Me%Size2D%JLB
+        JUBS = Me%Size2D%JUB
+        
+        
+        allocate(PropField%MapIn%Map2D(ILBS:IUBS, JLBS:JUBS))
+        
+        if (.not.associated(Me%Matrix2D)) then
+            allocate(Me%Matrix2D(ILBS:IUBS, JLBS:JUBS))
+        endif
+      
+        
+        !call UnitsManager(unit, OPEN_FILE, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR030'
+        !
+        !
+        !open(UNIT = unit, FILE = trim(adjustl(PropField%MapIn%Filename)),                         &
+        !     FORM = "FORMATTED",   STATUS = "UNKNOWN", ACTION = "READ", IOSTAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR040'
+        !
+        !do i= ILB, IUB
+        !do j= JLB, JUB
+        !    read(unit,*) PropField%MapIn%Map2D(i, j)
+        !enddo
+        !enddo
+        !    
+        !
+        !call UnitsManager(unit, CLOSE_FILE, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR050'
+        
+        ObjEnterData = 0
+        
+        call ConstructEnterData (ObjEnterData, PropField%MapIn%Filename, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR030'
+        
+        call ExtractBlockFromBuffer(ObjEnterData,                                       &
+                                    ClientNumber    = ClientNumber,                     &
+                                    block_begin     = '<BeginGridData2D>',              &
+                                    block_end       = '<EndGridData2D>',                &
+                                    BlockFound      = BlockFound,                       &
+                                    FirstLine       = FirstLine,                        &
+                                    LastLine        = LastLine,                         &
+                                    STAT            = STAT_CALL)
+I1:     if (STAT_CALL == SUCCESS_) then
+    
+BF:         if (BlockFound) then
+    
+                NLines = LastLine - (FirstLine + 1)
+                NCells = (IUB-ILB+1)* (JUB-JLB+1)
+                
+                
+                if (NLines /= NCells) then
+                     stop 'ReadPropFieldMap - ModuleField4D - ERR040'
+                endif
+                
+                line = FirstLine + 1
+                    
+                do i= ILB, IUB
+                do j= JLB, JUB
+                
+                    call GetData(PropField%MapIn%Map2D(i, j),                           &
+                                 EnterDataID = ObjEnterData, flag = iflag,              &
+                                 Buffer_Line = line, STAT = STAT_CALL) 
+                                 
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR050'
+                    
+                    line = line + 1
+                    
+                enddo
+                enddo
+    
+            else BF
+    
+                stop 'ReadPropFieldMap - ModuleField4D - ERR060'
+                
+            endif BF
+            
+        else I1
+            
+            stop 'ReadPropFieldMap - ModuleField4D - ERR070'
+            
+        endif I1
+
+        call KillEnterData (ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPropFieldMap - ModuleField4D - ERR080'
+        
+
+    end subroutine ReadPropFieldMap
 
     !--------------------------------------------------------------------------
 
@@ -5732,9 +5884,10 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
                               WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                               STAT              = STAT_CALL)
 
-        if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR10'
+        if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR02'
 
-        if (PropField%Extrapolate) then
+
+        if (PropField%ExtrapolateGrid) then
             call FillMatrix2D(Me%WorkSize2D%ILB,                             &
                               Me%WorkSize2D%IUB,                             &
                               Me%WorkSize2D%JLB,                             &
@@ -5815,7 +5968,18 @@ dnP:    do nP = 1,nPoints
                 MaskNE      = Me%ExternalVar%Waterpoints2D(iN, jE)
 
 
-                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
+                if (PropField%ExtrapolatePoint) then
+                    
+                    MaskSW      = PropField%MapIn%Map2D(iS, jW)
+                    MaskSE      = PropField%MapIn%Map2D(iS, jE)
+                    MaskNW      = PropField%MapIn%Map2D(iN, jW)
+                    MaskNE      = PropField%MapIn%Map2D(iN, jE)
+
+                    
+                endif                           
+
+
+                if (PropField%ExtrapolateGrid .or. .not. PropField%DiscardFillValues) then
 
                     NoData(nP) = .false.
 
@@ -5900,6 +6064,10 @@ dnP:    do nP = 1,nPoints
                         else
                             Field(nP)  = FillValueReal
                             NoData(nP) = .true.
+                            if (PropField%ExtrapolatePoint) then
+                                call NearestNeighbor2D_V2(Me%Matrix2D, PropField%MapIn%Map2D, i, j, Field(nP), NoData(nP))
+                            endif
+                            
                         endif
 
                     elseif (PropField%InterpolMethod == NearestNeighbor2D_) then
@@ -5975,6 +6143,67 @@ dnP:    do nP = 1,nPoints
      end subroutine Interpolate2DCloud
     !----------------------------------------------------------------------
 
+    subroutine NearestNeighbor2D_V2(Value2D, Map2D, i, j, ValueX, NoData)
+    
+        !Arguments------------------------------------------------------------
+        real,       dimension(:,:),   pointer  :: Value2D
+        integer,    dimension(:,:),   pointer  :: Map2D
+        integer                                :: i, j 
+        real                                   :: ValueX
+        logical                                :: NoData 
+        !Local----------------------------------------------------------------
+
+        integer                                :: ILB, IUB, JLB, JUB
+        integer                                :: dimax, djmax, dijmax
+        integer                                :: dij, ii, jj
+
+        !Begin----------------------------------------------------------------    
+        
+        ILB = Me%WorkSize2D%ILB
+        IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB
+        JUB = Me%WorkSize2D%JUB
+        
+        ValueX = FillValueReal
+        NoData = .true. 
+        
+        !Map2D(i, j) == 0 cells to no compute
+        if (Map2D(i, j) > 0) then
+    
+            dimax = IUB-ILB + 1
+            djmax = JUB-JLB + 1
+
+            dijmax = max(dimax, djmax)
+
+            do dij=1,dijmax
+
+                do jj=j-dij,j+dij
+                do ii=i-dij,i+dij
+
+                    if (jj < JLB) cycle
+                    if (jj > JUB) cycle
+                    if (ii < ILB) cycle
+                    if (ii > IUB) cycle
+
+                    if (Map2D(ii, jj) == 1) then
+                        ValueX = Value2D(ii, jj)
+                        NoData = .false. 
+                        return
+                    endif
+
+                enddo
+                enddo
+
+            enddo
+            
+        endif
+
+    
+    end subroutine NearestNeighbor2D_V2
+    
+    !----------------------------------------------------------------------    
+
+
     subroutine Interpolate2DCloud3DMatrix (PropField, X, Y, Field, NoData)
 
         !Arguments------------------------------------------------------------
@@ -6001,7 +6230,7 @@ dnP:    do nP = 1,nPoints
                               STAT              = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleField4D - ERR10'
 
-        if (PropField%Extrapolate) then
+        if (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
@@ -6083,7 +6312,7 @@ dnP:    do nP = 1,nPoints
                 MaskNE      = Me%ExternalVar%Waterpoints3D(iN, jE, KUB)
 
 
-                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
+                if (PropField%ExtrapolateGrid .or. .not. PropField%DiscardFillValues) then
 
                     NoData(nP) = .false.
 
@@ -6274,7 +6503,7 @@ dnP:    do nP = 1,nPoints
 
         Me%Matrix2D(:,:) =  Me%ExternalVar%Bathymetry(:,:)
 
-        if (Me%Extrapolate) then
+        if (Me%ExtrapolateGrid) then
             call FillMatrix2D(Me%WorkSize2D%ILB,                             &
                               Me%WorkSize2D%IUB,                             &
                               Me%WorkSize2D%JLB,                             &
@@ -6396,7 +6625,7 @@ dnP:    do nP = 1,nPoints
                               STAT              = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR10'
 
-        if (PropField%Extrapolate) then
+        if (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
@@ -6444,7 +6673,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                                     STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR30'
 
-        if (PropField%Extrapolate) then
+        if (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
@@ -6636,7 +6865,17 @@ dnP:    do nP = 1,nPoints
 
                 endif
 
-                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
+                if (PropField%ExtrapolatePoint) then
+                    
+                    MaskSW      = PropField%MapIn%Map2D(iS, jW)
+                    MaskSE      = PropField%MapIn%Map2D(iS, jE)
+                    MaskNW      = PropField%MapIn%Map2D(iN, jW)
+                    MaskNE      = PropField%MapIn%Map2D(iN, jE)
+
+                    
+                endif                    
+
+                if (PropField%ExtrapolateGrid .or. .not. PropField%DiscardFillValues) then
 
                     NoData(nP) = .false.
 
@@ -6698,6 +6937,10 @@ dnP:    do nP = 1,nPoints
                     else
                         Field(nP)  = FillValueReal
                         NoData(nP) = .true.
+                        if (PropField%ExtrapolatePoint) then
+                            Me%Matrix2D(:,:) = Matrix3D(:, :, KUB)
+                            call NearestNeighbor2D_V2(Me%Matrix2D, PropField%MapIn%Map2D, i, j, Field(nP), NoData(nP))
+                        endif                        
                     endif
 
                 endif
@@ -7218,6 +7461,11 @@ wwd:            if (Me%WindowWithData) then
                             if (associated(PropField%DynamicMapping)) then
                                 deallocate(PropField%DynamicMapping)
                             endif                        
+                            
+                          if (PropField%ExtrapolatePoint) then
+                                deallocate(PropField%MapIn%Map2D)
+                            endif
+                            
                             
                             PropField => PropField%Next
 
