@@ -856,7 +856,7 @@ d1:     do iTimeSerie = 1, Me%NumberOfTimeSeries
             endif
 
 
-                        !Searches for the Latitude
+                        !Searches for the longitude
             call GetData(Me%TimeSerie(iTimeSerie)%CoordX,                               &
                          Me%ObjEnterData,                                               &
                          iflag,                                                         &
@@ -871,7 +871,7 @@ d1:     do iTimeSerie = 1, Me%NumberOfTimeSeries
 
             if (iflag == 1) then
 
-                        !Searches for the Longitude
+                        !Searches for the latitude
                 call GetData(Me%TimeSerie(iTimeSerie)%CoordY,                           &
                              Me%ObjEnterData,                                           &
                              iflag,                                                     &
