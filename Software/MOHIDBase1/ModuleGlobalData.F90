@@ -2286,7 +2286,6 @@ Module ModuleGlobalData
 
         !Checks for error
         if (ObjCollector(iModule, iInstance)%Users < 0) then
-            write(*,*) trim(MohidModules(iModule)%Name)
             write(*,*)'Users cannot be negative'
             stop 'DeassociateInstance - ModuleGlobalData - ERR01'
         endif
