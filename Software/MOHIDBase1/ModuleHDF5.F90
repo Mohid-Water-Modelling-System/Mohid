@@ -7053,6 +7053,7 @@ Module ModuleHDF5
            
             call h5gopen_f       (Me%FileID, trim(adjustl(FatherGroupName)), gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
+                write(*,*) "FileName",trim(Me%FileName)
                 write(*,*) 'FatherGroupName =', trim(FatherGroupName)
                 stop 'GetHDF5GroupID - ModuleHDF5 - ERR10'
             endif
