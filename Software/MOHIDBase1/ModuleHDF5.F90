@@ -2731,8 +2731,11 @@ Module ModuleHDF5
             endif
 
             call h5dopen_f (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_1D - ModuleHDF5 - ERR20'
-            
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*)"Error opening HDF5 dataset", trim(adjustl(AuxChar))
+                write(*,*)"HDF5 filename : ", trim(adjustl(Me%Filename))
+                stop 'HDF5ReadDataR8_1D - ModuleHDF5 - ERR20'
+            endif
             AllocateMatrix = .false.
                                
             if (.not.Associated(Me%AuxMatrixes%DataR8_1D)) then
@@ -7050,6 +7053,7 @@ Module ModuleHDF5
            
             call h5gopen_f       (Me%FileID, trim(adjustl(FatherGroupName)), gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
+                write(*,*) "FileName",trim(Me%FileName)
                 write(*,*) 'FatherGroupName =', trim(FatherGroupName)
                 stop 'GetHDF5GroupID - ModuleHDF5 - ERR10'
             endif
