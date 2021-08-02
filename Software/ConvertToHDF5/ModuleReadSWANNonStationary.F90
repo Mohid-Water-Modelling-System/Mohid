@@ -184,7 +184,7 @@ Module ModuleReadSWANNonStationary
         
         call OutputWaveVector
         
-        if (Me%WavePower) then
+        if (Me%WavePower == 1) then
             call CalculateWavePower
         endif
         
@@ -527,7 +527,7 @@ d2:     do l= 1, Me%NumberUnits
         allocate(Me%NonComputedPoint(Me%OutPut%TotalOutputs, Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         
         
-        if (Me%WavePower) then
+        if (Me%WavePower == 1) then
             allocate(Me%TEX(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%TEY(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         endif
@@ -584,13 +584,13 @@ d2:     do l= 1, Me%NumberUnits
 i1:     if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
             Me%WD(n,:,:) = Me%Fields(n, :, :)
         endif i1
-i2:     if (trim(Me%PropsName(p)) == GetPropertyName(SignificantWaveHeight_) .and. Me%ScaleToHS) then
+i2:     if (trim(Me%PropsName(p)) == GetPropertyName(SignificantWaveHeight_) .and. Me%ScaleToHS == 1) then
             Me%HS(n,:,:) = Me%Fields(n, :, :)
         else
             Me%HS(n,:,:) = 0. 
         endif i2
            
-i3:     if (Me%WavePower) then
+i3:     if (Me%WavePower == 1) then
 i4:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyX_)) then
                 Me%TEX(n,:,:) = Me%Fields(n, :, :)
             endif i4
@@ -668,7 +668,7 @@ i5:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) the
         
         if (p == 1) then
         
-            if (Me%Nautical) then
+            if (Me%Nautical == 1) then
                 write(*,*)'Swan in Nautical Convention...'
                 write(*,*)            
             else
@@ -778,7 +778,7 @@ d1:     do n=1,Me%OutPut%TotalOutputs
 d1:     do n=1,Me%OutPut%TotalOutputs
 
              !Aux2DWD(:,:) = Me%Fields(kk,WD,:,:)
-             !if(Me%ScaleToHS)then
+             !if (Me%ScaleToHS == 1) then
              !   Aux2DHS(:,:) = Me%Fields(kk,HS,:,:)
              !endif             
 
@@ -791,13 +791,13 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                     if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
 
                         Angle = Me%WD(n,ii,jj)
-                        if(Me%ScaleToHS)then
+                        if (Me%ScaleToHS == 1) then
                             Hsig = Me%HS(n,ii,jj)
                         else
                             Hsig = 1.
                         endif
 !                        Angle = MOD(630.-(Aux2D(ii,jj)*(pi/180))*RADE,360.)
-                        if (Me%Nautical) then
+                        if (Me%Nautical == 1) then
                             Aux2DX(ii,jj) = Hsig*cos((270-Angle) * Pi / 180.)
                             Aux2DY(ii,jj) = Hsig*sin((270-Angle) * Pi / 180.)
                         else
@@ -978,24 +978,24 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                         a1 = 0; a2 = 0; a3 = 0; a4 = 0
                             
                         if (Me%BoundaryFacesU(i, j) == Not_Boundary .and. Me%WaterPoints2D(i, j-1) == 1 .and. &                                
-                            Me%NonComputedPoint(n, i, j-1).ne..true.) then
+                            Me%NonComputedPoint(n, i, j-1) .neqv. .true.) then
                                 
                             a1 = 1
                                 
                         elseif(Me%BoundaryFacesU(i, j+1) == Not_Boundary .and. Me%WaterPoints2D(i, j+1) == 1 .and. &
-                               Me%NonComputedPoint(n, i, j+1).ne..true.) then
+                               Me%NonComputedPoint(n, i, j+1) .neqv. .true.) then
                                 
                             a2 = 1
                                 
                         endif
                             
                         if (Me%BoundaryFacesV(i, j) == Not_Boundary .and. Me%WaterPoints2D(i-1, j) == 1 .and. &
-                            Me%NonComputedPoint(n, i-1, j).ne..true.) then
+                            Me%NonComputedPoint(n, i-1, j) .neqv. .true.) then
                                 
                             a3 = 1
                                 
                         elseif(Me%BoundaryFacesV(i+1, j) == Not_Boundary .and. Me%WaterPoints2D(i+1, j) == 1 .and. &
-                                Me%NonComputedPoint(n, i+1, j).ne..true.) then
+                                Me%NonComputedPoint(n, i+1, j) .neqv. .true.) then
                                 
                             a4 = 1
                                 
@@ -1183,7 +1183,7 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         deallocate(Me%WD    )
         nullify   (Me%WD    )
         
-        if (Me%WavePower) then
+        if (Me%WavePower == 1) then
             deallocate(Me%TEX    )
             nullify   (Me%TEX    )
             deallocate(Me%TEY    )

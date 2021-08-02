@@ -8163,8 +8163,8 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     subroutine FromGeo2Meters(Lat, Long, LatRef, LongRef, X, Y)
 
         !Arguments----------------------------------------------------------------------
-        real(8), intent(IN)     :: Lat, Long, LatRef, LongRef
-        real(8), intent(OUT)    :: X, Y
+        real, intent(IN)        :: Lat, Long, LatRef, LongRef
+        real(8), intent(OUT)       :: X, Y
 
         !Local--------------------------------------------------------------------------
         real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat
@@ -11651,32 +11651,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine GeographicToCartesian(lat,lon, params, x, y)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: lat,lon
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: x,y
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_fwd(proj,lon,lat,x,y)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_fwd(proj,lon,lat,x,y)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR03'
         end if
 
@@ -11686,32 +11686,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine CartesianToGeographic (x, y, params, lat,lon)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: x,y
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: lat,lon
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_inv(proj,x,y,lon,lat)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_inv(proj,x,y,lon,lat)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR03'
         end if
 

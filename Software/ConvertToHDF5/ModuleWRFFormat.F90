@@ -74,7 +74,7 @@ Module ModuleWRFFormat
 #else    
     use netcdf90
 #endif
-    use proj4
+    use fproj
 
 
     implicit none
@@ -226,8 +226,8 @@ Module ModuleWRFFormat
         real                                                :: TrueLatLower             = null_real
         real                                                :: DY                       = null_real
       
-        type(prj90_projection)                              :: Proj
-        character(len=20), dimension(8)                     :: Params
+        type(fproj_prj)                                     :: Proj
+        character(256)                                      :: Params
 
 
     end type  T_WRFFormat
@@ -1747,7 +1747,7 @@ if1:    if (Me%TimeWindow) then
                 CorrectCornersOnce = .false.
             endif                                    
 
-            if (Bathymetry_OK  .and. & LandUse_OK .and. &
+            if (Bathymetry_OK  .and. LandUse_OK .and. &
                 CenterX_OK     .and. CenterY_OK .and. &
                 ConnectionX_OK .and. ConnectionY_OK) exit
 
@@ -1761,7 +1761,7 @@ if1:    if (Me%TimeWindow) then
         if (.not. ConnectionY_OK)   stop 'Missing ZLONG_U - ReadGridData - ModuleWRFFormat - ERR13'
         
         !Kill Projection
-        status = prj90_free(Me%Proj)
+        status = fproj_free(Me%Proj)
 
     end subroutine ReadGridData
     
@@ -1785,6 +1785,7 @@ if1:    if (Me%TimeWindow) then
         integer, intent(in)                 :: ncid
         integer                             :: status
         real                                :: aux
+        character(256)                      :: a1,a2,a3,a4,a5
 
         !MAP_PROJ. 1: LAMBERT CONFORMAL, 2: POLAR STEREOGRAPHIC, 3: MERCATOR
                 
@@ -1814,14 +1815,12 @@ if1:    if (Me%TimeWindow) then
                 Me%TrueLatLower = aux
             endif
 
-            Me%Params(1) = 'proj=lcc'
-            Me%Params(2) = 'ellps=sphere'
-            write(Me%Params(3),'(a6,f8.3)') 'lat_1=',Me%TrueLatLower
-            write(Me%Params(4),'(a6,f8.3)') 'lat_2=',Me%TrueLatUpper
-            write(Me%Params(5),'(a6,f8.3)') 'lon_0=',Me%CoarseDomainCenterLon
-            write(Me%Params(6),'(a6,f8.3)') 'lat_0=',Me%CoarseDomainCenterLat
-!            Me%Params(7) = 'x_0=1903970.98145531'
-!            Me%Params(8) = 'y_0=898179.31322811'
+            a1 = '+proj=lcc +ellps=sphere'
+            write(a2,'(a7,f8.3)') '+lat_1=', Me%TrueLatLower
+            write(a3,'(a7,f8.3)') '+lat_2=',Me%TrueLatUpper
+            write(a4,'(a7,f8.3)') '+lon_0=',Me%CoarseDomainCenterLon
+            write(a5,'(a7,f8.3)') '+lat_0=',Me%CoarseDomainCenterLat
+            write(Me%Params, '(5(a,1x))') trim(a1), trim(a2), trim(a3), trim(a4), trim(a5)
 
         elseif (Me%ProjType == 2) then
 
@@ -1831,16 +1830,16 @@ if1:    if (Me%TimeWindow) then
         elseif (Me%ProjType == 3) then
             Me%ProjType = SPHERE_MERCATOR_            
 
-            Me%params(1) = 'proj=merc'
-            Me%params(2) = 'lat_ts=0.0'
-            Me%params(3) = 'lon_0=0.0'
-            Me%params(4) = 'k=1.0'
-            Me%params(5) = 'x_0=0.0'
-            Me%params(6) = 'y_0=0.0'
-            Me%params(7) = 'a=6371000'
-            Me%params(8) = 'b=6371000'
+            Me%Params = '+proj=merc '   //&
+                        '+lat_ts=0.0 '  //&
+                        '+lon_0=0.0 '   //&
+                        '+k=1.0 '       //&
+                        '+x_0=0.0 '     //&
+                        '+y_0=0.0 '     //&
+                        '+a=6371000 '   //&
+                        '+b=6371000'
                                                         
-            !Me%params(1) = '+init=esri:53004'         
+            !Me%Params(1) = '+init=esri:53004'
             !+proj=merc +lat_ts=0 +lon_0=0 +k=1.000000 +x_0=0 +y_0=0
             !+a=6371000 +b=6371000 +units=m +no_defs
                         
@@ -1849,8 +1848,8 @@ if1:    if (Me%TimeWindow) then
 
         write(*,*) Me%Params
 
-        status=prj90_init(Me%Proj,Me%Params)
-        call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'InitializeProjection - ModuleWRFFormat - ERR07'
+        status=fproj_init(Me%Proj,Me%Params)
+        call handle_proj_error(status); if (status /= FPROJ_NOERR) stop 'InitializeProjection - ModuleWRFFormat - ERR07'
 
     end subroutine InitializeProjection
 
@@ -1883,13 +1882,13 @@ if1:    if (Me%TimeWindow) then
             lon = dble(Me%ConnectionX(i,j))
             lat = dble(Me%ConnectionY(i,j))
 
-            status = prj90_fwd(Me%Proj, lon, lat, x, y)
-            call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR01'
+            status = fproj_fwd(Me%Proj, lon, lat, x, y)
+            call handle_proj_error(status); if (status /= FPROJ_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR01'
 
             y = y - dble(Me%DY)/2.
 
-            status = prj90_inv(Me%Proj, x, y, lon, lat)
-            call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR02'
+            status = fproj_inv(Me%Proj, x, y, lon, lat)
+            call handle_proj_error(status); if (status /= FPROJ_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR02'
             
             Me%ConnectionX(i,j) = lon
             Me%ConnectionY(i,j) = lat
@@ -1902,13 +1901,13 @@ if1:    if (Me%TimeWindow) then
             lon = dble(Me%ConnectionX(WIUB, j))
             lat = dble(Me%ConnectionY(WIUB, j))
 
-            status = prj90_fwd(Me%Proj, lon, lat, x, y)
-            call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR03'
+            status = fproj_fwd(Me%Proj, lon, lat, x, y)
+            call handle_proj_error(status); if (status /= FPROJ_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR03'
 
             y = y + dble(Me%DY)/2.
 
-            status = prj90_inv(Me%Proj, x, y, lon, lat)
-            call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR04'
+            status = fproj_inv(Me%Proj, x, y, lon, lat)
+            call handle_proj_error(status); if (status /= FPROJ_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR04'
 
             Me%ConnectionX(IUB, j) = lon
             Me%ConnectionY(IUB, j) = lat
@@ -4384,7 +4383,7 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
 
         integer, intent(in)         :: status
 
-        if (status /= PRJ90_NOERR) write(*,*) trim(prj90_strerrno(status))
+        if (status /= FPROJ_NOERR) write(*,*) trim(fproj_strerrno(status))
 
     end subroutine handle_proj_error    
 
