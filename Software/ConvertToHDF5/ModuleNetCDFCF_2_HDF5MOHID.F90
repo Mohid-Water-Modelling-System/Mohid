@@ -4617,7 +4617,7 @@ BF:             if (BlockFound) then
         if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
         
         status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
-        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'  
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'  
 
         status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
         if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'         
@@ -4646,7 +4646,7 @@ BF:             if (BlockFound) then
             write (*,*)
             write (*,*) 'Please use a NETCDF file with more than'
             write (*,*) '2x2 points so that the grid can be correctly extracted'
-            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
         endif
 
         Me%Size%ILB     = Me%WorkSize%ILB - 1
@@ -6723,40 +6723,40 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
         
         status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
-        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'        
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'        
         
         status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLat),RhVarIdLat)
-        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
         
         if      (numDims == 2 .or. numDims == 3) then     
         
             if (Me%ReadInvertLat) then
                 write(*,*) 'Can only invert the latitude reading if the Grid in not 2D'
-                stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR45' 
+                stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60' 
             endif
 
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50' 
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
             
             if (Me%ReadInvertXY) then
 
                 status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
-                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'        
 
                 status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
-                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR90' 
             
             endif
                     
         else if (numDims == 1) then
             status = nf90_inquire_variable(ncid, RhVarIdLat, dimids = rhDimIdsLat(:numDims))
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'      
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'      
             
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLat(1), len = Me%LongLat%imax)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR90' 
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR110' 
             
         else
-            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
         endif
         
         call AllocateValueIn(Me%LongLat%LongIn, Dim1 =  Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
@@ -6772,7 +6772,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             status = nf90_get_var(ncid, RhVarIdLong, Aux3D,                          &
                         start = (/ 1,       1, 1 /),                             &
                         count = (/ Me%LongLat%jmax, Me%LongLat%imax, 1 /))  
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR110' 
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130' 
              
             do j=1, Me%LongLat%jmax
             do i=1, Me%LongLat%imax
@@ -6784,7 +6784,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             status = nf90_get_var(ncid, RhVarIdLat,  Aux3D,                          &
                         start = (/ 1,       1, 1 /),                             &
                         count = (/ Me%LongLat%jmax, Me%LongLat%imax, 1 /))
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR120'          
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR140'          
             
             do j=1, Me%LongLat%jmax
             do i=1, Me%LongLat%imax
@@ -6800,10 +6800,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             allocate(Lat1D (1:Me%LongLat%imax))
             
             status = nf90_get_var(ncid, RhVarIdLong, Long1D)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR110'      
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR150'      
             
             status = nf90_get_var(ncid, RhVarIdLat, Lat1D)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR120'     
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR160'     
             
             
              
@@ -6836,7 +6836,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             Aux1 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j,   Dim2 = 1  )
             Aux2 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j+1, Dim2 = 1  )            
             if (Aux1 > Aux2) then
-                write(*,*) 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - WRN40'
+                write(*,*) 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - WRN170'
                 write(*,*) 'Long > 180 assume Long = Long - 360.'
                 write(*,*) 'Limits assumed are -180 < Long. < 180. '
                 
@@ -6846,7 +6846,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                     write(*,*) Aux,'/=', Aux1
                     write(*,*) 
                     write(*,*) 'Correction only valid for regular grids'
-                    stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
                 endif               
 
                 Me%LongLat%BreakJ       = j
@@ -6870,7 +6870,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             write (*,*)
             write (*,*) 'Please use a NETCDF file with more than'
             write (*,*) '2x2 points so that the grid can be correctly extracted'
-            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR190'
         endif
 
         Me%Size%ILB     = Me%WorkSize%ILB - 1

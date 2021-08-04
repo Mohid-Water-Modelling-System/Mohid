@@ -7290,6 +7290,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             nullify(NewProperty)
 
             if (.not.(TempOK .and. SalOK)) then
+                write (*,*) 'NewOrigin Name:', NewOrigin%Name
                 call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1460')
             endif                  
                 
