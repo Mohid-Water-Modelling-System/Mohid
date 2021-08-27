@@ -4375,7 +4375,12 @@ Module ModuleHDF5
             call h5dread_f (dset_id, NumType, Array2D(lower_bound(1):upper_bound(1), &
                                                       lower_bound(2):upper_bound(2)),&
                             dims_mem, STAT_CALL, memspace_id, space_id)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR120'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Name= ', Name
+                write(*,*) 'GroupName= ', GroupName
+                write(*,*) 'Filename= ', trim(Me%Filename)
+                stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR120'
+            endif
 
             !Deallocates temporary matrixes
             deallocate (offset_in )
@@ -6866,14 +6871,14 @@ Module ModuleHDF5
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'Filename = ' , trim(Me%FileName)
-                write(*,*) 'Group name not present in the hdf5 input file', GroupName
+                write(*,*) 'Group name not present in the hdf5 input file =', GroupName
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
             endif
             
             !Opens the Dataset
             call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
-                write(*,*) 'DataSet name not present in the hdf5 input file', ItemName_                        
+                write(*,*) 'DataSet name not present in the hdf5 input file =', ItemName_                        
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'            
             endif 
             

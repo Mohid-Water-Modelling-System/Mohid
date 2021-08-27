@@ -202,6 +202,7 @@ Module ModuleStatistic
         real                                        :: CriticalValue  = null_real !inicialization: Carina
         
         logical                                     :: NormalizeFreq = .false.  !inicialization: Carina
+        logical                                     :: WriteFinalOutput = .false. 
         
         type (T_Statistic      ), pointer           :: Next  => null() !inicialization: Carina
     end type T_Statistic
@@ -647,13 +648,25 @@ cd1:    if (BlockFound) then
 
         endif
 
+        !Write final output
+        call GetData(Me%WriteFinalOutput,                                               &
+                        Me%ObjEnterData,                                                &
+                        iflag,                                                          &
+                        SearchType   = FromFile,                                        &
+                        keyword      = 'WRITE_FINAL_OUTPUT',                            &
+                        default      = .true.,                                          &
+                        ClientModule = 'ModuleStatistic',                               &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                   &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR12')        
+
 
         if (Me%Methodology == Value3DStatLayers_)                                        &
             call Construct_Layers
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR12')
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR13')
 
 
     
@@ -3074,7 +3087,7 @@ cd1:    if (DT>0) then
         integer                                     :: ILB, IUB, i
         integer                                     :: JLB, JUB, j
         real                                        :: DT, DX, AuxValue
-!        real                                        :: OldDay, PresentDay    
+        real                                        :: OldDay, PresentDay    
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -5058,8 +5071,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (nUsers == 0) then
                 
+                if (Me%WriteFinalOutput) then
                 !Writes the final values to the HDF file
                 call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)    
+                endif
 
                 !Associates External Instances
                 nUsers = DeassociateInstance (mTIME_,          Me%ObjTime         )

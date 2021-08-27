@@ -6111,7 +6111,7 @@ NDF:        if (.not. NewOrigin%Default) then
                                      keyword      ='DEPTH_METERS',                           &
                                      ClientModule ='ModuleLagrangianGlobal',                       &
                                      STAT         = STAT_CALL)             
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1040'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1045'
 
                         if (flag == 1) then
 
