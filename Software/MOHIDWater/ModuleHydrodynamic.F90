@@ -14269,7 +14269,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
 
             if (present(Compute)) then
-                if (Compute .and. Me%ComputeOptions%MatrixesOutputOpt) call ModifyMatrixesOutput
+                if (Compute) then
+                    
+                    call ReadLock_ModuleMap
+                    call ReadLock_ModuleGeometry
+                    
+                    call ModifyMatrixesOutput
+                    
+                    call ReadUnLock_ModuleMap
+                    call ReadUnLock_ModuleGeometry
+
+                endif
             endif
 
             VelocityModulus => Me%OutPut%ModulusH
