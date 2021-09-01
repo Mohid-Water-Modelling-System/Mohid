@@ -37,7 +37,7 @@ sudo=          ## no
 
 ## libraries to intall
 zlib='zlib-1.2.11'
-hdf5='hdf5-1.8.15'
+hdf5='hdf5-1.8.17'
 netcdf='netcdf-4.4.1.1'
 netcdff='netcdf-fortran-4.4.4'
 proj='proj-4.9.3'
@@ -45,7 +45,7 @@ proj4fortran='proj4-fortran'
 iphreeqc='iphreeqc-3.3.11-12535'
 phreeqcrm='phreeqcrm-3.3.11-12535'
 mpi=mpich
-mpi_version=3.2
+mpi_version='4.0a2'
 #openmpi='openmpi-2.0.1'
 
 
@@ -139,7 +139,7 @@ OPT_MPICH(){
     cd $mpiv || exit 1
     CC=$CC CXX=$CXX F77=$F77 FC=$FC  \
     ./configure --prefix=$DIRINSTALL/$mpiv \
-                --enable-fast=O3 --disable-error-checking --without-timing --without-mpit-pvars  || exit 1
+                --enable-fast=O3 --disable-error-checking --without-timing --without-mpit-pvars --with-device=ch4:ofi || exit 1
                 ##--with-pm=smpd --with-pmi=smpd
     make || exit 1
     $sudo make install || exit 1
