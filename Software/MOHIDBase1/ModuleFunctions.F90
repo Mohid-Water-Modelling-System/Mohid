@@ -251,6 +251,7 @@ Module ModuleFunctions
     public  :: RelativePosition4VertPolygon
     public  :: RelativePosition4VertPolygonIWD
     public  :: PolygonArea
+    public  :: LineLength
     public  :: FromGeo2Meters
 
     !Secant
@@ -7571,7 +7572,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         do j=jmin+1,jmax
             gam(j)=c(j-1)/bet
             bet=b(j)-a(j)* gam(j)
-            if(bet.eq.0.) stop 'tridag failed'
+            if(bet.eq.0.) then
+                write(*,*) 'vector 1D position, j =', j
+                stop 'tridag failed'
+            endif
             x(j)=(r(j)-a(j)*x(j-1))/bet
         enddo
 
@@ -8122,6 +8126,35 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     end function PolygonArea
 
+    !--------------------------------------------------------------------------
+    
+
+
+!   Computes the length of a line
+
+    real(8) function LineLength(X, Y, points)
+
+        !Arguments-------------------------------------------------------------
+        real(8),    dimension(:), pointer :: X, Y
+        integer                           :: points
+
+        !Local-----------------------------------------------------------------
+        real(8)                           :: length, dx, dy
+        integer                           :: i
+        
+
+        !Begin-----------------------------------------------------------------
+        
+        length=0.
+        do i=1, points-1
+            dx = (X(i+1)-X(i))
+            dy = (Y(i+1)-Y(i))
+            length = length + sqrt(dx**2+dy**2)
+        enddo 
+
+        LineLength = length
+
+    end function LineLength    
 
     !--------------------------------------------------------------------------
     !This subroutine convert geographic coordinates in distance to meters relative to
@@ -8130,8 +8163,8 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     subroutine FromGeo2Meters(Lat, Long, LatRef, LongRef, X, Y)
 
         !Arguments----------------------------------------------------------------------
-        real(8), intent(IN)     :: Lat, Long, LatRef, LongRef
-        real(8), intent(OUT)    :: X, Y
+        real, intent(IN)        :: Lat, Long, LatRef, LongRef
+        real(8), intent(OUT)       :: X, Y
 
         !Local--------------------------------------------------------------------------
         real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat
@@ -11618,32 +11651,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine GeographicToCartesian(lat,lon, params, x, y)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: lat,lon
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: x,y
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_fwd(proj,lon,lat,x,y)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_fwd(proj,lon,lat,x,y)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR03'
         end if
 
@@ -11653,32 +11686,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine CartesianToGeographic (x, y, params, lat,lon)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: x,y
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: lat,lon
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_inv(proj,x,y,lon,lat)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_inv(proj,x,y,lon,lat)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR03'
         end if
 
@@ -13500,7 +13533,7 @@ D2:     do I=imax-1,2,-1
         real, dimension(:,:),   allocatable :: wave, U1
         real, dimension(:),     allocatable :: f, z, t, w
         real                                :: wp, h, SIG, K, LLC
-        real                                :: SS, SJ, phi, A, Ab, sigmaX, RAND
+        real                                :: SS, SJ, phi, A, sigmaX, RAND
         integer                             :: x, l, i, nf, nh, nt
 
         !Begin----------------------------------------------------------------

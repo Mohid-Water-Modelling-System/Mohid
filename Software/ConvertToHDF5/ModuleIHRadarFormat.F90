@@ -274,7 +274,7 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR11'
-        if (iflag) then
+        if (iflag == 1) then
             Me%OutputHDF5 = .true.
         else
             Me%OutputHDF5 = .false.
@@ -288,7 +288,7 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR12'        
-        if (iflag) then
+        if (iflag == 1) then
             Me%OutputNetcdf = .true.
         else
             Me%OutputNetcdf = .false.
@@ -307,7 +307,7 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR20'
-        if (.not.iflag) then
+        if (iflag .ne. 1) then
             write(*,*) 'Please define OUTPUT_GRID_FILENAME keyword'
             stop 'ReadOptions - ModuleIHRadarFormat - ERR21'
         endif
@@ -320,7 +320,7 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                         &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR80'
-        if (.not.iflag) then
+        if (iflag .ne. 1) then
             write(*,*) 'Please define INPUT_GRID_FILENAME keyword'
             stop 'ReadOptions - ModuleIHRadarFormat - ERR22'
         endif
@@ -332,7 +332,7 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                          &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR81'
-        if (.not.iflag) then
+        if (iflag .ne. 1) then
             write(*,*) 'Please define IH_GRID_VERSION keyword'
             stop 'ReadOptions - ModuleIHRadarFormat - ERR23'
         endif

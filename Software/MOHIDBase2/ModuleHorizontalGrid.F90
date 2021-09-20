@@ -3254,7 +3254,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
 
         if (flag == 1) then
-            if (Me%Latitude < -360 .or. Me%Latitude > 360.) then
+            if (Me%Latitude < -90. .or. Me%Latitude > 90.) then
                 write(*,*) 'Wrong Latitude =', Me%Latitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
             endif
@@ -3268,7 +3268,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
 
         if (flag == 1) then
-            if (Me%Longitude < -90 .or. Me%Longitude > 90.) then
+            if (Me%Longitude < -360. .or. Me%Longitude > 360.) then
                 write(*,*) 'Wrong Longitude =', Me%Longitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
             endif
@@ -5011,7 +5011,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
     subroutine FromGeographic2SphericMercator(XX_IE, YY_IE, WorkSize, XX_aux, YY_aux)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real,    dimension(:,:), pointer         :: XX_IE, YY_IE
@@ -5023,23 +5023,22 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         integer                                  :: ILB, IUB, JLB, JUB
         integer                                  :: status, i, j
 
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(10))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
-        params(9) = 'datum=WGS84'
-        params(10)= 'units=m'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '  //&
+                 '+datum=WGS84 '//&
+                 '+units=m '
 
         ILB = WorkSize%ILB
         IUB = WorkSize%IUB
@@ -5047,9 +5046,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         JUB = WorkSize%JUB
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_init(proj,params)
+        if (status .ne. FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR10'
         endif
 
@@ -5057,9 +5056,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         do i = ILB, IUB + 1
             if (XX_IE(i,j) > FillValueReal/3.) then
 
-                status = prj90_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
-                if (status.ne.PRJ90_NOERR) then
-                    write(*,*) prj90_strerrno(status)
+                status = fproj_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
+                if (status .ne. FPROJ_NOERR) then
+                    write(*,*) fproj_strerrno(status)
                     stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR20'
                 end if
 
@@ -5071,20 +5070,18 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         enddo
         enddo
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
 
 
     end subroutine FromGeographic2SphericMercator
 
     subroutine FromGeo2SpherMercator1D(X1D_Geo, Y1D_Geo, ILB, IUB, X1D_Out, Y1D_Out)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:  ), pointer         :: X1D_Geo, Y1D_Geo
@@ -5095,33 +5092,31 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status, i
 
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
-
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(8))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR10'
         endif
 
         do i = ILB, IUB
-            status = prj90_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
-            if (status.ne.PRJ90_NOERR) then
-                write(*,*) prj90_strerrno(status)
+            status = fproj_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
+            if (status.ne.FPROJ_NOERR) then
+                write(*,*) fproj_strerrno(status)
                 stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR20'
             end if
 
@@ -5130,20 +5125,18 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
             X1D_Out(i) = real(DB_LONG)
         enddo
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
 
 
     end subroutine FromGeo2SpherMercator1D
 
     subroutine FromGeo2SpherMercatorScalar(X_Geo, Y_Geo, X_Out, Y_Out)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                  :: X_Geo, Y_Geo, X_Out, Y_Out
@@ -5151,33 +5144,31 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         !Local-----------------------------------------------------------------
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status
-
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(8))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR10'
         endif
 
-        status = prj90_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR20'
         end if
 
@@ -5186,14 +5177,11 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         X_Out = real(DB_LONG)
 
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
-
 
     end subroutine FromGeo2SpherMercatorScalar
 
@@ -9551,7 +9539,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetGeoCoordON(GeoCoordON, STAT)
+    subroutine GetGeoCoordON(HorizontalGridID, GeoCoordON, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -11155,9 +11143,9 @@ dw:         do while (associated(CurrentXYZPoints))
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
+    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D,           &
+                                       VectorI, VectorJ, VectorK, nCell, OnlyFirstLine, &
+                                       STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(IN)              :: HorizontalGridID
@@ -11165,6 +11153,7 @@ dw:         do while (associated(CurrentXYZPoints))
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
+        logical, optional,  intent(IN)              :: OnlyFirstLine
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -11276,6 +11265,12 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
                 enddo d1
 
+                if (present(OnlyFirstLine)) then
+                    if (OnlyFirstLine) then
+                        exit
+                    endif
+                endif
+                
                 CurrentLine => CurrentLine%Next
 
             enddo dw
@@ -11317,8 +11312,6 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
     end subroutine GetCellZInterceptByLine
 
     !--------------------------------------------------------------------------
-
-   !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByPolygon(HorizontalGridID, Polygon, WaterPoints2D,     &
                                           VectorI, VectorJ, VectorK, nCell, STAT)

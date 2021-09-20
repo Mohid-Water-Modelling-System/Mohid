@@ -14269,7 +14269,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
 
             if (present(Compute)) then
-                if (Compute .and. Me%ComputeOptions%MatrixesOutputOpt) call ModifyMatrixesOutput
+                if (Compute) then
+                    
+                    call ReadLock_ModuleMap
+                    call ReadLock_ModuleGeometry
+                    
+                    call ModifyMatrixesOutput
+                    
+                    call ReadUnLock_ModuleMap
+                    call ReadUnLock_ModuleGeometry
+
+                endif
             endif
 
             VelocityModulus => Me%OutPut%ModulusH
@@ -26706,9 +26716,10 @@ cd2:            if   (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IU
                     if (Me%CyclicBoundary%Direction == DirectionY_ .or. &
                         Me%CyclicBoundary%Direction == DirectionXY_) then
 
-                        if (BoundaryPoints(ILB, j) == Boundary) x(ILB) = x(IUB - 1)
-                        if (BoundaryPoints(IUB, j) == Boundary) x(IUB) = x(ILB + 1)
-
+                        if (BoundaryPoints(ILB, j) == Boundary .and. BoundaryPoints(IUB, j) == Boundary) then
+                            x(ILB) = x(IUB - 1)
+                            x(IUB) = x(ILB + 1)
+                        endif
                     endif
 
                 endif cd2
