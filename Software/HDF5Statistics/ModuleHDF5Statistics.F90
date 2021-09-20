@@ -2058,10 +2058,16 @@ do2 :       do while(associated(ObjParameter))
                     allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,        &
                              Me%Size%JLB:Me%Size%JUB))
 
-                    Me%Mapping%IntegerValues2D =                                        & 
-                                Me%Mapping%IntegerValues3D(Me%WorkSize%ILB:             &
-                                Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB,        &
-                                Me%Size%KUB)
+                    k = Me%WorkSize%KUB
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                        Me%Mapping%IntegerValues2D(i,j) = Me%Mapping%IntegerValues3D(i, j, k)
+                    
+                    enddo
+                    enddo
+                                               
                     !(assume that relevant mapping is for the upper layer)
 
                     Me%AditionalMap = .true.
