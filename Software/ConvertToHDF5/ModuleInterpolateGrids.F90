@@ -1210,7 +1210,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
         AuxField%IDNumber       = NewFatherField%IDNumber
         !AuxField%Name           = trim(PropertyName)
         
-        PropertyID                    = GetPropertyIDNumber (trim(PropertyName))
+        PropertyID                    = GetPropertyIDNumber (trim(PropertyName), StopActive = .false.)
         NewFatherField%Angle_Property = Check_Angle_Property(Property = PropertyID)        
 
         !Get field ID

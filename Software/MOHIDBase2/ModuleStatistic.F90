@@ -3652,6 +3652,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         integer                                     :: nc, n
         real,    dimension(:), pointer              :: TimePtr
         real,    dimension(6), target               :: AuxTime        
+        character(len=StringLength)                 :: ClassesName
         
         !Begin-----------------------------------------------------------------        
 
@@ -4360,6 +4361,13 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                 if (Me%Methodology==Value2DStat2D_ .or. Me%Methodology==Value3DStat3D_) then
 
+                    if      (Me%Methodology==Value2DStat2D_) then
+                        ClassesName = '/Classes'
+                    elseif  (Me%Methodology==Value3DStat3D_) then
+                        ClassesName = '/Classes2D'
+                    endif
+                    
+
                     !Allocates auxiliar matrix 2D
                     allocate (AuxMatrix2D(Me%ExternalVar%Size%ILB:Me%ExternalVar%Size%IUB,                  &
                                           Me%ExternalVar%Size%JLB:Me%ExternalVar%Size%JUB))
@@ -4370,7 +4378,13 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     enddo
                     enddo
 
-                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes2D",      &
+                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName)//"/Classes",&
+                                          "Classes", "%", Array2D = AuxMatrix2D,                            &
+                                          OutputNumber  = iClass,                                           &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR585'                    
+
+                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName),      &
                                           trim(adjustl(AuxChar)),                                           &
                                           "-", Array2D = AuxMatrix2D,                                       &
                                           STAT = STAT_CALL)
@@ -4516,6 +4530,13 @@ doClass1:           do iClass = 1, nc
                 
             if (Me%Methodology==Value2DStat2D_ .or. Me%Methodology==Value3DStat3D_) then
 
+                if      (Me%Methodology==Value2DStat2D_) then
+                    ClassesName = '/Classes'
+                elseif  (Me%Methodology==Value3DStat3D_) then
+                    ClassesName = '/Classes2D'
+                endif
+                
+
                 write(AuxChar1, fmt=*)Me%Classification%Percentil
                 AuxChar = "Percentil_"//trim(adjustl(AuxChar1))//"_Class"
 
@@ -4624,7 +4645,7 @@ doClass2:           do iClass = 1, nc
                 enddo
                 enddo
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes2D",          &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName),&
                                       trim(adjustl(AuxChar)),                                               &
                                       "-", Array2D = AuxMatrix2D,                                           &
                                       STAT = STAT_CALL)

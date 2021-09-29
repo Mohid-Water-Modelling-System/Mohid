@@ -22,6 +22,9 @@ Module ModulePercentileComputation
                                         GetData, ExtractBlockFromBuffer, Block_Unlock
     use ModuleFunctions         
     use ModuleHDF5
+    !use ModuleHorizontalGrid
+    !use ModuleGridData
+    
     
     implicit none
 
@@ -60,6 +63,7 @@ Module ModulePercentileComputation
         character(len=PathLength  )                 :: GroupName
         character(len=PathLength  )                 :: File        
         integer                                     :: ObjHDF5
+        character(Len=StringLength)                 :: MappingName        
         type(T_Parameter), pointer                  :: Next     => null()
     end type  T_Parameter
     
@@ -68,13 +72,18 @@ Module ModulePercentileComputation
     type       T_PercentileComputation
         integer                                     :: InstanceID
         integer                                     :: ObjEnterData     = 0
+        integer                                     :: ObjGridData      = 0
+        integer                                     :: ObjGrid          = 0
         integer                                     :: IUB, JUB, KUB
         real                                        :: DX              
         real                                        :: Xorig, Yorig
         real                                        :: FillValueIn
         real                                        :: FillValueOut = -99
         character(Len=PathLength)                   :: OutputESRI
+        character(Len=PathLength)                   :: BathymFile        
         real, dimension(:, :),     pointer          :: OutMatrix2D
+        real, dimension(:, :),     pointer          :: Bathym2D
+        real                                        :: BathymMin, BathymMax
         type (T_Parameter), pointer                 :: FirstParameter     
         integer                                     :: ParameterNumber        
         type (T_Conditions),  dimension(:), pointer :: Conditions 
@@ -131,6 +140,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadInputFile
             
             call ReadKeywords
+
+            call ReadBathymFile
 
             !Returns ID
             ObjPercentileComputationID          = Me%InstanceID
@@ -208,6 +219,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
              IOSTAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInputFile - ModulePercentileComputation - ERR20'
                             
+        read(iFile,*) Me%BathymMin, Me%BathymMax
+                            
         read(iFile,*) Me%NumberCond
         
         allocate(Me%Conditions(1:Me%NumberCond))
@@ -221,7 +234,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Conditions(l)%PropName = trim(adjustl(AuxString(is:ie)))
             
             is = ie+2
-            ie = is + index(AuxString(is:1000), ',')-1
+            ie = is + index(AuxString(is:1000), ',')-2
             read(AuxString(is:ie),*) AuxInt
             if      (AuxInt == 0) then
                 Me%Conditions(l)%Lower = .false.
@@ -232,7 +245,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             is = ie+2
-            ie = is + index(AuxString(is:1000), ',')-1
+            ie = is + index(AuxString(is:1000), ',')-2
             read(AuxString(is:ie),*) Me%Conditions(l)%Limit
 
             is = ie+2
@@ -246,6 +259,45 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ReadInputFile
     
     !--------------------------------------------------------------------------        
+    
+    subroutine ReadBathymFile
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: iFile, i, j
+        integer                                         :: STAT_CALL
+        character(Len=1000)                             :: AuxString
+
+        !----------------------------------------------------------------------
+        call UnitsManager(iFile, OPEN_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBathymFile - ModulePercentileComputation - ERR10'
+        
+        
+        allocate(Me%Bathym2D(1:Me%IUB,1:Me%JUB))
+
+        open(Unit   = iFile,                                                            &
+             File   = Me%BathymFile,                                                    &
+             Form   = 'FORMATTED',                                                      &
+             STATUS = 'UNKNOWN',                                                        &
+             Action = 'READ',                                                           &
+             IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBathymFile - ModulePercentileComputation - ERR20'
+        
+        do i=1, Me%IUB
+        do j=1, Me%JUB            
+            read(iFile,*) Me%Bathym2D(i, j)
+        enddo
+        enddo
+            
+
+        call UnitsManager(iFile, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBathymFile - ModulePercentileComputation - ERR40'
+        
+    end subroutine ReadBathymFile
+    
+    !--------------------------------------------------------------------------        
+        
     
     subroutine ReadKeywords
 
@@ -356,6 +408,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
             stop 'ReadGlobalData - ModulePercentileComputation - ERR80'
+                
+        call GetData(Me%BathymFile, Me%ObjEnterData, iflag,                             &
+                     keyword      = 'BATHYM_FILE',                                      &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
+            stop 'ReadGlobalData - ModulePercentileComputation - ERR90'
+        
+        
+        !call ConstructHorizontalGrid(HorizontalGridID = Me%ObjGrid,                     &
+        !                             DataFile         = Me%BathymFile,                  &
+        !                             STAT             = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                      &
+        !    stop 'ReadGlobalData - ModulePercentileComputation - ERR100'        
+        !
+        !call ConstructGridData(GridDataID       = Me%ObjGridData,                       &
+        !                       HorizontalGridID = Me%ObjGrid,                           &
+        !                       FileName         = Me%BathymFile,                        &
+        !                       STAT             = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                      &
+        !    stop 'ReadGlobalData - ModulePercentileComputation - ERR110'
+        !
+        !call GetGridData(GridDataID     = Me%ObjGridData,                               &
+        !                 GridData2D     = Me%Bathym2D,                                  &
+        !                 STAT           = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                      &
+        !    stop 'ReadGlobalData - ModulePercentileComputation - ERR120'
+        !
+        
                 
     end subroutine ReadGlobalData
 
@@ -503,6 +585,15 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_ .and. iflag == 0)                                   &
             stop 'ConstructParameters - ModulePercentileComputation - ERR30'                     
         
+        call GetData(NewParameter%MappingName, Me%ObjEnterData, iflag,                  &
+                     keyword      = 'MAPPING',                                          &
+                     SearchType   = FromBlock,                                          &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
+            stop 'ConstructParameters - ModulePercentileComputation - ERR40'   
+
+        
         call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
             
         NewParameter%ObjHDF5 = 0
@@ -511,7 +602,7 @@ cd2 :           if (BlockFound) then
         call ConstructHDF5 (NewParameter%ObjHDF5, trim(NewParameter%File),              &
                             HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'ConstructParameters - ModulePercentileComputation - ERR40'                     
+            stop 'ConstructParameters - ModulePercentileComputation - ERR50'                     
 
     end subroutine ConstructParameters
 
@@ -643,11 +734,12 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         real,   dimension(:,:,:), pointer   :: Classes3D, ReadMatrix3D
         integer,dimension(:,:,:), pointer   :: WaterPoints3D
-        real,   dimension(:,:  ), pointer   :: Limits2D        
+        integer,dimension(:,:  ), pointer   :: WaterPoints2D
+        real,   dimension(:,:  ), pointer   :: Limits2D, ReadMatrix2D        
         character(len=StringLength)         :: FieldName, LimitsName        
         character(len=PathLength  )         :: GroupName
         integer                             :: STAT_CALL, IUB, JUB, KUB, ObjHDF5
-        integer                             :: nItems, ni  
+        integer                             :: nItems, ni, NDim
         
         !Begin-----------------------------------------------------------------
         
@@ -665,21 +757,27 @@ cd2 :           if (BlockFound) then
                                        GroupName = trim(GroupName)//'/'//trim(FieldName),&
                                        nItems    = nItems,                              &
                                        STAT      = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR10' 
                                                 
         
+        call GetHDF5ArrayDimensions(HDF5ID          = ObjHDF5,                          &
+                                    GroupName       = trim(GroupName)//'/'//trim(FieldName),& 
+                                    ItemName        = trim(FieldName),                  &
+                                    OutputNumber    = 1,                                &
+                                    NDim            = NDim)        
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR20'
+                                                
+        
         allocate(Classes3D   (0:IUB+1,0:JUB+1,0:nItems+1))
-        allocate(ReadMatrix3D(0:IUB+1,0:JUB+1,0:KUB+1   ))  
-        allocate(Limits2D    (1:2    ,1:nItems          ))
+        allocate(Limits2D    (1:nItems,1:2              ))        
         
         Classes3D   (1:IUB,1:JUB,1:nItems) = 0.
-        ReadMatrix3D(1:IUB,1:JUB,1:KUB   ) = 0.
                             
-        call HDF5SetLimits  (HDF5ID = ObjHDF5,                                          &
-                             ILB = 1, IUB = 2, JLB = 1,JUB = nItems,                    &
+        call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = nItems,                   &
+                                               JLB = 1, JUB = 2,                        &
                              STAT   = STAT_CALL)
-        
         if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR30'
 
         call HDF5ReadData   (HDF5ID        = ObjHDF5,                                   &
@@ -690,7 +788,18 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR40'
         
     
+        
+        if      (NDim == 3) then
+            allocate(ReadMatrix3D(0:IUB+1,0:JUB+1,0:KUB+1   ))  
+            ReadMatrix3D(1:IUB,1:JUB,1:KUB   ) = 0.
+        elseif  (NDim == 2) then
+            allocate(ReadMatrix2D(0:IUB+1,0:JUB+1           )) 
+            ReadMatrix2D(1:IUB,1:JUB         ) = 0.
+        endif
+    
         do ni = 1, nItems
+            
+            if      (NDim == 3) then            
             
             call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = IUB,                  &
                                                    JLB = 1, JUB = JUB,                  &
@@ -708,7 +817,42 @@ cd2 :           if (BlockFound) then
 
             Classes3D(:,:,ni) = ReadMatrix3D(:,:,KUB)
             
+            else if  (NDim == 2) then
+                                                    
+                call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = IUB,              &
+                                                       JLB = 1, JUB = JUB,              &
+                                     STAT   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR70'
+
+                call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                                    GroupName     = trim(GroupName)//'/'//trim(FieldName),&
+                                    Name          = trim(FieldName),                    &
+                                    Array2D       = ReadMatrix2D,                       &
+                                    OutputNumber  = ni,                                 &  
+                                    STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR80'
+
+                Classes3D(:,:,ni) = ReadMatrix2D(:,:)
+                
+            endif
+            
         enddo
+        
+        if      (NDim == 3) then
+            deallocate(ReadMatrix3D)  
+        elseif  (NDim == 2) then
+            deallocate(ReadMatrix2D) 
+        endif            
+        
+        allocate(WaterPoints2D(0:IUB+1,0:JUB+1))           
+        
+        if      (trim(ParameterX%MappingName)=="WaterPoints3D") then 
+            
+            call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = IUB,                  &
+                                                   JLB = 1, JUB = JUB,                  &
+                                                   KLB = 1, KUB = KUB,                  &  
+                                 STAT   = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR90'               
         
         allocate(WaterPoints3D(0:IUB+1,0:JUB+1,0:KUB+1   ))         
         
@@ -717,28 +861,49 @@ cd2 :           if (BlockFound) then
                             Name          = "WaterPoints3D",                            &
                             Array3D       = WaterPoints3D,                              &
                             STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR60'        
-        
-        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix2D, nItems, n, WaterPoints3D)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR100'  
+            
+            WaterPoints2D(0:IUB+1,0:JUB+1)  = WaterPoints3D(0:IUB+1,0:JUB+1,KUB) 
+            
+            deallocate(WaterPoints3D)
+            
+        else if (trim(ParameterX%MappingName)=="WaterPoints2D") then 
 
-        deallocate(ReadMatrix3D )
+            call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = IUB,                  &
+                                                   JLB = 1, JUB = JUB,                  &
+                                 STAT   = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR110'               
+
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Grid",                                &
+                                Name          = "WaterPoints2D",                        &
+                                Array2D       = WaterPoints2D,                          &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR120' 
+        
+        endif    
+        
+        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix2D, nItems, n, WaterPoints2D)        
+        
+
         deallocate(Classes3D    ) 
-        deallocate(WaterPoints3D)
+        
+        deallocate(WaterPoints2D)
 
     end subroutine ReadFileCheckCondition
     
     !--------------------------------------------------------------------------
     
-    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix2D, nItems, n, WaterPoints3D)
+    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix2D, nItems, n, WaterPoints2D)
 
         !Arguments-------------------------------------------------------------
         real,   dimension(:,:,:), pointer   :: InMatrix3D
-        integer,dimension(:,:,:), pointer   :: WaterPoints3D
+        integer,dimension(:,:  ), pointer   :: WaterPoints2D
         real,   dimension(:,:  ), pointer   :: OutMatrix2D, Limits2D
         integer                             :: nItems, n
         
         !Local-----------------------------------------------------------------
-        real                                :: Sum, dP2, dPx, LimitX
+        real                                :: Sum, dP2, dPx, LimitX, PercentX
         integer                             :: STAT_CALL, IUB, JUB, KUB, ni, i, j
         
         !Begin-----------------------------------------------------------------
@@ -746,13 +911,16 @@ cd2 :           if (BlockFound) then
         
         IUB = Me%IUB
         JUB = Me%JUB
-        KUB = Me%KUB
+        
+        PercentX = 100. - Me%Conditions(n)%Percentile 
         
         
         do i = 1, IUB
         do j = 1, JUB
             
-            if (WaterPoints3D(i,j,KUB) == 0) then
+            if (WaterPoints2D(i,j) == 0         .or.                                    &
+                Me%Bathym2D(i,j) < Me%BathymMin .or.                                    &
+                Me%Bathym2D(i,j) > Me%BathymMax) then
                 OutMatrix2D(i, j) = Me%FillValueOut
                 cycle
             endif
@@ -763,30 +931,50 @@ cd2 :           if (BlockFound) then
                 
                 Sum = Sum + InMatrix3D(i, j, ni)
                 
+                if (Me%Conditions(n)%Lower) then
+                
                 if (Sum >= Me%Conditions(n)%Percentile) then 
                     
                     dPx = Sum - Me%Conditions(n)%Percentile
                     dP2 = InMatrix3D(i, j, ni)                    
                     
                     if (dPx == 0. .or. ni == nItems .or. dP2 == 0.) then
-                        LimitX = Limits2D(2,ni)
+                            LimitX = Limits2D(ni,2)
                     else
-                        LimitX = (Limits2D(2,ni) - Limits2D(1,ni)) * dPx/dP2 + Limits2D(1,ni)
+                            LimitX = (Limits2D(ni,2) - Limits2D(ni,1)) * dPx/dP2 + Limits2D(ni,1)
                     endif
                 
-                    if (Me%Conditions(n)%Lower) then
                         if (Me%Conditions(n)%Limit >= LimitX) then 
                             OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
                         endif
+                        
+                        exit
+                        
                     endif
                     
+                endif
+                
+                    
                     if (.not. Me%Conditions(n)%Lower) then
+                    
+                    if (Sum >= PercentX) then 
+                    
+                        dPx = Sum - PercentX
+                        dP2 = InMatrix3D(i, j, ni)                    
+                    
+                        if (dPx == 0. .or. ni == nItems .or. dP2 == 0.) then
+                            LimitX = Limits2D(ni,2)
+                        else
+                            LimitX = (Limits2D(ni,2) - Limits2D(ni,2)) * dPx/dP2 + Limits2D(ni,2)
+                        endif
+                    
                         if (Me%Conditions(n)%Limit <= LimitX) then 
                             OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
                         endif
-                    endif                    
                     
                     exit    
+                
+                endif
                 
                 endif
                 
@@ -878,7 +1066,7 @@ cd2 :           if (BlockFound) then
         integer                             :: ready_              
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_, nUsers           
+        integer                             :: STAT_, nUsers, STAT_CALL        
 
         !------------------------------------------------------------------------
 
@@ -891,6 +1079,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             nUsers = DeassociateInstance(mGeneric_,  Me%InstanceID)
 
             if (nUsers == 0) then
+                
+                !call KillHorizontalGrid(HorizontalGridID = Me%ObjGrid,                          &
+                !                        STAT             = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_)                                                      &
+                !    stop 'KillPercentileComputation - ModulePercentileComputation - ERR10'
+                !
+                !call KillGridData(GridDataID       = Me%ObjGridData,                            &
+                !                  STAT             = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_)                                                      &
+                !    stop 'KillPercentileComputation - ModulePercentileComputation - ERR20'
+                
+                deallocate(Me%Bathym2D)
 
                 !Deallocates Instance
                 call DeallocateInstance ()
