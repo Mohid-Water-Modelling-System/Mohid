@@ -6805,7 +6805,7 @@ d5:     do k = klast + 1,KUB
             Flag = Open3DSon(i, j, KUBSon) + IgnoreOBCells(i, j)
             if (Flag == 2) then
                 AuxMatrix2D(ILink(i, j), JLink(i, j)) = &
-                AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
+                AuxMatrix2D(ILink(i, j), JLink(i, j)) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
             endif
 
         enddo
@@ -6974,10 +6974,13 @@ d5:     do k = klast + 1,KUB
         do i = ILBSon, IUBSon
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
-            if ((Flag == 3) .and. (KLink(i, j, k) /= FillValueInt)) then
+            if ((Flag == 3) .and. Klink(i, j, k) /= FillValueInt) then
+                ! if ((     IgnoreOBCells(i, j) == 0 .and. IgnoreOBCells(i, j + 1) == 1) &
+                    ! .or. (IgnoreOBCells(i, j) == 1 .and. IgnoreOBCells(i, j + 1) == 1)) then
                 ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
-                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
+                                                   SonMatrix(i, j, k) * VolumeSon(i, j, k)
+                !endif
             endif
         enddo
         enddo

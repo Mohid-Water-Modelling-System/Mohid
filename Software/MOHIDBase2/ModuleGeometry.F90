@@ -2697,27 +2697,29 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             
             do j = JLB, JUB
             do i = ILB, IUB
-                ifather = IZ(i, j)
-                jfather = JZ(i, j)
-                do k = KLB, KUB
-                    !Parent SZZ cell top face
-                    SZZ_bottom = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, KLB_father - 1)
+                if (WaterPoints2D(i, j) == 1) then
+                    ifather = IZ(i, j)
+                    jfather = JZ(i, j)
+                    do k = KLB, KUB
+                        !Parent SZZ cell top face
+                        SZZ_bottom = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, KLB_father - 1)
                     
-                    do kfather = KLB_Father, KUB_Father
-                        !Parent SZZ bottom face  
-                        SZZ_top = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, kfather)
-                        !Check if son cell k is inside parent k
-                        if (  Me%Distances%ZCellCenter(i, j, k) > -SZZ_bottom &
-                        .and. Me%Distances%ZCellCenter(i, j, k) < -SZZ_top) then
+                        do kfather = KLB_Father, KUB_Father
+                            !Parent SZZ bottom face  
+                            SZZ_top = ObjGeometryGridFather%Distances%SZZ(ifather, jfather, kfather)
+                            !Check if son cell k is inside parent k
+                            if (  Me%Distances%ZCellCenter(i, j, k) > -SZZ_bottom &
+                            .and. Me%Distances%ZCellCenter(i, j, k) < -SZZ_top) then
                         
-                            NewFatherGrid%KLinkZ(i, j, k) = kfather
-                            exit
-                        else
-                            SZZ_bottom = SZZ_top
-                            !continue search
-                        endif
+                                NewFatherGrid%KLinkZ(i, j, k) = kfather
+                                exit
+                            else
+                                SZZ_bottom = SZZ_top
+                                !continue search
+                            endif
+                        enddo
                     enddo
-                enddo
+                endif
             enddo
             enddo
 

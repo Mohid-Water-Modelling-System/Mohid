@@ -4689,7 +4689,7 @@ i1:     if (Me%HighLowTide%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR110'
 
             !Gets WaterPoints2D
-            call GetWaterPoints2D   (Me%ObjMap, WaterPoints2D, STAT = STAT_CALL)
+            call GetWaterPoints2D   (Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR120'
 
 
@@ -12471,7 +12471,7 @@ i1:         if (CoordON) then
             enddo
         enddo
 
-       Extension       = '.fds'
+       Extension       = 'fds'
 
        call GetData(TimeSerieLocationFile,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -24865,6 +24865,31 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                                Me%VECG_2D, Me%VECW_2D)
                 !griflet: new call
                 !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New, Me%ModelName)
+                !write (*,*) 'compute_waterLevel'
+                !write (*,*) '11, 292'
+                !write (*,*) 'DCoef_2D', DCoef_2D(11, 292)
+                !write (*,*) 'ECoef_2D', ECoef_2D(11, 292)
+                !write (*,*) 'FCoef_2D', FCoef_2D(11, 292)
+                !write (*,*) 'TiCoef_2D', TiCoef_2D(11, 292)
+                !write (*,*) 'WaterLevel_New', WaterLevel_New(11, 292)
+                !write (*,*) '11, 291'
+                !write (*,*) 'DCoef_2D', DCoef_2D(11, 291)
+                !write (*,*) 'ECoef_2D', ECoef_2D(11, 291)
+                !write (*,*) 'FCoef_2D', FCoef_2D(11, 291)
+                !write (*,*) 'TiCoef_2D', TiCoef_2D(11, 291)
+                !write (*,*) 'WaterLevel_New', WaterLevel_New(11, 291)
+                !write (*,*) '11, 290'
+                !write (*,*) 'DCoef_2D', DCoef_2D(11, 290)
+                !write (*,*) 'ECoef_2D', ECoef_2D(11, 290)
+                !write (*,*) 'FCoef_2D', FCoef_2D(11, 290)
+                !write (*,*) 'TiCoef_2D', TiCoef_2D(11, 290)
+                !write (*,*) 'WaterLevel_New', WaterLevel_New(11, 290)
+                !write (*,*) '11, 293'
+                !write (*,*) 'DCoef_2D', DCoef_2D(11, 293)
+                !write (*,*) 'ECoef_2D', ECoef_2D(11, 293)
+                !write (*,*) 'FCoef_2D', FCoef_2D(11, 293)
+                !write (*,*) 'TiCoef_2D', TiCoef_2D(11, 293)
+                !write (*,*) 'WaterLevel_New', WaterLevel_New(11, 293)
             endif
         else
 
@@ -25902,7 +25927,11 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "WaterLevelCorrection")
         endif
-
+        !write (*,*) 'WL, Bat, DUX, DVY'
+        !write (*,*) WaterLevel_New(61, 1)
+        !write (*,*) Bathymetry(61, 1)
+        !write (*,*) WaterLevel_New(62, 1)
+        !write (*,*) Bathymetry(62, 1)
         !$OMP PARALLEL PRIVATE(i,j,dh)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  j = JLB, JUB
@@ -25912,6 +25941,7 @@ cd1:        if (WaterPoints2D(i, j) == OpenPoint) then
 
                 !By defaul this first correction is always made because the water level can not
                 !be located below the bottom
+                !!!!!$OMP CRITICAL
 
 cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn / 2.)) then
 
@@ -25922,6 +25952,7 @@ cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn 
                     WaterLevel_New(i, j) = - Bathymetry(i, j) + MinWaterColumn / 2.
 
                 endif cd2
+                !!!!!$OMP END CRITICAL
 
                 !This second correction is optional and is used when the user wants to
                 !define a reference level below which the water level is corrected.
@@ -32099,7 +32130,7 @@ cd4:        if (Me%SubModel%ON) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Horizontal_Transport")
         endif
-
+        
         !$OMP PARALLEL PRIVATE(i,j,k)
         do  k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -32907,7 +32938,7 @@ do6 :           do  i = ILB, IUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
-
+        !write (*,*) 'computing advection Y'
         !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, FaceFlux_SouthWest, Vel4,du4,V4,CFace)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
@@ -32955,6 +32986,8 @@ do6 :           do  i = ILB, IUB
                             endif
 
                             Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
+                            !write (*,*) 'I,J,K : ', i,j,k
+                            !write (*,*) 'Horizontal_Transport : ', Horizontal_Transport(i, j, k)
                         enddo
                     endif
                 endif
@@ -33000,7 +33033,7 @@ do6 :           do  i = ILB, IUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
-
+        !write (*,*) 'computing advection X'
         !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,FaceFlux_SouthWest,Vel4,du4,V4,CFace)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
@@ -33050,6 +33083,8 @@ do6 :           do  i = ILB, IUB
                             endif
 
                             Horizontal_Transport(i, j, k)= Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
+                            !write (*,*) 'I,J,K : ', i,j,k
+                            !write (*,*) 'Horizontal_Transport : ', Horizontal_Transport(i, j, k)
                         enddo
                     endif
                 endif
@@ -36761,7 +36796,7 @@ dn:             do n=1, nCells
         !End - Shorten variables name
         !Check if at least one upscaling by momentum discharge exists
         Active = ActiveUpscalingMomentumDischarge(Me%ObjTwoWay, Me%Direction%XY)
-        write (*,*) 'Active = ', Active
+        !write (*,*) 'Active = ', Active
         
         if (Active) then
             call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
@@ -36796,7 +36831,7 @@ dn:             do n=1, nCells
                         k = VectorK(n)     ;    jEast =  j + Me%Direction%dj
                             
                         AuxFlowK = Me%WaterFluxes%Discharges(i, j, k)
-                        write (*,*) 'Velocity in i, j, k : ', i, j, k, DischargeVelocity(i, j, k)
+                        !write (*,*) 'Velocity in i, j, k : ', i, j, k, DischargeVelocity(i, j, k)
                         if (ComputeFaces3D_UV(i, j, k) == Covered) then
                             ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
                             !if (AuxFlowK >= 0.) then
@@ -36831,8 +36866,9 @@ dn:             do n=1, nCells
                     call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
                     if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR80'
                 endif
+                
             enddo
-            call UnGetUpscalingDischargeVelocity (Me%ObjDischarges, DischargeVelocity, STAT = STAT_CALL)
+            call UnGetUpscalingDischargeVelocity (Me%ObjTwoWay, DischargeVelocity, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR90'
         endif
         !Nullify auxiliar pointers
@@ -37742,7 +37778,7 @@ do3:            do k = kbottom, KUB
         !Local---------------------------------------------------------------------
         real,    dimension(:  ),   pointer :: XX
         integer                            :: FATAL_, INTERNAL_, ICOORD_TIP, CIRCULAR,   &
-                                                status
+                                                status,i,j,k
         real                               :: Xorig, Yorig
         !------------initialization---------------------------------------------------------
 
@@ -37771,8 +37807,9 @@ do3:            do k = kbottom, KUB
         endif
 
         call SetMatrixValue(Me%Forces%Inertial_Aceleration, Me%WorkSize, 0.0)
-
+        !write (*,*) 'Inertial forces'
         if (Me%ComputeOptions%Coriolis) then
+            !write (*,*) 'Direction = ', Me%Direction%di
             if (Me%Direction%di == 1) then
                 call InertialForces_Coriolis_Y (Me%External_Var%ComputeFaces3D_V, Me%External_Var%KFloor_V,           &
                      Me%External_Var%LandBoundaryFacesU, Me%Velocity%Horizontal%U%New, Me%External_Var%Coriolis_Freq, &
@@ -37783,7 +37820,7 @@ do3:            do k = kbottom, KUB
                      Me%External_Var%DXX, Me%External_Var%DUX, Me%Forces%Inertial_Aceleration)
             endif
         endif
-
+        
         !--------------------------------------Centrifugal_force------------------------------------------------------------
         if (Me%ComputeOptions%CentrifugalForce) then
             if (ICOORD_TIP == CIRCULAR) then
@@ -37844,6 +37881,7 @@ do3:            do k = kbottom, KUB
         JLB = Me%WorkSize%JLB
         KUB = Me%WorkSize%KUB
         KLB = Me%WorkSize%KLB
+        !write (*,*) 'computing Inertial_Aceleration X'
         !$ CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, &
         !$OMP                   VUvar2,NoLand2,VUAverage,F_UV,Coriolis_Aceleration,Iaux)
@@ -37895,6 +37933,8 @@ do3:            do k = kbottom, KUB
                     ![m/s^2]                 =            [s^-1] * [m/s]
                     Coriolis_Aceleration     = F_UV * VUAverage
                     Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) + Coriolis_Aceleration
+                    !write (*,*) 'I, J, K', i, j, k
+                    !write (*,*) 'Inertial_Aceleration', Inertial_Aceleration(i, j, k)
                 enddo
             end if
         enddo
@@ -37927,6 +37967,7 @@ do3:            do k = kbottom, KUB
         JLB = Me%WorkSize%JLB
         KUB = Me%WorkSize%KUB
         KLB = Me%WorkSize%KLB
+        !write (*,*) 'computing Inertial_Aceleration Y'
         !$ CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, &
         !$OMP                   VUvar2,NoLand2,VUAverage,F_UV,Coriolis_Aceleration,Iaux)
@@ -37979,6 +38020,24 @@ do3:            do k = kbottom, KUB
                     ![m/s^2]                 =            [s^-1] * [m/s]
                     Coriolis_Aceleration     = -(F_UV) * VUAverage
                     Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) +  Coriolis_Aceleration
+                    !if (i==11 .and. j==291 .and. k==10) then
+                    !write (*,*) 'I, J, K', i, j, k
+                    !write (*,*) 'Inertial_Aceleration', Inertial_Aceleration(i, j, k)
+                    !write (*,*) 'Coriolis_Aceleration', Coriolis_Aceleration
+                    !write (*,*) 'VUAverage', VUAverage
+                    !write (*,*) 'F_UV', F_UV
+                    !write (*,*) 'Iaux', Iaux
+                    !write (*,*) 'Flag2', Flag2
+                    !write (*,*) 'Flag1', Flag1
+                    !write (*,*) 'Coriolis_Freq', Coriolis_Freq(i, j)
+                    !write (*,*) 'Coriolis_Freq(i-1, j)', Coriolis_Freq(i-1, j)
+                    !write (*,*) 'VUvar1', VUvar1
+                    !write (*,*) 'VUvar2', VUvar2
+                    !write (*,*) 'Velocity_U_New(i-1, j, k)', Velocity_U_New(i-1, j, k)
+                    !write (*,*) 'Velocity_U_New(i-1, j+1, k)', Velocity_U_New(i-1, j+1, k)
+                    !write (*,*) 'Velocity_U_New(i  , j+1, k)', Velocity_U_New(i  , j+1, k)
+                    !write (*,*) 'Velocity_U_New(i,   j, K)', Velocity_U_New(i,   j, K)
+                    !endif
                 enddo
             end if
         enddo
@@ -47366,6 +47425,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
+        !write (*,*) 'BarotropicPressure'
 
         !$OMP PARALLEL PRIVATE(i,j,iSouth, jWest, kbottom,AuxPressure, AuxImplicit, AuxExplicit,WaterColumn_High, DT_AUX), &
         !$OMP& PRIVATE(DT_AreaCell1,DT_AreaCell2, AreaCell1, AreaCell2,SurfaceFaceDensity,AtmosphericExplicit,TidePotentialExplicit)
@@ -47483,6 +47543,49 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                      = [m]                        + [m^3/s] * [s/m^2]
 !                    TiCoef_2D(iSouth, jWest)  = TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     TiCoef_2D_Aux(iSouth, jWest)  = - AuxExplicit * DT_AreaCell1
+                    !write (*,*) 'i,j', i,j
+                    !write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
 
                 endif ic1
 
@@ -47494,16 +47597,15 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                    ![m^2/s]
                     RadCoef_2D   (I, J)   = RadCoef_2D(I, J)           + AuxImplicit * Me%ComputeOptions%Num_Discretization / 2.
-
                 endif
-
+                     
             endif Cov1
 
         enddo doi
         enddo doj
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-
+        !write (*,*) 'Me%Coef%D2%Ti(125,290)', Me%Coef%D2%Ti(125,290)
         !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -47712,7 +47814,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
-
+        !write (*,*) 'bottomfriction'
         !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doj: do j = JLB, JUB
     doi: do i = ILB, IUB
@@ -47954,6 +48056,50 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s] * [s/m^2]
 !                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     TiCoef_2D_Aux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !write (*,*) 'i,j', i,j
+                    !write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'DCoef_2D(I,J)', DCoef_2D(I,J)
+                    !    write (*,*) 'ECoef_2D (I,J)', ECoef_2D (I,J)
+                    !    write (*,*) 'TiCoef_2D(I,J)', TiCoef_2D(I,J)
+                    !    write (*,*) 'FCoef_2D(iSouth, jWest)', FCoef_2D(iSouth, jWest)
+                    !    write (*,*) 'ECoef_2D_Aux(iSouth, jWest)', ECoef_2D_Aux(iSouth, jWest)
+                    !    write (*,*) 'TiCoef_2D_Aux(iSouth, jWest)', TiCoef_2D_Aux(iSouth, jWest)
+                    !endif
+                
 
                 endif ic1
 
@@ -47978,7 +48124,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo doi
         enddo doj
         !! $OMP END DO
-
+        !write (*,*) 'Me%Coef%D2%Ti(125,290)', Me%Coef%D2%Ti(125,290)
         !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -48172,7 +48318,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         if (Me%ComputeOptions%Turbine) then
             call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
         endif
-
+        !write (*,*), 'explicit_forces'
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
 
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
@@ -48409,6 +48555,29 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !write (*,*) 'i,j', i,j
+                    !write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
 
                 endif
 
@@ -48419,14 +48588,13 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                     ![m^3/s]
                     Me%Coef%D2%TiRad (I, J) = Me%Coef%D2%TiRad(I, J) + AuxExplicit * Me%ComputeOptions%Num_Discretization / 2.
-
                 endif
 
             endif
         enddo
         enddo
         !$OMP END DO
-
+        !write (*,*) 'Me%Coef%D2%Ti(125,290)', Me%Coef%D2%Ti(125,290)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -48489,6 +48657,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "WaterLevel_WaterFluxes")
 
         call SetMatrixValue( Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
+        !write (*,*) 'WaterFluxes'
 
         !$OMP PARALLEL PRIVATE(i, j, k, kbottom, iSouth, jWest),                                                            &
         !$OMP& PRIVATE(AuxExplicit, DT_AUX, DT_AreaCell1),                                                                  &
@@ -48557,6 +48726,26 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
 !                    Me%Coef%D2%Ti(iSouth, jWest)= Me%Coef%D2%Ti(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
 
                 endif ic1
 
@@ -48585,12 +48774,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-
+        !write (*,*) 'Me%Coef%D2%Ti(125,290)', Me%Coef%D2%Ti(125,290)
         !
         !The next call will call an OpenMP loop, thats why we have to implement the end parallel directive above
         !
         call SetMatrixValue( Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
-
+        !write (*,*) 'Parte 2'
         !$OMP PARALLEL PRIVATE(i, j, k, kbottom, iSouth, jWest),                                                            &
         !$OMP& PRIVATE(AuxExplicit, DT_AUX, DT_AreaCell1),                                                                  &
         !$OMP& PRIVATE(DT_AreaCell2, AreaCell1, AreaCell2),                                                                 &
@@ -48681,6 +48870,26 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
 !                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
 
                 endif ic2
 
@@ -48689,7 +48898,7 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo do5
         enddo do4
         !$OMP END DO
-
+        !write (*,*) 'Me%Coef%D2%Ti(125,290)', Me%Coef%D2%Ti(125,290)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -48946,7 +49155,7 @@ do1:        do DischargeID = 1, DischargesNumber
                     !Discharge computed from offline upscaling field
                      if (Me%Relaxation%Upscaling_Method == Discharge_) then
                          if (UpscalingDischargesDone) cycle
-                         call Modify_Upscaling_DischargesV2 (UpscalingDischargesDone)
+                         call Modify_Upscaling_DischargesV2 (DischargesNumber, UpscalingDischargesDone)
                          cycle
                      else
                         if (UpscalingDischargesDone) cycle
@@ -49368,17 +49577,18 @@ do5:            do i = ILB, IUB
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Modifies discharge flow from offline upscaling fields with upscaling method 3 (discharge only)
-    subroutine Modify_Upscaling_DischargesV2(UpscalingDischargesDone)
+    subroutine Modify_Upscaling_DischargesV2(DischargesNumber, UpscalingDischargesDone)
         !Arguments------------------------------------------------------------------
+        integer                  , intent(IN)        :: DischargesNumber
         logical                  , intent(OUT)       :: UpscalingDischargesDone
         !Local---------------------------------------------------------------------
         type T_Matrix3D
-            real,    dimension(:,:,:), pointer       :: Flux3D_U
-            real,    dimension(:,:,:), pointer       :: Flux3D_V
+            real, dimension(:,:,:), pointer       :: Flux3D_U
+            real, dimension(:,:,:), pointer       :: Flux3D_V
         end type T_Matrix3D
         
-        type (T_Matrix3D), dimension(:)    , pointer :: List3D
-        integer                                      :: iL, NFieldsUV3D_Upscaling, status
+        type (T_Matrix3D), dimension(:) , pointer :: List3D
+        integer                                   :: iL, NFieldsUV3D_Upscaling, status,I,J, STAT_CALL, DischargeID
         !-----------------------------------initialization-------------------------------------------------------
         
         call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
@@ -49421,6 +49631,19 @@ do5:            do i = ILB, IUB
         
             call SumMatrixes_jik_V2(Me%WaterFluxes%Discharges, Me%WorkSize, Me%External_Var%KFloor_Z, &
                                  Me%WaterFluxes%Upscaling_Discharges, MapMatrix = Me%External_Var%OpenPoints3D)
+            
+            if (Me%OutPut%TimeSerieDischON) then
+                do DischargeID = 1, DischargesNumber
+                    if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling) then
+                        call GetDischargesGridLocalization(Me%ObjDischarges, DischargeID, Igrid = I, JGrid = J, &
+                                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'Modify_Upscaling_DischargesV2 - Failed to get Discharge location'
+                        
+                        Me%OutPut%TimeSerieDischProp(DischargeID,1) = Me%WaterFluxes%Discharges(I,J,Me%WorkSize%KUB)
+                    endif
+                enddo
+            endif
         
             ! -------------------------------- Kill variables -------------------------------------------------------------
         
