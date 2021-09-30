@@ -413,7 +413,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if(Me%ComputeOptions%DriftingON)then
             
             call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-            if(STAT_CALL .EQ. SUCCESS_) stop 'ReadData - ModuleMacroAlgae - ERR03.1'
+            if(STAT_CALL .NE. SUCCESS_) stop 'ReadData - ModuleMacroAlgae - ERR03.1'
 
             call ExtractBlockFromBuffer(Me%ObjEnterData,                                &
                                         ClientNumber    = ClientNumber,                 &
