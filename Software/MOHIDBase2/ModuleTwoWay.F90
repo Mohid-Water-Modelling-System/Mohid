@@ -19,7 +19,7 @@ Module ModuleTwoWay
 
     use ModuleGlobalData
     use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize, GetGeometryAreas, &
-                                       GetGeometryKFloor
+                                       GetGeometryKFloor, GetGeometryKLink
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetConnections, &
                                        UnGetConnections, ConstructP2C_IWD, ConstructP2C_Avrg, GetGridCellArea
 
@@ -30,7 +30,8 @@ Module ModuleTwoWay
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
     use ModuleDischarges,        only : GetDischargesNumber, GetDischargeFlowDistribuiton, IsUpscaling
-
+    use ModuleTime
+    
     implicit none
 
     private
@@ -52,6 +53,9 @@ Module ModuleTwoWay
     public  :: GetSonVolInFather
     public  :: UnGetSonVolInFather
     public  :: GetUpscalingIDs
+    public  :: GetUpscalingDischargeVelocity
+    public  :: ActiveUpscalingMomentumDischarge
+    public  :: UnGetUpscalingDischargeVelocity
     !Modifier
     public  :: ModifyTwoWay
     private ::  ComputeAuxMatrixes
@@ -60,12 +64,18 @@ Module ModuleTwoWay
     private ::  Nudging_average
     private ::  Nudging_IWD
     public  :: PrepTwoWay
+    private :: Nudging_average_offline
+    private :: Flux_Velocity_Offline
+    private :: Flux_Velocity_Online
+    private :: DischageConc_Online
     public  :: UpscalingVolumeVariation
     public  :: UngetTwoWayExternal_Vars
     public  :: UpscaleDischarge
     public  :: UpscaleDischarge_WP
     public  :: Offline_Upscaling_Discharge
     public  :: Offline_Upscaling_Discharge_WP
+    public  :: Offline_Upscaling_Discharge_WP_V2
+    public  :: InterpolUpscaling_Velocity
 
     !Destructor
     public  :: KillTwoWay
@@ -78,7 +88,9 @@ Module ModuleTwoWay
     private ::          LocateObjTwoWay
 
     !Interfaces----------------------------------------------------------------
-
+    !Parameters----------------------------------------------------------------
+    integer, parameter :: DirectionX_      = 1
+    integer, parameter :: DirectionY_      = 2
     !Types---------------------------------------------------------------------
 
     private :: T_Hydro
@@ -98,6 +110,7 @@ Module ModuleTwoWay
         integer, dimension(:, :   ), pointer        :: JU               => null()
         integer, dimension(:, :   ), pointer        :: IZ               => null()
         integer, dimension(:, :   ), pointer        :: JZ               => null()
+        integer, dimension(:, :, :), pointer        :: KZ               => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeU          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeV          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
@@ -134,6 +147,18 @@ Module ModuleTwoWay
         real(8), dimension(:), allocatable          :: Flow
         real(8), dimension(:), pointer              :: AuxFlow => null()
         integer, dimension(:, :), pointer           :: AuxConnections => null()
+        real, dimension(:, :, :), allocatable       :: FlowMatrix
+        real, dimension(:, :, :), allocatable       :: VelocityU
+        real, dimension(:, :, :), allocatable       :: VelocityV
+        real, dimension(:, :, :), allocatable       :: VelocityU_Prev
+        real, dimension(:, :, :), allocatable       :: VelocityU_Next
+        real, dimension(:, :, :), allocatable       :: VelocityV_Prev
+        real, dimension(:, :, :), allocatable       :: VelocityV_Next
+        logical                                     :: FirstTimeU = .true.
+        logical                                     :: FirstTimeV = .true. 
+        logical                                     :: Init = .true.
+        logical                                     :: init_U = .true.
+        logical                                     :: init_V = .true.
     end type T_Discharges
 
     private :: T_FatherDomain
@@ -142,6 +167,7 @@ Module ModuleTwoWay
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_External)                           :: External_Var
         type (T_Discharges)                         :: DischargeCells
+        type (T_Discharges)                         :: Discharge
         integer                                     :: InstanceID
         integer                                     :: ObjHorizontalGrid
         integer                                     :: ObjGeometry
@@ -166,11 +192,14 @@ Module ModuleTwoWay
         type (T_External)                           :: External_Var
         type (T_Hydro)                              :: Hydro
         type (T_Discharges)                         :: DischargeCells
+        type (T_Discharges)                         :: Discharge
         type (T_Size3D)                             :: Size, WorkSize
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_FatherDomain)                       :: Father
-        real, dimension (:, :, :), pointer          :: TotSonIn => null()
-        real, dimension (:, :   ), pointer          :: TotSonIn_2D => null()
+        real, dimension (:, :, :), allocatable      :: TotSonIn
+        real, dimension (:, :   ), allocatable      :: TotSonIn_2D
+        !real, dimension (:, :, :), pointer          :: TotSonIn => null()
+        !real, dimension (:, :   ), pointer          :: TotSonIn_2D => null()
         type (T_TwoWay), pointer                    :: Next
 
         !Instance of ModuleHorizontalGrid
@@ -202,7 +231,7 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Contructs TwoWay global pointer structure.
-    !>@param[in] ModelName, ObjTwoWayID
+    !>@param[in] ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, IntMethod, STAT
     subroutine ConstructTwoWay(ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, IntMethod, &
     STAT)
         !Arguments---------------------------------------------------------------
@@ -329,7 +358,7 @@ Module ModuleTwoWay
 
             if (.not. allocated(Me%IgnoreOBCells)) &
                 call Compute_MatrixFilterOB (NumCellsToIgnore, Me%External_Var%BoundaryPoints2D)
-
+            
             call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR02'
 
@@ -358,8 +387,12 @@ Module ModuleTwoWay
         IUB = Me%WorkSize2D%IUB; JUB = Me%WorkSize2D%JUB
 
         !Me%IgnoreOBCells is 0 for when the cell must be ignored.
-        allocate (Me%IgnoreOBCells(ILB:IUB, JLB:JUB))
+        allocate (Me%IgnoreOBCells(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB))
         Me%IgnoreOBCells(:,:) = 1
+        Me%IgnoreOBCells(Me%Size2D%ILB,:) = 0
+        Me%IgnoreOBCells(Me%Size2D%IUB,:) = 0
+        Me%IgnoreOBCells(:,Me%Size2D%JLB) = 0
+        Me%IgnoreOBCells(:,Me%Size2D%JUB) = 0
 
         !This if is here to solve the issue of a east/west channel simulation with only 3 cells
         if ((IUB - IgnoreOBNumCells) <= 3)then
@@ -410,15 +443,15 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Allocates auxiliar matrixes
-    !>@param[in] FatherTwoWayID, TwoWayID
-    subroutine AllocateTwoWayAux(FatherTwoWayID, TwoWayID)
+    !>@param[in] FatherTwoWayID, TwoWayID, CallerID
+    subroutine AllocateTwoWayAux(FatherTwoWayID, TwoWayID, CallerID)
 
         !Arguments-------------------------------------------------------------
-        integer                            :: FatherTwoWayID, TwoWayID
+        integer         , intent(IN)        :: FatherTwoWayID, TwoWayID, CallerID
         !Local-----------------------------------------------------------------
-        integer                            :: ready_, ready_father, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
-        logical                            :: isIWD
-        type (T_TwoWay), pointer           :: ObjFather
+        integer                             :: ready_, ready_father, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        logical                             :: isIWD
+        type (T_TwoWay), pointer            :: ObjFather
         !----------------------------------------------------------------------
         call Ready (TwoWayID, ready_)
 
@@ -457,15 +490,38 @@ Module ModuleTwoWay
                 Me%Father%TotSonIn_2D(:,:) = 0.0
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
-                
+
                 call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
-            else
+            elseif (Me%Hydro%InterpolationMethod == 2) then
                 call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
 
                 allocate(Me%Father%IWDNom  (ILB:IUB, JLB:JUB, KLB:KUB))
                 allocate(Me%Father%IWDDenom(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%IWDDenom(:,:,:) = 0.0
                 Me%Father%IWDNom(:,:,:) = 0.0
+            elseif (Me%Hydro%InterpolationMethod == 3) then
+                if (CallerID == mFILLMATRIX_) then
+                    !Only upscaling Discharge - no nudging
+                    allocate(Me%Father%Discharge%VelocityU   (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%Father%Discharge%VelocityV   (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%Father%Discharge%VelocityU_Prev  (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%Father%Discharge%VelocityU_Next  (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%Father%Discharge%VelocityV_Prev  (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%Father%Discharge%VelocityV_Next  (ILB:IUB, JLB:JUB, KLB:KUB))
+                    Me%Father%Discharge%VelocityU(:,:,:) = 0.0
+                    Me%Father%Discharge%VelocityV(:,:,:) = 0.0
+                    Me%Father%Discharge%VelocityU_Prev(:,:,:) = 0.0
+                    Me%Father%Discharge%VelocityU_Next(:,:,:) = 0.0
+                    Me%Father%Discharge%VelocityV_Prev(:,:,:) = 0.0
+                    Me%Father%Discharge%VelocityV_Next(:,:,:) = 0.0
+                else
+                    if (.not. allocated(ObjFather%Discharge%FlowMatrix)) then
+                      allocate(ObjFather%Discharge%FlowMatrix   (ILB:IUB, JLB:JUB, KLB:KUB))
+                      call SetMatrixValueAllocatable(ObjFather%Discharge%FlowMatrix, ObjFather%WorkSize, 0.0)
+                    endif
+                endif
+                
+                call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
             endif
         else
             stop 'ModuleTwoWay - AllocateTwoWayAux - ERR30'
@@ -607,33 +663,54 @@ Module ModuleTwoWay
     !> Gets upscaling discharge flow
     !>@param[in] TwoWayID, UpscaleDischarge, STAT
     !--------------------------------------------------------------------------
-    subroutine GetUpscalingDischarge(TwoWayID, UpscaleDischarge, STAT)
+    subroutine GetUpscalingDischarge(TwoWayID, UpscaleDischarge, Done, STAT)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                 :: TwoWayID
-        real(8),  dimension(:,:, :), pointer, intent(INOUT) :: UpscaleDischarge
+        real(8),  dimension(:,:, :), pointer                :: UpscaleDischarge
         integer, optional                                   :: STAT
+        logical, optional                   , intent(OUT)   :: Done
         !Local-----------------------------------------------------------------
-        integer                                             :: ready_, STAT_, line, MaxSize, i, j, k
+        type (T_TwoWay), pointer                            :: SonObj
+        integer                                             :: ready_, STAT_, line, MaxSize, i, j, k, MaxSize2
+        integer                                             :: N_Domains_byDischarge, N_Domains_Nudging
         !----------------------------------------------------------------------
         call Ready(TwoWayID, ready_)
-
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            MaxSize = Size(Me%DischargeCells%AuxFlow)
-            do line = 1, MaxSize
-                i = Me%DischargeCells%AuxConnections(line, 1)
-                j = Me%DischargeCells%AuxConnections(line, 2)
-                k = Me%DischargeCells%AuxConnections(line, 3)
-
-                UpscaleDischarge(i, j, k) = Me%DischargeCells%AuxFlow(line)
+            N_Domains_byDischarge = 0
+            N_Domains_Nudging = 0
+            SonObj => FirstObjTwoWay
+            do while (associated (SonObj))
+                if (SonObj%Father%InstanceID == TwoWayID) then
+                    if (SonObj%Hydro%InterpolationMethod == 3) then
+                        N_Domains_byDischarge = N_Domains_byDischarge + 1
+                    else
+                        N_Domains_Nudging = N_Domains_Nudging
+                    endif
+                endif
+                SonObj => SonObj%Next
             enddo
-
+            if (N_Domains_byDischarge > 0 .and. N_Domains_Nudging > 0) then
+                write (*,*) 'Model not ready for two different upscaling methods in the same simulation'
+            elseif (N_Domains_byDischarge > 0) then
+                !Me%Discharge%Flow has the flow from every upscaling domain.
+                call SetMatrixValue (UpscaleDischarge, Me%WorkSize, Me%Discharge%FlowMatrix, MaskValue = 0.0)
+                if (present(Done)) Done = .true.
+            else
+                MaxSize = Size(Me%DischargeCells%AuxFlow)
+                
+                do line = 1, MaxSize
+                    i = Me%DischargeCells%AuxConnections(line, 1)
+                    j = Me%DischargeCells%AuxConnections(line, 2)
+                    k = Me%DischargeCells%AuxConnections(line, 3)
+                    UpscaleDischarge(i, j, k) = Me%DischargeCells%AuxFlow(line)
+                enddo
+            endif
+            nullify (SonObj)
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
         end if
-
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetUpscalingDischarge
@@ -659,7 +736,6 @@ Module ModuleTwoWay
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
             call Read_Lock(mTwoWay_, Me%InstanceID)
 
             if (present(Matrix2D)) Matrix2D => Me%TotSonIn_2D
@@ -698,7 +774,8 @@ Module ModuleTwoWay
 
             if (present(Matrix2D)) nullify(Matrix2D)
             if (present(Matrix3D)) nullify(Matrix3D)
-
+            if (present(Matrix2D)) Me%TotSonIn_2D(:,:) = 0.0
+            if (present(Matrix3D)) Me%TotSonIn(:,:,:)  = 0.0
             call Read_UnLock(mTwoWay_, Me%InstanceID, "UnGetSonVolInFather")
 
             STAT_ = SUCCESS_
@@ -708,7 +785,145 @@ Module ModuleTwoWay
 
         if (present(STAT)) STAT = STAT_
     end subroutine UnGetSonVolInFather
+     !--------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets a pointer to the Velocity U or V matrix, to be used in a momemtum discharge
+    !>@param[in] TwoWayID, VelocityU, VelocityV
+    !--------------------------------------------------------------------------
+    subroutine GetUpscalingDischargeVelocity(TwoWayID, VelocityU, VelocityV, STAT)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                                         :: TwoWayID
+        real,  dimension(:,:, :), pointer, optional,  intent(OUT)   :: VelocityU, VelocityV
+        integer, optional                                           :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                         :: ready_, STAT_, STAT_CALL
+        integer                                         :: FatherI_max, FatherJ_max, FatherI_min, FatherJ_min, i, j, k
+        integer, dimension(:, :   ), pointer            :: IZ, JZ
+        type (T_TwoWay), pointer                        :: SonObj
+        !----------------------------------------------------------------------
 
+        call Ready(TwoWayID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mTwoWay_, Me%InstanceID)
+            
+            if(present(VelocityU)) call SetMatrixValueAllocatable(Me%Discharge%VelocityU, Me%WorkSize, 0.0)
+            if(present(VelocityV)) call SetMatrixValueAllocatable(Me%Discharge%VelocityV, Me%WorkSize, 0.0)
+            
+            SonObj => FirstObjTwoWay
+            do while (associated (SonObj))
+                !if current object is a son domain then update discharge flow
+                if (SonObj%Father%InstanceID == TwoWayID) then
+                    call GetHorizontalGrid(HorizontalGridID = SonObj%ObjHorizontalGrid, &
+                                           ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetUpscalingDischargeVelocity - Failed to get Son-Father link matrixes'
+                    
+                    FatherI_max = maxval(IZ)
+                    FatherJ_max = maxval(JZ)
+                    FatherI_min = minval(IZ, MASK=IZ .GT. 0.0)
+                    FatherJ_min = minval(JZ, MASK=JZ .GT. 0.0)
+                    if (present(VelocityU)) then
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do j = FatherJ_min, FatherJ_max
+                        do i = FatherI_min, FatherI_max
+                            if (SonObj%Father%Discharge%VelocityU(i, j, k) /= 0) then
+                                Me%Discharge%VelocityU(i, j, k) = SonObj%Father%Discharge%VelocityU(i, j, k)
+                            endif
+                        enddo
+                        enddo
+                        enddo
+                    elseif (present(VelocityV)) then
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do j = FatherJ_min, FatherJ_max
+                        do i = FatherI_min, FatherI_max
+                            if (SonObj%Father%Discharge%VelocityV(i, j, k) /= 0) then
+                                Me%Discharge%VelocityV(i, j, k) = SonObj%Father%Discharge%VelocityV(i, j, k)
+                            endif
+                        enddo
+                        enddo
+                        enddo
+                    endif
+                    call UngetHorizontalGrid(SonObj%ObjHorizontalGrid, IZ,    STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetUpscalingDischargeVelocity-TwoWay-ERR01'
+                    call UngetHorizontalGrid(SonObj%ObjHorizontalGrid, JZ,    STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetUpscalingDischargeVelocity-TwoWay-ERR02'
+                endif
+                
+                SonObj => SonObj%Next
+                
+            enddo
+            
+            if (present(VelocityU)) VelocityU => Me%Discharge%VelocityU
+            if (present(VelocityV)) VelocityV => Me%Discharge%VelocityV
+            nullify (SonObj)
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+    end subroutine GetUpscalingDischargeVelocity
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> checks if upscaling dischage velocity matrix is allocated
+    !>@param[in] ID  
+    logical function ActiveUpscalingMomentumDischarge (ID, Direction)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                             :: ID, Direction
+        !Locals----------------------------------------------------------------
+        integer                                         :: ready_
+        !Begin-----------------------------------------------------------------
+        call Ready(ID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            ActiveUpscalingMomentumDischarge = .false.
+            if (direction == DirectionX_) then
+                if (allocated(Me%Discharge%VelocityU)) ActiveUpscalingMomentumDischarge = .true.
+            else
+                if (allocated(Me%Discharge%VelocityV)) ActiveUpscalingMomentumDischarge = .true.
+            endif
+        else
+            write (*,*) 'Cannot acess domain ID', ID
+            stop 'ActiveUpscalingMomentumDischarge : objtwoway pointer not ready'
+        endif
+                
+    end function ActiveUpscalingMomentumDischarge
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Nullifies pointer to the Velocity U or V matrix
+    !>@param[in] TwoWayID, Matrix, STAT
+    !--------------------------------------------------------------------------
+    subroutine UnGetUpscalingDischargeVelocity(TwoWayID, Matrix, STAT)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                             :: TwoWayID
+        real,  dimension(:,:, :), pointer               :: Matrix
+        integer, optional                               :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                         :: ready_, STAT_
+        !----------------------------------------------------------------------
+
+        call Ready(TwoWayID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify(Matrix)
+            call Read_UnLock(mTwoWay_, Me%InstanceID, "UnGetUpscalingDischargeVelocity")
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+    end subroutine UnGetUpscalingDischargeVelocity
     !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -722,8 +937,9 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Updates father grid domain with son's results
-    !>@param[in] SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, VelocityID, TD, STAT
-    subroutine ModifyTwoWay(SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, VelocityID, TD, STAT)
+    !>@param[in] SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, DischargeFlux, CallerID, VelocityID, TD, STAT
+    subroutine ModifyTwoWay(SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, &
+    VelocityID, TD, STAT)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                         :: SonID, CallerID
         integer, optional, intent(IN)                               :: VelocityID
@@ -736,7 +952,7 @@ Module ModuleTwoWay
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_, InterpolMethod
         real                                        :: TimeDecay
-        logical                                     :: Offline
+        logical                                     :: Offline, Online
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
 
@@ -752,53 +968,77 @@ Module ModuleTwoWay
             if (CallerID == mHydrodynamic_) then
                 TimeDecay = Me%Hydro%TimeDecay
                 InterpolMethod = Me%Hydro%InterpolationMethod
+                Online = .true.
             elseif (CallerID == mWATERPROPERTIES_) then
                 ! for now interpolation method is set by the hydrodynamic module. The if is here for when
                 ! each property can set its own interpolation method
                 InterpolMethod = Me%Hydro%InterpolationMethod
                 TimeDecay = TD
+                Online = .true.
             elseif (CallerID == mField4D_) then
-                InterpolMethod = 1
+                InterpolMethod = Me%Hydro%InterpolationMethod !Was Defined in constructTwoWay, via fillmatrix.
                 Offline =  .true.
             endif
 
             !if it is a 3D matrix
-            if (present(FatherMatrix)) then
-                if (present(VelocityID))then
+            if (present(FatherMatrix) .and. Me%Hydro%InterpolationMethod /= 3) then
+                if (present(VelocityID) .and. Online)then
                     if (VelocityID == VelocityU_) then
                         !if 3D matrixes were sent. Even 2D domains allocate a 3D matrix (only one vertical layer)
                         !Type_U
                         call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeU, InterpolMethod = InterpolMethod,&
                                                  Ilink = Me%External_Var%IU, Jlink = Me%External_Var%JU, &
-                                                 VelocityID = VelocityID, Offline = Offline)
+                                                 Klink = Me%External_Var%KZ, VelocityID = VelocityID,    &
+                                                 Offline = Offline)
                     else
                         !Type_V
                         call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeV, InterpolMethod = InterpolMethod,&
-                                                 Ilink = Me%External_Var%IV, Jlink = Me%External_Var%JV, &
-                                                 VelocityID = VelocityID, Offline = Offline)
+                                                 Ilink = Me%External_Var%IV, Jlink = Me%External_Var%JV,              &
+                                                 Klink = Me%External_Var%KZ, VelocityID = VelocityID,                 &
+                                                 Offline = Offline)
                     endif
                 else
-                    !Type Z
+                    !Type Z - specific for offline upscaling
                     call ComputeAuxMatrixes     (Volume_3D = Me%External_Var%VolumeZ, InterpolMethod = InterpolMethod,&
                                                  Ilink = Me%External_Var%IZ, Jlink = Me%External_Var%JZ, &
-                                                 Offline = Offline)
+                                                 Klink = Me%External_Var%KZ, Offline = Offline)
                 endif
-            else
+            elseif (Me%Hydro%InterpolationMethod /= 3) then
                 !if a 2D matrix was sent (specific for waterLevel - at least for MohidWater).
                 call ComputeAuxMatrixes (Volume_2D = Me%External_Var%VolumeZ_2D, InterpolMethod = InterpolMethod, &
                                          Ilink = Me%External_Var%IZ, Jlink = Me%External_Var%JZ, Offline = Offline)
             endif
 
-            if (InterpolMethod == 1) then
-                if (CallerID == mField4D_) then
+            if (CallerID == mField4D_) then
+                if (InterpolMethod == 1) then
                     call Nudging_average_offline (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
-                else
-                    call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+                elseif (InterpolMethod == 3) then
+                    if (present(VelocityID)) then
+                        call Flux_Velocity_Offline (VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+                    else
+                        call DischageConc_Offline (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+                    endif
                 endif
-
-            elseif (InterpolMethod == 2) then
-                call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+            elseif (CallerID == mHydrodynamic_) then
+                if (InterpolMethod == 1) then
+                    call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+                elseif (InterpolMethod == 2) then
+                    call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+                elseif (InterpolMethod == 3) then
+                    !write (*,*) 'ModelID In :', SonID
+                    call Flux_Velocity_Online (VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+                    !write (*,*) 'ModelID Out :', SonID
+                endif
+            else
+                if (InterpolMethod == 1) then
+                    call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+                elseif (InterpolMethod == 2) then
+                    call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
+                elseif (InterpolMethod == 3) then
+                    call DischageConc_Online (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+                endif
             endif
+            
 
             if (MonitorPerformance) call StopWatch ("ModuleTwoWay", "ModifyTwoWay")
             STAT_ = SUCCESS_
@@ -842,6 +1082,9 @@ Module ModuleTwoWay
                                    ILinkU = Me%External_Var%IU, JLinkU = Me%External_Var%JU, &
                                    ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
+            
+            call GetGeometryKLink(GeometryID = Me%ObjGeometry, KLinkZ = Me%External_Var%KZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father Klink matrix'
 
             Call GetGeometryAreas(GeometryID = Me%ObjGeometry, AreaU = Me%External_Var%AreaU, &
                                   AreaV = Me%External_Var%AreaV, STAT = STAT_CALL)
@@ -995,13 +1238,14 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes auxiliar matrixes for the feedback
-    !>@param[in] Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink
-    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Offline)
+    !>@param[in] Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Offline
+    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink, Klink, Offline)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                                        :: interpolMethod
         real(8), dimension(:, :, :), pointer, optional, intent(IN) :: Volume_3D
         real(8), dimension(:, :),    pointer, optional, intent(IN) :: Volume_2D
-        integer, dimension(:, :), pointer, intent(IN)              :: Ilink, Jlink
+        integer, dimension(:, :),    pointer, intent(IN)           :: Ilink, Jlink
+        integer, dimension(:, :, :), pointer, optional, intent(IN) :: Klink
         integer, optional,                              intent(IN) :: VelocityID
         logical,                                        intent(IN) :: Offline
         !Local-----------------------------------------------------------------
@@ -1014,14 +1258,17 @@ Module ModuleTwoWay
                 ! Volume Weighted average
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_)then
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
-                                                   SonComputeFaces = Me%External_Var%ComputeFaces3D_U, Offline=Offline)
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink,&
+                                                SonComputeFaces = Me%External_Var%ComputeFaces3D_U, Offline=Offline, &
+                                                VelocityID = VelocityID)
                     else
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
-                                                   SonComputeFaces = Me%External_Var%ComputeFaces3D_V, Offline=Offline)
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink,&
+                                                SonComputeFaces = Me%External_Var%ComputeFaces3D_V, Offline=Offline, &
+                                                VelocityID = VelocityID)
                     endif
                 else
-                    call ComputeSonVolInFather   (Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Offline=Offline)
+                    call ComputeSonVolInFather   (Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, Klink = Klink, &
+                                                  Offline = Offline)
                 endif
             else
                 Me%Father%IWDNom = 0.0
@@ -1048,56 +1295,83 @@ Module ModuleTwoWay
     !>@Brief
     !>Computes Son cells volume inside each father cell
     !>@param[in] Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces
-    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces, Offline)
+    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, Klink, SonComputeFaces, Offline, VelocityID)
         !Arguments--------------------------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, optional :: Volume_3D
         real(8), dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer              :: Ilink, Jlink
-        integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
+        integer, dimension(:, :, :), pointer, optional :: SonComputeFaces, Klink
         logical,                            intent(IN) :: Offline
+        integer, optional                              :: VelocityID
         !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k, ifather, jfather, kfather, k_difference, CHUNK, Flag
+        integer                                 :: i, j, k, ifather, jfather, kfather, CHUNK, Flag, Flag2
         !Begin------------------------------------------------------------------------------------
 
-        if (Offline) call ComputeSonVolInFather_offline(Volume_3D, Volume_2D, Ilink, Jlink)
+        if (Offline) then
+            if (present(Klink)) then
+                call ComputeSonVolInFather_offline(Volume_3D, Volume_2D, Ilink, Jlink, Klink = Klink)
+            else
+                stop 'ComputeSonVolInFather - ModuleTwoWay - Klink matrix not present'
+            endif
+        endif
 
         if (present(Volume_3D) .and. .not. offline) then
-            !account for different amount of vertical layers between domains.
-            k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
+            
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
+            !!$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
             if (present(SonComputeFaces))then
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j) + SonComputeFaces(i, j, k)
-                    if (Flag == 3) then
-                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
-                        Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
-                                                                        + Volume_3D(i, j, k)
-                    endif
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
+                if (VelocityID == VelocityU_) then
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        Flag = Me%External_Var%Open3D(i, j, k) + SonComputeFaces(i, j, k) + Me%IgnoreOBCells(i, j)
+                        if ((Flag == 3) .and. Klink(i, j, k) /= FillValueInt) then
+                            !if ((Me%IgnoreOBCells(i, j) == 0 .and. Me%IgnoreOBCells(i, j + 1) == 1) &
+                            !      .or. (Me%IgnoreOBCells(i, j) == 1 .and. Me%IgnoreOBCells(i, j + 1) == 1)) then
+                            ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
+                            Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                            + Volume_3D(i, j, k)
+                            !endif
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                
+                else
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j) + SonComputeFaces(i, j, k)
+                        if ((Flag == 3) .and. Klink(i, j, k) /= FillValueInt) then
+                            ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
+                            Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                            + Volume_3D(i, j, k)
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                endif
+                
+                
+                !!$OMP END DO
             else
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j)
-                    if (Flag == 2) then
-                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
+                    if (Flag == 2 .and. Klink(i, j, k) /= FillValueInt) then
+                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
                         Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
                                                                         + Volume_3D(i, j, k)
                     endif
                 enddo
                 enddo
                 enddo
-                !$OMP END DO
+                !!$OMP END DO
             endif
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         elseif (present(Volume_2D) .and. .not. offline) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1117,42 +1391,43 @@ Module ModuleTwoWay
     !>@Brief
     !>Computes Son cells volume inside each father cell for offline simulations
     !>@param[in] Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces
-    subroutine ComputeSonVolInFather_offline (Volume_3D, Volume_2D, Ilink, Jlink)
+    subroutine ComputeSonVolInFather_offline (Volume_3D, Volume_2D, Ilink, Jlink, Klink)
         !Arguments--------------------------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, optional :: Volume_3D
         real(8), dimension(:, :),    pointer, optional :: Volume_2D
-        integer, dimension(:, :), pointer              :: Ilink, Jlink
+        integer, dimension(:, :),    pointer           :: Ilink, Jlink
+        integer, dimension(:, :, :), pointer, optional :: Klink
         !Local variables--------------------------------------------------------------------------
-        integer                                        :: i, j, k, ifather, jfather, kfather, k_difference, KLB, KUB
+        integer                                        :: i, j, k, ifather, jfather, kfather, KLB, KUB
         integer                                        :: CHUNK
         !Begin------------------------------------------------------------------------------------
         KLB = Me%WorkSize%KLB; KUB = Me%WorkSize%KUB
-
         if (present(Volume_3D)) then
-            !account for different amount of vertical layers between domains.
-            k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
-            !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
-                Me%Father%TotSonIn(ifather,jfather,kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
-                                                            + Volume_3D(i, j, k) * Me%External_Var%WaterPoints3D(i,j,k)
+                if (Klink(i, j, k) /= FillValueInt) then
+                    ifather = ILink(i, j); jfather = JLink(i, j); kfather = Klink(i, j, k)
+                    Me%Father%TotSonIn(ifather,jfather,kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                + Volume_3D(i, j, k)                            &
+                                                                * Me%External_Var%Open3D(i, j, k)
+                endif
             enddo
             enddo
             enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
+            !!$OMP END DO
+            !!$OMP END PARALLEL
 
         elseif (present(Volume_2D)) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 ifather = ILink(i, j); jfather = JLink(i, j)
                 Me%Father%TotSonIn_2D(ifather, jfather) = Me%Father%TotSonIn_2D(ifather, jfather) &
-                                                        + Volume_2D(i, j) * Me%External_Var%WaterPoints3D(i, j, KUB)
+                                                        + Volume_2D(i, j) * Me%External_Var%Open3D(i, j, KUB)
             enddo
             enddo
         endif
@@ -1188,6 +1463,7 @@ Module ModuleTwoWay
                                            SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IU,                      &
                                            Jlink                = Me%External_Var%JU,                      &
+                                           Klink                = Me%External_Var%KZ,                       &
                                            DecayTime            = TimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
                                            SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
@@ -1207,6 +1483,7 @@ Module ModuleTwoWay
                                            SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IV,                      &
                                            Jlink                = Me%External_Var%JV,                      &
+                                           Klink                = Me%External_Var%KZ,                       &
                                            DecayTime            = TimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
                                            SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
@@ -1225,6 +1502,7 @@ Module ModuleTwoWay
                                       SizeSon          = Me%WorkSize,                     &
                                       Ilink            = Me%External_Var%IZ,               &
                                       Jlink            = Me%External_Var%JZ,               &
+                                      Klink            = Me%External_Var%KZ,                       &
                                       DecayTime        = TimeDecay,                  &
                                       DT               = Me%Hydro%DT,                     &
                                       SonVolInFather   = GetPointer(Me%Father%TotSonIn),           &
@@ -1273,27 +1551,40 @@ Module ModuleTwoWay
         type (T_TwoWay), pointer                                    :: ObjFather
         integer                                                     :: ready_father
         !Begin ----------------------------------------------------------------
-
         if (present(FatherMatrix)) then
             !3D
             !compute nudging Z type cell
             call Upscaling_Avrg (   FatherMatrix     = FatherMatrix,                        &
                                     SonMatrix        = SonMatrix,                           &
-                                    SonMask          = Me%External_Var%WaterPoints3D,       &
+                                    FatherMask       = Me%Father%External_Var%Open3D,       &
+                                    SonMask          = Me%External_Var%Open3D,              &
                                     SizeFather       = Me%Father%WorkSize,                  &
                                     SizeSon          = Me%WorkSize,                         &
                                     Ilink            = Me%External_Var%IZ,                  &
                                     Jlink            = Me%External_Var%JZ,                  &
+                                    Klink            = Me%External_Var%KZ,                  &
                                     VolumeSon        = Me%External_Var%VolumeZ,             &
                                     TotSonIn         = GetPointer(Me%Father%TotSonIn))
 
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
-            if (.not. associated(ObjFather%TotSonIn)) ObjFather%TotSonIn => Me%Father%TotSonIn
+            !if (.not. associated(ObjFather%TotSonIn)) then
+            !    ObjFather%TotSonIn => Me%Father%TotSonIn
+            !else
+            !    where (Me%Father%TotSonIn(:,:,:) /= 0) ObjFather%TotSonIn(:,:,:) = Me%Father%TotSonIn
+            !endif
+            if (.not. allocated(ObjFather%TotSonIn)) then
+                allocate(ObjFather%TotSonIn(ObjFather%WorkSize%ILB:ObjFather%WorkSize%IUB, &
+                                            ObjFather%WorkSize%JLB:ObjFather%WorkSize%JUB, &
+                                            ObjFather%WorkSize%KLB:ObjFather%WorkSize%KUB))
+            endif
+            where (Me%Father%TotSonIn(:,:,:) /= 0) ObjFather%TotSonIn(:,:,:) = Me%Father%TotSonIn(:,:,:)
 
         else
             call Upscaling_Avrg_WL (    FatherMatrix2D   = FatherMatrix2D,                      &
                                         SonMatrix2D      = SonMatrix2D,                         &
-                                        SonMask          = Me%External_Var%WaterPoints3D,       &
+                                        FatherMask       = Me%Father%External_Var%Open3D,       &
+                                        SonMask          = Me%External_Var%Open3D,              &
+                                        SizeFather       = Me%Father%WorkSize,                  &
                                         SizeSon          = Me%WorkSize,                         &
                                         Ilink            = Me%External_Var%IZ,                  &
                                         Jlink            = Me%External_Var%JZ,                  &
@@ -1301,11 +1592,1060 @@ Module ModuleTwoWay
                                         TotSonIn2D       = GetPointer(Me%Father%TotSonIn_2D))
 
             call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
-            if (.not. associated(ObjFather%TotSonIn_2D)) ObjFather%TotSonIn_2D => Me%Father%TotSonIn_2D
+            !if (.not. associated(ObjFather%TotSonIn_2D)) then
+            !    ObjFather%TotSonIn_2D => Me%Father%TotSonIn_2D
+            !else
+            !     where (ObjFather%TotSonIn_2D(:,:) /= 0) ObjFather%TotSonIn_2D(:,:) = Me%Father%TotSonIn_2D
+            !endif
+            if (.not. allocated(ObjFather%TotSonIn_2D)) then
+                allocate(ObjFather%TotSonIn_2D( ObjFather%WorkSize%ILB:ObjFather%WorkSize%IUB, &
+                                                ObjFather%WorkSize%JLB:ObjFather%WorkSize%JUB))
+            endif
+            where (ObjFather%TotSonIn_2D(:,:) /= 0) ObjFather%TotSonIn_2D(:,:) = Me%Father%TotSonIn_2D
+            
         endif
 
     end subroutine Nudging_average_offline
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Computes flux and velocity from an upscaling domain at the PD land boundary crossed by the CD
+    !>@param[in] VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D
+    subroutine Flux_Velocity_Offline(VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, optional, intent(INOUT)  :: FatherMatrix
+        real, dimension(:, :, :), pointer, optional, intent(IN)     :: SonMatrix
+        real, dimension(:, :),    pointer, optional, intent(INOUT)  :: FatherMatrix2D
+        real, dimension(:, :),    pointer, optional, intent(IN)     :: SonMatrix2D
+        integer,                                     intent(IN)     :: VelocityID
+        !Local-----------------------------------------------------------------
+        type (T_TwoWay), pointer                                    :: ObjFather
+        integer                                                     :: ready_father, i, j, k, ison,json,kson
+        integer                                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KUBSon, KLBSon
+        integer                                                     :: FatherI_max, FatherJ_max, FatherK_max
+        integer                                                     :: FatherI_min, FatherJ_min, FatherK_min
+        integer                                                     :: Number_Cells, ifather, jfather
+        integer                                                     :: CellFaceOpen, belongs
+        integer                                                     :: jfather_Water, ifather_Water,Enter_Flag
+        real, dimension(:, :, :), pointer                           :: SonArea_U, SonArea_V, Velocity
+        logical                                                     :: FoundFirstColumn, FoundFirstLine
+        integer, dimension(:, :, :), pointer                        :: SonMask, FatherMask, KLink
+        integer, dimension(:, :), pointer                           :: ILink, JLink
+        type (T_Size3D)                                             :: SizeAux
+        !Begin ----------------------------------------------------------------
+        if (present(FatherMatrix)) then
+            !3D
+            ILBSon = Me%WorkSize%ILB; JLBSon = Me%WorkSize%JLB; KUBSon = Me%WorkSize%KUB
+            IUBSon = Me%WorkSize%IUB; JUBSon = Me%WorkSize%JUB; KLBSon = Me%WorkSize%KLB
+            
+            SonArea_U  => Me%External_Var%AreaU
+            SonArea_V  => Me%External_Var%AreaV
+            SonMask    => Me%External_Var%Open3D
+            FatherMask => Me%Father%External_Var%Open3D
+            ILink      => Me%External_Var%IZ
+            JLink      => Me%External_Var%JZ
+            KLink      => Me%External_Var%KZ
+        
+            FatherI_max = maxval(ILink)             ;   FatherI_min = minval(ILink, MASK=ILink .GT. 0.0)
+            FatherJ_max = maxval(JLink)             ;   FatherJ_min = minval(JLink, MASK=JLink .GT. 0.0)
+            FatherK_max = maxval(KLink)             ;   FatherK_min = minval(KLink, MASK=KLink .GT. 0.0)
+            
+            SizeAux%IUB = FatherI_max               ;   SizeAux%ILB = FatherI_min
+            SizeAux%JUB = FatherJ_max               ;   SizeAux%JLB = FatherJ_min
+            SizeAux%KUB = Me%Father%WorkSize%KUB    ;   SizeAux%KLB = Me%Father%WorkSize%KLB
+            
+            if (Me%Discharge%init .and. (.not. Me%Discharge%init_U) .and. (.not. Me%Discharge%init_V)) then
+                Me%Discharge%init = .false.
+            endif
+            
+            if (VelocityID == VelocityU_) then
+                if (Me%Discharge%init) then
+                    if (Me%Discharge%FirstTimeU) then
+                        call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityU_Prev, SizeAux, 0.0)
+                        Velocity => Me%Father%Discharge%VelocityU_Prev
+                        Me%Discharge%FirstTimeU = .false.
+                    else
+                        call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityU_Next, SizeAux, 0.0)
+                        Velocity => Me%Father%Discharge%VelocityU_Next
+                        Me%Discharge%init_U = .false.
+                    endif
+                else
+                    do k = Me%Father%WorkSize%KLB, Me%Father%WorkSize%KUB
+                    do j = FatherJ_min, FatherJ_max
+                    do i = FatherI_min, FatherI_max
+                        Me%Father%Discharge%VelocityU_Prev(i,j,k) = Me%Father%Discharge%VelocityU_Next(i,j,k)
+                        Me%Father%Discharge%VelocityU_Next(i,j,k) = 0.0
+                        FatherMatrix(i, j, k) = 0.0
+                    enddo
+                    enddo
+                    enddo
+                    Velocity => Me%Father%Discharge%VelocityU_Next
+                endif
+            elseif (VelocityID == VelocityV_) then
+                if (Me%Discharge%init) then
+                    if (Me%Discharge%FirstTimeV) then
+                        call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityV_Prev, SizeAux, 0.0)
+                        Velocity => Me%Father%Discharge%VelocityV_Prev
+                        Me%Discharge%FirstTimeV = .false.
+                    else
+                        call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityV_Next, SizeAux, 0.0)
+                        Velocity => Me%Father%Discharge%VelocityV_Next
+                        Me%Discharge%init_V = .false.
+                    endif
+                else
+                    do k = Me%Father%WorkSize%KLB, Me%Father%WorkSize%KUB
+                    do j = FatherJ_min, FatherJ_max
+                    do i = FatherI_min, FatherI_max
+                        Me%Father%Discharge%VelocityV_Prev(i,j,k) = Me%Father%Discharge%VelocityV_Next(i,j,k)
+                        Me%Father%Discharge%VelocityV_Next(i,j,k) = 0.0
+                        FatherMatrix(i, j, k) = 0.0
+                    enddo
+                    enddo
+                    enddo
+                    Velocity => Me%Father%Discharge%VelocityV_Next
+                endif
+            endif
+            
+            if (VelocityID == VelocityU_) then
+                do k = FatherK_min, Me%Father%WorkSize%KUB
+                do j = FatherJ_min, FatherJ_max
+                do i = FatherI_min, FatherI_max
+                    FoundFirstColumn = .false.
+                    Number_Cells = 0
+                    if (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j + 1, FatherK_max) == 0) then
+                        !land on the right side
+                do1:    do json = JLBSon, JUBSon
+                            if (FoundFirstColumn) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do1
+                            endif
+                        do ison = ILBSon, IUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            !Check if son cell is inside PD land cell
+                            belongs = 1 + abs(ifather - i) + abs(jfather - (j + 1))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstColumn = .true.
+                               !do kson = KLBSon, KUBSon
+                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                               !    !because Klink of a land cell is FillValueReal
+                               !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                               !         Number_Cells = Number_Cells + 1
+                               !         !m3/s
+                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                               !                               - SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
+                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                               !    endif
+                               !enddo
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json+1, k)+FatherMask(i, j, k)
+                                if (Enter_Flag == 3) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                            - SonMatrix(ison,json+1,k) * SonArea_U(ison,json+1,k)
+                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json+1,k)
+                                endif
+                            endif
+                        enddo
+                        enddo do1
+                        
+                    elseif (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j - 1, FatherK_max) == 0) then
+                        !land on the left side
+                do2:    do json = JLBSon, JUBSon
+                            if (FoundFirstColumn) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do2
+                            endif
+                        do ison = ILBSon, IUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            jfather_Water = jfather + 1
+                            !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                            belongs = 1 + abs(ifather - i) + abs(jfather - (j - 1)) &
+                                        + abs(jfather_Water - JLink(ison, json + 1))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstColumn = .true.
+                               !do kson = KLBSon, KUBSon
+                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                               !    !because Klink of a land cell is FillValueReal
+                               !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                               !         Number_Cells = Number_Cells + 1
+                               !         !m3/s
+                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                               !                               + SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
+                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                               !    endif
+                               !enddo
+                                Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json+1, k)+FatherMask(i, j, k)
+                                if (Enter_Flag == 3) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                            + SonMatrix(ison,json-1,k) * SonArea_U(ison,json-1,k)
+                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json-1,k)
+                                endif
+                            endif
+                        enddo
+                        enddo do2
+                    endif
+                    if (Number_Cells > 0)Velocity(i, j, k) = Velocity(i, j, k) / Number_Cells
+                enddo
+                enddo
+                enddo
+            elseif (VelocityID == VelocityV_) then
+                
+                do k = FatherK_min, Me%Father%WorkSize%KUB
+                do j = FatherJ_min, FatherJ_max
+                do i = FatherI_min, FatherI_max
+                    FoundFirstLine = .false.
+                    Number_Cells = 0
+                    if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
+                        !land to the North
+                do3:    do ison = ILBSon, IUBSon
+                            if (FoundFirstLine) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do3
+                            endif
+                        do json = JLBSon, JUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            !Check if son cell is inside PD land cell
+                            belongs = 1 + abs(ifather - (i + 1)) + abs(jfather - j)
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstLine = .true.
+                               !do kson = KLBSon, KUBSon
+                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                               !    !because Klink of a land cell is FillValueReal
+                               !    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                               !         Number_Cells = Number_Cells + 1
+                               !         !m3/s
+                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                               !                               - SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
+                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                               !    endif
+                               !enddo
+                                Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
+                                if (Enter_Flag == 3) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                        - SonMatrix(ison+1,json,k) * SonArea_V(ison+1,json,k)
+                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison+1,json,k)
+                                endif
+                            endif
+                        enddo
+                        enddo do3
+                        
+                    elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
+                        !land to the South
+                do4:    do ison = ILBSon, IUBSon
+                            if (FoundFirstLine) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do4
+                            endif
+                        do json = JLBSon, JUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            ifather_Water = ifather + 1
+                            !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                            belongs = 1 + abs(ifather - (i - 1)) + abs(jfather - j) &
+                                        + abs(ifather_Water - ILink(ison + 1, json))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstLine = .true.
+                               !do kson = KLBSon, KUBSon
+                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                               !    !because Klink of a land cell is FillValueReal
+                               !    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                               !         Number_Cells = Number_Cells + 1
+                               !         !m3/s
+                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                               !                               + SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
+                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                               !    endif
+                               !enddo
+                                Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
+                                if (Enter_Flag == 3) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                            + SonMatrix(ison-1,json,k) * SonArea_V(ison-1,json,k)
+                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison-1,json,k)
+                                endif
+                            endif
+                        enddo
+                        enddo do4
+                    endif
+                    if (Number_Cells > 0) Velocity(i, j, k) = Velocity(i, j, k) / Number_Cells
+                enddo
+                enddo
+                enddo
+            endif
+            
+            call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
+            
+            if (VelocityID == VelocityU_) then
+                if (.not. allocated(ObjFather%Discharge%VelocityU)) then
+                    allocate(ObjFather%Discharge%VelocityU( ObjFather%WorkSize%ILB:ObjFather%WorkSize%IUB, &
+                                                            ObjFather%WorkSize%JLB:ObjFather%WorkSize%JUB, &
+                                                            ObjFather%WorkSize%KLB:ObjFather%WorkSize%KUB))
+                endif
+                
+            elseif (VelocityID == VelocityV_) then
+                if (.not. allocated(ObjFather%Discharge%VelocityV)) then
+                    allocate(ObjFather%Discharge%VelocityV( ObjFather%WorkSize%ILB:ObjFather%WorkSize%IUB, &
+                                                            ObjFather%WorkSize%JLB:ObjFather%WorkSize%JUB, &
+                                                            ObjFather%WorkSize%KLB:ObjFather%WorkSize%KUB))
+                endif
+            endif
+            
+            nullify(SonArea_U, SonArea_V, SonMask, ILink, JLink, KLink, Velocity, FatherMask)
+        else
+            write (*,*) 'Upscaling discharge not yet ready for 2D'
+            stop
+        endif
+        !write (*,*) '------------Discharge Velocity Douro------------'
+        !write (*,*) 'Discharge Velocity in 113, 66, 49', FatherMatrix(113, 66, 49)
+        !write (*,*) 'Discharge Velocity in 113, 66, 50', FatherMatrix(113, 66, 50)
+        !write (*,*) '------------Discharge Velocity Guadalquivir------------'
+        !write (*,*) 'Discharge Velocity in 41, 103, 49', FatherMatrix(41, 103, 49)
+        !write (*,*) 'Discharge Velocity in 41, 103, 50', FatherMatrix(41, 103, 50)
+        !write (*,*) '------------Discharge Velocity Guadiana------------'
+        !write (*,*) 'Guadiana Flow in 47, 87, 49', FatherMatrix(47, 87, 49)
+        !write (*,*) 'Guadiana Flow in 47, 87, 50', FatherMatrix(47, 87, 50)
+        !write (*,*) 'Minho Flow in 125, 62, 49', FatherMatrix(125, 62, 49)
+        !write (*,*) 'Minho Flow in 125, 62, 50', FatherMatrix(125, 62, 50)
+        !write (*,*) '------------Discharge Velocity Mondego------------'
+        !write (*,*) 'Discharge Velocity in 97, 62, 49', FatherMatrix(97, 62, 49)
+        !write (*,*) 'Discharge Velocity in 97, 62, 50', FatherMatrix(97, 62, 50)
+        !write (*,*) '------------Discharge Velocity Sado------------'
+        !write (*,*) 'Discharge Velocity in 68, 63, 49', FatherMatrix(68, 63, 49)
+        !write (*,*) 'Discharge Velocity in 68, 63, 50', FatherMatrix(68, 63, 50)
+        !write (*,*) '------------Discharge Velocity Tagus------------'
+        !write (*,*) 'Discharge Velocity in 72, 56, 45', FatherMatrix(72, 56, 42)
+        !write (*,*) 'Discharge Velocity in 72, 56, 45', FatherMatrix(72, 56, 45)
+        !write (*,*) 'Discharge Velocity in 72, 56, 49', FatherMatrix(72, 56, 49)
+        !write (*,*) 'Discharge Velocity in 72, 56, 50', FatherMatrix(72, 56, 50)
 
+    end subroutine Flux_Velocity_Offline
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Recieves temporal information in order to perform interpolation on Upscaling discharge velocities
+    !>@param[in] ActualTime, Size, Time1, Time2, PointsToFill3D
+    subroutine InterpolUpscaling_Velocity (TwoWayID, PropertyNumber, ActualTime, Time1, Time2, PointsToFill3D, STAT)
+        !Arguments-------------------------------------------------------------
+        integer ,          intent(IN)                   :: TwoWayID, PropertyNumber
+        type(T_Time),      intent(IN)                   :: ActualTime, Time1, Time2
+        integer, dimension(:, :, :), pointer            :: PointsToFill3D
+        integer,           optional, intent(OUT)        :: STAT
+        !Local-----------------------------------------------------------------
+        integer, dimension(:, :   ), pointer            :: IZ, JZ
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Size3D)                                 :: SizeAux
+        !Begin-----------------------------------------------------------------
+        call Ready(TwoWayID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_  ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                    ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InterpolUpscaling_Velocity - Failed to get Son-Father link matrixes'
+            
+            SizeAux%IUB = maxval(IZ)                ;   SizeAux%ILB = minval(IZ, MASK=IZ .GT. 0.0)
+            SizeAux%JUB = maxval(JZ)                ;   SizeAux%JLB = minval(JZ, MASK=JZ .GT. 0.0)
+            SizeAux%KUB = Me%Father%WorkSize%KUB    ;   SizeAux%KLB = Me%Father%WorkSize%KLB
+            
+            if (PropertyNumber == VelocityU_) then
+                call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityU, SizeAux, 0.0)
+                
+                call InterpolateMatrix3DInTime_Alloc(   ActualTime      = ActualTime,                          &
+                                                        Size            = Me%Father%WorkSize,                  &
+                                                        Time1           = Time1,                               &
+                                                        Matrix1         = Me%Father%Discharge%VelocityU_Prev,  &
+                                                        Time2           = Time2,                               &
+                                                        Matrix2         = Me%Father%Discharge%VelocityU_Next,  &
+                                                        MatrixOut       = Me%Father%Discharge%VelocityU,       &
+                                                        PointsToFill3D  = PointsToFill3D)
+            elseif (PropertyNumber == VelocityV_) then
+                call SetMatrixValueAllocatable(Me%Father%Discharge%VelocityV, SizeAux, 0.0)
+                
+                call InterpolateMatrix3DInTime_Alloc(   ActualTime      = ActualTime,                          &
+                                                        Size            = Me%Father%WorkSize,                  &
+                                                        Time1           = Time1,                               &
+                                                        Matrix1         = Me%Father%Discharge%VelocityV_Prev,  &
+                                                        Time2           = Time2,                               &
+                                                        Matrix2         = Me%Father%Discharge%VelocityV_Next,  &
+                                                        MatrixOut       = Me%Father%Discharge%VelocityV,       &
+                                                        PointsToFill3D  = PointsToFill3D)
+            endif
+            
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, IZ,    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InterpolUpscaling_Velocity-TwoWay-ERR01'
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, JZ,    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InterpolUpscaling_Velocity-TwoWay-ERR01'
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine InterpolUpscaling_Velocity
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Computes concentration from an upscaling domain at the PD land boundary crossed by the CD
+    !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D
+    subroutine DischageConc_Offline(FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, optional, intent(INOUT)  :: FatherMatrix
+        real, dimension(:, :, :), pointer, optional, intent(IN)     :: SonMatrix
+        real, dimension(:, :),    pointer, optional, intent(INOUT)  :: FatherMatrix2D
+        real, dimension(:, :),    pointer, optional, intent(IN)     :: SonMatrix2D
+        !Local-----------------------------------------------------------------
+        integer                                                     :: i, j, k, ison,json,kson
+        integer                                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KUBSon, KLBSon
+        integer                                                     :: FatherI_max, FatherJ_max, FatherK_max
+        integer                                                     :: FatherI_min, FatherJ_min, FatherK_min
+        integer                                                     :: Number_Cells, ifather, jfather
+        integer                                                     :: CellFaceOpen, belongs
+        integer                                                     :: jfather_Water, ifather_Water
+        logical                                                     :: FoundFirstColumn, FoundFirstLine
+        integer, dimension(:, :, :), pointer                        :: SonMask, FatherMask, KLink
+        integer, dimension(:, :), pointer                           :: ILink, JLink
+        type (T_Size3D)                                             :: SizeAux
+        !Begin ----------------------------------------------------------------
+        if (present(FatherMatrix)) then
+            !3D
+            ILBSon = Me%WorkSize%ILB; JLBSon = Me%WorkSize%JLB; KLBSon = Me%WorkSize%KLB
+            IUBSon = Me%WorkSize%IUB; JUBSon = Me%WorkSize%JUB; KUBSon = Me%WorkSize%KUB
+            
+            SonMask    => Me%External_Var%Open3D
+            FatherMask => Me%Father%External_Var%Open3D
+            ILink      => Me%External_Var%IZ
+            JLink      => Me%External_Var%JZ
+            KLink      => Me%External_Var%KZ
+        
+            FatherI_max = maxval(ILink)             ;  FatherI_min = minval(ILink, MASK=ILink .GT. 0.0)
+            FatherJ_max = maxval(JLink)             ;  FatherJ_min = minval(JLink, MASK=JLink .GT. 0.0)
+            FatherK_max = maxval(KLink)             ;  FatherK_min = minval(KLink, MASK=KLink .GT. 0.0)
+            
+            SizeAux%IUB = FatherI_max               ;  SizeAux%ILB = FatherI_min
+            SizeAux%JUB = FatherJ_max               ;  SizeAux%JLB = FatherJ_min
+            SizeAux%KUB = Me%Father%WorkSize%KUB    ;  SizeAux%KLB = Me%Father%WorkSize%KLB
+            
+            call SetMatrixValue(FatherMatrix, SizeAux, 0.0)
+            
+            do k = FatherK_min, Me%Father%WorkSize%KUB
+            do j = FatherJ_min, FatherJ_max
+            do i = FatherI_min, FatherI_max
+                FoundFirstColumn = .false.
+                FoundFirstLine = .false.
+                Number_Cells = 0
+                if (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j + 1, FatherK_max) == 0) then
+                    !land on the right side
+            do1:    do json = JLBSon, JUBSon
+                        if (FoundFirstColumn) then
+                            !Only doing this computation for the first son column of cells inside PD land Cell
+                            exit do1
+                        endif
+                    do ison = ILBSon, IUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        !Check if son cell is inside PD land cell
+                        belongs = 1 + abs(ifather - i) + abs(jfather - (j + 1))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstColumn = .true.
+                            !do kson = KLBSon, KUBSon
+                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                            !    !because Klink of a land cell is FillValueReal
+                            !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                            !        Number_Cells = Number_Cells + 1
+                            !        !m3/s
+                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                            !    endif
+                            !enddo
+                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json-1, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                                Number_Cells = Number_Cells + 1
+                                !m3/s
+                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            endif
+                        endif
+                    enddo
+                    enddo do1
+                        
+                elseif (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j - 1, FatherK_max) == 0) then
+                    !land on the left side
+            do2:    do json = JLBSon, JUBSon
+                        if (FoundFirstColumn) then
+                            !Only doing this computation for the first son column of cells inside PD land Cell
+                            exit do2
+                        endif
+                    do ison = ILBSon, IUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        jfather_Water = jfather + 1
+                        !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                        belongs = 1 + abs(ifather - i) + abs(jfather - (j - 1)) &
+                                    + abs(jfather_Water - JLink(ison, json + 1))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstColumn = .true.
+                            !do kson = KLBSon, KUBSon
+                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                            !    !because Klink of a land cell is FillValueReal
+                            !    if (KLink(ison,json+1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                            !        Number_Cells = Number_Cells + 1
+                            !        !m3/s
+                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                            !    endif
+                            !enddo
+                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json+1, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                                Number_Cells = Number_Cells + 1
+                                !m3/s
+                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            endif
+                        endif
+                    enddo
+                    enddo do2
+                elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
+                        !land to the North
+            do3:    do ison = ILBSon, IUBSon
+                        if (FoundFirstLine) then
+                            !Only doing this computation for the first son line of cells inside PD land Cell
+                            exit do3
+                        endif
+                    do json = JLBSon, JUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        !Check if son cell is inside PD land cell
+                        belongs = 1 + abs(ifather - (i + 1)) + abs(jfather - j)
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstLine = .true.
+                            !do kson = KLBSon, KUBSon
+                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                            !    !because Klink of a land cell is FillValueReal
+                            !    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                            !        Number_Cells = Number_Cells + 1
+                            !        !m3/s
+                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                            !    endif
+                            !enddo
+                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison-1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                                Number_Cells = Number_Cells + 1
+                                !m3/s
+                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            endif
+                        endif
+                    enddo
+                    enddo do3
+                        
+                elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
+                        !land to the South
+            do4:    do ison = ILBSon, IUBSon
+                        if (FoundFirstLine) then
+                            !Only doing this computation for the first son line of cells inside PD land Cell
+                            exit do4
+                        endif
+                    do json = JLBSon, JUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        ifather_Water = ifather + 1
+                        !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                        belongs = 1 + abs(ifather - (i - 1)) + abs(jfather - j) &
+                                    + abs(ifather_Water - ILink(ison + 1, json))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstLine = .true.
+                            !do kson = KLBSon, KUBSon
+                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                            !    !because Klink of a land cell is FillValueReal
+                            !    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                            !        Number_Cells = Number_Cells + 1
+                            !        !m3/s
+                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                            !    endif
+                            !enddo
+                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison+1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                                Number_Cells = Number_Cells + 1
+                                !m3/s
+                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            endif
+                        endif
+                    enddo
+                    enddo do4
+                endif
+                if (Number_Cells > 0) then
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / Number_Cells
+                endif
+            enddo
+            enddo
+            enddo
+            nullify(SonMask, FatherMask, ILink, JLink, KLink)
+        else
+            write (*,*) 'Upscaling discharge not yet ready for 2D'
+            stop
+        endif
+        !write (*,*) '------------Discharge concentration Douro------------'
+        !write (*,*) 'Discharge concentration in 113, 66, 49', FatherMatrix(113, 60, 49)
+        !write (*,*) 'Discharge concentration in 113, 66, 50', FatherMatrix(113, 60, 50)
+        !write (*,*) '------------Discharge concentration Guadalquivir------------'
+        !write (*,*) 'Discharge concentration in 41, 103, 49', FatherMatrix(41, 103, 49)
+        !write (*,*) 'Discharge concentration in 41, 103, 50', FatherMatrix(41, 103, 50)
+        !write (*,*) '------------Discharge concentration Guadiana------------'
+        !write (*,*) 'Discharge concentration in 47, 87, 49', FatherMatrix(47, 87, 49)
+        !write (*,*) 'Discharge concentration in 47, 87, 50', FatherMatrix(47, 87, 50)
+        !write (*,*) '------------Discharge concentration Minho------------'
+        !write (*,*) 'Discharge concentration in 125, 62, 49', FatherMatrix(125, 62, 49)
+        !write (*,*) 'Discharge concentration in 125, 62, 50', FatherMatrix(125, 62, 50)
+        !write (*,*) '------------Discharge concentration Mondego------------'
+        !write (*,*) 'Discharge concentration in 97, 62, 49', FatherMatrix(97, 62, 49)
+        !write (*,*) 'Discharge concentration in 97, 62, 50', FatherMatrix(97, 62, 50)
+        !write (*,*) '------------Discharge concentration Sado------------'
+        !write (*,*) 'Discharge concentration in 68, 63, 49', FatherMatrix(68, 63, 49)
+        !write (*,*) 'Discharge concentration in 68, 63, 50', FatherMatrix(68, 63, 50)
+        !write (*,*) '------------Discharge concentration Tagus------------'
+        !write (*,*) 'Discharge concentration in 72, 56, 49', FatherMatrix(72, 56, 49)
+        !write (*,*) 'Discharge concentration in 72, 56, 50', FatherMatrix(72, 56, 50)
+
+    end subroutine DischageConc_Offline
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Computes concentration from an Online upscaling domain at the PD land boundary crossed by the CD
+    !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D
+    subroutine DischageConc_Online(FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, optional, intent(INOUT)  :: FatherMatrix
+        real, dimension(:, :, :), pointer, optional, intent(IN)     :: SonMatrix
+        real, dimension(:, :),    pointer, optional, intent(INOUT)  :: FatherMatrix2D
+        real, dimension(:, :),    pointer, optional, intent(IN)     :: SonMatrix2D
+        !Local-----------------------------------------------------------------
+        integer                                                     :: i, j, k, ison,json,kson
+        integer                                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KUBSon, KLBSon
+        integer                                                     :: FatherI_max, FatherJ_max, FatherK_max
+        integer                                                     :: FatherI_min, FatherJ_min, FatherK_min
+        integer                                                     :: Number_Cells, ifather, jfather
+        integer                                                     :: CellFaceOpen, belongs
+        integer                                                     :: jfather_Water, ifather_Water
+        logical                                                     :: FoundFirstColumn, FoundFirstLine
+        integer, dimension(:, :, :), pointer                        :: SonMask, FatherMask, KLink
+        integer, dimension(:, :), pointer                           :: ILink, JLink
+        type (T_Size3D)                                             :: SizeAux
+        !Begin ----------------------------------------------------------------
+        if (present(FatherMatrix)) then
+            !3D
+            ILBSon = Me%WorkSize%ILB; JLBSon = Me%WorkSize%JLB; KLBSon = Me%WorkSize%KLB
+            IUBSon = Me%WorkSize%IUB; JUBSon = Me%WorkSize%JUB; KUBSon = Me%WorkSize%KUB
+            
+            SonMask    => Me%External_Var%Open3D
+            FatherMask => Me%Father%External_Var%Open3D
+            ILink      => Me%External_Var%IZ
+            JLink      => Me%External_Var%JZ
+            KLink      => Me%External_Var%KZ
+        
+            FatherI_max = maxval(ILink)             ;  FatherI_min = minval(ILink, MASK=ILink .GT. 0.0)
+            FatherJ_max = maxval(JLink)             ;  FatherJ_min = minval(JLink, MASK=JLink .GT. 0.0)
+            FatherK_max = maxval(KLink)             ;  FatherK_min = minval(KLink, MASK=KLink .GT. 0.0)
+            
+            SizeAux%IUB = FatherI_max               ;  SizeAux%ILB = FatherI_min
+            SizeAux%JUB = FatherJ_max               ;  SizeAux%JLB = FatherJ_min
+            SizeAux%KUB = Me%Father%WorkSize%KUB    ;  SizeAux%KLB = Me%Father%WorkSize%KLB
+            
+            call SetMatrixValue(FatherMatrix, SizeAux, 0.0)
+            
+            do k = FatherK_min, FatherK_max
+            do j = FatherJ_min, FatherJ_max
+            do i = FatherI_min, FatherI_max
+                FoundFirstColumn = .false.
+                FoundFirstLine = .false.
+                Number_Cells = 0
+                if (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j + 1, FatherK_max) == 0) then
+                    !land on the right side
+            do1:    do json = JLBSon, JUBSon
+                        if (FoundFirstColumn) then
+                            !Only doing this computation for the first son column of cells inside PD land Cell
+                            exit do1
+                        endif
+                    do ison = ILBSon, IUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        !Check if son cell is inside PD land cell
+                        belongs = 1 + abs(ifather - i) + abs(jfather - (j + 1))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstColumn = .true.
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo do1
+                        
+                elseif (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j - 1, FatherK_max) == 0) then
+                    !land on the left side
+            do2:    do json = JLBSon, JUBSon
+                        if (FoundFirstColumn) then
+                            !Only doing this computation for the first son column of cells inside PD land Cell
+                            exit do2
+                        endif
+                    do ison = ILBSon, IUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        jfather_Water = jfather + 1
+                        !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                        belongs = 1 + abs(ifather - i) + abs(jfather - (j - 1)) &
+                                    + abs(jfather_Water - JLink(ison, json + 1))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstColumn = .true.
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison,json+1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo do2
+                elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
+                        !land to the North
+            do3:    do ison = ILBSon, IUBSon
+                        if (FoundFirstLine) then
+                            !Only doing this computation for the first son line of cells inside PD land Cell
+                            exit do3
+                        endif
+                    do json = JLBSon, JUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        !Check if son cell is inside PD land cell
+                        belongs = 1 + abs(ifather - (i + 1)) + abs(jfather - j)
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstLine = .true.
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo do3
+                        
+                elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
+                        !land to the South
+            do4:    do ison = ILBSon, IUBSon
+                        if (FoundFirstLine) then
+                            !Only doing this computation for the first son line of cells inside PD land Cell
+                            exit do4
+                        endif
+                    do json = JLBSon, JUBSon
+                            
+                        ifather = ILink(ison, json)
+                        jfather = JLink(ison, json)
+                        ifather_Water = ifather + 1
+                        !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                        belongs = 1 + abs(ifather - (i - 1)) + abs(jfather - j) &
+                                    + abs(ifather_Water - ILink(ison + 1, json))
+                        CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
+                        if (belongs == 1 .and. CellFaceOpen == 2) then
+                            FoundFirstLine = .true.
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo do4
+                endif
+                if (Number_Cells > 0) then
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / Number_Cells
+                endif
+            enddo
+            enddo
+            enddo
+            nullify(SonMask, FatherMask, ILink, JLink, KLink)
+        else
+            write (*,*) 'Upscaling discharge not yet ready for 2D'
+            stop
+        endif
+
+    end subroutine DischageConc_Online
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Computes flux and velocity from an online coupling upscaling domain at the PD land boundary crossed by the CD
+    !>@param[in] VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D
+    subroutine Flux_Velocity_Online(VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, optional, intent(INOUT)  :: FatherMatrix
+        real, dimension(:, :, :), pointer, optional, intent(IN)     :: SonMatrix
+        real, dimension(:, :),    pointer, optional, intent(INOUT)  :: FatherMatrix2D
+        real, dimension(:, :),    pointer, optional, intent(IN)     :: SonMatrix2D
+        integer,                                     intent(IN)     :: VelocityID
+        !Local-----------------------------------------------------------------
+        type (T_TwoWay), pointer                                    :: ObjFather
+        integer                                                     :: ready_father, i, j, k, ison,json,kson
+        integer                                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KUBSon, KLBSon
+        integer                                                     :: FatherI_max, FatherJ_max, FatherK_max
+        integer                                                     :: FatherI_min, FatherJ_min, FatherK_min
+        integer                                                     :: Number_Cells, ifather, jfather
+        integer                                                     :: CellFaceOpen, belongs
+        integer                                                     :: jfather_Water, ifather_Water
+        real, dimension(:, :, :), pointer                           :: SonArea_U, SonArea_V
+        logical                                                     :: FoundFirstColumn, FoundFirstLine
+        integer, dimension(:, :, :), pointer                        :: SonMask, FatherMask, KLink
+        integer, dimension(:, :), pointer                           :: ILink, JLink
+        type (T_Size3D)                                             :: SizeAux
+        !Begin ----------------------------------------------------------------
+        if (present(FatherMatrix)) then
+            !3D
+            ILBSon = Me%WorkSize%ILB; JLBSon = Me%WorkSize%JLB; KUBSon = Me%WorkSize%KUB
+            IUBSon = Me%WorkSize%IUB; JUBSon = Me%WorkSize%JUB; KLBSon = Me%WorkSize%KLB
+            
+            SonArea_U  => Me%External_Var%AreaU
+            SonArea_V  => Me%External_Var%AreaV
+            SonMask    => Me%External_Var%Open3D
+            FatherMask => Me%Father%External_Var%Open3D
+            ILink      => Me%External_Var%IZ
+            JLink      => Me%External_Var%JZ
+            KLink      => Me%External_Var%KZ
+        
+            FatherI_max = maxval(ILink)             ;   FatherI_min = minval(ILink, MASK=ILink .GT. 0.0)
+            FatherJ_max = maxval(JLink)             ;   FatherJ_min = minval(JLink, MASK=JLink .GT. 0.0)
+            FatherK_max = maxval(KLink)             ;   FatherK_min = minval(KLink, MASK=KLink .GT. 0.0)
+            
+            SizeAux%IUB = FatherI_max               ;   SizeAux%ILB = FatherI_min
+            SizeAux%JUB = FatherJ_max               ;   SizeAux%JLB = FatherJ_min
+            SizeAux%KUB = Me%Father%WorkSize%KUB    ;   SizeAux%KLB = Me%Father%WorkSize%KLB
+            
+            call ReadyFather(Me%Father%InstanceID, ObjFather, ready_father)
+            
+            if (VelocityID == VelocityU_) then
+                call SetMatrixValue(FatherMatrix, SizeAux, 0.0)
+                call SetMatrixValueAllocatable(ObjFather%Discharge%FlowMatrix, SizeAux, 0.0)
+            elseif (VelocityID == VelocityV_) then
+                call SetMatrixValue(FatherMatrix, SizeAux, 0.0)
+            endif
+            
+            if (VelocityID == VelocityU_) then
+                do k = FatherK_min, FatherK_max
+                do j = FatherJ_min, FatherJ_max
+                do i = FatherI_min, FatherI_max
+                    FoundFirstColumn = .false.
+                    Number_Cells = 0
+                    if (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j + 1, FatherK_max) == 0) then
+                        !land on the right side
+                do1:    do json = JLBSon, JUBSon
+                            if (FoundFirstColumn) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do1
+                            endif
+                        do ison = ILBSon, IUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            !Check if son cell is inside PD land cell
+                            belongs = 1 + abs(ifather - i) + abs(jfather - (j + 1))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstColumn = .true.
+                               do kson = KLBSon, KUBSon
+                                   !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                   !because Klink of a land cell is FillValueReal
+                                   if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) = &
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) - SonMatrix(ison,json,kson) &
+                                                                                * SonArea_U(ison,json,kson)
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                        !write (*,*) 'Flow1 = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        !write (*,*) 'VelocityU = ', FatherMatrix(i, j, k)
+                                        !write (*,*) 'I, j, k son', ison, json, kson
+                                   endif
+                               enddo
+                            endif
+                        enddo
+                        enddo do1
+                        
+                    elseif (FatherMask(i, j , FatherK_max) == 1 .and. FatherMask(i, j - 1, FatherK_max) == 0) then
+                        !land on the left side
+                do2:    do json = JLBSon, JUBSon
+                            if (FoundFirstColumn) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do2
+                            endif
+                        do ison = ILBSon, IUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            jfather_Water = jfather + 1
+                            !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                            belongs = 1 + abs(ifather - i) + abs(jfather - (j - 1)) &
+                                        + abs(jfather_Water - JLink(ison, json + 1))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstColumn = .true.
+                               do kson = KLBSon, KUBSon
+                                   !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                   !because Klink of a land cell is FillValueReal
+                                   if (KLink(ison,json+1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) = &
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) + SonMatrix(ison,json,kson) &
+                                                                                * SonArea_U(ison,json,kson)
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                        !write (*,*) 'Flow2 = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        !write (*,*) 'VelocityU = ', FatherMatrix(i, j, k)
+                                        !write (*,*) 'I, j, k son', ison, json, kson
+                                   endif
+                               enddo
+                            endif
+                        enddo
+                        enddo do2
+                    endif
+                    if (Number_Cells > 0) FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / Number_Cells
+                enddo
+                enddo
+                enddo
+            elseif (VelocityID == VelocityV_) then
+                
+                do k = FatherK_min, FatherK_max
+                do j = FatherJ_min, FatherJ_max
+                do i = FatherI_min, FatherI_max
+                    FoundFirstLine = .false.
+                    Number_Cells = 0
+                    if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
+                        !land to the North
+                do3:    do ison = ILBSon, IUBSon
+                            if (FoundFirstLine) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do3
+                            endif
+                        do json = JLBSon, JUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            !Check if son cell is inside PD land cell
+                            belongs = 1 + abs(ifather - (i + 1)) + abs(jfather - j)
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstLine = .true.
+                               do kson = KLBSon, KUBSon
+                                   !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                   !because Klink of a land cell is FillValueReal
+                                   if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        !write (*,*) 'Flow3 in = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) = &
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) - SonMatrix(ison,json,kson) &
+                                                                                * SonArea_V(ison,json,kson)
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                        !write (*,*) 'Flow3 out = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        !write (*,*) 'VelocityV = ', FatherMatrix(i, j, k)
+                                        !write (*,*) 'I, j, k son', ison, json, kson
+                                        !write (*,*) 'VelocityV son = ', SonMatrix(i, j, k)
+                                        !write (*,*) 'Area_V son = ', SonArea_V(i, j, k)
+                                   endif
+                               enddo
+                            endif
+                        enddo
+                        enddo do3
+                        
+                    elseif (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
+                        !land to the South
+                do4:    do ison = ILBSon, IUBSon
+                            if (FoundFirstLine) then
+                                !Only doing this computation for the first son column of cells inside PD land Cell
+                                exit do4
+                            endif
+                        do json = JLBSon, JUBSon
+                            
+                            ifather = ILink(ison, json)
+                            jfather = JLink(ison, json)
+                            ifather_Water = ifather + 1
+                            !Check if son cell is inside PD land cell. Must select CD open cell nearest to PD land cell
+                            belongs = 1 + abs(ifather - (i - 1)) + abs(jfather - j) &
+                                        + abs(ifather_Water - ILink(ison + 1, json))
+                            CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
+                            if (belongs == 1 .and. CellFaceOpen == 2) then
+                                FoundFirstLine = .true.
+                               do kson = KLBSon, KUBSon
+                                   !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                   !because Klink of a land cell is FillValueReal
+                                   if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        !write (*,*) 'Flow4 in = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) = &
+                                        ObjFather%Discharge%FlowMatrix(i, j, k) + SonMatrix(ison,json,kson) &
+                                                                                * SonArea_V(ison,json,kson)
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                        !write (*,*) 'Flow4 out = ', ObjFather%Discharge%FlowMatrix(i, j, k)
+                                        !write (*,*) 'VelocityV = ', FatherMatrix(i, j, k)
+                                        !write (*,*) 'I, j, k son', ison, json, kson
+                                        !write (*,*) 'VelocityV son = ', SonMatrix(i, j, k)
+                                        !write (*,*) 'Area_V son = ', SonArea_V(i, j, k)
+                                   endif
+                               enddo
+                            endif
+                        enddo
+                        enddo do4
+                    endif
+                    if (Number_Cells > 0) FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / Number_Cells
+                enddo
+                enddo
+                enddo
+            endif
+            
+            nullify(SonArea_U, SonArea_V, SonMask, ILink, JLink, KLink, FatherMask)
+        else
+            write (*,*) 'Upscaling discharge not yet ready for 2D'
+            stop
+        endif
+
+    end subroutine Flux_Velocity_Online
+    
     !------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -1477,7 +2817,7 @@ Module ModuleTwoWay
 
         AuxCell = 0
         do dis = 1 , DischargeNumber
-
+            !write(*,*) 'Discharge number : ', dis
             call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, &
                                                 VectorI = VectorI, VectorJ = VectorJ, VectorK = VectorK, &
                                                 kmin = AuxKmin, kmax = AuxKmax, STAT = STAT_CALL)
@@ -1485,6 +2825,7 @@ Module ModuleTwoWay
 
             !using VectorI/J(1) because the value is the same for the entire vector (only the K value changes)
             if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
+                !write(*,*) 'Discharge is associated : ', dis, VectorI(1), VectorJ(1)
                 if (IsUpscaling(FatherID, dis)) then
                     if (FirstTime)then
                         do i = 1, nCells
@@ -1496,11 +2837,17 @@ Module ModuleTwoWay
                             Kmax      (AuxCell) = AuxKmax
                             FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
                             PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                            !write(*,*) '-------------Firstime-------------------'
+                            !write(*,*) 'Flow, i, j, k :', FlowVector(AuxCell),  VectorI(i), VectorJ(i), VectorK(i)
+                            !write(*,*) 'Concent :', PropVector(AuxCell)
                         enddo
                     else
                         do i = 1, nCells
                             AuxCell = AuxCell + 1
                             PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                            !write(*,*) '-------------Continuous-------------------'
+                            !write(*,*) 'Flow, i, j, k :', FlowVector(AuxCell), VectorI(i), VectorJ(i), VectorK(i)
+                            !write(*,*) 'Concentration :', PropVector(AuxCell)
                         enddo
                     endif
                 else
@@ -1516,12 +2863,12 @@ Module ModuleTwoWay
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
     !>@param[in] TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT
-    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, STAT)
+    subroutine Offline_Upscaling_Discharge (TwoWayID, Flow, VelFather, VelSon, DecayTime, CoefCold, VelID, VelDT, &
+    SonVolInFather, FatherVolume, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
-        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather
-        real,    dimension(:,:,:), allocatable, intent(IN   ) :: VelSon
+        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon, SonVolInFather, FatherVolume
         real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
         real                              , intent(IN   ) :: CoefCold, VelDT
         integer                           , intent(IN   ) :: VelID
@@ -1555,6 +2902,8 @@ Module ModuleTwoWay
                                                     AreaU               = AreaU,                                &
                                                     DecayTime           = DecayTime,                            &
                                                     VelDT               = VelDT,                                &
+                                                    SonVolInFather      = SonVolInFather,                       &
+                                                    FatherVolume        = FatherVolume,                         &
                                                     CoefCold            = CoefCold)
                     else
                         
@@ -1565,6 +2914,8 @@ Module ModuleTwoWay
                                                     AreaV               = AreaV,                                &
                                                     DecayTime           = DecayTime,                            &
                                                     VelDT               = VelDT,                                &
+                                                    SonVolInFather      = SonVolInFather,                       &
+                                                    FatherVolume        = FatherVolume,                         &
                                                     CoefCold            = CoefCold)
                     endif
                     
@@ -1575,7 +2926,7 @@ Module ModuleTwoWay
                         j = SonObj%Father%DischargeCells%Z(line, 2)
                         k = SonObj%Father%DischargeCells%Z(line, 3)
 
-                        Flow(i, j, k) = SonObj%Father%DischargeCells%Flow(line)
+                        Flow(i, j, k) = Flow(i, j, k) + SonObj%Father%DischargeCells%Flow(line)
                     enddo
                     !---------------------- Finish Update Father discharge matrix -------------------------------------
                     
@@ -1604,23 +2955,30 @@ Module ModuleTwoWay
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Fills discharge flow matrix for an offline upscaling discharge
-    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, STAT
-    subroutine Offline_Upscaling_Discharge_WP (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, dI, dJ, &
-    dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, VectorK, STAT)
+    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    !> DecayTime, CoefCold, DTProp, FatherVolume, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, &
+    !> VectorK, FoundDomain, STAT
+    subroutine Offline_Upscaling_Discharge_WP (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    DecayTime, CoefCold, DTProp, FatherVolume, dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, &
+    VectorK, FoundDomain, STAT)
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN )     :: FatherID, CellID, nCells
-        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation
-        real,    dimension(:    ), pointer, intent(INOUT)     :: FlowVector, PropVector
-        integer, dimension(:    ), pointer, intent(INOUT)     :: Kmin, Kmax
+        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation, FatherVolume
+        real,    dimension(:    ), pointer, intent(INOUT)   :: FlowVector, PropVector
+        real,    dimension(:,:  ), pointer, intent(IN)      :: DecayTime
+        integer, dimension(:    ), pointer, intent(INOUT)   :: Kmin, Kmax
         integer, dimension(:    ), pointer, intent(IN )     :: VectorI, VectorJ, VectorK
         integer,                            intent(IN )     :: AuxKmin, AuxKmax
-        integer, dimension(:    ), pointer, intent(INOUT)     :: dI, dJ, dK
+        real,                               intent(IN)      :: CoefCold, DTProp
+        integer, dimension(:    ), pointer, intent(INOUT)   :: dI, dJ, dK
+        logical                           , intent(OUT )    :: FoundDomain
         integer, optional                 , intent(OUT)     :: STAT
         !Locals-----------------------------------------------------------------
-        integer                                             :: i, STAT_CALL, STAT_, ready_
+        integer                                             :: i, STAT_, ready_
         type (T_TwoWay), pointer                            :: SonObj
-        integer                                             :: Aux
-        integer, dimension(:,: ), pointer                   :: Connections_Z
+        integer                                             :: Aux, iSon, ifather, jfather, kfather
+        real                                                :: Vol_Rat, TimeCoef
+        integer, dimension(:,: ), pointer                   :: AuxConnections
         !Begin------------------------------------------------------------------
         STAT_ = UNKNOWN_
         
@@ -1632,29 +2990,35 @@ Module ModuleTwoWay
             do while (associated (SonObj))
                 !if current object is a son domain then update discharge flow
                 if (SonObj%Father%InstanceID == FatherID) then
-                    
-                    call GetConnections(SonObj%ObjHorizontalGrid, Connections_Z = Connections_Z, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Failed to get Connections matrix'
+                    AuxConnections => SonObj%Father%DischargeCells%Z
+                    !call GetConnections(SonObj%ObjHorizontalGrid, Connections_Z = Connections_Z, STAT = STAT_CALL)
+                    !if (STAT_CALL /= SUCCESS_) stop 'Offline_Upscaling_Discharge_WP - Failed to get Connections matrix'
                     !Cheks if current discharge is inside current upscaling domain
-                    if (DischargeIsAssociated(Connections_Z, VectorI(1), VectorJ(1))) then
+                    if (DischargeIsAssociated(AuxConnections, VectorI(1), VectorJ(1))) then
                         
                         Aux = CellID + 1
                         if (CellID == 0) Aux = 1
 
                         do i = Aux, nCells + CellID
-                            dI        (i) = VectorI(i)
-                            dJ        (i) = VectorJ(i)
-                            dK        (i) = VectorK(i)
+                            iSon          = i-CellID
+                            dI        (i) = VectorI(iSon)
+                            dJ        (i) = VectorJ(iSon)
+                            dK        (i) = VectorK(iSon)
                             Kmin      (i) = AuxKmin
                             Kmax      (i) = AuxKmax
-                            FlowVector(i) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                            FlowVector(i) = Flow(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
                         
                             if (FlowVector(i) >= 0) then
-                                PropVector(i) = PropAssimilation(VectorI(i), VectorJ(i), VectorK(i))
+                                ifather = VectorI(iSon) ; jfather = VectorJ(iSon) ; kfather = VectorK(iSon)
+                                Vol_Rat = Me%TotSonIn(ifather,jfather,kfather) / FatherVolume(ifather ,jfather,kfather)
+                                TimeCoef = (DTProp / DecayTime(ifather, jfather)) * Vol_Rat * CoefCold
+                                PropVector(i) = (Prop            (ifather, jfather, kfather) + &
+                                                 PropAssimilation(ifather, jfather, kfather) * TimeCoef) / (1 + TimeCoef)
                             else
-                                PropVector(i) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                                PropVector(i) = Prop(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
                             endif
                         enddo
+                        FoundDomain = .true.
                     endif
                 endif
                 SonObj => SonObj%Next
@@ -1669,6 +3033,84 @@ Module ModuleTwoWay
         if (present(STAT)) STAT = STAT_
         
     end subroutine Offline_Upscaling_Discharge_WP
+    
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Fills discharge flow matrix for an offline upscaling discharge
+    !>@param[in] FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    !> FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    !> dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, VectorK, FoundDomain, STAT
+    subroutine Offline_Upscaling_Discharge_WP_V2 (FatherID, PropAssimilation, Prop, PropVector, Flow, FlowVector, &
+    dI, dJ, dK, Kmin, Kmax, AuxKmin, AuxKmax, CellID, nCells, VectorI, VectorJ, VectorK, FoundDomain, STAT)
+        !Arguments--------------------------------------------------------------
+        integer,                            intent(IN )     :: FatherID, CellID, nCells
+        real,    dimension(:,:,:), pointer, intent(IN )     :: Flow, Prop, PropAssimilation
+        real,    dimension(:    ), pointer, intent(INOUT)   :: FlowVector, PropVector
+        integer, dimension(:    ), pointer, intent(INOUT)   :: Kmin, Kmax
+        integer, dimension(:    ), pointer, intent(IN )     :: VectorI, VectorJ, VectorK
+        integer,                            intent(IN )     :: AuxKmin, AuxKmax
+        integer, dimension(:    ), pointer, intent(INOUT)   :: dI, dJ, dK
+        logical                           , intent(OUT )    :: FoundDomain
+        integer, optional                 , intent(OUT)     :: STAT
+        !Locals-----------------------------------------------------------------
+        integer                                             :: i, STAT_, ready_
+        type (T_TwoWay), pointer                            :: SonObj
+        integer                                             :: Aux, iSon
+        integer, dimension(:,: ), pointer                   :: AuxConnections
+        !Begin------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+        
+        call Ready(FatherID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            SonObj => FirstObjTwoWay
+            do while (associated (SonObj))
+                !if current object is a son domain then update discharge flow
+                if (SonObj%Father%InstanceID == FatherID) then
+                    AuxConnections => SonObj%Father%DischargeCells%Z
+                    !Cheks if current discharge is inside current upscaling domain
+                    if (DischargeIsAssociated(AuxConnections, VectorI(1), VectorJ(1))) then
+                        !write(*,*) 'Entrou Model ID', SonObj%InstanceID
+                        Aux = CellID + 1
+                        if (CellID == 0) Aux = 1
+
+                        do i = Aux, nCells + CellID
+                            iSon          = i-CellID
+                            dI        (i) = VectorI(iSon)
+                            dJ        (i) = VectorJ(iSon)
+                            dK        (i) = VectorK(iSon)
+                            Kmin      (i) = AuxKmin
+                            Kmax      (i) = AuxKmax
+                            FlowVector(i) = Flow(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
+                        
+                            if (FlowVector(i) >= 0) then
+                                PropVector(i) = PropAssimilation(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
+                                !write(*,*) 'Flow, i, j, k :', FlowVector(i),  dI(i), dJ(i), dK(i)
+                                !write(*,*) 'Concent :', PropVector(i)
+                            else
+                                PropVector(i) = Prop(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
+                                !write(*,*) 'Flow, i, j, k :', FlowVector(i),  dI(i), dJ(i), dK(i)
+                                !write(*,*) 'Concent :', PropVector(i)
+                            endif
+                        enddo
+                        FoundDomain = .true.
+                        !write(*,*) 'Saiu Model ID', SonObj%InstanceID
+                    endif
+                endif
+                SonObj => SonObj%Next
+            enddo
+            nullify (SonObj)
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        endif
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine Offline_Upscaling_Discharge_WP_V2
     
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -1706,7 +3148,8 @@ Module ModuleTwoWay
             !and the matrix is 2D so there is not much performance loss.
             do j = JLB, JUB
             do i = ILB, IUB
-                Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
+                !Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
+                Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
                     IFather = Me%External_Var%IZ(i, j)  ;  JFather = Me%External_Var%JZ(i, j)
 
@@ -1767,71 +3210,76 @@ Module ModuleTwoWay
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR40'
             call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%JZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR50'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeU,     STAT = status)
+            
+            call UngetGeometry(Me%ObjGeometry, Me%External_Var%KZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR60'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR70'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR80'
-            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR90'
-            call UnGetMap(Me%ObjMap, Me%External_Var%Open3D,           STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR100'
-            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
-            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
             call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaU, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110.'
             call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaV, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR123'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120.'
+            
+            call UnGetMap(Me%ObjMap, Me%External_Var%Open3D,           STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
             call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR124'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'            
+
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
 
             if (Me%Hydro%InterpolationMethod == 2) then
                 call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_U, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_V, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_Z, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_U, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_V, status)
-                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_Z, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR180'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR190'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR200'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_U, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR210'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR220'
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR230'
             endif
 
             !Unget father
             call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%Open3D,                STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR190'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR200'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR210'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR220'
-            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR230'
-            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_U,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR240'
-            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_V,      STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR250'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeU,     STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeV,     STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270'
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280'
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_U,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290'
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_V,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR300'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaU,       STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR310.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaV,       STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR320.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_U,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR330.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_V,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR340.'
             call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_Z,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR285.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR350.'
             call UnGetHorizontalGrid(Me%Father%ObjHorizontalGrid, Me%Father%External_Var%AreaZ, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR360.'
 
             STAT_ = SUCCESS_
         else
