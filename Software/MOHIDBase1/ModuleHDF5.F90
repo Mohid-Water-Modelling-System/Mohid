@@ -2731,8 +2731,11 @@ Module ModuleHDF5
             endif
 
             call h5dopen_f (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_1D - ModuleHDF5 - ERR20'
-            
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*)"Error opening HDF5 dataset", trim(adjustl(AuxChar))
+                write(*,*)"HDF5 filename : ", trim(adjustl(Me%Filename))
+                stop 'HDF5ReadDataR8_1D - ModuleHDF5 - ERR20'
+            endif
             AllocateMatrix = .false.
                                
             if (.not.Associated(Me%AuxMatrixes%DataR8_1D)) then
@@ -4372,7 +4375,12 @@ Module ModuleHDF5
             call h5dread_f (dset_id, NumType, Array2D(lower_bound(1):upper_bound(1), &
                                                       lower_bound(2):upper_bound(2)),&
                             dims_mem, STAT_CALL, memspace_id, space_id)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR120'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Name= ', Name
+                write(*,*) 'GroupName= ', GroupName
+                write(*,*) 'Filename= ', trim(Me%Filename)
+                stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR120'
+            endif
 
             !Deallocates temporary matrixes
             deallocate (offset_in )
@@ -6863,14 +6871,14 @@ Module ModuleHDF5
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'Filename = ' , trim(Me%FileName)
-                write(*,*) 'Group name not present in the hdf5 input file', GroupName
+                write(*,*) 'Group name not present in the hdf5 input file =', GroupName
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
             endif
             
             !Opens the Dataset
             call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
-                write(*,*) 'DataSet name not present in the hdf5 input file', ItemName_                        
+                write(*,*) 'DataSet name not present in the hdf5 input file =', ItemName_                        
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'            
             endif 
             
@@ -7050,6 +7058,8 @@ Module ModuleHDF5
            
             call h5gopen_f       (Me%FileID, trim(adjustl(FatherGroupName)), gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
+                write(*,*) "FileName",trim(Me%FileName)
+                write(*,*) 'FatherGroupName =', trim(FatherGroupName)
                 stop 'GetHDF5GroupID - ModuleHDF5 - ERR10'
             endif
                     
@@ -7458,7 +7468,7 @@ if11 :              if (size == 8) then
 
                 allocate (offset_in (rank))
                 allocate (count_in  (rank))
-                offset_in(:) = 1
+                offset_in(:) = 0
 
                 count_in (:) = 1
 
@@ -7506,7 +7516,7 @@ if11 :              if (size == 8) then
                 
                 NumType = H5T_NATIVE_REAL
 
-                call h5dread_f (dset_id, NumType, ValueOut(1),&
+                call h5dread_f (dset_id, NumType, ValueOut(1:1),&
                                 dims_mem, STAT, memspace_id, space_id)
                 if (STAT /= SUCCESS_) then
                     write(*,*) "FileName  =",trim(Me%Filename)
@@ -7529,6 +7539,11 @@ if11 :              if (size == 8) then
                 if (STAT /= SUCCESS_) then
                     stop 'CheckAllDataSets - ModuleHDF5 - ERR110'
                 endif
+                
+                call h5sclose_f     (memspace_id, STAT)
+                if (STAT /= SUCCESS_) then
+                    stop 'CheckAllDataSets - ModuleHDF5 - ERR115'
+                endif                
                
 
 
@@ -8119,7 +8134,7 @@ cd1:    if (HDF5ID > 0) then
         enddo
 
         if (.not. associated(Me)) then
-            write(*,*) Me%FileName
+            write(*,*) "HDF5ID =", HDF5ID
             stop 'ModuleHDF5 - LocateObjHDF5 - ERR01'
         endif            
 

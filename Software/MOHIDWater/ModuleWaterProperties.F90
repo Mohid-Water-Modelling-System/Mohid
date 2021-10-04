@@ -734,10 +734,12 @@ Module ModuleWaterProperties
     end type   T_Reinitialize
 
     type       T_MacroAlgae
+        logical                                 :: AttachedToTheBottom = .false.
         logical                                 :: VariableHeight = .false.
         real,    pointer, dimension(:,:  )      :: Distribution     !kgC/m2
         real                                    :: DefaultValue, HBRatio, HeightConstant
         real,    pointer, dimension(:,:,:)      :: ShearStress3D
+        real,    pointer, dimension(:,:,:)      :: MaxVelocity
         real,    pointer, dimension(:,:,:)      :: SPMDepFlux3D
         real,    pointer, dimension(:,:,:)      :: Occupation
         !real,    pointer, dimension(:,:,:)      :: DistFromTop
@@ -2754,9 +2756,9 @@ do1:        do while (associated(ObjCohort%Next))
 
         !Begin-----------------------------------------------------------------
 
-        if (Species%LarvaeTransport) then
-            call AllocateAuxLarvae(NewCohort)
-        end if
+
+        call AllocateLarvae(NewCohort, Species%LarvaeTransport)
+
 
         !Cohorts Name
         write(CohortIDStr, ('(i5)'))NewCohort%ID%ID
@@ -2915,10 +2917,11 @@ do1:        do while (associated(ObjCohort%Next))
 
     !--------------------------------------------------------------------------
 
-    subroutine AllocateAuxLarvae(NewCohort)
+    subroutine AllocateLarvae(NewCohort, LarvaeTransport)
 
         !Arguments-------------------------------------------------------------
         type(T_Cohort), pointer             :: NewCohort
+        logical, intent(in)                 :: LarvaeTransport
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL
@@ -2939,33 +2942,37 @@ do1:        do while (associated(ObjCohort%Next))
 
         allocate(NewCohort%Larvae(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeL(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if(LarvaeTransport)then
+            
+            allocate(NewCohort%AuxLarvaeL(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeME(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeME(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMV(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMV(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMH(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMH(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeMR(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeMR(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
 
-        allocate(NewCohort%AuxLarvaeN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+            allocate(NewCohort%AuxLarvaeN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                call CloseAllAndStop ('AllocateLarvae - ModuleWaterProperties - ERR10')
+            
+        endif
 
-    end subroutine AllocateAuxLarvae
+    end subroutine AllocateLarvae
 
     !--------------------------------------------------------------------------
 
@@ -3292,9 +3299,7 @@ do6 :                       do K = WKLB, WKUB
         NewCohort%ID%Name = trim(adjustl(Species%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
         write(*,*)trim(adjustl(NewCohort%ID%Name))
 
-        if (Species%LarvaeTransport) then
-            call AllocateAuxLarvae(NewCohort)
-        end if
+        call AllocateLarvae(NewCohort, Species%LarvaeTransport)
 
         !Newborns properties, from bivalve?
         call GetBivalveNewBornParameters (Bivalve_ID      = Me%ObjBivalve,          &
@@ -5055,7 +5060,7 @@ do1 :   do while (associated(PropertyX))
             if(PropertyX%ID%SolutionFromFile)then
 
                 if(PropertyX%Evolution%WaterQuality                  .or. &
-                   PropertyX%Evolution%MacroAlgae                    .or. &
+                   !PropertyX%Evolution%MacroAlgae                    .or. &
                    PropertyX%Evolution%SeagrassesLeaves              .or. &
                    PropertyX%Evolution%CEQUALW2                      .or. &
                    PropertyX%Evolution%Life                          .or. &
@@ -5901,85 +5906,102 @@ do1 :   do while (associated(PropertyX))
         JUB = Me%Size%JUB
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
-
-        !gC/m2
-        call GetData(Me%MacroAlgae%DefaultValue,                                        &
+        
+        call GetData(Me%MacroAlgae%AttachedToTheBottom,                                 &
                      Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MACROALGAE_MASS',                                &
-                     Default        = 0.001,                                            &
+                     Keyword        = 'MACROALGAE_BOTTOM',                              &
+                     Default        = .false.,                                          &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR02')
-        if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR03')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR00')
+        
+        if(Me%MacroAlgae%AttachedToTheBottom)then
 
-        call GetData(Me%MacroAlgae%VariableHeight,                                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'VARIABLE_MACR_HEIGHT',                              &
-                     Default        = .false.,                                             &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR04')
+            !gC/m2
+            call GetData(Me%MacroAlgae%DefaultValue,                                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'MACROALGAE_MASS',                                &
+                         Default        = 0.001,                                            &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleWaterProperties',                          &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR02')
+            if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR03')
 
-        if ((iflag == 0) .or. (.not.Me%MacroAlgae%VariableHeight))  then
-        !m
-        call GetData(Me%MacroAlgae%HeightConstant,                                      &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MACROALGAE_HEIGHT',                              &
-                     Default        = 0.25,                                             &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR05')
-        if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR06')
+            call GetData(Me%MacroAlgae%VariableHeight,                                      &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'VARIABLE_MACR_HEIGHT',                           &
+                         Default        = .false.,                                          &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleWaterProperties',                          &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR04')
+
+            if ((iflag == 0) .or. (.not.Me%MacroAlgae%VariableHeight))  then
+                !m
+                call GetData(Me%MacroAlgae%HeightConstant,                                      &
+                             Me%ObjEnterData, iflag,                                            &
+                             Keyword        = 'MACROALGAE_HEIGHT',                              &
+                             Default        = 0.25,                                             &
+                             SearchType     = FromFile,                                         &
+                             ClientModule   = 'ModuleWaterProperties',                          &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR05')
+                if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR06')
+            
+            endif
+
+            allocate(Me%MacroAlgae%Height  (ILB:IUB, JLB:JUB)) !m
+
+
+            if (Me%MacroAlgae%VariableHeight) then
+
+
+                call GetData(Me%MacroAlgae%HBRatio,                                             &
+                             Me%ObjEnterData, iflag,                                            &
+                             Keyword        = 'MACR_HEIGHT_BIOMASS_RATIO',                      &
+                             Default        = 0.002,                                            &
+                             SearchType     = FromFile,                                         &
+                             ClientModule   = 'ModuleWaterProperties',                          &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR08')
+                if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR09')
+
+
+                Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%DefaultValue * &
+                                                                Me%MacroAlgae%HBRatio
+            else
+
+                Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%HeightConstant
+
+            endif
+            
+            allocate(Me%MacroAlgae%Distribution  (ILB:IUB, JLB:JUB)) !gC/m2
+            Me%MacroAlgae%Distribution   (:,:) = Me%MacroAlgae%DefaultValue
+            
+            !allocate(Me%MacroAlgae%DistFromTop    (ILB:IUB, JLB:JUB, KLB:KUB))
+            !Me%MacroAlgae%DistFromTop     (:,:,:) = 0.
+
+            allocate(Me%MacroAlgae%MaxShearStress(ILB:IUB, JLB:JUB         ))
+            Me%MacroAlgae%MaxShearStress (:,:  ) = 0.
+
+            allocate(Me%MacroAlgae%MaxSPMDepFlux (ILB:IUB, JLB:JUB         ))
+            Me%MacroAlgae%MaxSPMDepFlux  (:,:  ) = 0.
+        
         endif
-
-        allocate(Me%MacroAlgae%Height  (ILB:IUB, JLB:JUB)) !m
-
-
-        if (Me%MacroAlgae%VariableHeight) then
-
-
-        call GetData(Me%MacroAlgae%HBRatio,                           &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MACR_HEIGHT_BIOMASS_RATIO',                           &
-                     Default        = 0.002,                                            &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR08')
-        if (iflag == 0)            call CloseAllAndStop ('CoupleMacroAlgae - ModuleWaterProperties - ERR09')
-
-
-        Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%DefaultValue * &
-                                                        Me%MacroAlgae%HBRatio
-        else
-
-        Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%HeightConstant
-
-        endif
-
-        allocate(Me%MacroAlgae%Distribution  (ILB:IUB, JLB:JUB)) !gC/m2
-        Me%MacroAlgae%Distribution   (:,:) = Me%MacroAlgae%DefaultValue
 
         allocate(Me%MacroAlgae%ShearStress3D (ILB:IUB, JLB:JUB, KLB:KUB))
         Me%MacroAlgae%ShearStress3D  (:,:,:) = FillValueReal
 
         allocate(Me%MacroAlgae%SPMDepFlux3D  (ILB:IUB, JLB:JUB, KLB:KUB))
         Me%MacroAlgae%SPMDepFlux3D   (:,:,:) = FillValueReal
-
+            
         allocate(Me%MacroAlgae%Occupation    (ILB:IUB, JLB:JUB, KLB:KUB))
-        Me%MacroAlgae%Occupation     (:,:,:) = 0.
-
-        !allocate(Me%MacroAlgae%DistFromTop    (ILB:IUB, JLB:JUB, KLB:KUB))
-        !Me%MacroAlgae%DistFromTop     (:,:,:) = 0.
-
-        allocate(Me%MacroAlgae%MaxShearStress(ILB:IUB, JLB:JUB         ))
-        Me%MacroAlgae%MaxShearStress (:,:  ) = 0.
-
-        allocate(Me%MacroAlgae%MaxSPMDepFlux (ILB:IUB, JLB:JUB         ))
-        Me%MacroAlgae%MaxSPMDepFlux  (:,:  ) = 0.
+        Me%MacroAlgae%Occupation     (:,:,:) = 1.
+            
+        allocate(Me%MacroAlgae%MaxVelocity   (ILB:IUB, JLB:JUB, KLB:KUB))
+        Me%MacroAlgae%MaxVelocity    (:,:,:) = 0.
 
         Index = 0
 
@@ -5998,13 +6020,17 @@ do1 :   do while (associated(PropertyX))
             end if
 
             if(PropertyX%ID%IDNumber == MacroAlgae_)then
+                
+                if(Me%MacroAlgae%AttachedToTheBottom)then
 
-                if(PropertyX%Old)then
-                    call IntegrateMacroAlgae(PropertyX)
-                else
-                    call ComputeMacroAlgaeOccupation
-                    call DistributeMacroAlgae
-                end if
+                    if(PropertyX%Old)then
+                        call IntegrateMacroAlgae(PropertyX)
+                    else
+                        call ComputeMacroAlgaeOccupation
+                        call DistributeMacroAlgae
+                    end if
+                    
+                endif
 
                 if(PropertyX%Evolution%AdvectionDiffusion)then
 
@@ -15446,7 +15472,7 @@ cd5:                if (TotalVolume > 0.) then
         real, dimension(:,:,:), pointer         :: ShortWaveExtinctionField
         real, dimension(:,:,:), pointer         :: ShortWaveTop
         integer                                 :: i, j, k, kbottom
-        integer                                 :: ILB, IUB, JLB, JUB, KUB
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: STAT_CALL
         integer                                 :: CHUNK
 
@@ -15458,11 +15484,15 @@ cd5:                if (TotalVolume > 0.) then
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('MacroAlgae_Processes - ModuleWaterProperties - ERR01')
 
-        call ComputeMacroAlgaeOccupation
+        if(Me%MacroAlgae%AttachedToTheBottom)then
+            
+            call ComputeMacroAlgaeOccupation
 
-        !Convert macroalgae distribution in the water column into gC/m3
-        call DistributeMacroAlgae
-
+            !Convert macroalgae distribution in the water column into gC/m3
+            call DistributeMacroAlgae
+            
+        endif
+        
         call MacroAlgaePhysicalConditions
 
         PropertyX => Me%FirstProperty
@@ -15473,6 +15503,7 @@ cd5:                if (TotalVolume > 0.) then
             IUB = Me%WorkSize%IUB
             JLB = Me%WorkSize%JLB
             JUB = Me%WorkSize%JUB
+            KLB = Me%WorkSize%KLB
             KUB = Me%WorkSize%KUB
 
             CHUNK = CHUNK_J(JLB, JUB)
@@ -15481,36 +15512,32 @@ cd5:                if (TotalVolume > 0.) then
                 call StartWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
             endif
 
-            !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+            if(Me%MacroAlgae%AttachedToTheBottom)then
+                
+                !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
 
-                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                    if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
-                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                        kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
-                    do k = kbottom, KUB
+                        do k = kbottom, KUB
 
-                        Me%MacroAlgae%ShearStress3D(i,j,k) = Me%MacroAlgae%MaxShearStress(i,j)
-                        Me%MacroAlgae%SPMDepFlux3D (i,j,k) = Me%MacroAlgae%MaxSPMDepFlux (i,j)
+                            Me%MacroAlgae%ShearStress3D(i,j,k) = Me%MacroAlgae%MaxShearStress(i,j)
+                            Me%MacroAlgae%SPMDepFlux3D (i,j,k) = Me%MacroAlgae%MaxSPMDepFlux (i,j)
 
-                    enddo
+                        enddo
 
-                endif
+                    endif
 
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
-            endif
-
-            call SetMatrixValue(Me%MacroAlgae%MaxShearStress, T_Size2D(ILB, IUB, JLB, JUB), 0.)
-            call SetMatrixValue(Me%MacroAlgae%MaxSPMDepFlux , T_Size2D(ILB, IUB, JLB, JUB), 0.)
-
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+            end if
+            
             do while(associated(PropertyX))
 
                 call Modify_Interface(InterfaceID       = Me%ObjInterfaceMacroAlgae,    &
@@ -15523,7 +15550,8 @@ cd5:                if (TotalVolume > 0.) then
                                       DWZ               = Me%ExternalVar%DWZ,           &
                                       ShearStress       = Me%MacroAlgae%ShearStress3D,  &
                                       SPMFlux           = Me%MacroAlgae%SPMDepFlux3D,   &
-                                      MacrOccupation    = Me%Macroalgae%Occupation,    &
+                                      VelocityModulus   = Me%MacroAlgae%MaxVelocity,    &
+                                      MacrOccupation    = Me%Macroalgae%Occupation,     &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     call CloseAllAndStop ('MacroAlgae_Processes - ModuleWaterProperties - ERR02')
@@ -15534,6 +15562,16 @@ cd5:                if (TotalVolume > 0.) then
 
             Me%Coupled%MacroAlgae%NextCompute = Me%Coupled%MacroAlgae%NextCompute + &
                                                 Me%Coupled%MacroAlgae%DT_Compute
+            if(Me%MacroAlgae%AttachedToTheBottom)then
+                call SetMatrixValue(Me%MacroAlgae%MaxShearStress, T_Size2D(ILB, IUB, JLB, JUB), 0.)
+                call SetMatrixValue(Me%MacroAlgae%MaxSPMDepFlux , T_Size2D(ILB, IUB, JLB, JUB), 0.)
+            endif
+            
+            call SetMatrixValue(Me%MacroAlgae%MaxVelocity,    T_Size3D(ILB, IUB, JLB, JUB, KLB, KUB), 0.)
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
+            endif
 
         end if
 
@@ -15557,7 +15595,8 @@ cd5:                if (TotalVolume > 0.) then
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         call CloseAllAndStop ('MacroAlgae_Processes - ModuleWaterProperties - ERR03')
 
-                    if(PropertyX%ID%IDNumber == MacroAlgae_)then
+                    if(PropertyX%ID%IDNumber == MacroAlgae_ .and. Me%MacroAlgae%AttachedToTheBottom)then
+                       
 
                         !Integrate macroalgae distribution in the water column in to kgC/m2
                         call IntegrateMacroAlgae(PropertyX)
@@ -15565,7 +15604,7 @@ cd5:                if (TotalVolume > 0.) then
                     end if
                 endif
 
-            endif
+            end if
 
             PropertyX=>PropertyX%Next
 
@@ -15867,7 +15906,7 @@ cd5:                if (TotalVolume > 0.) then
     subroutine MacroAlgaePhysicalConditions
 
         !Local-----------------------------------------------------------------
-        integer                                 :: i, j
+        integer                                 :: i, j, k, STAT_CALL, kbottom
         integer                                 :: ILB, IUB, JLB, JUB, KUB
 
         !Begin-----------------------------------------------------------------
@@ -15877,35 +15916,71 @@ cd5:                if (TotalVolume > 0.) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
         KUB = Me%WorkSize%KUB
+        
+        if(Me%MacroAlgae%AttachedToTheBottom)then
 
-        do j = JLB, JUB
-        do i = ILB, IUB
+            do j = JLB, JUB
+            do i = ILB, IUB
 
-            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
-                if(Me%ExternalVar%ShearStress(i,j) > Me%MacroAlgae%MaxShearStress(i,j)) then
-                    Me%MacroAlgae%MaxShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)
-                end if
+                    if(Me%ExternalVar%ShearStress(i,j) > Me%MacroAlgae%MaxShearStress(i,j)) then
+                        Me%MacroAlgae%MaxShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)
+                    end if
 
-            endif
+                endif
 
-        enddo
-        enddo
+            enddo
+            enddo
 
 
-        do j = JLB, JUB
-        do i = ILB, IUB
+            do j = JLB, JUB
+            do i = ILB, IUB
 
-            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
 
-                if(Me%ExternalVar%SPMDepositionFlux(i,j) > Me%MacroAlgae%MaxSPMDepFlux(i,j)) then
-                    Me%MacroAlgae%MaxSPMDepFlux(i,j) = Me%ExternalVar%SPMDepositionFlux(i,j)
-                end if
+                    if(Me%ExternalVar%SPMDepositionFlux(i,j) > Me%MacroAlgae%MaxSPMDepFlux(i,j)) then
+                        Me%MacroAlgae%MaxSPMDepFlux(i,j) = Me%ExternalVar%SPMDepositionFlux(i,j)
+                    end if
 
-            endif
+                endif
 
-        enddo
-        enddo
+            enddo
+            enddo
+        
+        else
+        
+            call GetVelocityModulus(HydrodynamicID  = Me%ObjHydrodynamic,               &
+                                    VelocityModulus = Me%ExternalVar%VelocityModulus,   &
+                                    Compute         = .true.,                           &
+                                    STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('MacroAlgaePhysicalConditions - ModuleWaterProperties - ERR01')
+
+        
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                
+                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
+
+                    do k = kbottom, KUB
+                    
+                        if(Me%ExternalVar%VelocityModulus(i,j,k) > Me%MacroAlgae%MaxVelocity(i,j,k)) then
+                            Me%MacroAlgae%MaxVelocity(i,j,k) = Me%ExternalVar%VelocityModulus(i,j,k)
+                        end if
+
+                    enddo
+
+                endif
+
+            enddo
+            enddo
+        
+            call UnGetHydrodynamic(Me%ObjHydrodynamic, Me%ExternalVar%VelocityModulus, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('MacroAlgaePhysicalConditions - ModuleWaterProperties - ERR02')
+        
+        end if
 
     end subroutine MacroAlgaePhysicalConditions
 
@@ -17083,7 +17158,7 @@ cd5:                if (TotalVolume > 0.) then
                     Property_L%Concentration(i,j,k) .le. LarvaeMaxSize .and. &
                     Property_N%Concentration(i,j,k) .gt. 0.0) then
                     Cohort%Larvae(i,j,k) = 1
-                else
+                    else
                     Cohort%Larvae(i,j,k) = 0
                 endif
 
@@ -17847,7 +17922,8 @@ TOut:   if (CurrentTime >= OutTime) then
                 SpeciesID = Me%Bivalve%ListNewbornsIDs(iSpeciesID)
 
                 if (Species%ID%IDNumber .eq. SpeciesID) then !this species has new borns
-
+                    
+                    nullify(NewCohort)
                     allocate(NewCohort)
 
                     call AddCohort (Species, NewCohort)
@@ -20286,13 +20362,17 @@ dn:         do n=1, nCells
                                         !by default is consider that the concentration is zero
                                         DischargeConc = 0.
 
-                                        !if property is temperature, warn user
-                                        if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
+                                        !if property is temperature
+                                        if  (PropertyX%ID%IDNumber == Temperature_) then
+                                            !gfranz
+                                            DischargeConc = PropertyX%Concentration(i , j , k)
 
-                                            call SetError(WARNING_, INTERNAL_, &
-                                   "Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
-                                            Me%TempFirstTimeWarning = .true.
-
+                                            if (.not. Me%TempFirstTimeWarning) then
+                                                call SetError(WARNING_, INTERNAL_, &
+                                       "Positive discharge without user defined concentration - discharge temperature = inside temperature", ON)
+                                       !"Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
+                                                Me%TempFirstTimeWarning = .true.
+                                            endif
                                         endif
                                     else
                                         call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR140')
@@ -22713,7 +22793,7 @@ sp3:                if (.not. SimpleOutPut) then
                 endif
             endif
 
-            if (Me%Coupled%MacroAlgae%Yes .and. .not. SimpleOutPut)then
+            if (Me%Coupled%MacroAlgae%Yes .and. Me%MacroAlgae%AttachedToTheBottom .and. .not. SimpleOutPut)then
 
                 call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
@@ -24958,7 +25038,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if(present(MacroAlgae)) MacroAlgae = Me%Coupled%MacroAlgae%Yes
+            if(present(MacroAlgae)) MacroAlgae = Me%MacroAlgae%AttachedToTheBottom 
 
             STAT_ = SUCCESS_
         else
@@ -26545,23 +26625,32 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     if (STAT_CALL /= SUCCESS_) &
                         call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR420')
 
-                    deallocate(Me%MacroAlgae%Distribution  )
+                    if(Me%MacroAlgae%AttachedToTheBottom)then
+                                
+                        deallocate(Me%MacroAlgae%Distribution  )
+                        deallocate(Me%MacroAlgae%MaxShearStress)
+                        deallocate(Me%MacroAlgae%MaxSPMDepFlux )
+                        deallocate(Me%MacroAlgae%Height )
+                        !deallocate(Me%MacroAlgae%DistFromTop )
+                        
+                        nullify(Me%MacroAlgae%Distribution     )
+                        nullify(Me%MacroAlgae%MaxShearStress   )
+                        nullify(Me%MacroAlgae%MaxSPMDepFlux    )
+                        nullify(Me%MacroAlgae%Height    )
+                        !nullify(Me%MacroAlgae%DistFromTop )
+                        
+                    endif
+                    
                     deallocate(Me%MacroAlgae%ShearStress3D )
                     deallocate(Me%MacroAlgae%SPMDepFlux3D  )
+                    deallocate(Me%MacroAlgae%MaxVelocity   )
                     deallocate(Me%MacroAlgae%Occupation    )
-                    deallocate(Me%MacroAlgae%MaxShearStress)
-                    deallocate(Me%MacroAlgae%MaxSPMDepFlux )
-                    deallocate(Me%MacroAlgae%Height )
-                    !deallocate(Me%MacroAlgae%DistFromTop )
 
-                    nullify(Me%MacroAlgae%Distribution     )
                     nullify(Me%MacroAlgae%ShearStress3D    )
                     nullify(Me%MacroAlgae%SPMDepFlux3D     )
+                    nullify(Me%MacroAlgae%MaxVelocity      )
                     nullify(Me%MacroAlgae%Occupation       )
-                    nullify(Me%MacroAlgae%MaxShearStress   )
-                    nullify(Me%MacroAlgae%MaxSPMDepFlux    )
-                    nullify(Me%MacroAlgae%Height    )
-                    !nullify(Me%MacroAlgae%DistFromTop )
+
 
                 end if
 

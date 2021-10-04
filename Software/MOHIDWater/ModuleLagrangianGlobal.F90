@@ -1257,7 +1257,7 @@ Module ModuleLagrangianGlobal
          logical                                :: NetCDF               = .false.
          integer                                :: ObjNETCDF            = null_int
          integer                                :: NetCDF_DimID         = null_int
-         
+         logical                                :: AmbientConc          = OFF
     end type T_OutPut
 
   
@@ -1833,6 +1833,7 @@ Module ModuleLagrangianGlobal
 
         type(T_EulerModel ), pointer, dimension(:) :: EulerModel        => null()
         integer                                 :: EulerModelNumber     = null_int
+        logical                                 :: GeoGrid              = .false. 
         
         type (T_Polygon), pointer               :: GridsBounds          => null()        
         type (T_Polygon), pointer               :: CoastLine            => null()
@@ -2082,10 +2083,18 @@ em1:        do em =1, Me%EulerModelNumber
             !Gets Pointer to External modules
             call ReadLockExternalVar()
 
+            !By default grid geo coord true
+            Me%GeoGrid = .true. 
+
 em4:        do em =1, Me%EulerModelNumber
                 ! Constructs the Particle Grid
                 EulerModel => Me%EulerModel(em)
                 call ConstructParticleGrid(EulerModel)
+                if (em >1) then
+                    if (Me%EulerModel(em)%Grid%CoordType /= Me%EulerModel(em-1)%Grid%CoordType) then
+                        stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR55'
+                    endif
+                endif
                 nullify(EulerModel)
             enddo em4 
             
@@ -3959,9 +3968,11 @@ d2:     do em =1, Me%EulerModelNumber
         if (CoordType == GEOG .or. CoordType == UTM .or. CoordType == SIMPLE_GEOG)      &
             EulerModel%Grid%HaveLatLongGrid = .true.
 
-        if (CoordType == GEOG .or. CoordType == SIMPLE_GEOG)                            &
+        if (CoordType == GEOG .or. CoordType == SIMPLE_GEOG)  then
             EulerModel%Grid%GeoGrid = .true.
-
+        else
+            Me%GeoGrid = .false.
+        endif
 
         call GetLatitudeLongitude(EulerModel%ObjHorizontalGrid, Latitude  = EulerModel%Grid%LatDefault,  &
                                                                 Longitude = EulerModel%Grid%LongDefault, & 
@@ -4185,6 +4196,16 @@ d2:     do em =1, Me%EulerModelNumber
 
         call GetComputeTimeStep(Me%ExternalVar%ObjTime, DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR70'
+        
+        call GetData(Me%OutPut%AmbientConc,                                             & 
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='OUTPUT_AMBIENT_CONC',                               &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR75'
 
         !Get time step for particle from file
         DT_PARTIC = null_real
@@ -6090,7 +6111,7 @@ NDF:        if (.not. NewOrigin%Default) then
                                      keyword      ='DEPTH_METERS',                           &
                                      ClientModule ='ModuleLagrangianGlobal',                       &
                                      STAT         = STAT_CALL)             
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1040'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1045'
 
                         if (flag == 1) then
 
@@ -7269,6 +7290,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             nullify(NewProperty)
 
             if (.not.(TempOK .and. SalOK)) then
+                write (*,*) 'NewOrigin Name:', NewOrigin%Name
                 call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1460')
             endif                  
                 
@@ -12058,6 +12080,8 @@ em1:    do em =1, Me%EulerModelNumber
             
 #ifdef _GOOGLEMAPS  
 
+            if (Me%GeoGrid) then
+
             allocate(Aux1DX(1:Count))
             allocate(Aux1DY(1:Count))            
     
@@ -12089,6 +12113,7 @@ em1:    do em =1, Me%EulerModelNumber
             deallocate(Aux1DX)
             deallocate(Aux1DY)                            
 
+            endif
 #endif             
 
             deallocate(Matrix1DX)
@@ -17441,14 +17466,14 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
                     endif
 
-                    ! First step - compute the modulus of turbulent vector
+                    ! First step - compute the random step
                         
                     call random_number(RAND)
                         
                     !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
                     HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
 
-                    ! Second step - Compute the modulus of each component of the turbulent vector
+                    ! Second step - Compute each component of the random movement
                     call random_number(RAND)
 
                     !   From 0 to Pi/2 cos and sin have positive values
@@ -25216,6 +25241,7 @@ i1:             if (nP>0) then
                             deallocate   (Aux1DY)                                
                             
 #ifdef _GOOGLEMAPS  
+                            if (Me%GeoGrid) then
 
                             allocate   (Aux1DX(CurrentOrigin%nParticle))
                             allocate   (Aux1DY(CurrentOrigin%nParticle))
@@ -25299,6 +25325,8 @@ i1:             if (nP>0) then
     
                             deallocate   (Aux1DX)
                             deallocate   (Aux1DY)    
+                                
+                            endif
 #endif                                
                             
                         endif
@@ -25784,7 +25812,9 @@ i1:             if (nP>0) then
                         enddo
                         
                         if (CurrentOrigin%State%VariableGeom) then
-                            call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                            if(Me%Output%AmbientConc)then
+                                call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                            endif
                         endif                                
 
                         deallocate  (Matrix1D)
@@ -26107,6 +26137,8 @@ iTP:                    if (TotParticle(ig) == 0) then
                         deallocate  (Aux1DX, Aux1DY)
 #ifdef _GOOGLEMAPS  
 
+                        if (Me%GeoGrid) then
+
                         allocate   (Aux1DX(TotParticle(ig)))
                         allocate   (Aux1DY(TotParticle(ig)))
                         Aux1DX(:) = FillValueReal
@@ -26189,6 +26221,8 @@ iTP:                    if (TotParticle(ig) == 0) then
 
                         deallocate   (Aux1DX)
                         deallocate   (Aux1DY)    
+                        
+                        endif
 #endif 
 
                         deallocate   (Matrix1DX)
@@ -26845,10 +26879,11 @@ thick:                      do while (associated(CurrentOrigin))
 
                         enddo
                         
-                       if (Me%State%VariableGeom) then
-                            call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                        if (Me%State%VariableGeom) then
+                            if(Me%Output%AmbientConc)then
+                                call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                            endif
                         endif                                      
-
 
                         deallocate  (Matrix1D)
 
@@ -28255,7 +28290,8 @@ d1:     do em =1, Me%EulerModelNumber
         real                                            :: VolCell, VolAllPart
                                 
         !Begin----------------------------------------------------------------------
-
+        nullify(FirstProperty, CurrentProperty)
+        
         Me%ExternalVar%LastConcCompute = Me%Now
         
 d1:     do em = 1, Me%EulerModelNumber 

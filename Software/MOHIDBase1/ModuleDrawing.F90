@@ -969,17 +969,25 @@ if2 :               if (BlockFound) then
 
 d1:     do i=1, Polygon%Count
 
-            if (Polygon%VerticesF(i)%X < Polygon%Limits%Left)                           &
+            if (Polygon%VerticesF(i)%X < Polygon%Limits%Left   .and.                    &
+                Polygon%VerticesF(i)%X >  FillValueReal / 2.) then
                 Polygon%Limits%Left    = Polygon%VerticesF(i)%X
+            endif
                 
-            if (Polygon%VerticesF(i)%X > Polygon%Limits%Right)                          &
+            if (Polygon%VerticesF(i)%X > Polygon%Limits%Right  .and.                    &
+                Polygon%VerticesF(i)%X >  FillValueReal / 2.) then
                 Polygon%Limits%Right   = Polygon%VerticesF(i)%X
+            endif
 
-            if (Polygon%VerticesF(i)%Y < Polygon%Limits%Bottom)                         &
+            if (Polygon%VerticesF(i)%Y < Polygon%Limits%Bottom .and.                    &
+                Polygon%VerticesF(i)%Y >  FillValueReal / 2.) then
                 Polygon%Limits%Bottom  = Polygon%VerticesF(i)%Y
+            endif
                 
-            if (Polygon%VerticesF(i)%Y > Polygon%Limits%Top)                            &
+            if (Polygon%VerticesF(i)%Y > Polygon%Limits%Top    .and.                    &
+                Polygon%VerticesF(i)%Y >  FillValueReal / 2.) then
                 Polygon%Limits%Top     = Polygon%VerticesF(i)%Y
+            endif
                 
         enddo d1                
                 
@@ -1503,6 +1511,16 @@ d1:     do i=1, Count
         allocate(Segment%EndAt)
 
 do1:    do CurrentVertix = 1, Polygon%Count - 1
+            
+            if (Polygon%VerticesF(CurrentVertix)%X  == FillValueReal) then
+                write (*,*) 'Vertice with invalid X coordinate'
+                stop        'IsPointInsidePolygon - ModuleDrawing - ERR10'
+            endif
+            
+            if (Polygon%VerticesF(CurrentVertix)%Y  == FillValueReal) then
+                write (*,*) 'Vertice with invalid Y coordinate'
+                stop        'IsPointInsidePolygon - ModuleDrawing - ERR20'
+            endif
             
             !construct segment
             Segment%StartAt%X = Polygon%VerticesF(CurrentVertix)%X

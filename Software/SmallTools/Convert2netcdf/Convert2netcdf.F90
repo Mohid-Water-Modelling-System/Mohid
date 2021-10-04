@@ -909,6 +909,11 @@ program Convert2netcdf
                                 STAT                = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR02'
         
+        if (Me%HDFFile%OutputIs2D) then
+            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(Me%HDFFile%Size%IUB,4),int(Me%HDFFile%Size%JUB,4), &
+                                        0, SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR20'            
+        else
         if (Me%DepthLayersON) then
             call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(Me%HDFFile%Size%IUB,4),int(Me%HDFFile%Size%JUB,4), &
                                      int(Me%DepthLayers,4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
@@ -917,6 +922,7 @@ program Convert2netcdf
             call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(Me%HDFFile%Size%IUB,4), int(Me%HDFFile%Size%JUB,4),&
                                      int(Me%HDFFile%Size%KUB,4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR30'
+        endif        
         endif        
         
         
@@ -2437,20 +2443,70 @@ program Convert2netcdf
                 ValidMax        = 360.
                 MissingValue    = Me%MissingValue                
                 
+            case("wave_x")
+                
+                NCDFName        = "eastward_wave_direction_unit_vector"
+                
+                if (Me%OdysseaProject) then
+                    LongName        = "eastward wave direction unit vector"
+                    StandardName    = "eastward_wave_direction_unit_vector"                
+                else
+                    LongName        = "mean wave direction X"
+                    StandardName    = "mean_wave_direction_X"
+                endif
+                
+                Units_          = "-"
+                ValidMin        = -1. 
+                ValidMax        = 1.
+                MissingValue    = Me%MissingValue
+
+            case("wave_y")
+                
+                NCDFName        = "northward_wave_direction_unit_vector"
+                
+                if (Me%OdysseaProject) then                
+                    LongName        = "northward wave direction unit vector"
+                    StandardName    = "northward_wave_direction_unit_vector"                
+                else                
+                    LongName        = "mean wave direction Y"
+                    StandardName    = "mean_wave_direction_Y"
+                endif
+                
+                Units_          = "-"
+                ValidMin        = -1. 
+                ValidMax        = 1.
+                MissingValue    = Me%MissingValue                
+                
 ! Next 2 keywords are not CF compliant
             case("mean_wave_direction_X")
+                
                 NCDFName        = "wave_X"
+                
+                if (Me%OdysseaProject) then
+                    LongName        = "eastward wave direction unit vector"
+                    StandardName    = "eastward_wave_direction_unit_vector"                
+                else
                 LongName        = "mean wave direction X"
                 StandardName    = "mean_wave_direction_X"
+                endif
+                
                 Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
                 MissingValue    = Me%MissingValue
 
             case("mean_wave_direction_Y")
+                
                 NCDFName        = "wave_Y"
+                
+                if (Me%OdysseaProject) then                
+                    LongName        = "northward wave direction unit vector"
+                    StandardName    = "northward_wave_direction_unit_vector"                
+                else                
                 LongName        = "mean wave direction Y"
                 StandardName    = "mean_wave_direction_Y"
+                endif
+                
                 Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.

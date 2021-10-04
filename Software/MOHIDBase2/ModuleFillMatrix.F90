@@ -45,7 +45,8 @@ Module ModuleFillMatrix
                                        InterpolateLinearyMatrix2D,                      &
                                        InterpolateLinearyMatrix3D,                      &
                                        AngleFromFieldToGrid,                            &
-                                       WaveLengthHuntsApproximation
+                                       WaveLengthHuntsApproximation, FromGeo2Meters,    &
+                                       LineLength
     use ModuleDrawing
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes,         &
                                        UngetBoxDif, KillBoxDif
@@ -61,15 +62,19 @@ Module ModuleFillMatrix
                                        GetGridOutBorderCartLimits,                      &
                                        GetGridBorderCartPolygon,                        &
                                        GetHorizontalGrid, ConstructHorizontalGrid,      &
-                                       KillHorizontalGrid, GetDDecompON, GetCellRotation, &
-                                       ConstructFatherGridLocation
+                                       KillHorizontalGrid, GetDDecompON,                &
+                                       GetCellRotation,                                 &
+                                       ConstructFatherGridLocation,                     &
+                                       GetCellZInterceptByLine, GetGeoCoordON,          &
+                                       GetGridLatitudeLongitude
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,          &
                                        GetTimeSerieDTForNextEvent,                      &
                                        GetTimeSerieTimeOfNextDataset,                   &
                                        GetTimeSerieTimeOfDataset,                       &
                                        GetTimeSerieDataValues,GetTimeSerieValueForIndex,&
                                         KillTimeSerie
-    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry, GetGeometrySize
+    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry,             &
+                                       GetGeometrySize, GetGeometryKFloor
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
@@ -103,6 +108,7 @@ Module ModuleFillMatrix
     private ::          ConstructProfileTSDefault
     private ::          ConstructSpaceLayers
     private ::          ConstructSpaceBox
+    private ::          ConstructSpaceSection   
     private ::          ConstructSpaceASCIIFile
     private ::          ConstructSpaceProfile
     private ::          ConstructAnalyticProfile
@@ -210,6 +216,7 @@ Module ModuleFillMatrix
     integer, parameter                              :: Sponge           = 10
     integer, parameter                              :: MultiTimeserie   = 11
     integer, parameter                              :: AnalyticWave     = 12
+    integer, parameter                              :: Sections         = 13
 
     !Data Processing Type (used with MultiTimeserie)
     integer, parameter                              :: Interpolate      = 1 !Will interpolate the value between two times
@@ -274,6 +281,14 @@ Module ModuleFillMatrix
 
     !Types---------------------------------------------------------------------
 
+    type T_Sections
+        character(PathLength)                       :: FileName     = null_str
+        type (T_Lines),                 pointer     :: Lines
+        real, dimension(:),             pointer     :: DepthMin     => null()
+        real, dimension(:),             pointer     :: DepthMax     => null()        
+        real, dimension(:),             pointer     :: Values       => null()
+    end type T_Sections
+    
     type T_Layers
         real, dimension(:), pointer                 :: Values   => null()
     end type T_Layers
@@ -584,6 +599,7 @@ Module ModuleFillMatrix
         type (T_Field4D  )                          :: HDF
         type (T_ProfileTimeSerie)                   :: ProfileTimeSerie
         type (T_MultiTimeSerie)                     :: MultiTimeSerie
+        type (T_Sections)                           :: Sections
         integer                                     :: ObjEnterData         = 0
         integer                                     :: ObjTime              = 0
         integer                                     :: ObjHorizontalGrid    = 0
@@ -2321,12 +2337,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 Me%DefaultValue = null_real
 
+            elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Sections)then
+
+                Me%DefaultValue = null_real                
+
             elseif((Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Boxes    ) .or. &
                    (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == AsciiFile) .or. &
+                   (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Sections ) .or. &                   
                    (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Constant ))then
 
                 write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
-                write(*,*)'can only be CONSTANT, BOXES or ASCII'
+                write(*,*)'can only be CONSTANT, BOXES or ASCII or SECTIONS'
                 stop 'Read_Fill_Options - ModuleFillMatrix - ERR102'
 
             else
@@ -2560,6 +2581,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 UserOption = Layers
             case ("Boxes",      "BOXES",      "boxes")
                 UserOption = Boxes
+            case ("Sections",   "SECTIONS",   "sections")
+                UserOption = Sections                
             case ("ASCII_File", "ASCII_FILE", "ascii_file",   "Ascii_file")
                 UserOption = AsciiFile
             case ("Profile",    "PROFILE",    "profile")
@@ -2662,6 +2685,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         else
                             call ConstructSpaceBox (ExtractType, PointsToFill3D = PointsToFill3D)
                         endif
+                    case(Sections)
+                        if (Me%Dim == Dim2D) then
+                            call ConstructSpaceSection (ExtractType, PointsToFill2D = PointsToFill2D)
+                        else
+                            call ConstructSpaceSection (ExtractType, PointsToFill3D = PointsToFill3D)
+                        endif                          
                     case(AsciiFile)
                         if (Me%Dim == Dim2D) then
                             call ConstructSpaceASCIIFile (ExtractType, PointsToFill2D = PointsToFill2D)
@@ -4503,6 +4532,314 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructSpaceSection (ExtractType, PointsToFill2D, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType
+        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: iflag
+        integer                                         :: i, j, k, n, kmin, kmax, kbottom, ns
+        integer, dimension (:, :   ), pointer           :: WaterPoints2D, KFloor_Z
+        real,    dimension (:, :, :), pointer           :: SZZ        
+        integer                                         :: SectionsNumber, nCells, KUB
+        real                                            :: dw, HM
+        real(8), dimension(:), pointer                  :: X, Y
+        logical                                         :: GeoCoordON
+        type (T_Lines), pointer                         :: LineX, AuxLine
+        integer, dimension(:),   pointer                :: VectorI, VectorJ, VectorK   
+        real                                            :: LatRef, LongRef, Length, AuxValue        
+
+        !Begin----------------------------------------------------------------        
+
+
+        if (Me%TypeZUV /= TypeZ_) then
+            write(*,*)'Cannot initialize U or V matrixes with sections'
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR010'
+        endif
+        
+        
+        if (Me%Dim == Dim3D) then
+            
+            allocate(WaterPoints2D(Me%Size3D%ILB:Me%Size3D%IUB, Me%Size3D%JLB:Me%Size3D%JUB))            
+            
+            KUB = Me%WorkSize3D%KUB
+            
+            WaterPoints2D(:,:) = PointsToFill3D(:,:,KUB)
+            
+            call GetGeometryDistances(GeometryID    = Me%ObjGeometry,                   &
+                                      SZZ           = SZZ,                              &
+                                      STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR020'
+                                                
+            call GetGeometryKFloor(GeometryID   = Me%ObjGeometry,                       &
+                                   Z            = KFloor_Z,                             &
+                                   STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR030'  
+            
+        else
+            
+            allocate(WaterPoints2D(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB))            
+            
+            WaterPoints2D(:,:) = PointsToFill2D(:,:)
+        
+        endif        
+
+        !Gets name of the Section definition file
+        call GetData(Me%Sections%FileName,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FILENAME',                                         &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR040'
+        
+        if (iflag==0)then
+            write(*,*)'Section File Name not given'
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR050'
+        end if
+        
+        call New(Lines = LineX, LinesFileName = Me%Sections%FileName)
+        
+        AuxLine => LineX
+        ns = 0
+        
+        do while (associated(AuxLine))        
+            ns = ns + 1
+            AuxLine => AuxLine%Next
+        enddo
+        
+        SectionsNumber = ns
+        
+        !Gets SectionsNumber Values
+        allocate (Me%Sections%Values    (SectionsNumber))
+        allocate (Me%Sections%DepthMin  (SectionsNumber))
+        allocate (Me%Sections%DepthMax  (SectionsNumber))
+
+        call GetData(Me%Sections%Values,                                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SECTIONS_VALUES',                                  &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+
+        if       (STAT_CALL .EQ. SIZE_ERR_)  then
+            write(*,*) 'Incorrect number of sections'
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR060'
+        else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR070'
+        end if        
+        
+        if (iflag==0) then
+
+            if(Me%OverrideValueKeywordON)then
+
+                call GetData(Me%Sections%Values, Me%ObjEnterData,  iflag,               &
+                             SearchType     = ExtractType,                              &
+                             keyword        = trim(Me%OverrideValueKeyword),            &
+                             ClientModule   = 'ModuleFillMatrix',                       &
+                             STAT           = STAT_CALL)
+
+                if       (STAT_CALL .EQ. SIZE_ERR_)  then
+                    write(*,*) 'Incorrect number of sections for property '
+                    write(*,*)trim(Me%PropertyID%Name)//', '//trim(Me%OverrideValueKeyword)
+                    stop 'ConstructSpaceSection - ModuleFillMatrix - ERR080'
+                else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+                    stop 'ConstructSpaceSection - ModuleFillMatrix - ERR090'
+                end if
+
+                if(iflag == 0)then
+                    write(*,*)'Please define override keyword '//trim(Me%PropertyID%Name)
+                    write(*,*)'to give a sections values for property '//trim(Me%PropertyID%Name)
+                    stop 'ConstructSpaceSection - ModuleFillMatrix - ERR100'
+                end if
+
+
+            else
+
+                write(*,*) 'Sections Values not given for property '//trim(Me%PropertyID%Name)
+                stop       'ConstructSpaceSection - ModuleFillMatrix - ERR110'
+
+            end if
+
+        end if        
+        
+        call GetData(Me%Sections%DepthMin,                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SECTIONS_DEPTH_MIN',                               &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+
+        if       (STAT_CALL .EQ. SIZE_ERR_)  then
+            write(*,*) 'Incorrect number of min depths'
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR120'
+        else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR130'
+        end if 
+        
+        call GetData(Me%Sections%DepthMax,                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SECTIONS_DEPTH_MAX',                               &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+
+        if       (STAT_CALL .EQ. SIZE_ERR_)  then
+            write(*,*) 'Incorrect number of max depths'
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR140'
+        else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+            stop 'ConstructSpaceSection - ModuleFillMatrix - ERR150'
+        end if     
+        
+        do ns=1, SectionsNumber
+                        
+            if (Me%Sections%DepthMin(n) > Me%Sections%DepthMax(n)) then
+                write(*,*) 'Incorrect min/max depths, section number =', n
+                stop 'ConstructSpaceSection - ModuleFillMatrix - ERR160'
+            endif
+            
+        enddo
+                
+        call GetLatitudeLongitude(HorizontalGridID  = Me%ObjHorizontalGrid,             &
+                                  Latitude          = LatRef,                           &
+                                  Longitude         = LongRef,                          &
+                                  STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR170'
+            
+        call GetGeoCoordON(HorizontalGridID = Me%ObjHorizontalGrid,                     &
+                           GeoCoordON       = GeoCoordON,                               &
+                           STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR180'
+        
+        ns      =  1
+        AuxLine => LineX
+       
+        do while (associated(AuxLine))
+            
+            call GetCellZInterceptByLine(Me%ObjHorizontalGrid, AuxLine,                 &
+                                         WaterPoints2D, VectorI, VectorJ,               &
+                                         VectorK, nCells,                               &
+                                         OnlyFirstLine  = .true.,                       &   
+                                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR190'
+
+            if (nCells > 0) then
+                
+                allocate(X(1:AuxLine%nNodes), Y(1:AuxLine%nNodes))
+                
+                do n = 1, AuxLine%nNodes
+                    if (GeoCoordON) then
+                        call FromGeo2Meters(Lat     = AuxLine%Y(n),                     &
+                                            Long    = AuxLine%X(n),                     &
+                                            LatRef  = LatRef,                           &
+                                            LongRef = LongRef,                          &
+                                            X       = X(n),                             &
+                                            Y       = Y(n))
+                    else
+                        X(n) = AuxLine%X(n)
+                        Y(n) = AuxLine%Y(n)
+                    endif
+                enddo
+                
+                !Convertion of Mass/m to Mass
+                ![Mass] = [Mass/m] * [m]
+                Length                  = LineLength(X,Y, AuxLine%nNodes)
+                AuxValue                = Me%Sections%Values(ns)
+                Me%Sections%Values(ns)  = AuxValue * Length
+
+                deallocate(X, Y)
+                
+                !Starts Sections / Gets Sections and number of sections
+                if (Me%Dim == Dim2D) then          
+                    
+                    do n = 1, nCells
+                
+                        i = VectorI(n)
+                        j = VectorJ(n)
+
+                        Me%Matrix2D (i, j) = Me%Sections%Values(ns) / real(nCells)
+                        
+                    enddo
+                    
+                else
+                    
+                    do n = 1, nCells
+                
+                        i = VectorI(n)
+                        j = VectorJ(n)
+                        
+                        kbottom = KFloor_Z(i, j)
+                        
+                        do  k=KUB-1, kbottom,-1
+                            if (SZZ(i,j,k)> Me%Sections%DepthMin(ns)) then
+                                kmax = k+1
+                                exit
+                            endif
+                        enddo
+                    
+                        kmin = kbottom
+                    
+                        do  k=KUB-1, kbottom,-1
+                            if (SZZ(i,j,k)>= Me%Sections%DepthMax(ns)) then
+                                kmin = k+1
+                                exit
+                            endif
+                        enddo
+                        
+                        HM = SZZ(i, j, kmin-1)        - SZZ(i, j, kmax)
+                        
+                        if (HM > 0. .and. nCells > 0) then
+                            do k= kmin, kmax
+                                dw = SZZ(i, j, k-1) - SZZ(i, j, k)
+                                Me%Matrix3D (i, j, k) = Me%Sections%Values(ns) * dw / HM / real(nCells)
+                            enddo                    
+                        endif                        
+                    enddo
+                endif
+            
+            endif
+            
+            deallocate(VectorI, VectorJ, VectorK)
+    
+            AuxLine => AuxLine%Next
+            ns = ns + 1
+
+        enddo
+            
+        deallocate (Me%Sections%Values  )
+        deallocate (Me%Sections%DepthMin)
+        deallocate (Me%Sections%DepthMax)
+        
+        if (Me%Dim == Dim3D) then
+        
+            call UnGetGeometry(GeometryID   = Me%ObjGeometry,                           &
+                               Array        = SZZ,                                      &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR200'
+                                                                                            
+            call UnGetGeometry(GeometryID   = Me%ObjGeometry,                           &
+                               Array        = KFloor_Z,                                 &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceSection - ModuleFillMatrix - ERR210'  
+        
+        endif        
+        
+
+        
+        deallocate(WaterPoints2D)
+        deallocate(LineX)
+        nullify   (LineX, AuxLine)
+        
+
+        
+    end subroutine ConstructSpaceSection
+
+    !--------------------------------------------------------------------------
+
     subroutine ConstructSpaceASCIIFile (ExtractType, PointsToFill2D, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
@@ -4662,9 +4999,9 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
                 call ConstructGridData(CurrentASCIIFile%GridDataID, Me%ObjHorizontalGrid,        &
                                        FileName     = CurrentASCIIFile%FileName,                 &
-                                       KLB          = Me%Worksize3D%KLB,                     &
-                                       KUB          = Me%Worksize3D%KUB,                     &
-                                       DefaultValue = Me%DefaultValue(i),                    &
+                                       KLB          = Me%Worksize3D%KLB,                         &
+                                       KUB          = Me%Worksize3D%KUB,                         &
+                                       DefaultValue = Me%DefaultValue(file),                     &
                                        STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR08'
 

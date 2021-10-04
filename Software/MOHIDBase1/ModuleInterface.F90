@@ -199,7 +199,7 @@ Module ModuleInterface
                                                    ShearStress      => null(), &
                                                    SPMFlux          => null()
         real,    dimension(:      ), pointer    :: ShearStress1D    => null(), &
-                                                   SPMFlux1D        => null()        
+                                                   SPMFlux1D        => null()
         real(8), dimension(:, :, :), pointer    :: SedimCellVol     => null()
         logical                                 :: Vertical1D = .false.
     end type T_External
@@ -1106,6 +1106,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%SPMFlux(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR125'
 
+                allocate(Me%VelocityModulus1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR125.1'
+
+
                 Me%Salinity           = FillValueReal
                 Me%LightExtCoefField  = FillValueReal
                 Me%ShortWaveTop       = FillValueReal
@@ -1114,7 +1118,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%SPMFlux            = FillValueReal
                 Me%MacrOccupation     = FillValueReal
                 !Me%CellArea1D         = FillValueReal
-
+                Me%VelocityModulus1D  = FillValueReal
 
 #ifdef _PHREEQC_
             case (PhreeqCModel)
@@ -3734,9 +3738,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call UnfoldMatrix(WaterVolume, Me%WaterVolume1D) 
             end if 
             
-            if(present(VelocityModulus))then
-                call UnfoldMatrix(VelocityModulus, Me%VelocityModulus1D) 
-            end if 
             
             if(present(SedimCellVol3D))then
                 call UnfoldMatrix(SedimCellVol3D, Me%SedimCellVol) 
@@ -3920,6 +3921,9 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(Me%ExternalVar%SPMFlux,     Me%SPMFlux    ) 
                             call UnfoldMatrix(MacrOccupation,             Me%MacrOccupation  )
                             !call UnfoldMatrix(CellArea,                   Me%CellArea1D  )
+                            
+                            call UnfoldMatrix(VelocityModulus,            Me%VelocityModulus1D) 
+
 
                             call ModifyMacroAlgae(ObjMacroAlgaeID       = Me%ObjMacroAlgae,       &
                                                   Temperature           = Me%Temperature,         &
@@ -3927,6 +3931,7 @@ cd4 :           if (ReadyToCompute) then
                                                   OpenPoints            = Me%OpenPoints,          &
                                                   ShearStress           = Me%ShearStress,         &
                                                   SPMDepositionFlux     = Me%SPMFlux,             &
+                                                  Velocity              = Me%VelocityModulus1D,   &
                                                   SWRadiation           = Me%ShortWaveTop,        &
                                                   SWLightExctintionCoef = Me%LightExtCoefField,   &
                                                   Thickness             = Me%Thickness,           &
@@ -4068,7 +4073,7 @@ cd4 :           if (ReadyToCompute) then
                         case(BivalveModel) 
                         
                             call UnfoldMatrix(CellArea, Me%CellArea1D) 
-
+                            call UnfoldMatrix(VelocityModulus, Me%VelocityModulus1D) 
 
                             call GetComputeCurrentTime(Me%ObjTime,                  &
                                                        Me%ExternalVar%Now,          &
@@ -4939,12 +4944,12 @@ cd4 :           if (ReadyToCompute) then
                             
                          case(MacroAlgaeModel)
 
-                            call UnfoldMatrix(ShortWaveTop,               Me%ShortWaveTop  )
-                            call UnfoldMatrix(LightExtCoefField,          Me%LightExtCoefField   )
-                            call UnfoldMatrix(Me%ExternalVar%DWZ1D,       Me%Thickness  )
-                            call UnfoldMatrix(Me%ExternalVar%ShearStress1D, Me%ShearStress)
-                            call UnfoldMatrix(Me%ExternalVar%SPMFlux1D,   Me%SPMFlux    ) 
-                            call UnfoldMatrix(MacrOccupation,             Me%MacrOccupation  )
+                            call UnfoldMatrix(ShortWaveTop,               Me%ShortWaveTop     )
+                            call UnfoldMatrix(LightExtCoefField,          Me%LightExtCoefField)
+                            call UnfoldMatrix(Me%ExternalVar%DWZ1D,       Me%Thickness        )
+                            call UnfoldMatrix(Me%ExternalVar%ShearStress1D, Me%ShearStress    )
+                            call UnfoldMatrix(Me%ExternalVar%SPMFlux1D,   Me%SPMFlux          ) 
+                            call UnfoldMatrix(MacrOccupation,             Me%MacrOccupation   )
 
                             call ModifyMacroAlgae(ObjMacroAlgaeID       = Me%ObjMacroAlgae,       &
                                                   Temperature           = Me%Temperature,         &
@@ -9889,7 +9894,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70'
                         
                         deallocate(Me%MacrOccupation, STAT = STAT_CALL)
-                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70.1' 
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70.1' 
+                       
+                        if(associated(Me%VelocityModulus1D))then
+                            deallocate(Me%VelocityModulus1D, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR70.2'
+                        end if
+
                         
                      case(BenthicEcologyModel)
                         

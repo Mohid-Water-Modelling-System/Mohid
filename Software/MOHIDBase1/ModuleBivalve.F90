@@ -8,9 +8,9 @@
     ! URL           : http://www.mohid.com
     ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
     ! DATE          : 30 Set 2013
-    ! REVISION      : 26 Jan 2018 bySofia Saraiva
+    ! REVISION      : 26 Oct 2020 by Sofia Saraiva
     ! DESCRIPTION   : Individual Based Population (or individual) model for one/several bivalve
-    !                 species following DED theory 
+    !                 species following DED theory  
     !
     !-----------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
@@ -757,7 +757,7 @@
         type (T_Size1D)                      :: Array                    
         type (T_Size1D)                      :: Prop                   
         integer                              :: nSpecies                 = 0
-        real                                 :: LackOfFood               = 0.0
+        logical                              :: LackOfFood               = .false.
         integer, dimension(:), pointer       :: PropertyList             => null()
         integer                              :: nPropertiesFromBivalve   = 0
         integer                              :: nCohortProperties        = 7          !Each cohort has 7 associated properties
@@ -1655,7 +1655,7 @@ do1:        do while (associated(ObjCohort%Next))
 
                 !OuputFileName = "Output/"//trim(ArgumentInComand)  !biocluster
 
-                OuputFileName = trim(IndexOutputStr)//"_"//trim(Species%ID%Name)
+                OuputFileName = trim(adjustl(IndexOutputStr))//"_"//trim(Species%ID%Name)
 
                 !Species population output
                 if (Me%Testing_Parameters) then
@@ -1693,18 +1693,21 @@ do1:        do while (associated(ObjCohort%Next))
 
 
                 !time serie format
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "Time Serie Results File")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "Population Results File")
+
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(OuputFileName))
 
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
-
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", 'Population File')
-
+ 
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
-
+        
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
-
+        
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
+                
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
 
                 102 format(A900)
 
@@ -1757,18 +1760,22 @@ do1:        do while (associated(ObjCohort%Next))
                     open(Unit = Species%SizeDistributionOutput%Unit(iIndexOutput), File = trim(OuputFileName), Status = 'REPLACE')
 
 
-                    !time serie format
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "Time Serie Results File")
+                !time serie format
+                call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "SizeDistribution Results File")
 
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "NAME", 'Population File')
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(OuputFileName))
 
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
-
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
-
-                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
+ 
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
+        
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
+        
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
+                
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
 
                     SizeDistributionHeader = 'Seconds YY MM DD hh mm ss'
 
@@ -1857,14 +1864,14 @@ do1:        do while (associated(ObjCohort%Next))
         
         write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
         
-        CohortFileName = trim(Me%PathFileName)//trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name)//'.srw'
+        CohortFileName = trim(Me%PathFileName)//trim(adjustl(IndexOutputStr))//'_'//trim(Cohort%ID%Name)//'.srw'
         
         open(Unit = Cohort%CohortOutput%Unit(iIndexOutput), File = trim(CohortFileName), Status = 'REPLACE')
                                               
         !time serie format
-        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "Time Serie Results File")
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "Bivalve Results File")
 
-        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name))
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(CohortFileName))
 
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
@@ -1873,6 +1880,10 @@ do1:        do while (associated(ObjCohort%Next))
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
         
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
+        
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
+                
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
 
         101 format(A800)
 
@@ -5281,41 +5292,42 @@ d2:         do while (associated(Cohort))
                             PON     = Me%PropIndex%PON
                             POP     = Me%PropIndex%POP
 
-                            !update POM again
-                            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nN                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                            Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByVelocity * Me%DTDay           
+                            !update POM again if FeedbackOnWater
+                            if (Me%ComputeOptions%FeedbackOnWater) then                           
+                                Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nN                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                                Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByVelocity * Me%DTDay           
 
-                            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-
-                                if (Me%ComputeOptions%Phosphorus) then
-
-                                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nP                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                            Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByVelocity * Me%DTDay           
-
-                                end if
-
-                            else !(if life)
+                                if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
 
-                                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                                ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                                Me%ExternalVar%Mass(M_E,Index)               + &
-                                                                Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                                Cohort%Processes%DeathByVelocity * Me%DTDay
+                                    if (Me%ComputeOptions%Phosphorus) then
 
-                            end if !pelagic model
-                            
+                                        Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nP                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                                Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByVelocity * Me%DTDay           
+
+                                    end if
+
+                                else !(if life)
+
+
+                                    Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                                    ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                                    Me%ExternalVar%Mass(M_E,Index)               + &
+                                                                    Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                                    Cohort%Processes%DeathByVelocity * Me%DTDay
+
+                                end if !pelagic model
+                             end if !(Me%ComputeOptions%FeedbackOnWater) then                           
                         end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0 
                     
                     else !if larvae 
@@ -5420,41 +5432,42 @@ d2:         do while (associated(Cohort))
                             PON     = Me%PropIndex%PON
                             POP     = Me%PropIndex%POP
 
-                            !update POM again
-                            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nN                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                            Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
+                            !update POM again if FeedbackOnWater
+                            if (Me%ComputeOptions%FeedbackOnWater) then                           
+                                Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nN                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                                Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
 
-                            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-
-                                if (Me%ComputeOptions%Phosphorus) then
-
-                                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nP                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                            Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
-
-                                end if
-
-                            else !(if life)
+                                if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
 
-                                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                                ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                                Me%ExternalVar%Mass(M_E,Index)               + &
-                                                                Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                                Cohort%Processes%DeathByWrongSettlement * Me%DTDay
+                                    if (Me%ComputeOptions%Phosphorus) then
 
-                            end if !pelagic model
-                            
+                                        Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nP                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                                Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByWrongSettlement * Me%DTDay           
+
+                                    end if
+
+                                else !(if life)
+
+
+                                    Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                                    ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                                    Me%ExternalVar%Mass(M_E,Index)               + &
+                                                                    Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                                    Cohort%Processes%DeathByWrongSettlement * Me%DTDay
+
+                                end if !pelagic model
+                            end if ! (Me%ComputeOptions%FeedbackOnWater)                            
                         end if ! not (Me%ExternalVar%Mass(Number,Index) .eq. 0.0
                     
                     else ! if larvae 
@@ -6161,17 +6174,18 @@ d2:         do while(associated(Cohort))
                 Vol         = Cohort%BivalveCondition%Vol
                 Number      = Cohort%StateIndex%Number
 
-                if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding   
+                if ((Me%ExternalVar%Mass(M_H,Index) .gt. MHb)           &
+                    .and.                                               &
+                    (Me%ExternalVar%Mass(Number,Index) .gt. 0.0)        )then !feeding   
                                       
                     !total molC per l required by this cohort = molC/d.ind
                     FiltrationWish =  Cohort%Processes%f_potential                       &
                                       * PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)              
 
-                    if (Me%ComputeOptions%CorrectFiltration .and. Me%LackOfFood == 1.0) then
+                    if (Me%ComputeOptions%CorrectFiltration .and. Me%LackOfFood ) then
                         
                         FiltrationFraction = FiltrationWish * C_AtomicMass * Me%ExternalVar%Mass(Number,Index) &
                                              / Me%BivalveAux%TotalFiltrationWish
-                        
                         
                         !Filtration, molC/d.ind
                         Cohort%Processes%FilteredFood%C = FiltrationFraction * Phyto / C_AtomicMass &
@@ -6303,9 +6317,9 @@ d2:         do while(associated(Cohort))
         !Begin-----------------------------------------------------------------
  
         !mg/l, assumed as food concentration
-        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)
+        Phyto               = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)
         
-        Me%LackOfFood = 0.0      
+        Me%LackOfFood = .false.     
         
         !mg/l assumed as non food concentration if it exists
         if(Me%PropIndex%sediments .eq. null_int)then
@@ -6371,7 +6385,7 @@ d2:         do while(associated(Cohort))
             
         !Is there a lack of food?
         if (Phyto .lt. TotalFiltrationInTimeStep) then
-            Me%LackOfFood = 1.0
+            Me%LackOfFood = .true.
         end if
 
 
@@ -6388,7 +6402,7 @@ d2:         do while(associated(Cohort))
 
         !Begin-----------------------------------------------------------------
 
-        Me%LackOfFood = 0.0      
+        Me%LackOfFood = .false.      
         
         call ComputeClearanceRate (Index)  
         
@@ -6821,7 +6835,7 @@ d2:         do while(associated(Cohort))
 
             if ((ParticleTempMass .lt. 0.0) .or. (ParticleConcentration .eq. 0.0))then
 
-                Me%LackOfFood = 1.0
+                Me%LackOfFood = .true.
 
                 !molC/d (.m3) = molC/m3 / d
                 Total_PossibleParticleFil = ParticleConcentration / Me%DTDay
@@ -7340,7 +7354,7 @@ d2:         do while(associated(Cohort))
         integer                             :: Number, par, POMcheck
         integer                             :: ParticlesIndex
         integer                             :: PropertyIndexC,PropertyIndexN, PropertyIndexP, PropertyIndexChl  
-        real                                :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort, test
+        real                                :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort 
         real                                :: PseudoFaecesByCohort,FaecesByCohort,FaecesByCohortN, FaecesByCohortP
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass, N_AtomicMass, P_AtomicMass
 
@@ -7472,7 +7486,7 @@ d2:         do while(associated(Cohort))
                             
                                 ParticlesIndex = SearchPropIndex(GetPropertyIDNumber(Particles%ID%Name))
                                 
-                                test =  Me%ExternalVar%Mass (ParticlesIndex, Index)
+                                !test =  Me%ExternalVar%Mass (ParticlesIndex, Index)
                                 Me%ExternalVar%Mass (ParticlesIndex, Index) = Me%ExternalVar%Mass (ParticlesIndex, Index) - &
                                                                             FilteredByCohort                              * &
                                                                             Me%ExternalVar%Mass(Number, Index)            * &
@@ -8022,35 +8036,36 @@ d2:         do while(associated(Cohort))
                                                         Me%ExternalVar%Mass(Number, Index)
                 
 
-                !update mass, gametes that dont survive are converted into POM g/m3
-                Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                              + &
-                                            Cohort%Processes%NONewbornsThisCohort                            * &
-                                            (MEb * Species%SpeciesComposition%ReservesComposition%nN         + &
-                                             MVb * Species%SpeciesComposition%StructureComposition%nN)       * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%N_AtomicMass
+                !update mass, gametes that dont survive are converted into POM g/m3, if FeedbackOnWater
+                if (Me%ComputeOptions%FeedbackOnWater) then                           
+                    Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                              + &
+                                                Cohort%Processes%NONewbornsThisCohort                            * &
+                                                (MEb * Species%SpeciesComposition%ReservesComposition%nN         + &
+                                                 MVb * Species%SpeciesComposition%StructureComposition%nN)       * &
+                                                Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                                Species%AuxiliarParameters%N_AtomicMass
 
-                if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+                    if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
-                    if (Me%ComputeOptions%Phosphorus) then
+                        if (Me%ComputeOptions%Phosphorus) then
 
-                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                          + &
-                                            Cohort%Processes%NONewbornsThisCohort                            * &
-                                            (MEb * Species%SpeciesComposition%ReservesComposition%nP         + &
-                                             MVb * Species%SpeciesComposition%StructureComposition%nP)       * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%P_AtomicMass
+                        Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                          + &
+                                                Cohort%Processes%NONewbornsThisCohort                            * &
+                                                (MEb * Species%SpeciesComposition%ReservesComposition%nP         + &
+                                                 MVb * Species%SpeciesComposition%StructureComposition%nP)       * &
+                                                Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                                Species%AuxiliarParameters%P_AtomicMass
 
-                    end if
+                        end if
 
-                else !(if life)
+                    else !(if life)
 
-                    Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                          + &
-                                            Cohort%Processes%NONewbornsThisCohort * (MEb + MVb)              * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%C_AtomicMass
-                end if !pelagic model
-
+                        Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                          + &
+                                                Cohort%Processes%NONewbornsThisCohort * (MEb + MVb)              * &
+                                                Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                                Species%AuxiliarParameters%C_AtomicMass
+                    end if !pelagic model
+                end if !(Me%ComputeOptions%FeedbackOnWater) then                           
 
             else
 
@@ -8129,45 +8144,49 @@ d2:         do while(associated(Cohort))
 
         !the cohort is dead
         Cohort%Dead = 1
-        
-        !bivalve biomass and what it had assimilated is converted into POM
-        Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                            + &
-                                        ( Me%ExternalVar%Mass(M_V,Index)                                           * &
-                                        Species%SpeciesComposition%StructureComposition%nN                         + &
-                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index))          * &
-                                        Species%SpeciesComposition%ReservesComposition%nN                          + &
-                                        Cohort%Processes%Assimilation%N * Me%DTDay )                               * &
-                                        Species%AuxiliarParameters%N_AtomicMass                                    * &
-                                        Me%ExternalVar%Mass(Number,Index)          
 
-        if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-            if (Me%ComputeOptions%Phosphorus) then
-
-                !bivalve biomass and what it had assimilated is converted into POM
-                Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                                     + &
-                                                ( Me%ExternalVar%Mass(M_V,Index)                                    * &
-                                                Species%SpeciesComposition%StructureComposition%nP                  + &
-                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index))   * &
-                                                Species%SpeciesComposition%ReservesComposition%nP                   + &
-                                                Cohort%Processes%Assimilation%P * Me%DTDay )                        * &
-                                                Species%AuxiliarParameters%P_AtomicMass                             * &
-                                                Me%ExternalVar%Mass(Number,Index)          
-
-            end if
-
-        else !(if life)
+        if (Me%ComputeOptions%FeedbackOnWater) then
 
             !bivalve biomass and what it had assimilated is converted into POM
-            Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                     + &
-                                            ( Me%ExternalVar%Mass(M_V,Index)                    + &
-                                            Me%ExternalVar%Mass(M_E,Index)                      + &
-                                            Me%ExternalVar%Mass(M_R,Index)                      + &
-                                            Cohort%Processes%Assimilation%C  * Me%DTDay )       * &
-                                            Species%AuxiliarParameters%C_AtomicMass             * &
+            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                            + &
+                                            ( Me%ExternalVar%Mass(M_V,Index)                                           * &
+                                            Species%SpeciesComposition%StructureComposition%nN                         + &
+                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index))          * &
+                                            Species%SpeciesComposition%ReservesComposition%nN                          + &
+                                            Cohort%Processes%Assimilation%N * Me%DTDay )                               * &
+                                            Species%AuxiliarParameters%N_AtomicMass                                    * &
                                             Me%ExternalVar%Mass(Number,Index)          
 
-        end if !pelagic model
+            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+
+                if (Me%ComputeOptions%Phosphorus) then
+
+                    !bivalve biomass and what it had assimilated is converted into POM
+                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                                     + &
+                                                    ( Me%ExternalVar%Mass(M_V,Index)                                    * &
+                                                    Species%SpeciesComposition%StructureComposition%nP                  + &
+                                                    (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index))   * &
+                                                    Species%SpeciesComposition%ReservesComposition%nP                   + &
+                                                    Cohort%Processes%Assimilation%P * Me%DTDay )                        * &
+                                                    Species%AuxiliarParameters%P_AtomicMass                             * &
+                                                    Me%ExternalVar%Mass(Number,Index)          
+
+                end if
+
+            else !(if life)
+
+                !bivalve biomass and what it had assimilated is converted into POM
+                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                     + &
+                                                ( Me%ExternalVar%Mass(M_V,Index)                    + &
+                                                Me%ExternalVar%Mass(M_E,Index)                      + &
+                                                Me%ExternalVar%Mass(M_R,Index)                      + &
+                                                Cohort%Processes%Assimilation%C  * Me%DTDay )       * &
+                                                Species%AuxiliarParameters%C_AtomicMass             * &
+                                                Me%ExternalVar%Mass(Number,Index)          
+
+            end if !pelagic model
+        
+        end if !Me%ComputeOptions%FeedbackOnWater
 
         Me%ExternalVar%Mass(Number,Index)             = 0.0        
 
@@ -8379,32 +8398,35 @@ d2:         do while(associated(Cohort))
             
         end if
 
+        if (Me%ComputeOptions%FeedbackOnWater) then
 
-        !update mass, g/m3    
-        Me%ExternalVar%Mass(AM,Index) = Me%ExternalVar%Mass(AM,Index)                      + &
-                                        (Cohort%Processes%InorganicFluxes%NH3              * &
-                                        Species%AuxiliarParameters%N_AtomicMass)           * &
-                                        Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
+            !update mass, g/m3    
+            Me%ExternalVar%Mass(AM,Index) = Me%ExternalVar%Mass(AM,Index)                      + &
+                                            (Cohort%Processes%InorganicFluxes%NH3              * &
+                                            Species%AuxiliarParameters%N_AtomicMass)           * &
+                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
 
 
-        Me%ExternalVar%Mass(CarbonDioxide,Index) = Me%ExternalVar%Mass(CarbonDioxide,Index)   + &
-                                                (Cohort%Processes%InorganicFluxes%CO2         * &
-                                                Species%AuxiliarParameters%C_AtomicMass)      * &
+            Me%ExternalVar%Mass(CarbonDioxide,Index) = Me%ExternalVar%Mass(CarbonDioxide,Index)   + &
+                                                    (Cohort%Processes%InorganicFluxes%CO2         * &
+                                                    Species%AuxiliarParameters%C_AtomicMass)      * &
+                                                    Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
+
+            Me%ExternalVar%Mass(Oxygen,Index) = Me%ExternalVar%Mass(Oxygen,Index)                 + &
+                                                (Cohort%Processes%InorganicFluxes%O2              * &
+                                                Species%AuxiliarParameters%O_AtomicMass)          * &
                                                 Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
 
-        Me%ExternalVar%Mass(Oxygen,Index) = Me%ExternalVar%Mass(Oxygen,Index)                 + &
-                                            (Cohort%Processes%InorganicFluxes%O2              * &
-                                            Species%AuxiliarParameters%O_AtomicMass)          * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
+            if (Me%ComputeOptions%Phosphorus) then
 
-        if (Me%ComputeOptions%Phosphorus) then
-
-            !Mass Uptade
-            Me%ExternalVar%Mass(IP,Index) = Me%ExternalVar%Mass(IP,Index)                     + &
-                                            (Cohort%Processes%InorganicFluxes%PO4             * &
-                                            Species%AuxiliarParameters%P_AtomicMass)          * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
-        end if
+                !Mass Uptade
+                Me%ExternalVar%Mass(IP,Index) = Me%ExternalVar%Mass(IP,Index)                     + &
+                                                (Cohort%Processes%InorganicFluxes%PO4             * &
+                                                Species%AuxiliarParameters%P_AtomicMass)          * &
+                                                Me%ExternalVar%Mass(Number, Index) * Me%DTDay  
+            end if
+        
+        end if !(Me%ComputeOptions%FeedbackOnWater) then
 
     end subroutine ComputeInorganicFluxes
 
@@ -8456,40 +8478,44 @@ d1:     do while(associated(Species))
 
 
                             !update POM again
-                            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nN                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                            Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByExtraStarvation * Me%DTDay           
+                            if (Me%ComputeOptions%FeedbackOnWater) then
 
-                            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+                                Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nN                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                                Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByExtraStarvation * Me%DTDay           
 
-
-                                if (Me%ComputeOptions%Phosphorus) then
-
-                                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                            ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                            Species%SpeciesComposition%StructureComposition%nP                + &
-                                                            (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                            Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                            Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                            Cohort%Processes%DeathByExtraStarvation * Me%DTDay           
-
-                                end if
-
-                            else !(if life)
+                                if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
 
-                                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                                ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                                Me%ExternalVar%Mass(M_E,Index)               + &
-                                                                Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                                Cohort%Processes%DeathByExtraStarvation * Me%DTDay
+                                    if (Me%ComputeOptions%Phosphorus) then
 
-                            end if !pelagic model
+                                        Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                                ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                                Species%SpeciesComposition%StructureComposition%nP                + &
+                                                                (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                                Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                                Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                                Cohort%Processes%DeathByExtraStarvation * Me%DTDay           
 
+                                    end if
+
+                                else !(if life)
+
+
+                                    Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                                    ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                                    Me%ExternalVar%Mass(M_E,Index)               + &
+                                                                    Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                                    Cohort%Processes%DeathByExtraStarvation * Me%DTDay
+
+                                end if !pelagic model
+                                
+                            end if ! (Me%ComputeOptions%FeedbackOnWater) 
+                            
                         end if !its alive             
 
                         Cohort => Cohort%Next
@@ -8544,41 +8570,43 @@ d2:         do while(associated(Cohort))
                                                         (Cohort%Processes%DeathByNatural * Me%DTDay) 
 
 
-                    !update POM again
-                    Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
-                                                    ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                    Species%SpeciesComposition%StructureComposition%nN                + &
-                                                    (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                    Species%SpeciesComposition%ReservesComposition%nN )               * &
-                                                    Species%AuxiliarParameters%N_AtomicMass                           * &
-                                                    Cohort%Processes%DeathByNatural * Me%DTDay           
+                    !update POM again if FeedbackOnWater
+                    if (Me%ComputeOptions%FeedbackOnWater) then                           
 
-                    if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+                        Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                                   + &
+                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                        Species%SpeciesComposition%StructureComposition%nN                + &
+                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                        Species%SpeciesComposition%ReservesComposition%nN )               * &
+                                                        Species%AuxiliarParameters%N_AtomicMass                           * &
+                                                        Cohort%Processes%DeathByNatural * Me%DTDay           
 
-
-                        if (Me%ComputeOptions%Phosphorus) then
-
-                            Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
-                                                    ( Me%ExternalVar%Mass(M_V,Index)                                  * &
-                                                    Species%SpeciesComposition%StructureComposition%nP                + &
-                                                    (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
-                                                    Species%SpeciesComposition%ReservesComposition%nP )               * &
-                                                    Species%AuxiliarParameters%P_AtomicMass                           * &
-                                                    Cohort%Processes%DeathByNatural * Me%DTDay           
-
-                        end if
-
-                    else !(if life)
+                        if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
 
 
-                        Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
-                                                        ( Me%ExternalVar%Mass(M_V,Index)             + &
-                                                        Me%ExternalVar%Mass(M_E,Index)               + &
-                                                        Me%ExternalVar%Mass(M_R,Index) )             * &
-                                                        Cohort%Processes%DeathByNatural * Me%DTDay
+                            if (Me%ComputeOptions%Phosphorus) then
 
-                    end if !pelagic model
+                                Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                           + &
+                                                        ( Me%ExternalVar%Mass(M_V,Index)                                  * &
+                                                        Species%SpeciesComposition%StructureComposition%nP                + &
+                                                        (Me%ExternalVar%Mass(M_E,Index) + Me%ExternalVar%Mass(M_R,Index)) * &
+                                                        Species%SpeciesComposition%ReservesComposition%nP )               * &
+                                                        Species%AuxiliarParameters%P_AtomicMass                           * &
+                                                        Cohort%Processes%DeathByNatural * Me%DTDay           
 
+                            end if
+
+                        else !(if life)
+
+
+                            Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)              + &
+                                                            ( Me%ExternalVar%Mass(M_V,Index)             + &
+                                                            Me%ExternalVar%Mass(M_E,Index)               + &
+                                                            Me%ExternalVar%Mass(M_R,Index) )             * &
+                                                            Cohort%Processes%DeathByNatural * Me%DTDay
+
+                        end if !pelagic model
+                    end if ! (Me%ComputeOptions%FeedbackOnWater) 
                 end if !its alive             
 
                 Cohort => Cohort%Next

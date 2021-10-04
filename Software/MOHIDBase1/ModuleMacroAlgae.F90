@@ -34,7 +34,9 @@
 
 !   NITROGEN            : 0/1           [0]
 !   PHOSPHORUS          : 0/1
-
+!   DRIFTING            : 0/1                           !If drifting macroalgae is computed
+!   DETTACHMENT_METHOD  : 1/2/3                         ! 1-None 2-BottomShearStress 3-Velocity 
+    
 !<begin_macroalgae>
 !   GROWMAX             : real          [0.4]           !macroalgae maximum growth rate
 !   TOPTMIN             : real          [20.]           !macroalgae optimum minimum temperature for growth
@@ -60,6 +62,7 @@
 !   RATIOPC             : real          [0.024]         !macroalgae phosphorus/carbon ratio
 !   MACROALGAE_MINCONC  : real          [1e-16]         !minimum residual value for macroalgae abundance
 !   MIN_OXYGEN          : real          [1e-8]          !minimum oxygen concentration for macroalgae growth
+!   MAX_VELOCITY        : real          [1.5 ]          !critical velocity for macroalgae dettachment to occur (in m/s)
 !   DEPLIM              : real          [5e-6]          !maximum SPM deposition flux for macroalgae to grow (kg m-2 s-1)
 !   EROCRITSS           : real          [0.144]         !critical shear stress for macroalgae dettachment to occur (in Pa)
 !   SALT_EFFECT         : real          [0]             !include salinity limitation on macroalgae growth
@@ -115,13 +118,21 @@ Module ModuleMacroAlgae
     private ::          LocateObjMacroAlgae 
     
     !Interfaces----------------------------------------------------------------
+    
+    !Parameter-----------------------------------------------------------------
 
+    !Dettachment methods
+    integer, parameter                          :: None                 = 1
+    integer, parameter                          :: Velocity             = 2
+    integer, parameter                          :: BottomShearStress    = 3
+    
     !Types---------------------------------------------------------------------
     type     T_External
         real,       pointer, dimension(:  )         :: Temperature
         real,       pointer, dimension(:  )         :: Salinity
         real,       pointer, dimension(:  )         :: ShearStress
         real,       pointer, dimension(:  )         :: SPMDepositionFlux
+        real,       pointer, dimension(:  )         :: Velocity
         real,       pointer, dimension(:  )         :: SWRadiation
         real,       pointer, dimension(:  )         :: Thickness
         real,       pointer, dimension(:  )         :: SWLightExctintionCoef
@@ -188,6 +199,7 @@ Module ModuleMacroAlgae
         real                                        :: PSatCons             = null_real
         real                                        :: RatioNC              = null_real
         real                                        :: RatioPC              = null_real
+        real                                        :: MaxVelocity          = null_real
         real                                        :: ErosCritShear        = null_real
         real                                        :: SPMDepositionLimit   = null_real
         real                                        :: NitrateRatioO2N      = null_real
@@ -208,9 +220,11 @@ Module ModuleMacroAlgae
     type     T_ComputeOptions
         logical                                     :: Nitrogen             = .false.
         logical                                     :: Phosphorus           = .false.
+        logical                                     :: DriftingON           = .false.
         logical                                     :: OxygenReleaseInorganicAssimilation = .true.
         logical                                     :: OxygenEscapeAtSurface = .false.
         logical                                     :: CarryingCapacity      = .false.
+        integer                                     :: DettachmentMethod    = None
     end type T_ComputeOptions
 
     type       T_MacroAlgae
@@ -395,35 +409,41 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         else
             stop       'ReadData - ModuleMacroAlgae - ERR03'
         end if
-
-        call ExtractBlockFromBuffer(Me%ObjEnterData,                                &
-                                    ClientNumber    = ClientNumber,                 &
-                                    block_begin     = '<begin_driftingmacroalgae>', &
-                                    block_end       = '<end_driftingmacroalgae>',   &
-                                    BlockFound      = BlockFound,                   &
-                                    STAT            = STAT_CALL)
-        if(STAT_CALL .EQ. SUCCESS_)then
+        
+        if(Me%ComputeOptions%DriftingON)then
             
-            if (BlockFound) then
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'ReadData - ModuleMacroAlgae - ERR03.1'
 
-                call ReadMacroAlgaeParameters(Me%Drifting)
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                                &
+                                        ClientNumber    = ClientNumber,                 &
+                                        block_begin     = '<begin_driftingmacroalgae>', &
+                                        block_end       = '<end_driftingmacroalgae>',   &
+                                        BlockFound      = BlockFound,                   &
+                                        STAT            = STAT_CALL)
+            if(STAT_CALL .EQ. SUCCESS_)then
+            
+                if (BlockFound) then
 
+                    call ReadMacroAlgaeParameters(Me%Drifting)
+
+                else
+                
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                    write(*,*) 'Could not find <begin_driftingmacroalgae>...<end_driftingalgae> block'
+                    stop 'ReadData - ModuleMacroAlgae - ERR04'
+
+                end if
+
+            elseif (STAT_CALL .EQ. BLOCK_END_ERR_) then
+                
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                stop       'ReadData - ModuleMacroAlgae - ERR05'
             else
-                
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
-                write(*,*) 'Could not find <begin_driftingmacroalgae>...<end_driftingalgae> block'
-                stop 'ReadData - ModuleMacroAlgae - ERR04'
-
+                stop       'ReadData - ModuleMacroAlgae - ERR04'
             end if
-
-        elseif (STAT_CALL .EQ. BLOCK_END_ERR_) then
-                
-            write(*,*)  
-            write(*,*) 'Error calling ExtractBlockFromBuffer. '
-            stop       'ReadData - ModuleMacroAlgae - ERR05'
-        else
-            stop       'ReadData - ModuleMacroAlgae - ERR04'
-        end if
+        endif        
 
     end subroutine ReadData
 
@@ -435,6 +455,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         Me%Drifting%MinimumConcentration = null_real
         Me%Drifting%SPMDepositionLimit   = null_real
+        Me%Drifting%MaxVelocity          = null_real
         Me%Drifting%ErosCritShear        = null_real
         Me%Attached%BeachedMortalityRate = null_real
 
@@ -498,6 +519,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR04'
         
+        call GetData(Me%ComputeOptions%DriftingON,                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DRIFTING',                                         &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR04.1'
+
+        
         call GetData(Me%ComputeOptions%CarryingCapacity,                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
@@ -527,7 +558,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule = 'ModuleMacroAlgae',                                 &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR06'          
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR06'      
+        
+        call GetData(Me%ComputeOptions%DettachmentMethod,                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DETTACHMENT_METHOD',                               &
+                     Default      = None,                                               &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR07'
+        
+        if((Me%ComputeOptions%DettachmentMethod .ne. None) .and.                        &
+           (Me%ComputeOptions%DettachmentMethod .ne. BottomShearStress) .and.           &
+           (Me%ComputeOptions%DettachmentMethod .ne. Velocity))then
+        
+            write(*,*)'Unknown DETTACHMENT_METHOD'
+            stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR08'
+
+        endif
+
 
     end subroutine ConstructGlobalVariables
     
@@ -796,6 +846,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadMacroAlgaeParameters - ModuleMacroAlgae - ERR26'
          
+        !Critical velocity for macroalgae dettachment to occur (in m/s)
+        call GetData(Parameters%MaxVelocity,                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'MAX_VELOCITY',                                     &
+                     Default      = 1.5,                                                &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadMacroAlgaeParameters - ModuleMacroAlgae - ERR26.1'
+
         !Critical shear stress for macroalgae dettachment to occur (in Pa)
         call GetData(Parameters%ErosCritShear,                                          &
                      Me%ObjEnterData, iflag,                                            &
@@ -898,11 +958,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !MacroAlgae
         Me%Prop%IUB                     = Me%Prop%IUB + 1
         Me%PropIndex%MacroAlgae         = Me%Prop%IUB
-
+        
         !DriftingMacroAlgae
-        Me%Prop%IUB                     = Me%Prop%IUB + 1
-        Me%PropIndex%DriftingMacroAlgae = Me%Prop%IUB
-
+        if(Me%ComputeOptions%DriftingON)then
+            Me%Prop%IUB                     = Me%Prop%IUB + 1
+            Me%PropIndex%DriftingMacroAlgae = Me%Prop%IUB
+        endif
 
         !Oxygen
         Me%Prop%IUB                     = Me%Prop%IUB + 1
@@ -949,7 +1010,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%PropertyList(Me%Prop%ILB: Me%Prop%IUB))
         
         Me%PropertyList(Me%PropIndex%MacroAlgae)            = MacroAlgae_
-        Me%PropertyList(Me%PropIndex%DriftingMacroAlgae)    = DriftingMacroAlgae_
+        
+        if(Me%ComputeOptions%DriftingON)then
+            Me%PropertyList(Me%PropIndex%DriftingMacroAlgae)= DriftingMacroAlgae_
+        endif
         Me%PropertyList(Me%PropIndex%Oxygen)                = Oxygen_
 
         if(Me%ComputeOptions%Nitrogen)then
@@ -980,8 +1044,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Me%Prop%ILB:Me%Prop%IUB, &
                              Me%Prop%ILB:Me%Prop%IUB))
 
-        !Attached and drifting macroalgae
-        nMacroAlgaeTypes = 2
+        if(Me%ComputeOptions%DriftingON)then
+            !Attached and drifting macroalgae
+            nMacroAlgaeTypes = 2
+        else
+            nMacroAlgaeTypes = 1
+        endif
 
         !Gross production              for each macro algae type    : +1
         !Light       limiting factor for each macro algae type    : +1
@@ -1386,8 +1454,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyMacroAlgae(ObjMacroAlgaeID, Temperature, Salinity, OpenPoints, &
-                                ShearStress, SPMDepositionFlux, SWRadiation,        &
+    subroutine ModifyMacroAlgae(ObjMacroAlgaeID, Temperature, Salinity, OpenPoints,     &
+                                ShearStress, SPMDepositionFlux, Velocity, SWRadiation,  &
                                 SWLightExctintionCoef, Thickness, Occupation, Mass, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -1396,6 +1464,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: Salinity
         real,    dimension(:  ), pointer, optional  :: ShearStress
         real,    dimension(:  ), pointer, optional  :: SPMDepositionFlux
+        real,    dimension(:  ), pointer, optional  :: Velocity
         real,    dimension(:  ), pointer, optional  :: SWRadiation
         real,    dimension(:  ), pointer, optional  :: SWLightExctintionCoef
         real,    dimension(:  ), pointer, optional  :: Thickness
@@ -1442,6 +1511,12 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (.not. associated(Me%ExternalVar%SPMDepositionFlux))     &
                     stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR05'
             end if
+            
+            if(present(Velocity))then
+                Me%ExternalVar%Velocity    => Velocity
+                if (.not. associated(Me%ExternalVar%Velocity))     &
+                    stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR05.1'
+            end if
 
             if(present(SWRadiation))then
                 Me%ExternalVar%SWRadiation          => SWRadiation
@@ -1483,11 +1558,15 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 !Reset rates matrix
                 Me%Matrix(Index,:,:) = 0.
-
+                
+                !Compute attached macroalgae
                 call ComputeMacroAlgae(Me%Attached, OFF, Index)
-
-                call ComputeMacroAlgae(Me%Drifting, ON,  Index)
-
+                
+                !Compute drifting macroalgae
+                if(Me%ComputeOptions%DriftingON)then
+                    call ComputeMacroAlgae(Me%Drifting, ON,  Index)
+                endif
+                
             enddo
 
             nullify(Me%ExternalVar%Temperature          )
@@ -1495,6 +1574,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             nullify(Me%ExternalVar%Salinity             )
             nullify(Me%ExternalVar%ShearStress          )
             nullify(Me%ExternalVar%SPMDepositionFlux    )
+            nullify(Me%ExternalVar%Velocity             )
             nullify(Me%ExternalVar%SWRadiation          )
             nullify(Me%ExternalVar%SWLightExctintionCoef)
             nullify(Me%ExternalVar%Thickness            )
@@ -1577,14 +1657,31 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if(Drifting)then
                 Zone = NoLimitation
             else
-                !Selects type of limitation due to SPM deposition or shear stress
-                if    (Me%ExternalVar%SPMDepositionFlux(Index) > Parameters%SPMDepositionLimit)then
-                    Zone = NoCompute
-                elseif(Me%ExternalVar%ShearStress(Index)       > Parameters%ErosCritShear     )then
-                    Zone = Erosion
-                else
+                
+                if(Me%ComputeOptions%DettachmentMethod == BottomShearStress)then
+                    
+                    !Selects type of limitation due to SPM deposition or shear stress
+                    if    (Me%ExternalVar%SPMDepositionFlux(Index) > Parameters%SPMDepositionLimit)then
+                        Zone = NoCompute
+                    elseif(Me%ExternalVar%ShearStress(Index)       > Parameters%ErosCritShear     )then
+                        Zone = Erosion                   
+                    else
+                        Zone = NoLimitation
+                    end if
+                    
+                elseif(Me%ComputeOptions%DettachmentMethod == Velocity)then
+                    
+                    if(Me%ExternalVar%Velocity(Index) > Parameters%MaxVelocity)then
+                        Zone = Erosion                   
+                    else
+                        Zone = NoLimitation
+                    end if
+                
+                elseif(Me%ComputeOptions%DettachmentMethod == None)then
+                    
                     Zone = NoLimitation
-                end if
+                    
+                endif
 
             end if
 
@@ -2003,24 +2100,62 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !NOTHING HAPPENS
 
             case(Erosion)
-
-                !Not all macroalgae mass is dettached to make sure 
-                !there's always enough to grow back again (minimum concentration)
-                if(Me%ExternalVar%Mass(MA, Index) > Parameters%MinimumConcentration)then
+                
+                if(Drifting)then
+                
+                    !Not all macroalgae mass is dettached to make sure 
+                    !there's always enough to grow back again (minimum concentration)
+                    if(Me%ExternalVar%Mass(MA, Index) > Parameters%MinimumConcentration)then
                     
-                    !what passes from attached macroalgae to drifting macroalgae
-                    Me%Matrix(Index, MA, DMA)   = Me%ExternalVar%Mass(MA, Index) - &
-                                                  Parameters%MinimumConcentration
-                else
-                    !what passes from attached macroalgae to drifting macroalgae
-                    Me%Matrix(Index, MA, DMA)   = 0.
+                        !what passes from attached macroalgae to drifting macroalgae
+                        Me%Matrix(Index, MA, DMA)   = Me%ExternalVar%Mass(MA, Index) - &
+                                                      Parameters%MinimumConcentration
+                    else
+                        !what passes from attached macroalgae to drifting macroalgae
+                        Me%Matrix(Index, MA, DMA)   = 0.
 
-                end if
+                    end if
                                 
-                Me%ExternalVar%Mass(MA, Index)  = Parameters%MinimumConcentration
+                    Me%ExternalVar%Mass(MA, Index)  = Parameters%MinimumConcentration
 
-                Me%ExternalVar%Mass(DMA, Index) = Me%ExternalVar%Mass(DMA, Index) + &
-                                                  Me%Matrix(Index, MA, DMA)
+                    Me%ExternalVar%Mass(DMA, Index) = Me%ExternalVar%Mass(DMA, Index) + &
+                                                      Me%Matrix(Index, MA, DMA)
+                    
+                else  !if drifting macroalgae is not being simulated
+                    
+                    if(Me%ExternalVar%Mass(MA, Index) > Parameters%MinimumConcentration)then
+                    
+                        !all macroalgae (except the minimum) is eroded and dies
+                        DeadMass = Me%ExternalVar%Mass(MA, Index) - &
+                                   Parameters%MinimumConcentration
+                        
+                        Me%ExternalVar%Mass(MA, Index)  = Parameters%MinimumConcentration
+                        
+                        if (Me%ComputeOptions%Nitrogen) then
+                    
+                            !what passes from eroded macroalgae to PON
+                            Me%Matrix(Index, MA, PON)       = DeadMass * Parameters%RatioNC
+
+                            Me%ExternalVar%Mass(PON,Index)  = Me%ExternalVar%Mass(PON, Index)       + &
+                                                              Me%Matrix(Index, MA, PON)
+
+                        end if
+                        
+                        if (Me%ComputeOptions%Phosphorus) then
+                    
+                            !what passes from eroded macroalgae to POP
+                            Me%Matrix(Index, MA, POP)       = DeadMass * Parameters%RatioPC
+
+                            Me%ExternalVar%Mass(POP,Index)  = Me%ExternalVar%Mass(POP, Index)       + &
+                                                              Me%Matrix(Index, MA, POP)
+
+                        end if
+
+                    end if
+                    
+                endif
+                
+                
             case(Beached)
 
                 !implicit algorithm

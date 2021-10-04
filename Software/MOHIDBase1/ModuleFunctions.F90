@@ -249,7 +249,9 @@ Module ModuleFunctions
 
     !Polygon
     public  :: RelativePosition4VertPolygon
+    public  :: RelativePosition4VertPolygonIWD
     public  :: PolygonArea
+    public  :: LineLength
     public  :: FromGeo2Meters
 
     !Secant
@@ -7570,7 +7572,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         do j=jmin+1,jmax
             gam(j)=c(j-1)/bet
             bet=b(j)-a(j)* gam(j)
-            if(bet.eq.0.) stop 'tridag failed'
+            if(bet.eq.0.) then
+                write(*,*) 'vector 1D position, j =', j
+                stop 'tridag failed'
+            endif
             x(j)=(r(j)-a(j)*x(j-1))/bet
         enddo
 
@@ -7928,95 +7933,172 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         !Local-------------------------------------------------------------------
         real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg
-        real(8)             :: MinDx, SumAux
+        real(8)             :: MinDx
         real(8)             :: a1, b1, a2, b2, a3, b3, a4, b4
         real(8)             :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
         real(8)             :: Xf, Yf, Xg, Yg, Xh, Yh, Xi, Yi, TgX, TgY
+        real(8)             :: SumAux        
         real(8)             :: XaR8, YaR8, XbR8, YbR8, XcR8, YcR8, XdR8, YdR8, XeR8, YeR8
         !Begin-------------------------------------------------------------------
 
         XaR8 = dble(Xa); YaR8 = dble(Ya); XbR8 = dble(Xb); YbR8 = dble(Yb); XcR8 = dble(Xc)
         YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
 
+
+            
+
         !the four segments of the cell
         DXdc = XdR8 - XcR8
         DXba = XbR8 - XaR8
         DYac = YaR8 - YcR8
         DYbd = YbR8 - YdR8
-
-
+        
         SumAux = abs(DXdc + DXba + DYac + DYbd)
-        MinDx  = SumAux * 1.e-16
-
+        
+        if (SumAux > 0) then
+            MinDx  = SumAux * 1.e-16            
+        else
+            MinDx  = 1.e-16
+        endif
+        
         if (abs(DXdc)<MinDx) DXdc = MinDx
         if (abs(DXba)<MinDx) DXba = MinDx
         if (abs(DYac)<MinDx) DYac = MinDx
         if (abs(DYbd)<MinDx) DYbd = MinDx
-
+        
         a1 = (XdR8*YcR8 - XcR8*YdR8) / DXdc
         b1 = (   YdR8 -    YcR8) / DXdc
-
+        
         a2 = (XbR8*YaR8 - XaR8*YbR8) / DXba
         b2 = (   YbR8 -    YaR8) / DXba
-
+        
         a3 = (XcR8*YaR8 - XaR8*YcR8) / DYac
         b3 = (   XaR8 -    XcR8) / DYac
-
+        
         a4 = (XdR8*YbR8 - XbR8*YdR8) / DYbd
         b4 = (   XbR8 -    XdR8) / DYbd
-
+        
         !intersection points
         if (b2/=b1) then
-
+        
             !F point intersection point of X faces
             Xf = (a1 - a2) / (b2 - b1)
             Yf = a1 + b1*Xf
-
+        
             !H point intersection with segment CA
             DXef = XeR8 - Xf
-
+        
             if (abs(DXef)==0.) DXef = MinDx
             TgX = (YeR8 - Yf) / DXef
         else
             !H point intersection with segment CA
             TgX = b1
         endif
-
+        
         Yh  = (YeR8 + (a3 - XeR8) * TgX) / (1. - b3*TgX)
         Xh  = a3 + b3 * Yh
-
-
+        
+        
         if (b4/=b3) then
-
+        
             !G point intersection point of X faces
             Yg = (a3 - a4) / (b4 - b3)
             Xg = a3 + b3*Yg
-
+        
             !i point intersection with segment CA
             DYeg = YeR8 - Yg
-
+        
             if (abs(DYeg)==0.) DYeg = MinDx
             TgY = (XeR8 - Xg) / DYeg
         else
-
+        
             !i point intersection with segment CA
             TgY = b3
         endif
-
+        
         Xi  = (XeR8 + (a1 - YeR8) * TgY) / (1. - b1*TgY)
         Yi  =  a1 + b1 * Xi
-
-
+        
+        
         Seg_ac = sqrt((XaR8-XcR8)*(XaR8-XcR8) + (YaR8-YcR8)*(YaR8-YcR8))
         Seg_dc = sqrt((XdR8-XcR8)*(XdR8-XcR8) + (YdR8-YcR8)*(YdR8-YcR8))
         Seg_hc = sqrt((Xh  -XcR8)*(Xh  -XcR8) + (Yh  -YcR8)*(Yh  -YcR8))
         Seg_ic = sqrt((Xi  -XcR8)*(Xi  -XcR8) + (Yi  -YcR8)*(Yi  -YcR8))
-
+        
         Xex = Seg_ic / Seg_dc
         Yey = Seg_hc / Seg_ac
+        
+        if (Xex < 0. .or. Xex > 1 .or. Yey < 0. .or. Yey > 1) then
+            call RelativePosition4VertPolygonIWD(Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey)
+        endif
+        
 
     end subroutine RelativePosition4VertPolygon
     !--------------------------------------------------------------------------
+    
+    subroutine RelativePosition4VertPolygonIWD(Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey)
+
+        !Arguments---------------------------------------------------------------
+        real                :: Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey
+
+        !Local-------------------------------------------------------------------
+        real(8)             :: SumAux        
+        real(8)             :: XaR8, YaR8, XbR8, YbR8, XcR8, YcR8, XdR8, YdR8, XeR8, YeR8
+        real(8)             :: da, db, dc, dd, pw
+        !Begin-------------------------------------------------------------------
+
+        XaR8 = dble(Xa); YaR8 = dble(Ya); XbR8 = dble(Xb); YbR8 = dble(Yb); XcR8 = dble(Xc)
+        YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
+        
+        pw = 2
+        
+        !using a IDW - Inverse distance weighting method
+        !(Xa,Ya) = (Xex = 0, Yey =1)
+        !(Xb,Yb) = (Xex = 1, Yey =1)        
+        !(Xc,Yc) = (Xex = 0, Yey =0)                
+        !(Xd,Yd) = (Xex = 1, Yey =0)
+        !
+        !  a_______b
+        !  |       | 
+        !  |       |         
+        !  c_______d
+        
+        da = sqrt((XeR8-XaR8)**2+(YeR8-YaR8)**2)
+        db = sqrt((XeR8-XbR8)**2+(YeR8-YbR8)**2)
+        dc = sqrt((XeR8-XcR8)**2+(YeR8-YcR8)**2)
+        dd = sqrt((XeR8-XdR8)**2+(YeR8-YdR8)**2)        
+        
+        if     (da == 0) then
+            Xex = 0
+            Yey = 1
+        elseif (db == 0) then
+            Xex = 1
+            Yey = 1
+        elseif (dc == 0) then
+            Xex = 0
+            Yey = 0
+        elseif (dd == 0) then
+            Xex = 1
+            Yey = 0
+        else
+            SumAux = ((1./da)**pw+(1./db)**pw+(1./dc)**pw+(1./dd)**pw)
+            Xex    = ((1./db)**pw+(1./dd)**pw) / SumAux
+            Yey    = ((1./da)**pw+(1./db)**pw) / SumAux            
+        endif
+
+
+        if (Xex < 0. .or. Xex > 1) then
+            stop 'Function - RelativePosition4VertPolygonIWD - ERR10'
+        endif
+
+        if (Yey < 0. .or. Yey > 1) then
+            stop 'Function - RelativePosition4VertPolygonIWD - ERR20'
+        endif
+
+
+    end subroutine RelativePosition4VertPolygonIWD
+    !--------------------------------------------------------------------------
+    
 
 
 !!  Public-domain function by Darel Rex Finley, 2006.
@@ -8044,6 +8126,35 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     end function PolygonArea
 
+    !--------------------------------------------------------------------------
+    
+
+
+!   Computes the length of a line
+
+    real(8) function LineLength(X, Y, points)
+
+        !Arguments-------------------------------------------------------------
+        real(8),    dimension(:), pointer :: X, Y
+        integer                           :: points
+
+        !Local-----------------------------------------------------------------
+        real(8)                           :: length, dx, dy
+        integer                           :: i
+        
+
+        !Begin-----------------------------------------------------------------
+        
+        length=0.
+        do i=1, points-1
+            dx = (X(i+1)-X(i))
+            dy = (Y(i+1)-Y(i))
+            length = length + sqrt(dx**2+dy**2)
+        enddo 
+
+        LineLength = length
+
+    end function LineLength    
 
     !--------------------------------------------------------------------------
     !This subroutine convert geographic coordinates in distance to meters relative to
@@ -8052,8 +8163,8 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     subroutine FromGeo2Meters(Lat, Long, LatRef, LongRef, X, Y)
 
         !Arguments----------------------------------------------------------------------
-        real(8), intent(IN)     :: Lat, Long, LatRef, LongRef
-        real(8), intent(OUT)    :: X, Y
+        real, intent(IN)        :: Lat, Long, LatRef, LongRef
+        real(8), intent(OUT)       :: X, Y
 
         !Local--------------------------------------------------------------------------
         real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat
@@ -11540,32 +11651,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine GeographicToCartesian(lat,lon, params, x, y)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: lat,lon
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: x,y
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_fwd(proj,lon,lat,x,y)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_fwd(proj,lon,lat,x,y)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR03'
         end if
 
@@ -11575,32 +11686,32 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     subroutine CartesianToGeographic (x, y, params, lat,lon)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: x,y
-        character(len=20), dimension(:)             :: params
+        character(256)                              :: params
         real(8), intent(out)                        :: lat,lon
 
         !Internal--------------------------------------------------------------
         integer                                     :: status
-        type(prj90_projection)                      :: proj
+        type(fproj_prj)                             :: proj
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR01'
         endif
 
-        status = prj90_inv(proj,x,y,lon,lat)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_inv(proj,x,y,lon,lat)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR02'
         end if
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR03'
         end if
 
@@ -13422,7 +13533,7 @@ D2:     do I=imax-1,2,-1
         real, dimension(:,:),   allocatable :: wave, U1
         real, dimension(:),     allocatable :: f, z, t, w
         real                                :: wp, h, SIG, K, LLC
-        real                                :: SS, SJ, phi, A, Ab, sigmaX, RAND
+        real                                :: SS, SJ, phi, A, sigmaX, RAND
         integer                             :: x, l, i, nf, nh, nt
 
         !Begin----------------------------------------------------------------
@@ -13746,7 +13857,8 @@ D2:     do I=imax-1,2,-1
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
     subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: VelSon
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
@@ -13801,7 +13913,8 @@ D2:     do I=imax-1,2,-1
     !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN)     :: VelSon
         real(8),    dimension(:)            , intent(OUT)    :: Flow
         integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
         real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime

@@ -202,6 +202,7 @@ Module ModuleStatistic
         real                                        :: CriticalValue  = null_real !inicialization: Carina
         
         logical                                     :: NormalizeFreq = .false.  !inicialization: Carina
+        logical                                     :: WriteFinalOutput = .false. 
         
         type (T_Statistic      ), pointer           :: Next  => null() !inicialization: Carina
     end type T_Statistic
@@ -647,13 +648,25 @@ cd1:    if (BlockFound) then
 
         endif
 
+        !Write final output
+        call GetData(Me%WriteFinalOutput,                                               &
+                        Me%ObjEnterData,                                                &
+                        iflag,                                                          &
+                        SearchType   = FromFile,                                        &
+                        keyword      = 'WRITE_FINAL_OUTPUT',                            &
+                        default      = .true.,                                          &
+                        ClientModule = 'ModuleStatistic',                               &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                   &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR12')        
+
 
         if (Me%Methodology == Value3DStatLayers_)                                        &
             call Construct_Layers
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR12')
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR13')
 
 
     
@@ -882,20 +895,22 @@ cd1:    if (BlockFound) then
                                                              
             Me%Classification%Frequency(:,:,:,:) = 0.
 
+        endif
 
-        else if   (Me%Methodology == Value3DStatLayers_) then
+        if   (Me%Methodology == Value3DStatLayers_) then
 
             allocate (Me%Classification%Frequency  (ILB:IUB, JLB:JUB, 1:Me%Layers%Number, 1:nClasses))
                                                              
             Me%Classification%Frequency(:,:,:,:) = 0.
 
+        endif
 
-        else if   (Me%Methodology == Value2DStat2D_) then
+        if   (Me%Methodology == Value2DStat2D_ .or. Me%Methodology == Value3DStat3D_) then
 
                 allocate (Me%Classification%Frequency2D(ILB:IUB, JLB:JUB, 1:nClasses))
                                                                  
+            Me%Classification%Frequency2D(:,:,:) = 0.
 
-                Me%Classification%Frequency2D(:,:,:) = 0.
         endif
 
     end subroutine AllocateFrequencyMatrixes
@@ -2850,7 +2865,7 @@ cd1:    if (DT>0) then
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, k) == WaterPoint) then
-doClass:        do iClass = 1, Me%Classification%nClasses
+    doClass1:       do iClass = 1, Me%Classification%nClasses
                     if (Value(i, j, k) >= Me%Classification%Classes(iClass, 1) .and.    &
                         Value(i, j, k)  < Me%Classification%Classes(iClass, 2)) then
                         Aux = DT
@@ -2862,12 +2877,34 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                         (Me%Classification%Frequency(i, j, k, iClass) *                 &
                          Me%Classification%RunPeriod + Aux          ) /                 &
                         (Me%Classification%RunPeriod + DT)
-                enddo doClass
+                    enddo doClass1
             endif
         enddo
         enddo
         enddo
 
+            !Loops
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (WaterPoints3D(i, j, k) == WaterPoint) then
+    doClass2:       do iClass = 1, Me%Classification%nClasses
+                        if (Value(i, j, k) >= Me%Classification%Classes(iClass, 1) .and.    &
+                            Value(i, j, k)  < Me%Classification%Classes(iClass, 2)) then
+                            Aux = DT
+                        else
+                            Aux = 0
+                        endif
+                    
+                        Me%Classification%Frequency2D     (i, j, iClass) =                  &
+                            (Me%Classification%Frequency2D(i, j, iClass) *                  &
+                                Me%Classification%RunPeriod + Aux          ) /                 &
+                            (Me%Classification%RunPeriod + DT)
+                    enddo doClass2
+                endif
+            enddo
+            enddo
+            enddo
 
         Me%Classification%RunPeriod       = Me%Classification%RunPeriod + DT
 
@@ -2878,6 +2915,8 @@ doClass:        do iClass = 1, Me%Classification%nClasses
     end subroutine ModifyClassification
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------    
 !    subroutine ModifyClassification_R4 (Value_R4, WaterPoints3D, KLB, KUB)
 !
 !        !Arguments-------------------------------------------------------------
@@ -3074,7 +3113,7 @@ cd1:    if (DT>0) then
         integer                                     :: ILB, IUB, i
         integer                                     :: JLB, JUB, j
         real                                        :: DT, DX, AuxValue
-!        real                                        :: OldDay, PresentDay    
+        real                                        :: OldDay, PresentDay    
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -3607,11 +3646,13 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         real, dimension(:, :, :), pointer           :: AuxMatrix3D
         real, dimension(:, :   ), pointer           :: AuxMatrix2D
         real                                        :: Aux, d1, d2
+        real                                        :: AuxFreq
         real(8), dimension(:), allocatable          :: P,C
         real(8)                                     :: Px,Cx, sumFreq
         integer                                     :: nc, n
         real,    dimension(:), pointer              :: TimePtr
         real,    dimension(6), target               :: AuxTime        
+        character(len=StringLength)                 :: ClassesName
         
         !Begin-----------------------------------------------------------------        
 
@@ -4258,6 +4299,27 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
         if (Me%Classification%On .and. WriteClassification) then
 
+            call HDF5SetLimits (Me%ObjHDF5, 1, Me%Classification%nClasses, 1, 2, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR572'                
+            
+            !Allocates auxiliar matrix 2D
+            allocate (AuxMatrix2D(1:Me%Classification%nClasses, 1:2))
+            
+            AuxMatrix2D(1:Me%Classification%nClasses, 1:2) = Me%Classification%Classes(1:Me%Classification%nClasses, 1:2)
+            
+        
+            
+            call HDF5WriteData(Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",&
+                               "Classes_Limits", "-", Array2D = AuxMatrix2D,            &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR573'            
+            
+            !Deallocates auxiliar matrix 2D
+            deallocate (AuxMatrix2D)
+            
+            call HDF5SetLimits (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR574'
+            
             do iClass = 1, Me%Classification%nClasses
 
 
@@ -4266,7 +4328,6 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                 AuxChar = trim(adjustl(AuxChar1))//"_"//trim(adjustl(AuxChar2))
 
-            
                 if (Me%Methodology==Value3DStat3D_ .or.  &
                     Me%Methodology==Value3DStatLayers_) then
 
@@ -4276,8 +4337,6 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                         Me%ExternalVar%Size%JLB:Me%ExternalVar%Size%JUB, &
                         Me%ExternalVar%Size%KLB:Me%ExternalVar%Size%KUB))
 
-
-                            
                     do k = KLB, KUB
                     do j = JLB, JUB
                     do i = ILB, IUB
@@ -4286,19 +4345,32 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     enddo
                     enddo
 
+                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes/Classes",&
+                                          "Classes", "%", Array3D = AuxMatrix3D,                            &
+                                          OutputNumber  = iClass,                                           &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR575'
+                    
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",        &
                                           trim(adjustl(AuxChar)),                                           &
-                                          "-", Array3D = AuxMatrix3D,                                       &
+                                          "%", Array3D = AuxMatrix3D,                                       &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR580'
 
-                else if (Me%Methodology==Value2DStat2D_) then
+                endif
+
+                if (Me%Methodology==Value2DStat2D_ .or. Me%Methodology==Value3DStat3D_) then
+
+                    if      (Me%Methodology==Value2DStat2D_) then
+                        ClassesName = '/Classes'
+                    elseif  (Me%Methodology==Value3DStat3D_) then
+                        ClassesName = '/Classes2D'
+                    endif
+                    
 
                     !Allocates auxiliar matrix 2D
                     allocate (AuxMatrix2D(Me%ExternalVar%Size%ILB:Me%ExternalVar%Size%IUB,                  &
                                           Me%ExternalVar%Size%JLB:Me%ExternalVar%Size%JUB))
-
-                        
 
                     do j = JLB, JUB
                     do i = ILB, IUB
@@ -4306,7 +4378,13 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     enddo
                     enddo
 
-                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",        &
+                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName)//"/Classes",&
+                                          "Classes", "%", Array2D = AuxMatrix2D,                            &
+                                          OutputNumber  = iClass,                                           &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR585'                    
+
+                    call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName),      &
                                           trim(adjustl(AuxChar)),                                           &
                                           "-", Array2D = AuxMatrix2D,                                       &
                                           STAT = STAT_CALL)
@@ -4316,11 +4394,11 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             enddo
 
-            write(AuxChar1, fmt=*)Me%Classification%Percentil
-            AuxChar = "Percentil_"//trim(adjustl(AuxChar1))//"_Class"
-            
             if (Me%Methodology==Value3DStat3D_ .or.                                                         &
                 Me%Methodology==Value3DStatLayers_) then
+                
+            write(AuxChar1, fmt=*)Me%Classification%Percentil
+            AuxChar = "Percentil_"//trim(adjustl(AuxChar1))//"_Class"
             
                 !By default all domain belongs to the first class
                 AuxMatrix3D(:,:,:) = 0.
@@ -4351,7 +4429,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                     do iClass = 1, nc
 
-                        sumFreq = sumFreq + Me%Classification%Frequency(i, j, k, iClass)
+                        AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                        sumFreq = sumFreq + AuxFreq
 
                     enddo
                     
@@ -4359,7 +4439,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                         do iClass = 1, nc
 
-                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) / sumFreq * 100.
+                            AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                            P(iClass + 1) = P(iClass) + AuxFreq / sumFreq * 100.
 
                         enddo
 
@@ -4367,7 +4449,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
                         do iClass = 1, nc
 
-                            P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+                            AuxFreq = Me%Classification%Frequency(i, j, k, iClass) 
+
+                            P(iClass + 1) = P(iClass) + AuxFreq * 100.
 
                         enddo
                         
@@ -4377,7 +4461,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 
 doClass1:           do iClass = 1, nc
 
-                        P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+                        AuxFreq = Me%Classification%Frequency(i, j, k, iClass)
+
+                        P(iClass + 1) = P(iClass) + AuxFreq * 100.
 
                     enddo doClass1                
                     
@@ -4440,8 +4526,19 @@ doClass1:           do iClass = 1, nc
                 !Deallocates auxiliar matrix
                 deallocate (AuxMatrix3D)
 
-            else if (Me%Methodology==Value2DStat2D_) then
+            endif
+                
+            if (Me%Methodology==Value2DStat2D_ .or. Me%Methodology==Value3DStat3D_) then
 
+                if      (Me%Methodology==Value2DStat2D_) then
+                    ClassesName = '/Classes'
+                elseif  (Me%Methodology==Value3DStat3D_) then
+                    ClassesName = '/Classes2D'
+                endif
+                
+
+                write(AuxChar1, fmt=*)Me%Classification%Percentil
+                AuxChar = "Percentil_"//trim(adjustl(AuxChar1))//"_Class"
 
                 !By default all domain belongs to the first class
                 AuxMatrix2D(:,:) = 0.
@@ -4548,7 +4645,7 @@ doClass2:           do iClass = 1, nc
                 enddo
                 enddo
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",            &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//trim(ClassesName),&
                                       trim(adjustl(AuxChar)),                                               &
                                       "-", Array2D = AuxMatrix2D,                                           &
                                       STAT = STAT_CALL)
@@ -5049,8 +5146,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (nUsers == 0) then
                 
+                if (Me%WriteFinalOutput) then
                 !Writes the final values to the HDF file
                 call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)    
+                endif
 
                 !Associates External Instances
                 nUsers = DeassociateInstance (mTIME_,          Me%ObjTime         )

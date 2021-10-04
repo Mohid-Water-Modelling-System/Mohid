@@ -28,11 +28,15 @@ program MohidJoinTimeSeries
     real                                                    :: TotalCPUTime, ElapsedSeconds
     integer, dimension(8)                                   :: F95Time
     
+    integer, parameter                                      :: LowestBeginTimeUntilEnd  = 1
+    integer, parameter                                      :: HighestBeginTimePriority = 2
+    
     type       T_TimeSeriesFile
         integer                                             :: ObjTimeSerie         = 0
         character(len=PathLength)                           :: FileName
         character(len=line_length)                          :: Residual = null_str
         type(T_Time)                                        :: BeginTime
+        type(T_Time)                                        :: EndTime
         character(len=256)                                  :: TimeUnits
         real, dimension(:,:), pointer                       :: DataMatrix
         integer                                             :: nValues, nColumns
@@ -43,17 +47,16 @@ program MohidJoinTimeSeries
     type T_JoinTimeSeries
         character(PathLength)                               :: DataFile
         type(T_Size3D)                                      :: Size3D
-        type(T_Time)                                        :: BeginTime
-        type(T_Time)                                        :: EndTime
         type(T_Time)                                        :: CurrentTime
         type(T_TimeSeriesFile),  pointer                    :: FirstTimeSeriesFile
         integer                                             :: ObjEnterData         = 0
         integer                                             :: nTimeSeries          = 0
         character(len=PathLength)                           :: OutputFileName
-        type(T_Time), dimension(:), pointer                 :: InitialTimes, OrganizedTimes
+        type(T_Time), dimension(:), pointer                 :: InitialTimes, EndTimes
+        type(T_Time), dimension(:), pointer                 :: OrganizedBeginTimes, OrganizedEndTimes
         integer                                             :: LocationI, LocationJ, LocationK
         logical                                             :: WriteResiduals
-        logical                                             :: FirstEqualsLast
+        integer                                             :: OverlapMethod        = null_int
     end type T_JoinTimeSeries
 
     type(T_JoinTimeSeries), pointer                         :: Me
@@ -95,10 +98,13 @@ program MohidJoinTimeSeries
         type(T_TimeSeriesFile),  pointer            :: TimeSeriesFile
         real                                        :: SecondsSinceFirst
         character(len=4)                            :: CharFormat = '   '
-        integer                                     :: n_columns
+        integer                                     :: n_columns, StartIndex, EndIndex
         character(len=line_length)                  :: Header
         type(T_Time)                                :: TimeOfDataset
-
+        type(T_Time)                                :: NextTimeSeriesBeginTime, CurrentTimeSeriesEndTime
+        character (Len = line_length)               :: string_to_be_written
+        logical                                     :: WriteLastOutput, WriteFirstOutput
+        
         !Begin-----------------------------------------------------------------
 
         n_columns = Me%FirstTimeSeriesFile%nColumns
@@ -124,7 +130,7 @@ program MohidJoinTimeSeries
         open(unit = OutputUnit, file = trim(Me%OutputFileName ), status = 'replace')
 
 
-        call WriteDataLine(OutputUnit, "SERIE_INITIAL_DATA", Me%OrganizedTimes(1))
+        call WriteDataLine(OutputUnit, "SERIE_INITIAL_DATA", Me%OrganizedBeginTimes(1))
         call WriteDataLine(OutputUnit, "TIME_UNITS", "SECONDS")
 
         call WriteDataLine(OutputUnit, "LOCALIZATION_I", Me%LocationI)
@@ -133,41 +139,163 @@ program MohidJoinTimeSeries
 
         call WriteDataLine(OutputUnit, Header)
         call WriteDataLine(OutputUnit, "<BeginTimeSerie>")
+        
+        if(Me%OverlapMethod == LowestBeginTimeUntilEnd)then
+            
+            !Set initial Time Series begin time
+            NextTimeSeriesBeginTime = Me%OrganizedBeginTimes(1)
+            
+            do i = 1, Me%nTimeSeries
+                
+                WriteFirstOutput = .true.
 
-        do i = 1, Me%nTimeSeries
+                TimeSeriesFile => Me%FirstTimeSeriesFile
 
-            TimeSeriesFile => Me%FirstTimeSeriesFile
+                do while(associated(TimeSeriesFile))
 
-            do while(associated(TimeSeriesFile))
-
-                if(TimeSeriesFile%BeginTime .eq. Me%OrganizedTimes(i))then
-
-                    write(*,*)TimeToString(TimeSeriesFile%BeginTime)
-
-                    do j = 1, TimeSeriesFile%nValues
-
-                        if(j == 1 .and. i > 1 .and. Me%FirstEqualsLast)then
-
-                        else
+                    if(TimeSeriesFile%BeginTime .eq. Me%OrganizedBeginTimes(i))then
                         
+                        if(NextTimeSeriesBeginTime .lt. TimeSeriesFile%BeginTime)then
+                            write(*,*)
+                            write(*,*)"Found gap between two time series files."
+                            write(*,*)"Starting ", trim(adjustl(adjustr(TimeToString(NextTimeSeriesBeginTime))))
+                            write(*,*)"Ending   ", trim(adjustl(adjustr(TimeToString(TimeSeriesFile%BeginTime))))
+                            write(*,*)"See Error_and_Messages.log for further details."
+                            write(*,*)
+                            
+                            NextTimeSeriesBeginTime = TimeSeriesFile%BeginTime
+
+                            call SetError(WARNING_, INTERNAL_, "FOUND GAP!", OFF)
+                            !Because there is a gap write the first output from the time series
+                            WriteFirstOutput = .true.
+                        
+                        endif
+                        
+                        if(i > 1)then
+                            !if this Time Series time is the same as the older time series then older has preference
+                            if(NextTimeSeriesBeginTime == Me%OrganizedEndTimes(i-1))then
+                                WriteFirstOutput = .false.
+                            endif
+                        endif 
+                        
+                        string_to_be_written = 'File : ' //&
+                                                trim(adjustl(adjustr(TimeSeriesFile%FileName)))//' - ' //&
+                                                trim(adjustl(adjustr(TimeToString(NextTimeSeriesBeginTime))))//' - ' //&
+                                                trim(adjustl(adjustr(TimeToString(TimeSeriesFile%EndTime)))) 
+                       
+                        call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                        
+                        call GetTimeSerieTimeFrameIndexes(TimeSeriesFile%ObjTimeSerie,  &
+                                                          NextTimeSeriesBeginTime,      &
+                                                          TimeSeriesFile%EndTime,       &
+                                                          StartIndex, EndIndex, .true., STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR10' 
+                        
+                        if(.not. WriteFirstOutput)then
+                            StartIndex = StartIndex + 1
+                        endif
+                        
+                        do j = StartIndex, EndIndex
+
                             call GetTimeSerieTimeOfDataset(TimeSeriesFile%ObjTimeSerie, j, TimeOfDataset, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR20'
                         
-                            SecondsSinceFirst = TimeOfDataset - Me%OrganizedTimes(1)
+                            SecondsSinceFirst = TimeOfDataset - Me%OrganizedBeginTimes(1)
 
                             write(OutputUnit, '('//CharFormat//'f25.5, 1x)') SecondsSinceFirst, TimeSeriesFile%DataMatrix(j, 2:)
 
+                        enddo
+                        
+                        NextTimeSeriesBeginTime = TimeSeriesFile%EndTime
+
+                    end if
+
+                    TimeSeriesFile => TimeSeriesFile%Next
+
+                enddo
+
+            enddo
+            
+        elseif(Me%OverlapMethod == HighestBeginTimePriority)then
+            
+            do i = 1, Me%nTimeSeries
+
+                TimeSeriesFile => Me%FirstTimeSeriesFile
+
+                do while(associated(TimeSeriesFile))
+
+                    if(TimeSeriesFile%BeginTime .eq. Me%OrganizedBeginTimes(i))then
+                        
+                        CurrentTimeSeriesEndTime = TimeSeriesFile%EndTime
+                        WriteLastOutput          = .true.
+                        
+                        if(i < Me%nTimeSeries)then
+
+                            if(TimeSeriesFile%EndTime .ge. Me%OrganizedBeginTimes(i+1))then
+                                
+                                write(*,*)
+                                write(*,*)"Found overlap between two time series files."
+                                write(*,*)"Starting ", trim(adjustl(adjustr(TimeToString(Me%OrganizedBeginTimes(i+1)))))
+                                write(*,*)"Ending   ", trim(adjustl(adjustr(TimeToString(CurrentTimeSeriesEndTime))))
+                                write(*,*)"See Error_and_Messages.log for further details."
+                                write(*,*)
+                                
+                                CurrentTimeSeriesEndTime = Me%OrganizedBeginTimes(i+1)
+                                WriteLastOutput = .false.
+
+                            endif
+
+                        endif
+                        
+                        string_to_be_written = 'File : ' //&
+                                                trim(adjustl(adjustr(TimeSeriesFile%FileName)))//' - ' //&
+                                                trim(adjustl(adjustr(TimeToString(TimeSeriesFile%BeginTime))))//' - ' //&
+                                                trim(adjustl(adjustr(TimeToString(CurrentTimeSeriesEndTime)))) 
+                       
+                        call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                        
+                        if(.not. WriteLastOutput)then
+                            call SetError(WARNING_, INTERNAL_, "FOUND OVERLAP!", OFF)
                         endif
 
-                    enddo
+                        
+                        call GetTimeSerieTimeFrameIndexes(TimeSeriesFile%ObjTimeSerie,  &
+                                                          TimeSeriesFile%BeginTime,     &
+                                                          CurrentTimeSeriesEndTime,     &
+                                                          StartIndex, EndIndex,         &
+                                                          WriteLastOutput, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR30' 
+                        
+                        do j = StartIndex, EndIndex
 
-                end if
+                            call GetTimeSerieTimeOfDataset(TimeSeriesFile%ObjTimeSerie, j, TimeOfDataset, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR40'
+                        
+                            SecondsSinceFirst = TimeOfDataset - Me%OrganizedBeginTimes(1)
 
-                TimeSeriesFile => TimeSeriesFile%Next
+                            write(OutputUnit, '('//CharFormat//'f25.5, 1x)') SecondsSinceFirst, TimeSeriesFile%DataMatrix(j, 2:)
+
+                        enddo
+
+                    end if
+
+                    TimeSeriesFile => TimeSeriesFile%Next
+
+                enddo
 
             enddo
 
-        enddo
+            
+            
+            
+            
+            
+        else
+            
+            write(*,*)"Unknown time series overlap method"
+            stop 'ModifyMohidJoinTimeSeries - MohidJoinTimeSeries - ERR90'
+            
+        endif 
 
         call WriteDataLine(OutputUnit, "<EndTimeSerie>")
 
@@ -179,7 +307,7 @@ program MohidJoinTimeSeries
 
                 do while(associated(TimeSeriesFile))
 
-                    if(TimeSeriesFile%BeginTime .eq. Me%OrganizedTimes(i))then
+                    if(TimeSeriesFile%BeginTime .eq. Me%OrganizedBeginTimes(i))then
                     
                         call WriteDataLine(OutputUnit, "")
                         call WriteDataLine(OutputUnit, "<BeginResidual>")
@@ -227,15 +355,14 @@ program MohidJoinTimeSeries
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidJoinTimeSeries - ERR05'
 
-        call GetData(Me%FirstEqualsLast,                                &
+        call GetData(Me%OverlapMethod,                                  &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
-                     keyword      = 'FIRST_EQUALS_LAST',                &
+                     keyword      = 'OVERLAP_METHOD',                   &
                      ClientModule = 'MohidJoinTimeSeries',              &
+                     Default      = LowestBeginTimeUntilEnd,            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidJoinTimeSeries - ERR06'
-
-        
 
         call ConstructTimeSeriesFilesList
 
@@ -365,9 +492,11 @@ cd2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
-        allocate(Me%InitialTimes  (1:Me%nTimeSeries))
-        allocate(Me%OrganizedTimes(1:Me%nTimeSeries))
-
+        allocate(Me%InitialTimes        (1:Me%nTimeSeries))
+        allocate(Me%EndTimes            (1:Me%nTimeSeries))
+        allocate(Me%OrganizedBeginTimes (1:Me%nTimeSeries))
+        allocate(Me%OrganizedEndTimes   (1:Me%nTimeSeries))
+        
         TimeSeriesFile => Me%FirstTimeSeriesFile
 
         i = 1
@@ -385,7 +514,10 @@ cd2 :           if (BlockFound) then
                                      STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OrganizeTimeSeriesFiles - MohidJoinTimeSeries - ERR02'
 
-            call GetTimeSerieInitialData (TimeSeriesFile%ObjTimeSerie, TimeSeriesFile%BeginTime, STAT = STAT_CALL) 
+            call GetTimeSerieTimeLimits  (TimeSeriesFile%ObjTimeSerie,                  &
+                                          TimeSeriesFile%BeginTime,                     &
+                                          TimeSeriesFile%EndTime,                       &
+                                          STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)stop 'OrganizeTimeSeriesFiles - MohidJoinTimeSeries - ERR03'
 
             call GetTimeSerieDataMatrix(TimeSeriesFile%ObjTimeSerie, TimeSeriesFile%DataMatrix, STAT = STAT_CALL)
@@ -402,6 +534,7 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL /= SUCCESS_)stop 'ReadMovingProfileFile - MohidJoinTimeSeries - ERR03'
 
             Me%InitialTimes(i) = TimeSeriesFile%BeginTime
+            Me%EndTimes(i)     = TimeSeriesFile%EndTime
 
             i = i + 1 
 
@@ -419,9 +552,11 @@ cd2 :           if (BlockFound) then
            
             do i = 1, Me%nTimeSeries
                 if(Me%InitialTimes(i) .lt. OldestTime)then
-                    OldestTime              = Me%InitialTimes(i)
-                    Me%OrganizedTimes(j)    = Me%InitialTimes(i)
-                    k                       = i
+                    OldestTime                  = Me%InitialTimes(i)
+                    Me%OrganizedBeginTimes(j)   = Me%InitialTimes(i)
+                    Me%OrganizedEndTimes(j)     = Me%EndTimes(i)
+                    
+                    k                           = i
                 endif
             end do
 
