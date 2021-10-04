@@ -1750,28 +1750,6 @@ cd2 :   if (Me%State%HorAdv) then
         call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
-        !write (*,*) 'Start thomas advection'
-        !do i=10,16
-        !    write (*,*) 'Me%COEF3%D(125, 290, k) :', i, Me%COEF3%D(125, 290, i)
-        !    write (*,*) 'Me%COEF3%E(125, 290, k) :', i, Me%COEF3%E(125, 290, i)
-        !    write (*,*) 'Me%COEF3%F(125, 290, k) :', i, Me%COEF3%F(125, 290, i)
-        !    write (*,*) 'Me%TICOEF3(125, 290, k) :', i, Me%TICOEF3(125, 290, i)
-        !    write (*,*) 'Concentration(125, 290, k) :', i, Me%ExternalVar%PROP(125, 290, i)
-        !enddo
-        !do i=10,16
-        !    write (*,*) 'Me%COEF3%D(124, 290, k) :', i, Me%COEF3%D(124, 290, i)
-        !    write (*,*) 'Me%COEF3%E(124, 290, k) :', i, Me%COEF3%E(124, 290, i)
-        !    write (*,*) 'Me%COEF3%F(124, 290, k) :', i, Me%COEF3%F(124, 290, i)
-        !    write (*,*) 'Me%TICOEF3(124, 290, k) :', i, Me%TICOEF3(124, 290, i)
-        !    write (*,*) 'Concentration(124, 290, k) :', i, Me%ExternalVar%PROP(124, 290, i)
-        !enddo
-        !do i=10,16
-        !    write (*,*) 'Me%COEF3%D(123, 290, k) :', i, Me%COEF3%D(123, 290, i)
-        !    write (*,*) 'Me%COEF3%E(123, 290, k) :', i, Me%COEF3%E(123, 290, i)
-        !    write (*,*) 'Me%COEF3%F(123, 290, k) :', i, Me%COEF3%F(123, 290, i)
-        !    write (*,*) 'Me%TICOEF3(123, 290, k) :', i, Me%TICOEF3(123, 290, i)
-        !    write (*,*) 'Concentration(123, 290, k) :', i, Me%ExternalVar%PROP(123, 290, i)
-        !enddo
         
 
 cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitScheme = 0
@@ -1886,14 +1864,7 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                         )
 
         endif cd3
-        !write (*,*) 'End thomas advection'
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 15) :', Me%ExternalVar%PROP(125, 290, 15)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 14) :', Me%ExternalVar%PROP(125, 290, 14)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 13) :', Me%ExternalVar%PROP(125, 290, 13)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 12) :', Me%ExternalVar%PROP(125, 290, 12)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 11) :', Me%ExternalVar%PROP(125, 290, 11)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 10) :', Me%ExternalVar%PROP(125, 290, 10)
-        !write (*,*) 'Me%ExternalVar%PROP(125, 290, 9) :', Me%ExternalVar%PROP(125, 290, 9)
+        
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
 
 

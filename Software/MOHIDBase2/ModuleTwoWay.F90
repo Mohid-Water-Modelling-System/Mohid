@@ -1025,9 +1025,7 @@ Module ModuleTwoWay
                 elseif (InterpolMethod == 2) then
                     call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, TimeDecay)
                 elseif (InterpolMethod == 3) then
-                    !write (*,*) 'ModelID In :', SonID
                     call Flux_Velocity_Online (VelocityID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D)
-                    !write (*,*) 'ModelID Out :', SonID
                 endif
             else
                 if (InterpolMethod == 1) then
@@ -1913,28 +1911,6 @@ Module ModuleTwoWay
             write (*,*) 'Upscaling discharge not yet ready for 2D'
             stop
         endif
-        !write (*,*) '------------Discharge Velocity Douro------------'
-        !write (*,*) 'Discharge Velocity in 113, 66, 49', FatherMatrix(113, 66, 49)
-        !write (*,*) 'Discharge Velocity in 113, 66, 50', FatherMatrix(113, 66, 50)
-        !write (*,*) '------------Discharge Velocity Guadalquivir------------'
-        !write (*,*) 'Discharge Velocity in 41, 103, 49', FatherMatrix(41, 103, 49)
-        !write (*,*) 'Discharge Velocity in 41, 103, 50', FatherMatrix(41, 103, 50)
-        !write (*,*) '------------Discharge Velocity Guadiana------------'
-        !write (*,*) 'Guadiana Flow in 47, 87, 49', FatherMatrix(47, 87, 49)
-        !write (*,*) 'Guadiana Flow in 47, 87, 50', FatherMatrix(47, 87, 50)
-        !write (*,*) 'Minho Flow in 125, 62, 49', FatherMatrix(125, 62, 49)
-        !write (*,*) 'Minho Flow in 125, 62, 50', FatherMatrix(125, 62, 50)
-        !write (*,*) '------------Discharge Velocity Mondego------------'
-        !write (*,*) 'Discharge Velocity in 97, 62, 49', FatherMatrix(97, 62, 49)
-        !write (*,*) 'Discharge Velocity in 97, 62, 50', FatherMatrix(97, 62, 50)
-        !write (*,*) '------------Discharge Velocity Sado------------'
-        !write (*,*) 'Discharge Velocity in 68, 63, 49', FatherMatrix(68, 63, 49)
-        !write (*,*) 'Discharge Velocity in 68, 63, 50', FatherMatrix(68, 63, 50)
-        !write (*,*) '------------Discharge Velocity Tagus------------'
-        !write (*,*) 'Discharge Velocity in 72, 56, 45', FatherMatrix(72, 56, 42)
-        !write (*,*) 'Discharge Velocity in 72, 56, 45', FatherMatrix(72, 56, 45)
-        !write (*,*) 'Discharge Velocity in 72, 56, 49', FatherMatrix(72, 56, 49)
-        !write (*,*) 'Discharge Velocity in 72, 56, 50', FatherMatrix(72, 56, 50)
 
     end subroutine Flux_Velocity_Offline
     
@@ -2202,27 +2178,6 @@ Module ModuleTwoWay
             write (*,*) 'Upscaling discharge not yet ready for 2D'
             stop
         endif
-        !write (*,*) '------------Discharge concentration Douro------------'
-        !write (*,*) 'Discharge concentration in 113, 66, 49', FatherMatrix(113, 60, 49)
-        !write (*,*) 'Discharge concentration in 113, 66, 50', FatherMatrix(113, 60, 50)
-        !write (*,*) '------------Discharge concentration Guadalquivir------------'
-        !write (*,*) 'Discharge concentration in 41, 103, 49', FatherMatrix(41, 103, 49)
-        !write (*,*) 'Discharge concentration in 41, 103, 50', FatherMatrix(41, 103, 50)
-        !write (*,*) '------------Discharge concentration Guadiana------------'
-        !write (*,*) 'Discharge concentration in 47, 87, 49', FatherMatrix(47, 87, 49)
-        !write (*,*) 'Discharge concentration in 47, 87, 50', FatherMatrix(47, 87, 50)
-        !write (*,*) '------------Discharge concentration Minho------------'
-        !write (*,*) 'Discharge concentration in 125, 62, 49', FatherMatrix(125, 62, 49)
-        !write (*,*) 'Discharge concentration in 125, 62, 50', FatherMatrix(125, 62, 50)
-        !write (*,*) '------------Discharge concentration Mondego------------'
-        !write (*,*) 'Discharge concentration in 97, 62, 49', FatherMatrix(97, 62, 49)
-        !write (*,*) 'Discharge concentration in 97, 62, 50', FatherMatrix(97, 62, 50)
-        !write (*,*) '------------Discharge concentration Sado------------'
-        !write (*,*) 'Discharge concentration in 68, 63, 49', FatherMatrix(68, 63, 49)
-        !write (*,*) 'Discharge concentration in 68, 63, 50', FatherMatrix(68, 63, 50)
-        !write (*,*) '------------Discharge concentration Tagus------------'
-        !write (*,*) 'Discharge concentration in 72, 56, 49', FatherMatrix(72, 56, 49)
-        !write (*,*) 'Discharge concentration in 72, 56, 50', FatherMatrix(72, 56, 50)
 
     end subroutine DischageConc_Offline
     
@@ -2497,9 +2452,6 @@ Module ModuleTwoWay
                                         ObjFather%Discharge%FlowMatrix(i, j, k) - SonMatrix(ison,json,kson) &
                                                                                 * SonArea_U(ison,json,kson)
                                         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                                        !write (*,*) 'Flow1 = ', ObjFather%Discharge%FlowMatrix(i, j, k)
-                                        !write (*,*) 'VelocityU = ', FatherMatrix(i, j, k)
-                                        !write (*,*) 'I, j, k son', ison, json, kson
                                    endif
                                enddo
                             endif
@@ -2534,9 +2486,6 @@ Module ModuleTwoWay
                                         ObjFather%Discharge%FlowMatrix(i, j, k) + SonMatrix(ison,json,kson) &
                                                                                 * SonArea_U(ison,json,kson)
                                         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                                        !write (*,*) 'Flow2 = ', ObjFather%Discharge%FlowMatrix(i, j, k)
-                                        !write (*,*) 'VelocityU = ', FatherMatrix(i, j, k)
-                                        !write (*,*) 'I, j, k son', ison, json, kson
                                    endif
                                enddo
                             endif
@@ -2576,16 +2525,10 @@ Module ModuleTwoWay
                                    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
                                         Number_Cells = Number_Cells + 1
                                         !m3/s
-                                        !write (*,*) 'Flow3 in = ', ObjFather%Discharge%FlowMatrix(i, j, k)
                                         ObjFather%Discharge%FlowMatrix(i, j, k) = &
                                         ObjFather%Discharge%FlowMatrix(i, j, k) - SonMatrix(ison,json,kson) &
                                                                                 * SonArea_V(ison,json,kson)
                                         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                                        !write (*,*) 'Flow3 out = ', ObjFather%Discharge%FlowMatrix(i, j, k)
-                                        !write (*,*) 'VelocityV = ', FatherMatrix(i, j, k)
-                                        !write (*,*) 'I, j, k son', ison, json, kson
-                                        !write (*,*) 'VelocityV son = ', SonMatrix(i, j, k)
-                                        !write (*,*) 'Area_V son = ', SonArea_V(i, j, k)
                                    endif
                                enddo
                             endif
@@ -2616,16 +2559,10 @@ Module ModuleTwoWay
                                    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
                                         Number_Cells = Number_Cells + 1
                                         !m3/s
-                                        !write (*,*) 'Flow4 in = ', ObjFather%Discharge%FlowMatrix(i, j, k)
                                         ObjFather%Discharge%FlowMatrix(i, j, k) = &
                                         ObjFather%Discharge%FlowMatrix(i, j, k) + SonMatrix(ison,json,kson) &
                                                                                 * SonArea_V(ison,json,kson)
                                         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                                        !write (*,*) 'Flow4 out = ', ObjFather%Discharge%FlowMatrix(i, j, k)
-                                        !write (*,*) 'VelocityV = ', FatherMatrix(i, j, k)
-                                        !write (*,*) 'I, j, k son', ison, json, kson
-                                        !write (*,*) 'VelocityV son = ', SonMatrix(i, j, k)
-                                        !write (*,*) 'Area_V son = ', SonArea_V(i, j, k)
                                    endif
                                enddo
                             endif
@@ -2837,17 +2774,11 @@ Module ModuleTwoWay
                             Kmax      (AuxCell) = AuxKmax
                             FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
                             PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                            !write(*,*) '-------------Firstime-------------------'
-                            !write(*,*) 'Flow, i, j, k :', FlowVector(AuxCell),  VectorI(i), VectorJ(i), VectorK(i)
-                            !write(*,*) 'Concent :', PropVector(AuxCell)
                         enddo
                     else
                         do i = 1, nCells
                             AuxCell = AuxCell + 1
                             PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                            !write(*,*) '-------------Continuous-------------------'
-                            !write(*,*) 'Flow, i, j, k :', FlowVector(AuxCell), VectorI(i), VectorJ(i), VectorK(i)
-                            !write(*,*) 'Concentration :', PropVector(AuxCell)
                         enddo
                     endif
                 else
@@ -3072,7 +3003,6 @@ Module ModuleTwoWay
                     AuxConnections => SonObj%Father%DischargeCells%Z
                     !Cheks if current discharge is inside current upscaling domain
                     if (DischargeIsAssociated(AuxConnections, VectorI(1), VectorJ(1))) then
-                        !write(*,*) 'Entrou Model ID', SonObj%InstanceID
                         Aux = CellID + 1
                         if (CellID == 0) Aux = 1
 
@@ -3087,16 +3017,11 @@ Module ModuleTwoWay
                         
                             if (FlowVector(i) >= 0) then
                                 PropVector(i) = PropAssimilation(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
-                                !write(*,*) 'Flow, i, j, k :', FlowVector(i),  dI(i), dJ(i), dK(i)
-                                !write(*,*) 'Concent :', PropVector(i)
                             else
                                 PropVector(i) = Prop(VectorI(iSon), VectorJ(iSon), VectorK(iSon))
-                                !write(*,*) 'Flow, i, j, k :', FlowVector(i),  dI(i), dJ(i), dK(i)
-                                !write(*,*) 'Concent :', PropVector(i)
                             endif
                         enddo
                         FoundDomain = .true.
-                        !write(*,*) 'Saiu Model ID', SonObj%InstanceID
                     endif
                 endif
                 SonObj => SonObj%Next
@@ -3148,7 +3073,6 @@ Module ModuleTwoWay
             !and the matrix is 2D so there is not much performance loss.
             do j = JLB, JUB
             do i = ILB, IUB
-                !Flag = Me%External_Var%WaterPoints3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
                     IFather = Me%External_Var%IZ(i, j)  ;  JFather = Me%External_Var%JZ(i, j)

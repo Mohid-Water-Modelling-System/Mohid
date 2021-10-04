@@ -1942,19 +1942,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 else
                     ResidualIncrement_ = .false. 
                 endif
-                !write (*,*)'Entrada modifygriddata------------------------------ '
-                !write (*,*)'Me%GridData2D(60, 1): ',  Me%GridData2D(60, 1)
-                !write (*,*)'Me%GridData2D(61, 1): ',  Me%GridData2D(61, 1)
-                !write (*,*)'Me%GridData2D(62, 1): ',  Me%GridData2D(62, 1)
-                !write (*,*)'Me%GridData2D(63, 1): ',  Me%GridData2D(63, 1)
-                !write (*,*)'Me%GridData2DReference(60, 1): ',  Me%GridData2DReference(60, 1)
-                !write (*,*)'Me%GridData2DReference(61, 1): ',  Me%GridData2DReference(61, 1)
-                !write (*,*)'Me%GridData2DReference(62, 1): ',  Me%GridData2DReference(62, 1)
-                !write (*,*)'Me%GridData2DReference(63, 1): ',  Me%GridData2DReference(63, 1)
-                !write (*,*)'Increment2D(60, 1): ',  Increment2D(60, 1)
-                !write (*,*)'Increment2D(61, 1): ',  Increment2D(61, 1)
-                !write (*,*)'Increment2D(62, 1): ',  Increment2D(62, 1)
-                !write (*,*)'Increment2D(63, 1): ',  Increment2D(63, 1)
                 
                 CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
                 if (Add) then
@@ -2002,11 +1989,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                         !$OMP END PARALLEL
                     endif
                 endif
-                !write (*,*)'Saida modifygriddata------------------------------ '
-                !write (*,*)'Me%GridData2D(60, 1): ',  Me%GridData2D(60, 1)
-                !write (*,*)'Me%GridData2D(61, 1): ',  Me%GridData2D(61, 1)
-                !write (*,*)'Me%GridData2D(62, 1): ',  Me%GridData2D(62, 1)
-                !write (*,*)'Me%GridData2D(63, 1): ',  Me%GridData2D(63, 1)
 
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleGridData", "ModifyGridData2DIncrement")
