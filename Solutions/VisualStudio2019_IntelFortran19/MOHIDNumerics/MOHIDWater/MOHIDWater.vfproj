@@ -75,7 +75,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release OpenMP|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" IgnoreDefaultLibraryNames="msvcrtd.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -161,11 +161,11 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSequentialAssimilation.F90">
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleToga.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbine.f90"/>
