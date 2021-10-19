@@ -1626,7 +1626,7 @@ cd5 :       if (Me%State%CellFluxes) then
         !Local-----------------------------------------------------------------
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: di, dj
+        integer                             :: di, dj, i
         integer                             :: STAT_CALL
 
         !----------------------------------------------------------------------
@@ -1750,6 +1750,7 @@ cd2 :   if (Me%State%HorAdv) then
         call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
+        
 
 cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitScheme = 0
 
@@ -1863,7 +1864,7 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                         )
 
         endif cd3
-
+        
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
 
 

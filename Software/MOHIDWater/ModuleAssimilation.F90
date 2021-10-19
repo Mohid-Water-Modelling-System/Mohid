@@ -82,6 +82,7 @@ Module ModuleAssimilation
     private ::                  ConstructAssimilationField_3D
     private ::                      SetMappingAndMatrix3D
     private ::                      Check_ComputeFacesVelocity3D
+    private ::                          ComputeFacesVelocity3D_Upscaling
     private ::              ConstructPropertyCoefficients
     private ::                  ConstructPropertyCoefficients_2D
     private ::                  ConstructPropertyCoefficients_3D
@@ -167,7 +168,9 @@ Module ModuleAssimilation
     private :: T_Field
     type       T_Field
         real, dimension(:,:  ), pointer         :: R2D                  => null()
+        logical                                 :: R2D_aloc             = .true.
         real, dimension(:,:,:), pointer         :: R3D                  => null()
+        logical                                 :: R3D_aloc             = .true.
         real                                    :: Minimum              = null_real
         real                                    :: DefaultValue         = null_real
         integer                                 :: TypeZUV              = null_int
@@ -198,6 +201,8 @@ Module ModuleAssimilation
         real                                    :: ColdOrder            = null_real
         logical                                 :: Upscaling            = .false.
         integer                                 :: UpscalingDomain      = null_int
+        integer                                 :: UpscalingMethod      = 1
+        logical                                 :: Skip_Block           = .false.
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -365,7 +370,6 @@ Module ModuleAssimilation
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: ready_         
-
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
  
@@ -400,7 +404,6 @@ Module ModuleAssimilation
             call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%ActualTime, &
                                       EndTime = Me%EndTime, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR01'
-
 
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, &
                                  STAT = STAT_CALL)
@@ -917,8 +920,10 @@ cd2 :           if (BlockFound) then
                     
                     write(*,*) 'End construct assimilation, property number :',vv
 
-                    ! Add new Property to the Assimilation List 
-                    Call Add_Property     (NewProperty)
+                    if (.not. NewProperty%Skip_Block) then
+                        ! Add new Property to the Assimilation List 
+                        Call Add_Property     (NewProperty)
+                    endif
                 else
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_) &
@@ -1012,7 +1017,9 @@ cd2 :           if (BlockFound) then
 
         call ConstructAssimilationField     (NewProperty, ClientNumber)
         
-        call ConstructPropertyCoefficients  (NewProperty, ClientNumber)
+        if (.not. NewProperty%Skip_Block) then
+            call ConstructPropertyCoefficients  (NewProperty, ClientNumber)
+        endif
 
         !----------------------------------------------------------------------
 
@@ -1560,6 +1567,12 @@ cd2 :           if (BlockFound) then
 
                     call ConstructAssimilationField_2D (NewProperty, WaterPoints2D, &
                                                         WaterFaces2D_U, WaterFaces2D_V, ClientNumber, NewDomain)
+                    !only for Upscaling
+                    if (NewProperty%Skip_Block) then
+                        if (NewProp) deallocate(NewProperty%Field%R2D)
+                        nullify (NewProperty%Field%R2D)
+                    endif
+                    
                 else if (NewProperty%Dim == Dim_3D) then
         
                     if (NewProp) then
@@ -1567,12 +1580,21 @@ cd2 :           if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
                         NewProperty%Field%R3D(:,:,:) = FillValueReal
                     endif
-
                     call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
                                                         WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
+                    !only for Upscaling
+                    if (NewProperty%Skip_Block) then
+                        if (NewProp) deallocate(NewProperty%Field%R3D)
+                        nullify (NewProperty%Field%R3D)
+                    endif
                 else
                     stop 'For a type Z , a property must be 2D or 3D - ModuleAssimilation - ERR40'
                 end if
+                
+                if (NewProperty%Skip_Block) then
+                    call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR50'
+                endif
                 
             else
                 stop 'begin or end field block not found - ModuleAssimilation - ERR60'
@@ -1753,9 +1775,24 @@ cd2 :           if (BlockFound) then
                             ClientModule   = 'ModuleAssimilation',                             &
                             STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'failed to read UPSCALING_DOMAIN_ID in field block of assimilation'
+            
+            call GetData(NewProperty%UpscalingMethod,                                       &
+                            Me%ObjEnterData, iflag,                                            &
+                            Keyword        = 'UPSCALING_METHOD',                               &
+                            SearchType     = FromBlockInBlock,                                 &
+                            ClientModule   = 'ModuleAssimilation',                             &
+                            STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'failed to read UPSCALING_METHOD in field block of assimilation'
+            
+            if (NewProperty%UpscalingMethod /= 1 .and. NewProperty%UpscalingMethod /= 3) then
+                stop 'UPSCALING_METHOD in assimilation.dat property block must be either 1 or 3'
+            endif
+            
         endif
         
     end subroutine read_upscaling_keywords
+    
+    !-----------------------------------------------------------------------------------------------------------------
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -1792,6 +1829,7 @@ cd2 :           if (BlockFound) then
                                         TypeZUV              = NewProperty%Field%TypeZUV,&
                                         ClientID             = ClientNumber,             &
                                         NewDomain            = NewDomain_,               &
+                                        Skip_Block           = NewProperty%Skip_Block,   &
                                         STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
         else
@@ -1809,26 +1847,39 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR35'
         endif
 
-        call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%CoefField%DefaultValue, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR40'
+        if (.not. NewProperty%Skip_Block) then
+            call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%CoefField%DefaultValue, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR40'
                     
-        call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
-                                FilenameHDF    = NewProperty%FilenameHDF,      &
-                                HdfFileExist   = NewProperty%HdfFileExist,     &
-                                STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR50'                  
+            call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
+                                    FilenameHDF    = NewProperty%FilenameHDF,      &
+                                    HdfFileExist   = NewProperty%HdfFileExist,     &
+                                    STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR50'                  
                     
-        if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str
+            if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str
 
-        if (NewProperty%Field%TypeZUV == TypeZ_) then
-            !Checks if property is barotropic velocity. If so, computes face velocity
-            call Check_ComputeFacesVelocity2D(NewProperty, PointsToFill2D, Matrix2D)
-        endif
+            if (NewProperty%Field%TypeZUV == TypeZ_) then
+                !Checks if property is barotropic velocity. If so, computes face velocity
+                call Check_ComputeFacesVelocity2D(NewProperty, PointsToFill2D, Matrix2D)
+            endif
 
-        nullify (PointsToFill2D, Matrix2D)
+            nullify (PointsToFill2D, Matrix2D)
         
-        call ConstructAnalyticCelery(NewProperty)
+            call ConstructAnalyticCelery(NewProperty)
 
+        else
+            !If current property block is to be ignored (implemented for Upscaling from HDF)
+            if (NewProperty%Field%TypeZUV == TypeZ_) then
+                if (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityU_ .or. &
+                   (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityV_)) then
+                    deallocate(Matrix2D)
+                endif
+            endif
+            
+            nullify (PointsToFill2D, Matrix2D)
+        endif
+        
         if(.not. NewProperty%ID%SolutionFromFile)then
             call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR60'
@@ -1997,6 +2048,7 @@ cd2 :           if (BlockFound) then
                                         TypeZUV               = NewProperty%Field%TypeZUV,      &
                                         ClientID              = ClientNumber,                   &
                                         NewDomain             = NewDomain_,                     &
+                                        Skip_Block            = NewProperty%Skip_Block,         &
                                         STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'
 
@@ -2015,23 +2067,35 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'        
         endif
         
-        !Because it is searched(and filled) in the fill matrix module
-        call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR20'
+        if (.not. NewProperty%Skip_Block) then
+            !Because it is searched(and filled) in the fill matrix module
+            call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR20'
                     
-        call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix,    &     
-                                FilenameHDF    = NewProperty%FilenameHDF,      &
-                                HdfFileExist   = NewProperty%HdfFileExist, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR30'                            
+            call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix,    &     
+                                    FilenameHDF    = NewProperty%FilenameHDF,      &
+                                    HdfFileExist   = NewProperty%HdfFileExist, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR30'                            
                     
-        if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str 
+            if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str 
 
-        if (NewProperty%Field%TypeZUV == TypeZ_) then
-            call Check_ComputeFacesVelocity3D(NewProperty, PointsToFill3D, Matrix3D)!Joao Sobrinho
-            !Aqui vai ser preciso calular a velocidade nas faces
+            if (NewProperty%Field%TypeZUV == TypeZ_) then
+                call Check_ComputeFacesVelocity3D(NewProperty, PointsToFill3D, Matrix3D)!Joao Sobrinho
+                !Aqui vai ser preciso calular a velocidade nas faces
+            endif
+
+            nullify   (PointsToFill3D, Matrix3D)
+        else
+            !If current property block is to be ignored (implemented for Upscaling from HDF)
+            if (NewProperty%Field%TypeZUV == TypeZ_) then
+                if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_ .or. &
+                   (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityV_)) then
+                    deallocate(Matrix3D)
+                endif
+            endif
+            
+            nullify (PointsToFill3D, Matrix3D)
         endif
-
-        nullify   (PointsToFill3D, Matrix3D)
         
         if(.not. NewProperty%ID%SolutionFromFile)then
             call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
@@ -2093,38 +2157,114 @@ cd2 :           if (BlockFound) then
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
-        if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
-            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+        if (Property%Upscaling) then
+            call ComputeFacesVelocity3D_Upscaling(Property, PointsToFill3D, Matrix3D)
+        else
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                    Property%Field%R3D(i,j,k) = 0.
+                    
+                    CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
+                    
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif
+
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                    Property%Field%R3D(i,j,k) = 0.
+                    
+                    CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
+
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif            
+        endif
+    
+    end subroutine Check_ComputeFacesVelocity3D
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes cell face velocity (by interpolation)
+    !>@param[in] Property, PointsToFill3D, Matrix3D 
+    subroutine ComputeFacesVelocity3D_Upscaling(Property, PointsToFill3D, Matrix3D)
+        !Arguments-------------------------------------------------------------
+        type(T_property),          pointer, intent(OUT)   :: Property
+        integer, dimension(:,:,:), pointer, intent(IN)    :: PointsToFill3D
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Matrix3D
+        !Locals ----------------------------------------------------------------
+        integer                                           :: CellFaceIsOpen
+        integer                                           :: CHUNK, i, j, k
+        !Begin------------------------------------------------------------------
+        CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
+        if (Property%UpscalingMethod == 3) then
+            !Only upscaling discharge - no nudging
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_ .or. &
+                GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+                Property%Field%R3D(:,:,:) = Matrix3D(:,:,:)
+                deallocate(Matrix3D)
+            endif
+            
+        elseif (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    
+                
                 Property%Field%R3D(i,j,k) = 0.
-                    
-                CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
-                    
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                !If matrix3D is 0 or FillValueReal then the CD does not have cells inside this PD cell
+                ! and computation should be avoided.
+                if ((Matrix3D(i,j,k) /= 0.0) .and. (Matrix3D(i,j,k) /= FillValueReal)) then
+                    if ((Matrix3D(i,j-1,k) /= 0.0) .and. (Matrix3D(i,j-1,k) /= FillValueReal)) then
+                        
+                        if ((PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)) == 2) then
+                            Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                        endif
+                    endif
+                endif
             enddo
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
             deallocate(Matrix3D)
-        endif
-
-        if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
-            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+        elseif (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    
+                
                 Property%Field%R3D(i,j,k) = 0.
-                    
-                CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
-
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                if ((Matrix3D(i,j,k) /= 0.0) .and. (Matrix3D(i,j,k) /= FillValueReal)) then
+                    if ((Matrix3D(i-1,j,k) /= 0.0) .and. (Matrix3D(i-1,j,k) /= FillValueReal)) then
+                        
+                        if ((PointsToFill3D(i-1,j,k) + PointsToFill3D(i,j  ,k)) == 2) then
+                            Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                        endif
+                    endif
+                endif
             enddo
             enddo
             enddo
@@ -2133,7 +2273,7 @@ cd2 :           if (BlockFound) then
             deallocate(Matrix3D)
         endif
     
-    end subroutine Check_ComputeFacesVelocity3D
+    end subroutine ComputeFacesVelocity3D_Upscaling
     
     subroutine ConstructPropertyCoefficients(NewProperty, ClientNumber)
 
@@ -3373,12 +3513,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         type (T_Property), pointer                  :: PropertyX    
         logical                                     :: DomainIsAssociated
         !----------------------------------------------------------------------
-        AssociatedDomain = .false.
+        DomainIsAssociated = .false.
             
         PropertyX => Me%FirstAssimilationProp
 
         do while (associated(PropertyX)) 
-                
             if (PropertyX%Upscaling .and. (PropertyX%UpscalingDomain == NewProperty%UpscalingDomain)) then
                 !Son ID for use in fillmatrix and field4D
                 NewProperty%ID%ObjTwoWay         = PropertyX%ID%ObjTwoWay
@@ -3416,9 +3555,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                 if (GetPropertyIDNumber(PropertyX%ID%Name) == GetPropertyIDNumber(NewProperty%ID%Name)) then
                     if (NewProperty%Dim == Dim_2D) then
                         NewProperty%Field%R2D => PropertyX%Field%R2D
+                        NewProperty%Field%R2D_aloc = .false.
                         IsAllocated = .true.
                     elseif (NewProperty%Dim == Dim_3D) then
                         NewProperty%Field%R3D => PropertyX%Field%R3D
+                        NewProperty%Field%R3D_aloc = .false.
                         IsAllocated = .true.
                     else
                         write(*,*) "Z type must be 2D or 3D - upscaling field ", trim(NewProperty%ID%Name)
@@ -3586,8 +3727,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             do while (associated(PropertyX)) 
                 if ((PropertyX%ID%IDNumber==PropertyXIDNumber) .and. PropertyX%Upscaling) then
             
-                    Counter     = Counter + 1
-                    if (N_Field_ == Counter) exit         
+                    !Counter     = Counter + 1
+                    !if (N_Field_ == Counter) exit
+                    if (PropertyX%UpscalingDomain == N_Field_) exit
                 endif
                 PropertyX => PropertyX%Next                 
             end do    
@@ -5465,10 +5607,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 do1 :   do while(associated(PropertyX))  
 
 cd1:        if (PropertyX%Dim == Dim_2D) then        
-
-                deallocate(PropertyX%Field%R2D, STAT = STAT_CALL)
+                if (PropertyX%Field%R2D_aloc) &
+                    deallocate(PropertyX%Field%R2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR01') 
+                    call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR01')
 
                 nullify   (PropertyX%Field%R2D)
 
@@ -5483,9 +5625,9 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
                 endif
 
 
-            else if (PropertyX%Dim == Dim_3D) then  cd1                      
-
-                deallocate(PropertyX%Field%R3D, STAT = STAT_CALL)
+            else if (PropertyX%Dim == Dim_3D) then  cd1             !AQUI         
+                if (PropertyX%Field%R3D_aloc) &
+                    deallocate(PropertyX%Field%R3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
                     call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR03') 
 
@@ -5495,6 +5637,7 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
                     deallocate(PropertyX%CoefField%R2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR04')
+                    nullify   (PropertyX%CoefField%R2D)
                 else   
                     deallocate(PropertyX%CoefField%R3D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
