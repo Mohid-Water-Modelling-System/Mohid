@@ -168,6 +168,7 @@ Module ModuleFunctions
     public  :: RODAXY
     public  :: FromCartesianToGrid
     public  :: SphericalToCart
+    public  :: FromCoord2RegGrid
 
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
@@ -5046,6 +5047,7 @@ end function
 
     !--------------------------------------------------------------------------
 
+
     subroutine FromCartesianToGrid (Xcart, Ycart, Tetha1, Tetha2, Xgrid, Ygrid)
 
         !Arguments-------------------------------------------------------------
@@ -5071,6 +5073,33 @@ end function
         Ygrid = g
 
     end subroutine FromCartesianToGrid
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine FromCoord2RegGrid(Xcoord, Ycoord, Xorig, Yorig, DX, DY, i, j, PercI, PercJ)
+
+        !Arguments-------------------------------------------------------------
+        real,    intent (in)    :: Xcoord, Ycoord, Xorig, Yorig, DX, DY
+        integer, intent (out)   :: i, j
+        real,    intent (out)   :: PercI, PercJ
+
+        !Local-----------------------------------------------------------------
+        real                    :: a, b
+        
+        !Begin-----------------------------------------------------------------
+
+        a = (Xcoord - Xorig) / DX     
+        b = (Ycoord - Yorig) / DY
+        
+        j = int(a) + 1        
+        i = int(b) + 1    
+
+        PercJ = a - (j - 1)
+        PercI = b - (i - 1)
+        
+    end subroutine FromCoord2RegGrid
+    
 
     !--------------------------------------------------------------------------
 

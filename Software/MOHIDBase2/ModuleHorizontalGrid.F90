@@ -3963,7 +3963,7 @@ BF1:    if (Me%ReadCartCorners) then
         real, dimension(:   ), pointer          :: XX, YY
         real                                    :: Xorig, Yorig
         real                                    :: Latitude, Longitude
-        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: ILB, IUB, JLB, JUB, ii, jj
 
 
         !Local-----------------------------------------------------------------
@@ -4075,6 +4075,17 @@ BF1:    if (Me%ReadCartCorners) then
             Me%XX_IE(:,:) = LongitudeConn(:,:)
 
             Me%Distortion      = .true.
+
+djj:        do jj = Me%WorkSize%JLB, Me%WorkSize%JUB
+dii:        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                    exit djj
+                endif            
+                
+            enddo dii
+            enddo djj
 
         else
             Me%XX(:) = XX(:)
@@ -10230,6 +10241,7 @@ cd3 :       if (present(SurfaceMM5)) then
     integer                                     :: STAT_
     integer                                     :: ready_
     real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
+    real                                        :: SumX
     integer                                     :: Referential_, GetGridBorderType
     integer                                     :: ILB, IUB, JLB, JUB
     logical                                     :: CellLocated
@@ -10288,7 +10300,9 @@ cd3 :       if (present(SurfaceMM5)) then
                 Me%WorkSize%JLB, Me%WorkSize%JUB,           &
                 I, J, CellLocated, Iold_, Jold_)
 
-            if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+                SumX = XX2D(i, j) +  XX2D(i+1, j) + XX2D(i, j+1) + XX2D(i+1,j+1) 
+
+            if (I < 0 .or. J < 0  .or. .not. CellLocated .or. SumX < FillValueReal/2.) then
                 STAT_ = OUT_OF_BOUNDS_ERR_
                 !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
             else
@@ -10733,6 +10747,7 @@ iR:         if (Referential_ == GridCoord_) then
 
                 endif
 
+
                 if (Me%GridBorderCoord%Type_ == Rectang_) then
                     if (XPoint >= XX2D(ILB+1, JLB+1) .and. XPoint <= XX2D(IUB, JUB) .and. &
                         YPoint >= YY2D(ILB+1, JLB+1) .and. YPoint <= YY2D(IUB, JUB)) then
@@ -10743,7 +10758,11 @@ iR:         if (Referential_ == GridCoord_) then
 
                 else
 
+                    if (Me%GhostCorners) then
+                        GetXYInsideDomain = .false. 
+                    else
                     GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+                    endif
                 endif
 
 
