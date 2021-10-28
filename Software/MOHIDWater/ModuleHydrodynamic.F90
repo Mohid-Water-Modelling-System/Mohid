@@ -10772,7 +10772,7 @@ n1:                         do nC =1, nCells
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR380'
                 
-                if (Me%WorkSize%KUB > 1) then
+                if (Me%Size%KUB > 1) then
                     call UnGetMap (Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL) !Sobrinho - Discharges
                     if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR385'
                 endif
