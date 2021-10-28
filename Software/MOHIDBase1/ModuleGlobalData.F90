@@ -552,6 +552,7 @@ Module ModuleGlobalData
     integer, parameter :: WindGust_                         = 624
     integer, parameter :: PBLHeight_                        = 625
     integer, parameter :: Reflectivity_                     = 626
+    integer, parameter :: DewPoint_                         = 630
     !vectorial
     integer, parameter :: WindVelocity_                     = 627
     !air quality 
@@ -1558,6 +1559,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_AtmospDeposReduNH4       = 'atmospheric deposition reduced NH4'  !LLP
     character(StringLength), private, parameter :: Char_Visibility               = 'visibility'
     character(StringLength), private, parameter :: Char_Dust                     = 'dust'
+    character(StringLength), private, parameter :: Char_DewPoint                 = 'dew point'
 
     
 
@@ -3023,6 +3025,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (MethylMercaptan_ ,        Char_MethylMercaptan     ,      ListNumber)            
             call AddPropList (Visibility_ ,             Char_Visibility          ,      ListNumber)
             call AddPropList (Dust_ ,                   Char_Dust                ,      ListNumber)
+            call AddPropList (DewPoint_ ,               Char_DewPoint               ,      ListNumber)            
          
             call AddPropList (RPOM_ ,                   Char_RPOM                ,      ListNumber)
             call AddPropList (LPOM_ ,                   Char_LPOM                ,      ListNumber)
