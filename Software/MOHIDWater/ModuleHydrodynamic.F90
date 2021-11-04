@@ -39368,6 +39368,8 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
+        where (Relax_Aceleration(:,:,:) < HalfFillValueReal) Relax_Aceleration(:,:,:) = 0
 
     end subroutine Relaxation_Acceleration_Up
 
