@@ -983,6 +983,7 @@ Module ModuleHydrodynamic
         real                            :: DT = null_real
         real, dimension (:, :), pointer :: BarotropicUc
         real, dimension (:, :), pointer :: BarotropicVc
+        real, dimension (:, :), pointer :: BarotropicMc        
     end type T_Velocity
 
     private :: T_WaterFluxes
@@ -9848,8 +9849,16 @@ cd43:   if (.NOT. BlockFound) then
 
         allocate (Me%Velocity%Vertical%Across   (ILB:IUB, JLB:JUB, KLB:KUB))
 
+        if (KUB > 2) then
         allocate (Me%Velocity%BarotropicUc      (ILB:IUB, JLB:JUB         ))
         allocate (Me%Velocity%BarotropicVc      (ILB:IUB, JLB:JUB         ))
+            allocate (Me%Velocity%BarotropicMc      (ILB:IUB, JLB:JUB         ))
+            
+            Me%Velocity%BarotropicUc      (:,:  )     = FillValueReal
+            Me%Velocity%BarotropicVc      (:,:  )     = FillValueReal            
+            Me%Velocity%BarotropicMc      (:,:  )     = FillValueReal            
+            
+        endif
 
         ! guillaume
         if (Me%ComputeOptions%AltimetryAssimilation%Yes .or.                            &
@@ -9888,8 +9897,7 @@ cd43:   if (.NOT. BlockFound) then
         Me%Velocity%Vertical%Across   (:,:,:)     = FillValueReal
         Me%Velocity%Vertical%Cartesian(:,:,:)     = FillValueReal
 
-        Me%Velocity%BarotropicUc      (:,:  )     = FillValueReal
-        Me%Velocity%BarotropicVc      (:,:  )     = FillValueReal
+
 
 
         !Auxiliar horizontal velocity pointers
@@ -10394,6 +10402,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         integer                             :: SpatialEmission, nCells, DischVertical, NFieldsUV3D_Upscaling
         integer                             :: STAT_CALL
         real                                :: InterceptionRatio
+        logical                         :: GhostCorners
 
         !----------------------------------------------------------------------
 
@@ -10473,13 +10482,23 @@ d1:             do dn = 1, DischargesNumber
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR70'
 
                             if (IgnoreOK) then
+                                write(*,*) 'DISCHARGE IGNORED'
                                 write(*,*) 'I    , J  =', Id, Jd
                                 write(*,*) 'STAT_CALL =', STAT_CALL
                                 write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
                                 cycle
                             else
+                                write(*,*) 'STOP - DISCHARGE WITH WRONG LOCATION'
+                                write(*,*) 'I    , J  =', Id, Jd
+                                write(*,*) 'STAT_CALL =', STAT_CALL
+                                write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
                                 stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR80'
                             endif
+                        else
+                                write(*,*) 'DISCHARGE WITH VALID LOCATION'
+                                write(*,*) 'I    , J  =', Id, Jd
+                                write(*,*) 'STAT_CALL =', STAT_CALL
+                                write(*,*) 'Discharge inside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)                            
 
                         endif
 
@@ -10543,6 +10562,12 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                                          VectorK, nCells, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR140'
 
+                            write(*,*) 'Cells intercept by discharge along a line'
+                            write(*,*) 'Number of intercept cells =', nCells
+                            do nC = 1, nCells
+                                write(*,*) 'Cell, I, J, K=', nC, VectorI(nC), VectorJ(nC), VectorK(nC)
+                            enddo
+
                             if (nCells < 1) then
 
                                 call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
@@ -10565,8 +10590,18 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                         stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR170'
                                     endif
 
+                                    GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR175'
+                                    endif
+                                    
+                                    !When GhostCorners exist the Grid Out Border Polygon is not correctly defined
+                                    if (GhostCorners) then
+                                        InterceptionRatio = 1.
+                                    else
                                     !Computes the % percentage of LineX intercepts model domain
                                     InterceptionRatio = PercentageLineInsidePolygon(LineX, ModelDomainLimit) / 100.
+                                    endif
                                     !Set in Modules Discharges InterceptionRatio
                                     call SetDischargeInterceptionRatio(Me%ObjDischarges, dn, InterceptionRatio, &
                                                                        STAT = STAT_CALL)
@@ -20688,6 +20723,12 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             call Bottom_Boundary
 
+            KUB = Me%WorkSize%KUB            
+            
+            if (KUB > 1) then
+                call ComputeBarotropicVelocity
+            endif            
+
 #ifdef _USE_SEQASSIMILATION
             !(change direction to assure that only real runs change direction)
             if (Me%VirtualRun) call ChangeDirection
@@ -24630,7 +24671,9 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         !PCL
         if (Me%Relaxation%Velocity) call VelocityRelaxation
 
+        if (KUB > 1) then
         call ComputeBarotropicVelocity
+        endif
 
         STAT_CALL = SUCCESS_
 
@@ -24732,7 +24775,12 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
                     Vel2D_U(i, j) = 0.
                     Vel2D_V(i, j) = 0.
                 endif
+            else
+                Vel2D_U(i, j) = 0.
+                Vel2D_V(i, j) = 0.
             endif
+            
+             Me%Velocity%BarotropicMc(i, j) = sqrt(Vel2D_U(i, j)**2 + Vel2D_V(i, j)**2)
         enddo
         enddo
         !$OMP END DO
@@ -37907,8 +37955,7 @@ do3:            do k = kbottom, KUB
 
         !Local---------------------------------------------------------------------
         real,    dimension(:  ),   pointer :: XX
-        integer                            :: FATAL_, INTERNAL_, ICOORD_TIP, CIRCULAR,   &
-                                                status,i,j,k
+        integer                            :: FATAL_, INTERNAL_, ICOORD_TIP, CIRCULAR, status
         real                               :: Xorig, Yorig
         !------------initialization---------------------------------------------------------
 
@@ -51494,7 +51541,31 @@ sp:     if (.not. SimpleOutPut) then
                                  trim(GetPropertyName (WaterColumn_)), "m",                 &
                                  Array2D = Me%External_Var%WaterColumn,                     &
                                  OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR192'
+            
+            if (WorkKUB > 1) then
+                call HDF5WriteData  (ObjHDF5,                                                   &
+                                     "/Results/"//trim(GetPropertyName (BarotropicVelocityU_)), &
+                                     trim(GetPropertyName (BarotropicVelocityU_)), "m/s",       &
+                                     Array2D = Me%Velocity%BarotropicUc,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR194'
+
+                call HDF5WriteData  (ObjHDF5,                                                   &
+                                     "/Results/"//trim(GetPropertyName (BarotropicVelocityV_)), &
+                                     trim(GetPropertyName (BarotropicVelocityV_)), "m/s",       &
+                                     Array2D = Me%Velocity%BarotropicVc,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR196'
+            
+                call HDF5WriteData  (ObjHDF5,                                                   &
+                                     "/Results/"//trim(GetPropertyName (BarotropicVelocityM_)), &
+                                     trim(GetPropertyName (BarotropicVelocityM_)), "m/s",       &
+                                     Array2D = Me%Velocity%BarotropicMc,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR196'            
+            
+            endif
 
             if (Me%ComputeOptions%WaterLevelMaxMin) then
 
@@ -55834,16 +55905,24 @@ i1:     if (Me%HighLowTide%ON) then
 
         nullify (Me%Velocity%Vertical%Across)
 
+        if (associated(Me%Velocity%BarotropicUc)) then
+            
         deallocate (Me%Velocity%BarotropicUc, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR112.'
 
         nullify (Me%Velocity%BarotropicUc)
 
         deallocate (Me%Velocity%BarotropicVc, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR114.'
 
         nullify (Me%Velocity%BarotropicVc)
 
+            deallocate (Me%Velocity%BarotropicMc, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR116.'
+
+            nullify (Me%Velocity%BarotropicMc)            
+        endif
+        
         if (Me%NonHydrostatic%ON) then
 
             deallocate (Me%Velocity%Vertical%CartesianOld, STAT = STAT_CALL)

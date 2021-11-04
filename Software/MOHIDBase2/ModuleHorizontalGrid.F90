@@ -5360,6 +5360,7 @@ Inp:    if (Me%CornersXYInput) then
         allocate(GridBorder%Polygon_)
         allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
 
+
         if (Outer_) then
             di = 0
         else
@@ -10300,12 +10301,30 @@ cd3 :       if (present(SurfaceMM5)) then
                 Me%WorkSize%JLB, Me%WorkSize%JUB,           &
                 I, J, CellLocated, Iold_, Jold_)
 
+                
+
+            if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+                STAT_ = OUT_OF_BOUNDS_ERR_
+            endif
+            
+            if (associated(XX2D) .and. j <= Me%WorkSize%JUB .and. j >= Me%WorkSize%JLB .and. i <= Me%WorkSize%IUB .and. i >= Me%WorkSize%ILB) then
+                
                 SumX = XX2D(i, j) +  XX2D(i+1, j) + XX2D(i, j+1) + XX2D(i+1,j+1) 
 
-            if (I < 0 .or. J < 0  .or. .not. CellLocated .or. SumX < FillValueReal/2.) then
+                if (SumX < FillValueReal/2.) then
                 STAT_ = OUT_OF_BOUNDS_ERR_
-                !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
+                endif
+                
             else
+                write (*,*) 'i,j',i,j
+                if (.not. associated(XX2D)) then
+                    write(*,*) '.not. associated(XX2D)'
+                endif
+                STAT_ = OUT_OF_BOUNDS_ERR_
+            endif
+                
+
+            if (STAT_ /= OUT_OF_BOUNDS_ERR_) then
                 if (present(PercI) .and. present(PercJ)) then
                     call RelativePosition4VertPolygon(                                  &
                         Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
