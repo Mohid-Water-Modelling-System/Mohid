@@ -81,16 +81,7 @@ Module ModuleBasin
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
                                      GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume,& 
-                                     GetRunOffTotalDischargeFlowVolume,                  &
-                                     SetExternalRiverWaterLevel,                         &
-                                     SetExternalStormWaterModelFlow,                     &
-                                     SetExternalOutfallFlow,                             &
-                                     GetExternalPondedWaterColumn,                       &
-                                     GetExternalPondedWaterColumnbyID,                   &
-                                     GetExternalFlowToRiversbyID,                        &
-                                     GetExternalPondedWaterLevelbyID,                    &
-                                     GetExternalInletInFlow,                             &
-                                     GetExternalFlowToRivers
+                                     GetRunOffTotalDischargeFlowVolume
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -174,8 +165,6 @@ Module ModuleBasin
     use ModuleCuda
 #endif _ENABLE_CUDA
 
-    use ModuleExternalCoupler
-    
     implicit none
 
     private 
@@ -206,8 +195,6 @@ Module ModuleBasin
     private ::              AdjustCropCoefficient
     private ::      VegetationProcesses
     private ::      OverLandProcesses
-    private ::      ExternalCoupledProcesses
-    private ::          ExchangeExternalCoupledData
     private ::      DrainageNetworkProcesses
     private ::      PorousMediaProcesses
     private ::      PorousMediaPropertiesProcesses
@@ -284,8 +271,6 @@ Module ModuleBasin
         logical                                     :: SCSCNRunOffModel      = .false.
         logical                                     :: Snow                  = .false.
         logical                                     :: Irrigation            = .false.
-        logical                                     :: ExternalCoupling      = .false.
-        logical                                     :: SewerGEMSEngineCoupling      = .false.
     end type T_Coupling
 
     type T_ExtVar
@@ -533,7 +518,6 @@ Module ModuleBasin
         type (T_ExtUpdate)                          :: ExtUpdate
         type (T_SimpleInfiltration)                 :: SI          
         type (T_SCSCNRunOffModel)                   :: SCSCNRunOffModel
-        type(external_coupler_class)                :: ExternalCoupler
         type (T_BasinProperty), pointer             :: FirstProperty        => null()
         logical                                     :: Continuous           = .false.
         logical                                     :: StopOnWrongDate      = .true.
@@ -1495,27 +1479,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
         endif
         
-        !Verifies if the user wants to use external Couplers 
-        call GetData(Me%Coupled%ExternalCoupling,                                        &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'EXTERNAL_COUPLING',                                 &
-                     default      = OFF,                                                 &
-                     ClientModule = 'ModuleBasin',                                       &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.1'
-        
-        !Verifies if the user wants to use SewerGEMS Engine through external Couplers 
-        call GetData(Me%Coupled%SewerGEMSEngineCoupling,                                            &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'SewerGEMSEngine_COUPLING',                                     &
-                     default      = OFF,                                                 &
-                     ClientModule = 'ModuleBasin',                                       &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.2'
-        if (.not.Me%Coupled%ExternalCoupling) Me%Coupled%SewerGEMSEngineCoupling = .false.
-        
         !Gets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
                            CurrentTime = Me%CurrentTime,                                 &
@@ -1801,8 +1764,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR700'
         
         Me%InternalDT%NextDT = Me%InternalDT%SyncDT
-        write (*,*) "Basin internal DT: ", Me%InternalDT%SyncDT 
         
+        if(iflag .ne. 0)then
+            write (*,*) "Basin internal DT: ", Me%InternalDT%SyncDT 
+        endif
+
         call GetData(Me%InternalDT%MinDTThreshold,                                      &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
@@ -3192,7 +3158,7 @@ i1:         if (CoordON) then
         integer, pointer, dimension(:,:,:)          :: mapping
         integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
-        character (Len = StringLength)              :: temp
+
         !Begin-----------------------------------------------------------------
 
 
@@ -3557,15 +3523,7 @@ do1:                do
         if (Me%Coupled%SCSCNRunoffModel) then
             call ConstructSCSCNRunOffModel ()
         endif
-        
-        if (Me%Coupled%ExternalCoupling) then
-            call me%ExternalCoupler%initialize()
-            if (Me%Coupled%SewerGEMSEngineCoupling) then
-                temp = 'SewerGEMSEngine'
-                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid, Me%ExtVar%BasinPoints, Me%BeginTime, Me%EndTime)                
-            end if
-        endif
-        
+
         !Constructs Diffuse Water Source
         if (Me%DiffuseWaterSource) then
             call ConstructDiffuseWaterSource ()
@@ -4421,11 +4379,6 @@ cd0:    if (Exist) then
                 call ComputeIntegration
             endif
                       
-            if (Me%ExternalCoupler%initialized) then
-                call ExternalCoupledProcesses(NewDT)
-                call ExchangeExternalCoupledData()
-            endif
-            
             call TimeSerieOutput
 
             !HDF 5 Output
@@ -6417,24 +6370,6 @@ cd0:    if (Exist) then
 
     end subroutine OverLandProcesses    
     
-    !---------------------------------------------------------------------------
-    !> @author Ricardo Birjukovs Canelas - Bentley Systems
-    !> @brief
-    !> Runs the externally coupled processes by dt
-    !> @param[in] dt
-    !---------------------------------------------------------------------------
-    subroutine ExternalCoupledProcesses(dt)
-    real, intent(in) :: dt
-            
-        if (MonitorPerformance) call StartWatch ("ModuleBasin", "ExternalCoupledProcesses")
-
-        call Me%ExternalCoupler%runStep(dt)
-
-        if (MonitorPerformance) call StopWatch ("ModuleBasin", "ExternalCoupledProcesses")
-
-    end subroutine ExternalCoupledProcesses
-
-    !--------------------------------------------------------------------------
     
     subroutine SnowProcesses
 
@@ -7984,88 +7919,6 @@ cd0:    if (Exist) then
 
     end subroutine RunoffPropertiesProcesses
 
-    
-    !---------------------------------------------------------------------------
-    !> @author Ricardo Birjukovs Canelas - Bentley Systems
-    !> @brief
-    !> Exanges data between external models and affected modules
-    !---------------------------------------------------------------------------
-    subroutine ExchangeExternalCoupledData()
-    character (Len = StringLength) :: modelName, varName
-    real, allocatable, dimension(:,:) :: Inflow, xLevel, Outflow
-    real, allocatable, dimension(:) :: waterColumm, inletInflow, xSectionFlow, outfallLevel
-    integer, allocatable, dimension(:) :: cellIDs
-    logical :: done = .false.
-    
-    if (Me%ExternalCoupler%initialized) then
-        modelName = 'SewerGEMSEngine'
-        if (Me%ExternalCoupler%isModelCoupled(modelName)) then           
-            !get data from SewerGEMSEngine to ModuleRunOff
-            varName = 'Inflow'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Inflow)
-            if (size(Inflow)>0) then
-                done = SetExternalStormWaterModelFlow(Me%ObjRunoff, Inflow) !module runoff function - seting stormwater effective flow
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
-            end if
-            
-            varName = 'Outflow'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Outflow)
-            if (size(Outflow)>0) then
-                done = SetExternalOutfallFlow(Me%ObjRunoff, Outflow) !module runoff function
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalOutfallFlow - operation failed'
-            end if
-            
-            varName = 'xLevel'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, xLevel)
-            if (size(xLevel)>0) then !setting the water level at cross section nodes
-                done = SetExternalRiverWaterLevel(Me%ObjRunoff, xLevel) !module runoff function
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalRiverWaterLevel - operation failed'
-            end if
-    
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !get data from ModuleRunOff to SewerGEMSEngine
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'WaterColumn'
-            done = GetExternalPondedWaterColumn(Me%ObjRunoff, waterColumm, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumn - operation failed'
-            if (size(waterColumm)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, waterColumm, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'InletInflow'
-            done = GetExternalInletInFlow(Me%ObjRunoff, inletInflow, cellIDs) !getting stormwater potential flow
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalInletInFlow - operation failed'
-            if (size(inletInflow)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, inletInflow, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'XSections'
-            call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
-            done = GetExternalFlowToRiversbyID(Me%ObjRunoff, xSectionFlow, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalFlowToRivers - operation failed'
-            if (size(xSectionFlow)>0) then
-                varName = 'XSectionFlow'
-                call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'Outfalls'
-            call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
-            done = GetExternalPondedWaterLevelbyID(Me%ObjRunoff, outfallLevel, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterLevelbyID - operation failed'
-            if (size(outfallLevel)>0) then
-                varName = 'OutletLevel'
-                call Me%ExternalCoupler%setValues(modelName, varName, outfallLevel, cellIDs)
-            end if
-                
-        end if
-    end if    
-    !add other models here
-    
-    end subroutine ExchangeExternalCoupledData
-    
     !--------------------------------------------------------------------------
 
     subroutine ActualizeWaterColumn ()
@@ -10191,7 +10044,6 @@ cd0:    if (Exist) then
         integer                                     :: STAT_CALL     
         real                                        :: AtmosphereDT, DTForNextEvent
         real                                        :: DNetDT, RunOffDT
-        real                                        :: ExternalCoupledDT
         real                                        :: PorousMediaDT, MaxDT
         integer                                     :: ID_DT
         character(len=132)                          :: AuxString
@@ -10236,12 +10088,6 @@ cd0:    if (Exist) then
             RunOffDT = -null_real
         end if
         
-        if (Me%ExternalCoupler%initialized) then
-            ExternalCoupledDT = Me%ExternalCoupler%getCoupledDt()
-        else
-            ExternalCoupledDT = -null_real
-        end if
-
         if (Me%Coupled%PorousMedia) then
 
             call GetNextPorousMediaDT (Me%ObjPorousMedia, PorousMediaDT, STAT = STAT_CALL)
@@ -10272,11 +10118,6 @@ cd0:    if (Exist) then
             
         endif
         
-        !If the DT asked by external coupler module is lower than the NewDT,
-        !the NewDT will be updated with its value.        
-        if (ExternalCoupledDT < NewDT) then        
-            NewDT = ExternalCoupledDT            
-        endif
 
         !If the DT asked by porous media module is lower than the NewDT,
         !the NewDT will be updated with its value.         
@@ -10505,10 +10346,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%Snow) then
                     call KillSnow (Me%ObjSnow, STAT=STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR085'
-                endif
-                
-                if (Me%Coupled%ExternalCoupling) then
-                    call me%ExternalCoupler%finalize()                    
                 endif
                 
                 if (Me%Coupled%SCSCNRunoffModel) then

@@ -156,7 +156,9 @@ Module ModuleHydrodynamic
                                        ConstructUpscalingDischarges, UpscaleDischarge,   &
                                        GetUpscalingDischarge, UpscalingVolumeVariation,  &
                                        GetSonVolInFather, UnGetSonVolInFather,           &
-                                       Offline_Upscaling_Discharge, GetUpscalingIDs
+                                       Offline_Upscaling_Discharge, GetUpscalingIDs,     &
+                                       GetUpscalingDischargeVelocity, UnGetUpscalingDischargeVelocity, &
+                                       ActiveUpscalingMomentumDischarge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -168,7 +170,8 @@ Module ModuleHydrodynamic
                                        ReadGeometryBin, ComputeInitialGeometry,          &
                                        ComputeVerticalGeometry, WriteGeometryBin,        &
                                        GetGeometryVolumes, GetGeometryAreas,             &
-                                       GetLayer4Level, WriteGeometryHDF, ReadGeometryHDF
+                                       GetLayer4Level, WriteGeometryHDF, ReadGeometryHDF, &
+                                       ConstructFatherKGridLocation
     use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,                &
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
                                        GetImposedNormalFaces, UnGetMap,                  &
@@ -343,6 +346,7 @@ Module ModuleHydrodynamic
     private ::                      ModifyDiffSub_UY_VX
     private ::                      ModifyVolumeVariation
     private ::                      ModifyMomentumDischarge
+    private ::                      Upscaling_Momentum_Discharge
     private ::                  Modify_WaveForces3D
     private ::                  ModifyRelaxHorizAdv
     private ::                  Modify_InertiaForces
@@ -451,6 +455,7 @@ Module ModuleHydrodynamic
 
     private ::          ModifyWaterDischarges
     private ::              Modify_Upscaling_Discharges
+    private ::              Modify_Upscaling_DischargesV2
 
     private ::      ComputeResidualFlowProperties
     private ::      ComputeEmersionTime
@@ -505,6 +510,7 @@ Module ModuleHydrodynamic
     public  :: GetResidualHorizontalVelocity
     public  :: GetResidualVelocityPeriod
     public  :: CheckOfflineUpscalingDisch
+    public  :: GetUscalingMethod
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -812,6 +818,11 @@ Module ModuleHydrodynamic
     character(LEN = StringLength), parameter :: relax_wave_stress_end   = '<end_relax_wave_stress>'
 
     integer, parameter        :: UpscalingDischargeByVolume = 1
+    
+    !Upscaling method
+    integer, parameter        :: Nudging_Vol_ = 1
+    integer, parameter        :: Nudging_IWD_ = 2
+    integer, parameter        :: Discharge_ = 3
 
 
     !Types---------------------------------------------------------------------
@@ -986,6 +997,7 @@ Module ModuleHydrodynamic
         real(8), dimension(:,:,:), pointer     :: DischargesVelV  => null()
         real(8), dimension(:,:,:), pointer     :: DischargesVelUV => null()
         real                                   :: New_Old = null_real
+        real, dimension(:,:,:), allocatable    :: Upscaling_Discharges
     end type T_WaterFluxes
 
     private :: T_Residual
@@ -1514,8 +1526,8 @@ Module ModuleHydrodynamic
                                            AtmosphereCoef           = null_real, &
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period
                                            AtmospherePeriod         = null_real, &
-                                           TwoWayWaitPeriod         = null_real, &
-                                           TwoWayTimeDecay          = null_real
+                                           UpscalingColdPeriod         = null_real, &
+                                           UpscalingTimeDecay          = null_real
                                            !Calibration coefficent of the inverted barometer solution
         real                            :: InvertBaroCoef
                                            !Reference atmospheric pressure to be used in the inverted barometer solution
@@ -1526,8 +1538,8 @@ Module ModuleHydrodynamic
                                            VelTangentialBoundary    = null_int, &
                                            VelNormalBoundary        = null_int, &
                                            BaroclinicMethod         = null_int, &
-                                           TwoWayNumIgnOBCells      = null_int, &
-                                           TwoWayIntMethod          = null_int, &
+                                           UpscalingNumIgnOBCells      = null_int, &
+                                           UpscalingMethod          = null_int, &
                                            TwoWayIWDn               = null_int
 
         logical                         :: Baroclinic           = .false., &
@@ -1554,7 +1566,8 @@ Module ModuleHydrodynamic
                                            NullWaterLevelGradI  = .false., &
                                            NullWaterLevelGradJ  = .false., &
                                            TwoWay               = .false., &
-                                           TwoWayWaterLevel     = .false.
+                                           UpscalingWaterLevel  = .false., &
+                                           UpscalingVelocityW   = .false.
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
 
         integer                         :: Wind                 = null_int
@@ -1843,6 +1856,7 @@ Module ModuleHydrodynamic
         logical                             :: Force                = .false.
         logical                             :: Geometry             = .false.
         logical                             :: Upscaling            = .false.
+        integer                             :: Upscaling_Method     = 1
         logical                             :: WaveStress           = .false.
         integer                             :: ReferenceVelocity    = TotalVel_
         real,   dimension(:,:,:), pointer   :: DecayTimeGeo         => null()
@@ -1851,6 +1865,7 @@ Module ModuleHydrodynamic
         real, dimension(:,:,:), allocatable :: Assim_ModelVel
         real, dimension(:,:,:), allocatable :: Assim_RefVelocity
         real, dimension(:,:,:), allocatable :: Assim_RefVelocity_Upscale
+        real, dimension(:,:), allocatable   :: DecayTime_Upscale
     endtype
 
     private :: T_SubModel
@@ -2416,34 +2431,42 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadLock_External_Modules
 
         if (Me%ComputeOptions%TwoWay) then
-            if ( Me%ComputeOptions%TwoWayIntMethod == 1) then
+            if ( Me%ComputeOptions%UpscalingMethod == 1) then
 
                 !Gives TwoWay module parametrizations from user Keywords
                 call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                         &
-                                                 TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
-                                                 IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
+                                                 TimeDecay        = Me%ComputeOptions%UpscalingTimeDecay,     &
+                                                 IntMethod        = Me%ComputeOptions%UpscalingMethod,     &
                                                  VelDT            = Me%Velocity%DT,                        &
                                                  DT               = Me%WaterLevel%DT,                      &
-                                                 NumCellsToIgnore = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                                 NumCellsToIgnore = Me%ComputeOptions%UpscalingNumIgnOBCells, &
                                                  DoCycleMethod    = Me%DoCycle_method,                     &
                                                  STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'
-            else
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'
+            elseif (Me%ComputeOptions%UpscalingMethod == 2) then
                 !Gives TwoWay module parametrizations from user Keywords
                 call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                         &
-                                                 TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
-                                                 IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
+                                                 TimeDecay        = Me%ComputeOptions%UpscalingTimeDecay,  &
+                                                 IntMethod        = Me%ComputeOptions%UpscalingMethod,     &
                                                  IWDn             = Me%ComputeOptions%TwoWayIWDn,          &
                                                  VelDT            = Me%Velocity%DT,                        &
                                                  DT               = Me%WaterLevel%DT,                      &
-                                                 NumCellsToIgnore = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                                 NumCellsToIgnore = Me%ComputeOptions%UpscalingNumIgnOBCells, &
                                                  DoCycleMethod    = Me%DoCycle_method,                     &
                                                  STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR05.'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR05.'
+            elseif (Me%ComputeOptions%UpscalingMethod == 3) then
+                !Gives TwoWay module parametrizations from user Keywords
+                call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                         &
+                                                 TimeDecay        = Me%ComputeOptions%UpscalingTimeDecay,     &
+                                                 IntMethod        = Me%ComputeOptions%UpscalingMethod,     &
+                                                 VelDT            = Me%Velocity%DT,                        &
+                                                 DT               = Me%WaterLevel%DT,                      &
+                                                 NumCellsToIgnore = Me%ComputeOptions%UpscalingNumIgnOBCells, &
+                                                 DoCycleMethod    = Me%DoCycle_method,                     &
+                                                 STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR05.'
             endif
-
         endif
 
         !Call this subroutine to actualize the variabel DUZ_VY
@@ -4783,7 +4806,7 @@ i1:     if (Me%HighLowTide%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR110'
 
             !Gets WaterPoints2D
-            call GetWaterPoints2D   (Me%ObjMap, WaterPoints2D, STAT = STAT_CALL)
+            call GetWaterPoints2D   (Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHighLowTideOutput - ModuleHydrodynamic - ERR120'
 
 
@@ -8686,9 +8709,9 @@ cd21:   if (Baroclinic) then
             if (Me%SubModel%ON) then
 
                 !Period during which the two way is not computed
-                call GetData(Me%ComputeOptions%TwoWayWaitPeriod,                               &
+                call GetData(Me%ComputeOptions%UpscalingColdPeriod,                            &
                             Me%ObjEnterData, iflag,                                            &
-                            Keyword      = 'TWO_WAY_WAIT_PERIOD',                              &
+                            Keyword      = 'UPSCALING_COLD_PERIOD',                            &
                             Default      = 0.,                                                 &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
@@ -8698,12 +8721,12 @@ cd21:   if (Baroclinic) then
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
 
                 if (Me%ComputeOptions%Continuous) then
-                    Me%ComputeOptions%TwoWayWaitPeriod = 0.
+                    Me%ComputeOptions%UpscalingColdPeriod = 0.
                 endif
 
-                call GetData(Me%ComputeOptions%TwoWayTimeDecay,                                      &
+                call GetData(Me%ComputeOptions%UpscalingTimeDecay,                             &
                             Me%ObjEnterData, iflag,                                            &
-                            Keyword      = 'TWO_WAY_TIME_DECAY',                               &
+                            Keyword      = 'UPSCALING_TIME_DECAY',                             &
                             Default      = 3600.,                                              &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
@@ -8712,18 +8735,18 @@ cd21:   if (Baroclinic) then
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
 
-                call GetData(Me%ComputeOptions%TwoWayIntMethod,                                      &
-                            Me%ObjEnterData, iflag,                                            &
-                            Keyword      = 'TWO_WAY_INT_METHOD',                               &
-                            Default      = 1,                                                  &
-                            SearchType   = FromFile,                                           &
-                            ClientModule ='ModuleHydrodynamic',                                &
+                call GetData(Me%ComputeOptions%UpscalingMethod,                                 &
+                            Me%ObjEnterData, iflag,                                             &
+                            Keyword      = 'UPSCALING_METHOD',                                  &
+                            Default      = 1,                                                   &
+                            SearchType   = FromFile,                                            &
+                            ClientModule ='ModuleHydrodynamic',                                 &
                             STAT         = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
 
-                if (Me%ComputeOptions%TwoWayIntMethod == 2) then
+                if (Me%ComputeOptions%UpscalingMethod == 2) then
 
                     call GetData(Me%ComputeOptions%TwoWayIWDn,                                      &
                                 Me%ObjEnterData, iflag,                                            &
@@ -8739,39 +8762,49 @@ cd21:   if (Baroclinic) then
                 endif
 
                 ! number of son cells to be ignored
-                call GetData(Me%ComputeOptions%TwoWayNumIgnOBCells,                                  &
+                call GetData(Me%ComputeOptions%UpscalingNumIgnOBCells,                                  &
                             Me%ObjEnterData, iflag,                                            &
-                            Keyword      = 'TWO_WAY_IGNORE_CELLS',                             &
+                            Keyword      = 'UPSCALING_IGNORE_CELLS',                           &
                             Default      = 10,                                                 &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
                             STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
-
-                call GetData(Me%ComputeOptions%TwoWayWaterLevel,                                  &
+                
+                call GetData(Me%ComputeOptions%UpscalingWaterLevel,                                  &
                              Me%ObjEnterData, iflag,                                            &
-                             Keyword      = 'TWO_WAY_WATERLEVEL',                             &
-                             Default      = .false.,                                                 &
+                             Keyword      = 'UPSCALING_WATERLEVEL',                             &
+                             Default      = .false.,                                            &
                              SearchType   = FromFile,                                           &
                              ClientModule ='ModuleHydrodynamic',                                &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
+                
+                call GetData(Me%ComputeOptions%UpscalingVelocityW,                                  &
+                             Me%ObjEnterData, iflag,                                            &
+                             Keyword      = 'UPSCALING_VELOCITY_W',                             &
+                             Default      = .false.,                                            &
+                             SearchType   = FromFile,                                           &
+                             ClientModule ='ModuleHydrodynamic',                                &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
 
                 call GetData(Me%OutPut%Upscaling%MassSinkSource,                              & !Sobrinho
                              Me%ObjEnterData, iflag,                                          &
-                             Keyword      = 'Upscaling_SINK_SOURCE',                          &
+                             Keyword      = 'UPSCALING_SINK_SOURCE',                          &
                              Default      = .false.,                                          &
                              SearchType   = FromFile,                                         &
                              ClientModule ='ModuleHydrodynamic',                              &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1231')
             endif
 
         endif
@@ -10343,23 +10376,24 @@ ic1:    if (Me%CyclicBoundary%ON) then
     subroutine Construct_Sub_Modules(DischargesID, AssimilationID)
 
         !Arguments-------------------------------------------------------------
-        integer                         :: DischargesID
-        integer                         :: AssimilationID
+        integer                             :: DischargesID
+        integer                             :: AssimilationID
 
         !Local-----------------------------------------------------------------
-        type (T_Lines),     pointer     :: LineX
-        type (T_Polygon),   pointer     :: PolygonX, ModelDomainLimit
-        type (T_XYZPoints), pointer     :: XYZPointsX
-        character(len=StringLength)     :: DischargeName
-        real                            :: CoordinateX, CoordinateY
-        logical                         :: CoordinatesON, IgnoreOK
-        logical                         :: WaterDischarges, ModelGOTM, ContinuousGOTM
-        integer, dimension(:,:), pointer:: WaterPoints2D
-        integer, dimension(:),   pointer:: VectorI, VectorJ, VectorK
-        integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC, aux, k
-        integer                         :: SpatialEmission, nCells, DischVertical
-        integer                         :: STAT_CALL
-        real                            :: InterceptionRatio
+        type (T_Lines),     pointer         :: LineX
+        type (T_Polygon),   pointer         :: PolygonX, ModelDomainLimit
+        type (T_XYZPoints), pointer         :: XYZPointsX
+        character(len=StringLength)         :: DischargeName
+        real                                :: CoordinateX, CoordinateY
+        logical                             :: CoordinatesON, IgnoreOK
+        logical                             :: WaterDischarges, ModelGOTM, ContinuousGOTM
+        integer, dimension(:,:), pointer    :: WaterPoints2D
+        integer, dimension(:,:,:), pointer  :: WaterPoints3D !Sobrinho - Discharges
+        integer, dimension(:),   pointer    :: VectorI, VectorJ, VectorK
+        integer                             :: Id, Jd, Kd, dn, DischargesNumber, nC, aux, k
+        integer                             :: SpatialEmission, nCells, DischVertical, NFieldsUV3D_Upscaling
+        integer                             :: STAT_CALL
+        real                                :: InterceptionRatio
 
         !----------------------------------------------------------------------
 
@@ -10382,6 +10416,12 @@ i2:          if (DischargesID == 0) then
                 !Gets WaterPoints2D
                 call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR30'
+                
+                if (Me%Size%KUB > 1) then !Sobrinho - Discharges
+                    !Gets WaterPoints3D
+                    call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR31'
+                endif
 
                 call GetGeometryKFloor(Me%ObjGeometry, Z = Me%External_Var%KFloor_Z, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                              &
@@ -10659,6 +10699,15 @@ c1:                 select case (DischVertical)
                         case (DischLayer_)
 
                             VectorK(:) = Kd
+                            if (Me%WorkSize%KUB > 1) then !Sobrinho - Discharges
+                                do nC=1,nCells
+                                    if (WaterPoints3D(VectorI(nC), VectorJ(nC), kd) /= WaterPoint) then
+                                        write(*,*) "Discharge in land cell : ", trim(DischargeName)
+                                        write(*,*) "i, j, k : ", VectorI(nC), VectorJ(nC), kd
+                                        stop 'Construct_Sub_Modules - ModuleDischarges. ERR315'
+                                    endif
+                                enddo
+                            endif
 
                         case (DischDepth_)
 
@@ -10698,8 +10747,7 @@ n1:                         do nC =1, nCells
                             stop 'Construct_Sub_Modules - ModuleDischarges. ERR350'
 
                         end select c1
-
-
+                    
                     if (SpatialEmission /= DischPoint_) then
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
@@ -10723,6 +10771,12 @@ n1:                         do nC =1, nCells
 
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR380'
+                
+                if (Me%Size%KUB > 1) then
+                    call UnGetMap (Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL) !Sobrinho - Discharges
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR385'
+                endif
+                
 
                 call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_Z, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
@@ -10766,9 +10820,13 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
 
         endif i8
 
-        if (Me%Relaxation%Upscaling .and. Me%ComputeOptions%UpscalingDischarge) &
-            call Build_Upscaling_Discharge
-
+        if (Me%Relaxation%Upscaling) then
+            call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
+            if (Me%ComputeOptions%UpscalingDischarge .and. NFieldsUV3D_Upscaling > 0) then
+                call Build_Upscaling_Discharge
+            endif
+        endif
+        
         call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
@@ -10876,7 +10934,7 @@ i7:             if (.not. ContinuousGOTM)  then
         HorizontalGridID = Me%ObjHorizontalGrid
         if (present(SonHorizontalGridID)) HorizontalGridID = SonHorizontalGridID
         
-        HorizontalMapID = Me%ObjHorizontalGrid
+        HorizontalMapID = Me%ObjHorizontalMap
         if (present(SonHorizontalMapID)) HorizontalMapID = SonHorizontalMapID
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
@@ -10904,8 +10962,10 @@ i7:             if (.not. ContinuousGOTM)  then
         enddo
 
         if (.not. FoundDischarge) then
-            write (*,*) 'No upscaling discharges were found between SonID: ', trim(Me%ModelName), 'and its father/son'
-            stop 'Set_Upscaling_Discharges - Failed to find an upscaling Discharge'
+            write (*,*) 'No upscaling discharges were found between nested domains for discharge', DischargeID
+            write (*,*) 'if this is an offline upscaling implementation (by means of the assimilation module, '
+            write (*,*) 'and if the parent domain is ahead, of its upscaling source in time, then ignore this message.'
+            write (*,*) 'Otherwise check your implementation'
         endif
         
         !For waterproperties module to know. SonHorizontalGridID is only present for offline upscaling
@@ -12552,7 +12612,7 @@ i1:         if (CoordON) then
             enddo
         enddo
 
-       Extension       = '.fds'
+       Extension       = 'fds'
 
        call GetData(TimeSerieLocationFile,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -13351,12 +13411,35 @@ cd2 :           if (IC3D(i,j,k)>0) then
                     SearchType = FromFile,                                        &
                     ClientModule ='ModuleHydrodynamic',                           &
                     STAT       = status)
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR220")
 
         !Sobrinho
         if (Me%Relaxation%Upscaling) then
-            allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of VelReference_Upscale")
+        !Sobrinho
+            call GetData(Me%Relaxation%Upscaling_Method,                             &
+                        Me%ObjEnterData, iflag,                                       &
+                        keyword = 'UPSCALING_METHOD',                                 &
+                        default = Nudging_Vol_,                                           &
+                        SearchType = FromFile,                                        &
+                        ClientModule ='ModuleHydrodynamic',                           &
+                        STAT       = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR230")
+            
+            if (Me%Relaxation%Upscaling_Method /= Nudging_Vol_ .and. &
+                Me%Relaxation%Upscaling_Method /= Discharge_) then
+                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 2')
+            endif 
+                
+            if (Me%Relaxation%Upscaling_Method == Nudging_Vol_) then
+                allocate (Me%Relaxation%Assim_RefVelocity_Upscale(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of VelReference_Upscale")
+                allocate (Me%Relaxation%DecayTime_Upscale(ILB:IUB, JLB:JUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of relaxation DecayTime")
+                Me%Relaxation%DecayTime_Upscale(:,:) = FillValueReal
+            else
+                allocate (Me%WaterFluxes%Upscaling_Discharges(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+                if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Upscaling_Discharges")
+            endif
         endif
 
     end subroutine ConstructRelaxation
@@ -13956,6 +14039,32 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine CheckOfflineUpscalingDisch
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches for Upscaling method used in hydrodynamics module
+    !>@param[in] HydrodynamicID, Method, STAT
+    subroutine GetUscalingMethod(HydrodynamicID, Method, STAT)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                 :: HydrodynamicID
+        integer, intent(OUT)                :: Method, STAT
+        !Local-----------------------------------------------------------------
+        integer                             :: ready_
+        !----------------------------------------------------------------------
+        STAT = UNKNOWN_
+        
+        call Ready(HydrodynamicID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            Method = Me%Relaxation%Upscaling_Method
+            
+            STAT = SUCCESS_
+        else
+            STAT = ready_
+        endif
+    
+    end subroutine GetUscalingMethod
 
     !--------------------------------------------------------------------------
 
@@ -15988,7 +16097,7 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         integer, dimension(:,:,:), pointer          :: Faces3D_UFather
         integer, dimension(:,:,:), pointer          :: Faces3D_VFather
         real                                        :: DT_Son
-        integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB
+        integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB, STAT_CALL
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "SetHydroFather")
@@ -16012,7 +16121,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
-                    call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
+                    
+                    call ConstructFatherKGridLocation(  Me%ObjGeometry,                    &
+                                                        ObjHydrodynamicFather%ObjGeometry, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'SetHydroFather - Failed to construct FatherKGridLocation'
+                    call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID, mHydrodynamic_)
                     if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         !Next if is here to prevent more than one allocation (when one parent domain has two or more son domains)
                         if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel)) &
@@ -25966,7 +26079,6 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "WaterLevelCorrection")
         endif
-
         !$OMP PARALLEL PRIVATE(i,j,dh)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  j = JLB, JUB
@@ -25976,6 +26088,7 @@ cd1:        if (WaterPoints2D(i, j) == OpenPoint) then
 
                 !By defaul this first correction is always made because the water level can not
                 !be located below the bottom
+                !!!!!$OMP CRITICAL
 
 cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn / 2.)) then
 
@@ -25986,6 +26099,7 @@ cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn 
                     WaterLevel_New(i, j) = - Bathymetry(i, j) + MinWaterColumn / 2.
 
                 endif cd2
+                !!!!!$OMP END CRITICAL
 
                 !This second correction is optional and is used when the user wants to
                 !define a reference level below which the water level is corrected.
@@ -32164,7 +32278,7 @@ cd4:        if (Me%SubModel%ON) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Horizontal_Transport")
         endif
-
+        
         !$OMP PARALLEL PRIVATE(i,j,k)
         do  k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -32972,7 +33086,6 @@ do6 :           do  i = ILB, IUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
-
         !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, FaceFlux_SouthWest, Vel4,du4,V4,CFace)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
@@ -33065,7 +33178,6 @@ do6 :           do  i = ILB, IUB
         ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
-
         !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,FaceFlux_SouthWest,Vel4,du4,V4,CFace)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
@@ -36454,6 +36566,10 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         !Gets a pointer to Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR20'
+        
+        if (Me%Relaxation%Upscaling_Method == 3) then
+            call Upscaling_Momentum_Discharge
+        endif
 
 do1:    do DischargeID = 1, DischargesNumber
 
@@ -36515,9 +36631,7 @@ do1:    do DischargeID = 1, DischargesNumber
             UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber)
 
             if (UpscalingDischarge )then
-
                 !do nothing... this is not prepared for momentum discharge
-
             else
 
                 call GetDischargeWaterFlow(Me%ObjDischarges,                    &
@@ -36610,10 +36724,10 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                 endif
 
 
-                !$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
+                !!!$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
 
 dn:             do n=1, nCells
-                    !$OMP MASTER
+                    !!!$OMP MASTER
                     if (nCells > 1) then
                         i         = VectorI(n)
                         j         = VectorJ(n)
@@ -36666,10 +36780,10 @@ dn:             do n=1, nCells
                     endif
 
                     MomentumDischarge = 0.
-                    !$OMP END MASTER
-                    !$OMP BARRIER
+                    !!!$OMP END MASTER
+                    !!!$OMP BARRIER
 
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     dk:             do k = kmin,kmax
 
                         AuxFlowK = AuxFlowIJ
@@ -36739,10 +36853,10 @@ dn:             do n=1, nCells
                         endif
 
                     enddo dk
-                    !$OMP END DO
+                    !!!$OMP END DO
 
                 enddo dn
-                !$OMP END PARALLEL
+                !!!$OMP END PARALLEL
 
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
@@ -36797,6 +36911,100 @@ dn:             do n=1, nCells
 
 
     End Subroutine ModifyMomentumDischarge
+    !---------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes the effect of a momentum discharge in horizontal transport
+    !---------------------------------------------------------------------
+    Subroutine Upscaling_Momentum_Discharge
+        !Arguments------------------------------------------------------------
+        !Local---------------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer :: Horizontal_Transport
+        real,    dimension(:,:,:), pointer :: DischargeVelocity
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        real(8)                            :: MomentumDischarge
+        real                               :: AuxFlowK
+        integer                            :: DischargesNumber, DischargeID
+        integer                            :: i, j, k, STAT_CALL, iNorth, jEast, n, nCells
+        integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
+        logical                            :: IgnoreOK, UpscalingDischarge, Active
+        !Begin----------------------------------------------------------------
+
+        !Begin - Shorten variables name
+        Horizontal_Transport => Me%Forces%Horizontal_Transport
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+
+        !End - Shorten variables name
+        !Check if at least one upscaling by momentum discharge exists
+        Active = ActiveUpscalingMomentumDischarge(Me%ObjTwoWay, Me%Direction%XY)
+        
+        if (Active) then
+            call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_)stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR10'
+        
+            if (Me%Direction%XY == DirectionX_) then
+                call GetUpscalingDischargeVelocity(Me%ObjTwoWay, VelocityU = DischargeVelocity, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR40'
+            else if (Me%Direction%XY == DirectionY_) then
+                call GetUpscalingDischargeVelocity(Me%ObjTwoWay, VelocityV = DischargeVelocity, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR50' 
+            endif
+            
+            do DischargeID = 1, DischargesNumber
+
+                UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber)
+            
+                if (UpscalingDischarge) then
+                
+                    call GetDischargeON(Me%ObjDischarges, DischargeID, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR20'
+                    if (IgnoreOK) cycle
+            
+                    call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, VectorI = VectorI,  &
+                                                      VectorJ = VectorJ, VectorK = VectorK, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR30'
+                
+                    do n=1, nCells
+                    
+                        i = VectorI(n)     ;    MomentumDischarge = 0.
+                        j = VectorJ(n)     ;    iNorth = i + Me%Direction%di
+                        k = VectorK(n)     ;    jEast =  j + Me%Direction%dj
+                            
+                        AuxFlowK = Me%WaterFluxes%Discharges(i, j, k)
+                        if (ComputeFaces3D_UV(i, j, k) == Covered) then
+                            ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
+                            MomentumDischarge  = AuxFlowK * DischargeVelocity(i, j, k)
+                            Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = DischargeVelocity(i, j, k)
+
+                            Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + MomentumDischarge
+
+                        else if (ComputeFaces3D_UV(iNorth, jEast, k) == Covered) then
+                            MomentumDischarge  = AuxFlowK * DischargeVelocity(i, j, k)
+                            Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity(i, j, k)
+
+                            Horizontal_Transport(iNorth, jEast, k) = Horizontal_Transport(iNorth, jEast, k) + MomentumDischarge
+                        endif
+                    enddo 
+
+                    if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Upscaling_Momentum_Discharge")
+                
+                    call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR60'
+                    call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR70'
+                    call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR80'
+                endif
+                
+            enddo
+            call UnGetUpscalingDischargeVelocity (Me%ObjTwoWay, DischargeVelocity, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR90'
+        endif
+        !Nullify auxiliar pointers
+        nullify (Horizontal_Transport, ComputeFaces3D_UV)
+
+    End Subroutine Upscaling_Momentum_Discharge
 
     !End -------------------------------------------------------------------------
 
@@ -37700,7 +37908,7 @@ do3:            do k = kbottom, KUB
         !Local---------------------------------------------------------------------
         real,    dimension(:  ),   pointer :: XX
         integer                            :: FATAL_, INTERNAL_, ICOORD_TIP, CIRCULAR,   &
-                                                status
+                                                status,i,j,k
         real                               :: Xorig, Yorig
         !------------initialization---------------------------------------------------------
 
@@ -37729,7 +37937,6 @@ do3:            do k = kbottom, KUB
         endif
 
         call SetMatrixValue(Me%Forces%Inertial_Aceleration, Me%WorkSize, 0.0)
-
         if (Me%ComputeOptions%Coriolis) then
             if (Me%Direction%di == 1) then
                 call InertialForces_Coriolis_Y (Me%External_Var%ComputeFaces3D_V, Me%External_Var%KFloor_V,           &
@@ -37741,7 +37948,7 @@ do3:            do k = kbottom, KUB
                      Me%External_Var%DXX, Me%External_Var%DUX, Me%Forces%Inertial_Aceleration)
             endif
         endif
-
+        
         !--------------------------------------Centrifugal_force------------------------------------------------------------
         if (Me%ComputeOptions%CentrifugalForce) then
             if (ICOORD_TIP == CIRCULAR) then
@@ -38519,15 +38726,14 @@ do3:            do k = kbottom, KUB
         end type T_Matrix3D
 
         type T_Matrix2D
-            real,    dimension(:,:  ), pointer :: VelAssimilation2D
+            real,    dimension(:,:  ), pointer :: VelAssimilation2D, Prop_DecayTime
         end type T_Matrix2D
 
         type (T_Matrix3D), dimension(:), pointer :: List3D, List3D_Upscaling
-        type (T_Matrix2D), dimension(:), pointer :: List2D
+        type (T_Matrix2D), dimension(:), pointer :: List2D, List2D_DecayTime
 
-        real,    dimension(:,:,:), pointer      :: Velocity_UV_New, SubModel_UV_New, Relax_Aceleration
+        real,    dimension(:,:,:), pointer      :: Velocity_UV_New, SubModel_UV_New
         real,    dimension(:,:,:), pointer      :: DecayTime, SonVolInFather3D
-        real,    dimension(:,:)  , pointer      :: DecayTime_Upscale2D
 
         real                            :: CoefCold, CoefCold_Upscale
         integer                         :: Vel_ID, status
@@ -38535,7 +38741,6 @@ do3:            do k = kbottom, KUB
         logical                         :: Upscaling, Downscaling
     !------------initialization-----------------------------------------------------------
         !Begin - Shorten variables name
-        Relax_Aceleration    => Me%Forces%Relax_Aceleration
         LocalSolution = Me%ComputeOptions%LocalSolution
         Upscaling = .false.
         Downscaling = .false.
@@ -38550,17 +38755,12 @@ do3:            do k = kbottom, KUB
 
         call GetNumberOfVelocityFields(NFieldsUV2D, NFieldsUV3D)
         call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
+        if (Me%Relaxation%Upscaling_Method == 3) NFieldsUV3D_Upscaling = 0
 
         if ((NFieldsUV2D + NFieldsUV3D ) > 0) Downscaling = .true.
         if (NFieldsUV3D_Upscaling        > 0) Upscaling   = .true.  !Sobrinho
 
-        if (NFieldsUV3D_Upscaling > 0) then
-            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
-            if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "Failed get SonVolInFather3D - ModifyRelaxAceleration")
-        endif
-
-        allocate(List3D_Upscaling(NFieldsUV3D_Upscaling))
+        allocate(List3D_Upscaling(NFieldsUV3D_Upscaling), List2D_DecayTime(NFieldsUV3D_Upscaling))
         allocate(List2D(NFieldsUV2D), List3D(NFieldsUV3D))
 
         nullify (SubModel_UV_New)
@@ -38580,14 +38780,20 @@ do3:            do k = kbottom, KUB
         do iL = 1, NFieldsUV2D
             call GetAssimilationVectorFields(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D, Vel_ID = Vel_ID)
         enddo
-
+        
         do iL = 1, NFieldsUV3D_Upscaling
             call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D_Upscaling(iL)%VelAssimilation3D, &
                                                 Vel_ID = Vel_ID, Upscaling = Upscaling)
+            call GetTimeCoefs_2D (Vel_ID, iL, CoefCold_Upscale, List2D_DecayTime(iL)%Prop_DecayTime, Upscaling)
         enddo
-
+        
+        if (NFieldsUV3D_Upscaling > 0) then
+            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
+            if (status /= SUCCESS_) &
+                call SetError (FATAL_, INTERNAL_, "Failed get SonVolInFather3D - ModifyRelaxAceleration")
+        endif
+        
         if (Downscaling) call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
-        if (Upscaling) call GetTimeCoefs_2D (Vel_ID, CoefCold_Upscale, DecayTime_Upscale2D, Upscaling)
 
 !------------------------------------------Finished initialization --------------------------------------------
 
@@ -38646,22 +38852,29 @@ do3:            do k = kbottom, KUB
                 stop
             endif
 
-            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Relaxation%Assim_ModelVel(:,:,:)
+            
             do iL =1, NFieldsUV3D_Upscaling
-                call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
-                                     List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
+                !Use of Mask to avoid 0.0 values set in Check_ComputeFacesVelocity3D_upscaling of module assimilation
+                !when an upcaling cell has value 0 and the left(or below) cell has a normal value and 
+                !both are waterpoints
+                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                     List3D_Upscaling(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV,       & 
+                                     MaskValue = 0.0)
+                where (List2D_DecayTime(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
+                    Me%Relaxation%DecayTime_Upscale(:,:) = List2D_DecayTime(iL)%Prop_DecayTime(:,:)
             enddo
         endif
 
        ! --------------------------------Compute relaxation acceleration -----------------------------------------------
         !Sobrinho
         if (Downscaling .and. Upscaling) then
-            call Relaxation_Acceleration_Down_Up (DecayTime, DecayTime_Upscale2D, CoefCold, CoefCold_Upscale, &
+            call Relaxation_Acceleration_Down_Up (DecayTime, Me%Relaxation%DecayTime_Upscale, CoefCold, CoefCold_Upscale, &
                                                   SonVolInFather3D)
         elseif (Downscaling) then
             call Relaxation_Acceleration_Down (DecayTime, CoefCold)
         elseif (Upscaling) then
-            call Relaxation_Acceleration_Up (DecayTime_Upscale2D, CoefCold_Upscale)
+            call Relaxation_Acceleration_Up (Me%Relaxation%DecayTime_Upscale, CoefCold_Upscale)
         endif
 
         ! -------------------------------- Kill variables -------------------------------------------------------------
@@ -38671,23 +38884,21 @@ do3:            do k = kbottom, KUB
             call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
         endif
-        if (Upscaling) then
-            call UnGetAssimilation(Me%ObjAssimilation, DecayTime_Upscale2D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
-        endif
 
         do iL =1, NFieldsUV3D
             call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
         enddo
 
         do iL =1, NFieldsUV2D
             call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
         enddo
 
         do iL =1, NFieldsUV3D_Upscaling
             call UnGetAssimilation(Me%ObjAssimilation, List3D_Upscaling(iL)%VelAssimilation3D, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
+            call UnGetAssimilation(Me%ObjAssimilation, List2D_DecayTime(iL)%Prop_DecayTime, STAT = status)
             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
         enddo
 
@@ -38695,10 +38906,11 @@ do3:            do k = kbottom, KUB
 
         if (NFieldsUV3D_Upscaling > 0) then
              deallocate(List3D_Upscaling)
+             deallocate(List2D_DecayTime)
              call UnGetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D)
         endif
 
-        nullify(Relax_Aceleration, Velocity_UV_New)
+        nullify(Velocity_UV_New)
 
         if (Me%SubModel%ON) nullify(SubModel_UV_New)
 
@@ -38857,9 +39069,9 @@ do3:            do k = kbottom, KUB
     !>@author Maretec
     !>@Brief
     !>Gets cold coef and time_decay2D set by the user, for nudging
-    subroutine GetTimeCoefs_2D (Vel_ID, CoefCold, DecayTime, Upscaling)
+    subroutine GetTimeCoefs_2D (Vel_ID, N_field, CoefCold, DecayTime, Upscaling)
         !Arguments---------------------------------------------------------------------
-        integer                         , intent(IN)  :: Vel_ID
+        integer                         , intent(IN)  :: Vel_ID, N_field
         real                            , intent(OUT) :: CoefCold
         real, dimension(:,:), pointer   , intent(OUT) :: DecayTime
         logical             , optional  , intent(IN)  :: Upscaling
@@ -38879,6 +39091,7 @@ do3:            do k = kbottom, KUB
 
         call GetAssimilationCoef (Me%ObjAssimilation,                                   &
                                   ID              = Vel_ID,                             &
+                                  N_Field         = N_Field,                            &
                                   CoefField2D     = DecayTime,                          &
                                   ColdRelaxPeriod = ColdPeriod,                         &
                                   ColdOrder       = ColdOrder,                          &
@@ -38991,6 +39204,7 @@ do3:            do k = kbottom, KUB
                                                     -  Me%Relaxation%Assim_ModelVel    (i, j, k)) &
                                                     * TimeCoef_Downscale
                     enddo
+
                 else
                     !Assuming a constant decaytime in the vertical coordinate(This should be done in fillmatrix)
                     TimeCoef_Upscale     = CoefCold_Upscale / DecayTime_Upscale
@@ -39011,8 +39225,9 @@ do3:            do k = kbottom, KUB
 
                         Aceleration_Downscaling = TimeCoef_Downscale * Gradient
                         Aceleration_Upscaling   = TimeCoef_Upscale   * Gradient_Upscale * Volume_Factor
-
-                        Relax_Aceleration(i, j, k) = Aceleration_Downscaling + Aceleration_Upscaling
+                        
+                        Relax_Aceleration(i, j, k) = Aceleration_Downscaling * Fraction_Donwscaling &
+                                                   + Aceleration_Upscaling   * Fraction_Upscaling
                     enddo
                 endif
             endif
@@ -39020,6 +39235,8 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
+        where (Relax_Aceleration(:,:,:) < HalfFillValueReal) Relax_Aceleration(:,:,:) = 0
 
     end subroutine Relaxation_Acceleration_Down_Up
 
@@ -39090,7 +39307,7 @@ do3:            do k = kbottom, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB
-            if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered ) then
+            if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered .and. DecayTime_Upscale2D(i, j) > 0) then
 
                 kbottom = Me%External_Var%KFloor_UV(i, j)
                 TimeCoef_Upscale = CoefCold_Upscale / DecayTime_Upscale2D(i, j)
@@ -39104,6 +39321,8 @@ do3:            do k = kbottom, KUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
+        where (Relax_Aceleration(:,:,:) < HalfFillValueReal) Relax_Aceleration(:,:,:) = 0
 
     end subroutine Relaxation_Acceleration_Up
 
@@ -47442,9 +47661,8 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                    ![m^2/s]
                     RadCoef_2D   (I, J)   = RadCoef_2D(I, J)           + AuxImplicit * Me%ComputeOptions%Num_Discretization / 2.
-
                 endif
-
+                     
             endif Cov1
 
         enddo doi
@@ -47660,7 +47878,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
-
         !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doj: do j = JLB, JUB
     doi: do i = ILB, IUB
@@ -47902,7 +48119,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s] * [s/m^2]
 !                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     TiCoef_2D_Aux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
-
+                
                 endif ic1
 
 
@@ -47926,7 +48143,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo doi
         enddo doj
         !! $OMP END DO
-
         !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -48120,7 +48336,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         if (Me%ComputeOptions%Turbine) then
             call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
         endif
-
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
 
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
@@ -48357,7 +48572,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
-
                 endif
 
                 !PCL - New changes
@@ -48367,14 +48581,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                     ![m^3/s]
                     Me%Coef%D2%TiRad (I, J) = Me%Coef%D2%TiRad(I, J) + AuxExplicit * Me%ComputeOptions%Num_Discretization / 2.
-
                 endif
 
             endif
         enddo
         enddo
         !$OMP END DO
-
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -48505,6 +48717,26 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
 !                    Me%Coef%D2%Ti(iSouth, jWest)= Me%Coef%D2%Ti(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
 
                 endif ic1
 
@@ -48533,12 +48765,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-
         !
         !The next call will call an OpenMP loop, thats why we have to implement the end parallel directive above
         !
         call SetMatrixValue( Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
-
         !$OMP PARALLEL PRIVATE(i, j, k, kbottom, iSouth, jWest),                                                            &
         !$OMP& PRIVATE(AuxExplicit, DT_AUX, DT_AreaCell1),                                                                  &
         !$OMP& PRIVATE(DT_AreaCell2, AreaCell1, AreaCell2),                                                                 &
@@ -48629,6 +48859,26 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
 !                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                     Me%Coef%D2%Tiaux(iSouth, jWest)= - AuxExplicit * DT_AreaCell1
+                    !if (i==11 .and. j==292) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==291) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==290) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
+                    !if (i==11 .and. j==293) then
+                    !    write (*,*) 'i,j', i,j
+                    !    write (*,*) 'Me%Coef%D2%Ti(I,J)', Me%Coef%D2%Ti(I,J)
+                    !    write (*,*) 'Me%Coef%D2%Tiaux(iSouth, jWest)', Me%Coef%D2%Tiaux(iSouth, jWest)
+                    !endif
 
                 endif ic2
 
@@ -48637,7 +48887,6 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo do5
         enddo do4
         !$OMP END DO
-
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -48843,7 +49092,7 @@ subroutine ModifyWaterDischarges
         real                               :: AuxFlowIJ, SectionHeight
         real                               :: CoordinateX, CoordinateY
         real                               :: XBypass, YBypass
-        logical                            :: CoordinatesON
+        logical                            :: CoordinatesON, UpscalingDischargesDone
         integer                            :: nCells, n
         integer                            :: FlowDistribution, SpatialEmission
         real                               :: InterceptionRatio
@@ -48866,7 +49115,7 @@ subroutine ModifyWaterDischarges
         KFloor_Z      => Me%External_Var%KFloor_Z
         DWZ           => Me%External_Var%DWZ
         WaterColumnZ  => Me%External_Var%WaterColumn
-
+        UpscalingDischargesDone = .false.
         call SetMatrixValue(Me%WaterFluxes%Discharges, Me%WorkSize, dble(0.0))
 
         !Water discharge - input of mass in the domain
@@ -48884,13 +49133,23 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
 
 do1:        do DischargeID = 1, DischargesNumber
                 if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling) then
-                    call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
+                    !Online coupling
+                    if (UpscalingDischargesDone) cycle
+                    call GetUpscalingDischarge( Me%ObjTwoWay, Me%WaterFluxes%Discharges, &
+                                                Done = UpscalingDischargesDone, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle
                 elseif (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling) then
                     !Discharge computed from offline upscaling field
-                    call Modify_Upscaling_Discharges !Sobrinho
-                    cycle
+                     if (Me%Relaxation%Upscaling_Method == Discharge_) then
+                         if (UpscalingDischargesDone) cycle
+                         call Modify_Upscaling_DischargesV2 (DischargesNumber, UpscalingDischargesDone)
+                         cycle
+                     else
+                        if (UpscalingDischargesDone) cycle
+                        call Modify_Upscaling_Discharges (UpscalingDischargesDone) !Sobrinho
+                        cycle
+                     endif
                 endif
                 
 
@@ -49045,6 +49304,8 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 dk:                 do k=kmin, kmax
 
                         if (OpenPoints3D(i, j, k) /= OpenPoint .and. AuxFlowIJ < 0)  Cycle
+                        !Sobrinho - Discharges
+                        if (OpenPoints3D(i, j, k) /= OpenPoint .and. OpenPoints3D(i, j, KUB) == OpenPoint)  Cycle
 
                         if (DischVertical == DischUniform_) then
 
@@ -49185,7 +49446,9 @@ do5:            do i = ILB, IUB
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
     !>Modifies discharge flow from offline upscaling fields
-    subroutine Modify_Upscaling_Discharges
+    subroutine Modify_Upscaling_Discharges(UpscalingDischargesDone)
+        !Arguments------------------------------------------------------------------
+        logical                  , intent(OUT)       :: UpscalingDischargesDone
         !Local---------------------------------------------------------------------
         type T_Matrix3D
             real,    dimension(:,:,:), pointer       :: VelAssimilation3D_U
@@ -49193,88 +49456,199 @@ do5:            do i = ILB, IUB
         end type T_Matrix3D
         
         type (T_Matrix3D), dimension(:)    , pointer :: List3D
-
-        real,              dimension(:,:)  , pointer :: DecayTime
+        
+        type T_Matrix2D
+            real,    dimension(:,:), pointer       :: Prop_DecayTime
+        end type T_Matrix2D
+        
+        type (T_Matrix2D), dimension(:)    , pointer :: List2D
+        
+        real,    dimension(:,:,:), pointer           :: SonVolInFather3D
         real                                         :: CoefCold
         integer                                      :: iL, NFieldsUV3D_Upscaling, status, STAT_CALL
         !-----------------------------------initialization-------------------------------------------------------
         
         call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
 
-        if (NFieldsUV3D_Upscaling == 0) stop 'Offline upscaling discharge without an upscaling assimilation field'
+        if (NFieldsUV3D_Upscaling == 0) then
+            write(*,*) 'Offline upscaling discharge without an upscaling assimilation field'
+        else
+            
+            if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
+                stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
+            endif
         
-        if (.not. allocated(Me%Relaxation%Assim_RefVelocity_Upscale)) then
-            stop 'offline upscaling detected in assimilation. Keyword UPSCALING missing in Hydrodynamic.dat'
-        endif
-        
-        allocate(List3D(NFieldsUV3D_Upscaling))
+            allocate(List3D(NFieldsUV3D_Upscaling))
+            allocate(List2D(NFieldsUV3D_Upscaling))
 
-        do iL = 1, NFieldsUV3D_Upscaling
-            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
-                                                Vel_ID = VelocityU_, Upscaling = .true.)
-            call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
-                                                Vel_ID = VelocityV_, Upscaling = .true.)
-        enddo
-
-        call GetTimeCoefs_2D (VelocityU_, CoefCold, DecayTime, Upscaling = .true.)
-
-        !---------------------------------------Finished initialization ------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
-        
-        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
-        
-        do iL =1, NFieldsUV3D_Upscaling
-            !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
-            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_U, &
-                                    List3D(iL)%VelAssimilation3D_U, Me%External_Var%ComputeFaces3D_U)
-        enddo
-        
-        call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
-                                            Flow            = Me%WaterFluxes%Discharges,                &
-                                            VelFather       = Me%Velocity%Horizontal%U%New,             &
-                                            VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                            DecayTime       = DecayTime,                                &
-                                            CoefCold        = CoefCold,                                 &
-                                            VelID           = VelocityU_,                               &
-                                            VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
+            do iL = 1, NFieldsUV3D_Upscaling
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_U, &
+                                                    Vel_ID = VelocityU_, Upscaling = .true.)
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D_V, &
+                                                    Vel_ID = VelocityV_, Upscaling = .true.)
                 
-        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = 0.0
-        
-        do iL =1, NFieldsUV3D_Upscaling
-            !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
-            call SumMatrixes_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize, Me%External_Var%KFloor_V, &
-                                    List3D(iL)%VelAssimilation3D_V, Me%External_Var%ComputeFaces3D_V)
-        enddo
-        
-        call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
-                                            Flow            = Me%WaterFluxes%Discharges,                &
-                                            VelFather       = Me%Velocity%Horizontal%V%New,             &
-                                            VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                            DecayTime       = DecayTime,                                &
-                                            CoefCold        = CoefCold,                                 &
-                                            VelID           = VelocityV_,                               &
-                                            VelDT           = Me%Velocity%DT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
-        
-        ! -------------------------------- Kill variables -------------------------------------------------------------
-        
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
-        
-        call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-        if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
+                call GetTimeCoefs_2D (VelocityU_, iL, CoefCold, List2D(iL)%Prop_DecayTime, Upscaling = .true.)
+            enddo
 
-        do iL =1, NFieldsUV3D_Upscaling
-            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
-            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
-        enddo
+            !call GetTimeCoefs_2D (VelocityU_, CoefCold, DecayTime, Upscaling = .true.)
+            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status) !Sobrinho - adicionar erro
 
-        deallocate(List3D)
+            !---------------------------------------Finished initialization ------------------------------------------
+
+            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+        
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%U%New(:,:,:)
+            
+            do iL =1, NFieldsUV3D_Upscaling
+                !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
+                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
+                                    MapMatrix = Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
+                where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
+                        Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
+            enddo
+        
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
+                                                Flow            = Me%WaterFluxes%Discharges,                &
+                                                VelFather       = Me%Velocity%Horizontal%U%New,             &
+                                                VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
+                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                                CoefCold        = CoefCold,                                 &
+                                                VelID           = VelocityU_,                               &
+                                                VelDT           = Me%Velocity%DT,                           &
+                                                SonVolInFather  = SonVolInFather3D,                         &
+                                                FatherVolume    = Me%External_Var%Volume_U, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
+                
+            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+        
+            do iL =1, NFieldsUV3D_Upscaling
+                !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
+                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                    Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
+                                    MapMatrix = Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
+            enddo
+        
+            call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
+                                                Flow            = Me%WaterFluxes%Discharges,                &
+                                                VelFather       = Me%Velocity%Horizontal%V%New,             &
+                                                VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
+                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                                CoefCold        = CoefCold,                                 &
+                                                VelID           = VelocityV_,                               &
+                                                VelDT           = Me%Velocity%DT,                           &
+                                                SonVolInFather  = SonVolInFather3D,                         &
+                                                FatherVolume    = Me%External_Var%Volume_V, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
+        
+            ! -------------------------------- Kill variables -------------------------------------------------------------
+        
+            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_Discharges")
+
+            do iL =1, NFieldsUV3D_Upscaling
+                call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%Prop_DecayTime, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR03'
+                    call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_U, STAT = status)
+                    if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR04'
+                    call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D_V, STAT = status)
+                    if (status /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR05'
+            enddo
+            call UnGetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D)
+
+            deallocate(List3D)
+            deallocate(List2D)
+            UpscalingDischargesDone = .true.
+        endif
 
     end subroutine Modify_Upscaling_Discharges
+    
+    !>@author Joao Sobrinho +Atlantic
+    !>@Brief
+    !>Modifies discharge flow from offline upscaling fields with upscaling method 3 (discharge only)
+    subroutine Modify_Upscaling_DischargesV2(DischargesNumber, UpscalingDischargesDone)
+        !Arguments------------------------------------------------------------------
+        integer                  , intent(IN)        :: DischargesNumber
+        logical                  , intent(OUT)       :: UpscalingDischargesDone
+        !Local---------------------------------------------------------------------
+        type T_Matrix3D
+            real, dimension(:,:,:), pointer       :: Flux3D_U
+            real, dimension(:,:,:), pointer       :: Flux3D_V
+        end type T_Matrix3D
+        
+        type (T_Matrix3D), dimension(:) , pointer :: List3D
+        integer                                   :: iL, NFieldsUV3D_Upscaling, status,I,J, STAT_CALL, DischargeID
+        !-----------------------------------initialization-------------------------------------------------------
+        
+        call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
+
+        if (NFieldsUV3D_Upscaling == 0) then
+            write(*,*) 'Offline upscaling discharge without an upscaling assimilation field'
+        else
+        
+            allocate(List3D(NFieldsUV3D_Upscaling))
+
+            do iL = 1, NFieldsUV3D_Upscaling
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%Flux3D_U, &
+                                                    Vel_ID = VelocityU_, Upscaling = .true.)
+                call GetAssimilationVectorFields(iL, VelAssimilation3D = List3D(iL)%Flux3D_V, &
+                                                    Vel_ID = VelocityV_, Upscaling = .true.)
+            enddo
+
+            !---------------------------------------Finished initialization ------------------------------------------
+
+            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Upscaling_DischargesV2")
+            !Add U component------------------------------------------------------------------------------------
+            Me%WaterFluxes%Upscaling_Discharges(:,:,:) = 0.0
+            
+            do iL =1, NFieldsUV3D_Upscaling
+                call SetMatrixValueAllocatable_jik(Me%WaterFluxes%Upscaling_Discharges, Me%WorkSize,    &
+                            Me%External_Var%KFloor_Z, List3D(iL)%Flux3D_U, MapMatrix = Me%External_Var%OpenPoints3D, &
+                            MaskValue = 0.0)
+            enddo
+            
+            call SumMatrixes_jik_V2(Me%WaterFluxes%Discharges, Me%WorkSize, Me%External_Var%KFloor_Z, &
+                                 Me%WaterFluxes%Upscaling_Discharges, MapMatrix = Me%External_Var%OpenPoints3D)
+            !AddV component------------------------------------------------------------------------------------
+            Me%WaterFluxes%Upscaling_Discharges(:,:,:) = 0.0
+        
+            do iL =1, NFieldsUV3D_Upscaling
+                call SetMatrixValueAllocatable_jik(Me%WaterFluxes%Upscaling_Discharges, Me%WorkSize,    &
+                            Me%External_Var%KFloor_Z, List3D(iL)%Flux3D_V, MapMatrix = Me%External_Var%OpenPoints3D, &
+                            MaskValue = 0.0)
+            enddo
+        
+            call SumMatrixes_jik_V2(Me%WaterFluxes%Discharges, Me%WorkSize, Me%External_Var%KFloor_Z, &
+                                 Me%WaterFluxes%Upscaling_Discharges, MapMatrix = Me%External_Var%OpenPoints3D)
+            
+            if (Me%OutPut%TimeSerieDischON) then
+                do DischargeID = 1, DischargesNumber
+                    if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. Me%Relaxation%Upscaling) then
+                        call GetDischargesGridLocalization(Me%ObjDischarges, DischargeID, Igrid = I, JGrid = J, &
+                                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'Modify_Upscaling_DischargesV2 - Failed to get Discharge location'
+                        
+                        Me%OutPut%TimeSerieDischProp(DischargeID,1) = Me%WaterFluxes%Discharges(I,J,Me%WorkSize%KUB)
+                    endif
+                enddo
+            endif
+        
+            ! -------------------------------- Kill variables -------------------------------------------------------------
+        
+            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Upscaling_DischargesV2")
+
+            do iL =1, NFieldsUV3D_Upscaling
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%Flux3D_U, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_DischargesV2 - Hydrodynamic - ERR04'
+                call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%Flux3D_V, STAT = status)
+                if (status /= SUCCESS_) stop 'Modify_Upscaling_DischargesV2 - Hydrodynamic - ERR05'
+            enddo
+
+            deallocate(List3D)
+            UpscalingDischargesDone = .true.
+        endif
+
+    end subroutine Modify_Upscaling_DischargesV2
 
     !End------------------------------------------------------------------------------
     subroutine Hydrodynamic_OutPut
@@ -49729,121 +50103,65 @@ i1:     if (Me%HighLowTide%ON) then
     !Arguments------------------------------------------------------------------------------
         integer, intent(IN)                               :: HydrodynamicID
     !Externals------------------------------------------------------------------------------
-        type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicFather
+        type (T_Hydrodynamic), pointer                    :: ObjFather
     !Locals---------------------------------------------------------------------------------
         integer                                           :: ready_, readyFather_, STAT_CALL, i
         integer                                           :: AuxHydrodynamicID
-        logical                                           :: MakeCopy
         type(T_Time)                                      :: CurrentTime
     !Begin----------------------------------------------------------------------------------
-        if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
+        if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%UpscalingColdPeriod)then
 
             !Cicle to go over all domains starting from the last nested one
             do i = HydrodynamicID, 2, -1
 
-                MakeCopy = .false.
-
                 if (i /= HydrodynamicID) call Ready (i, ready_) ! points Me% to current domain i
+                
+                if (.not. Me%ComputeOptions%TwoWay) cycle
 
                 AuxHydrodynamicID = Me%FatherInstanceID    ! Changes ID to Father
 
-                call ReadyFather(AuxHydrodynamicID, ObjHydrodynamicFather, readyFather_) ! gets Father object
+                call ReadyFather(AuxHydrodynamicID, ObjFather, readyFather_) ! gets Father object
 
                 if (i == HydrodynamicID) then
                     CurrentTime = Me%CurrentTime
                 else
                     CurrentTime = Me%LastIteration 
-                    !because Me%CurrentTime of precious domain was nullified and replaced by Me%LastIteration
+                    !because Me%CurrentTime of previous domain was nullified and replaced by Me%LastIteration
                 endif
                 
-                if (ObjHydrodynamicFather%LastIteration == CurrentTime)then
+                if (ObjFather%LastIteration == CurrentTime)then
 
                     AuxHydrodynamicID = i    !Changes back to Son ID
-
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge .or. Me%OutPut%Upscaling%MassSinkSource)then
-                        MakeCopy = .true.
-                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                            ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
-                    endif
-                    !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
+                    
                     call PrepTwoWay (SonID = AuxHydrodynamicID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
-
-    !-------------------------------------------Updates father U matrix with son information-------------------------------------
-
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%U%New,   &
-                                       SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityU_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
-
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID = AuxHydrodynamicID, &
-                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
-                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
-                                              VelocityID  = VelocityU_, STAT = STAT_CALL)
-                    !Account for sinks and sources of Volume due to Upscaling.
-                    if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                      ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
-                                                      ObjHydrodynamicFather%Velocity%DT, VelocityU_)
-
-                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                        ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
-
-    !-------------------------------------------Updates father V matrix with son information-------------------------------------
-
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%V%New,   &
-                                       SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityV_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
-
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID = AuxHydrodynamicID, &
-                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
-                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                              VelocityID  = VelocityV_, STAT = STAT_CALL)
-                    !Account for sinks and sources of Volume due to Upscaling.
-                    if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                      ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                                      ObjHydrodynamicFather%Velocity%DT, VelocityV_)
-
-                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                        ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
-
-    !-------------------------------------------Updates father W matrix with son information-------------------------------------
-
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
-                                       SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
-
-                    !Account for sinks and sources of Volume due to Upscaling.
-                    if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                      ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
-                                                      ObjHydrodynamicFather%Velocity%DT, VelocityW_)
-
-                    if (Me%ComputeOptions%TwoWayWaterLevel) then
-                        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                                           FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
-                                           SonMatrix2D      = Me%WaterLevel%New,                                 &
-                                           CallerID         = mHydrodynamic_,                                    &
-                                           STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+                    
+                    if (Me%ComputeOptions%UpscalingMethod == Discharge_) then
+                        call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
+                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelU, &
+                                            SonMatrix       = Me%Velocity%Horizontal%U%New,         &
+                                            CallerID        = mHydrodynamic_,                       &
+                                            VelocityID      = VelocityU_,                           &
+                                            STAT            = STAT_CALL)
+                        
+                        call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
+                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelV, &
+                                            SonMatrix       = Me%Velocity%Horizontal%V%New,         &
+                                            CallerID        = mHydrodynamic_,                       &
+                                            VelocityID      = VelocityV_,                           &
+                                            STAT            = STAT_CALL)
+                    else
+                        call Upscaling_Nudging (ObjFather   = ObjFather, &
+                                                Father_U    = ObjFather%Velocity%Horizontal%U%New,  &
+                                                Father_V    = ObjFather%Velocity%Horizontal%V%New,  &
+                                                Father_W    = ObjFather%Velocity%Vertical%Cartesian,&
+                                                AuxHydrodynamicID = AuxHydrodynamicID)
                     endif
-
+                    
                     call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, &
                                                   CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
+                    
                 endif
             enddo
             call Ready (HydrodynamicID, ready_) ! swithes back to the last nested Domain
@@ -49852,8 +50170,101 @@ i1:     if (Me%HighLowTide%ON) then
     end subroutine ComputeTwoWay
 
     !-------------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks and starts TwoWay nesting for methods Nudging_IWD and Nudging_Vol
+    !>@param[in] ObjFather, Father_U, Father_V, Father_W, AuxHydrodynamicID)
+    subroutine Upscaling_Nudging (ObjFather, Father_U, Father_V, Father_W, AuxHydrodynamicID)
+        !Arguments------------------------------------------------------------------------------
+        integer, intent(IN)                                 :: AuxHydrodynamicID
+        type (T_Hydrodynamic), pointer                      :: ObjFather
+        real, dimension(:,:,:), pointer, intent(INOUT)      :: Father_U, Father_V, Father_W
+        !Locals---------------------------------------------------------------------------------
+        logical                                             :: Copy
+        integer                                             :: STAT_CALL
+        !Begin----------------------------------------------------------------------------------
+        copy = .false.
+        
+        if (ObjFather%ComputeOptions%UpscalingDischarge .or. Me%OutPut%Upscaling%MassSinkSource)then
+            Copy = .true.
+            call SetMatrixValueAllocatableV2 (ObjFather%OutPut%Upscaling%CopyVel, ObjFather%Size, Father_U)
+        endif
 
+!-------------------------------------------Updates father U matrix with son information-------------------------------------
 
+        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                    &
+                            FatherMatrix     = Father_U,                            &
+                            SonMatrix        = Me%Velocity%Horizontal%U%New,        &
+                            CallerID         = mHydrodynamic_,                      &
+                            VelocityID       = VelocityU_,                          &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
+
+        if (ObjFather%ComputeOptions%UpscalingDischarge) &
+            call UpscaleDischarge(  SonID         = AuxHydrodynamicID, &
+                                    Father_old    = ObjFather%OutPut%Upscaling%CopyVel, &
+                                    Father        = Father_U, &
+                                    VelocityID    = VelocityU_, STAT = STAT_CALL)
+        !Account for sinks and sources of Volume due to Upscaling.
+        if (Me%OutPut%Upscaling%MassSinkSource) then
+            call UpscalingVolumeVariation(  ObjFather%OutPut%Upscaling%VolumeCreated, &
+                                            Father_U, ObjFather%Velocity%DT, VelocityU_)
+        endif
+
+        if (Copy) call SetMatrixValueAllocatableV2 (ObjFather%OutPut%Upscaling%CopyVel, ObjFather%Size, Father_V)
+
+!-------------------------------------------Updates father V matrix with son information-------------------------------------
+
+        call ModifyTwoWay ( SonID            = AuxHydrodynamicID,                   &
+                            FatherMatrix     = Father_V,                            &
+                            SonMatrix        = Me%Velocity%Horizontal%V%New,        &
+                            CallerID         = mHydrodynamic_,                      &
+                            VelocityID       = VelocityV_,                          &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
+
+        if (ObjFather%ComputeOptions%UpscalingDischarge) &
+            call UpscaleDischarge(  SonID       = AuxHydrodynamicID,                    &
+                                    Father_old  = ObjFather%OutPut%Upscaling%CopyVel,   &
+                                    Father      = Father_V,                             &
+                                    VelocityID  = VelocityV_, STAT = STAT_CALL)
+        !Account for sinks and sources of Volume due to Upscaling.
+        if (Me%OutPut%Upscaling%MassSinkSource) then
+            call UpscalingVolumeVariation(ObjFather%OutPut%Upscaling%VolumeCreated,   &
+                                          Father_V, ObjFather%Velocity%DT, VelocityV_)
+        endif
+        
+        if (Copy) call SetMatrixValueAllocatableV2 (ObjFather%OutPut%Upscaling%CopyVel, ObjFather%Size, Father_W)
+
+!-------------------------------------------Updates father W matrix with son information-------------------------------------
+        if (Me%ComputeOptions%UpscalingVelocityW) then
+            call ModifyTwoWay ( SonID            = AuxHydrodynamicID,                   &
+                                FatherMatrix     = Father_W,                            &
+                                SonMatrix        = Me%Velocity%Vertical%Cartesian,      &
+                                CallerID         = mHydrodynamic_,                      &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
+
+            !Account for sinks and sources of Volume due to Upscaling.
+            if (Me%OutPut%Upscaling%MassSinkSource) then
+                call UpscalingVolumeVariation(ObjFather%OutPut%Upscaling%VolumeCreated, Father_W, &
+                                                ObjFather%Velocity%DT, VelocityW_)
+            endif
+        endif
+!-------------------------------------------Updates father water level matrix with son information---------------------
+        if (Me%ComputeOptions%UpscalingWaterLevel) then
+            call ModifyTwoWay ( SonID            = AuxHydrodynamicID,               &
+                                FatherMatrix2D   = ObjFather%WaterLevel%New,        &
+                                SonMatrix2D      = Me%WaterLevel%New,               &
+                                CallerID         = mHydrodynamic_,                  &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+        endif
+    
+    end subroutine Upscaling_Nudging
+    
+    
+    !-------------------------------------------------------------------------------------------------------------------
     subroutine ComputeFloodRisk
 
         !Locals----------------------------------------------------------------

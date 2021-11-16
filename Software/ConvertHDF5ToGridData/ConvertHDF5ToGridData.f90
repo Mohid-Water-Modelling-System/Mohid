@@ -290,8 +290,15 @@ cd2 :           if (BlockFound) then
                                             Rank = GroupRank,                                   & 
                                             Dimensions = Dimensions,                            &
                                             STAT = STAT_CALL)                                
-                        if (STAT_CALL .NE. SUCCESS_)                                            & 
-                            stop 'ConvertToGridData - HDF5ToGridData - ERR50'
+                        if (GroupRank==-1) then
+                            call GetHDF5ArrayDimensions (HDF5ID     = ObjHDF5,          &           
+                                                         GroupName  = trim(HDFGroup),   &
+                                                         ItemName   = trim(Property),   &
+                                                         NDim       = GroupRank,        &
+                                                         Imax       = Dimensions(1),    &
+                                                         Jmax       = Dimensions(2))
+                            write(*,*) 'ConvertToGridData - HDF5ToGridData - WRN50'
+                        endif
                         
                         select case (GroupRank)
                             
@@ -392,11 +399,19 @@ cd2 :           if (BlockFound) then
         
         else
             !one defined instant
+            if (Instant > 0) then
             call HDF5ReadData  (ObjHDF5, trim(HDFGroup),                       &
                                  trim(Property),                               &
                                  Array2D = PropertyField,                      &
                                  OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConvertToGridData - HDF5ToGridData - ERR90'                   
+            else
+                call HDF5ReadData  (ObjHDF5, trim(HDFGroup),                       &
+                                     trim(Property),                               &
+                                     Array2D = PropertyField,                      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertToGridData - HDF5ToGridData - ERR100'                   
+            endif
             
             call ConstructDSName(Property,Instant,AuxChar)              
             Output = trim(AuxChar) // ".dat" 

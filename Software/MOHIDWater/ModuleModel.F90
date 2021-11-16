@@ -1559,13 +1559,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     !--------------------------------------------------------------------------
 
     subroutine GetModelInstanceIDs (ModelID, HorizontalGridID, HydrodynamicID,           &
-                                    WaterPropertiesID, STAT)
+                                    WaterPropertiesID, GeometryID, STAT)
 
         !Arguments------------------------------------------------------------ 
         integer                                     :: ModelID
         integer, intent(OUT), optional              :: HorizontalGridID
         integer, intent(OUT), optional              :: HydrodynamicID
         integer, intent(OUT), optional              :: WaterPropertiesID
+        integer, intent(OUT), optional              :: GeometryID
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1583,6 +1584,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             if (present(HorizontalGridID )) HorizontalGridID  = Me%ObjHorizontalGrid
             if (present(HydrodynamicID   )) HydrodynamicID    = Me%ObjHydrodynamic
             if (present(WaterPropertiesID)) WaterPropertiesID = Me%ObjWaterProperties
+            if (present(GeometryID ))       GeometryID        = Me%Water%ObjGeometry
                 
             STAT_ = SUCCESS_
         else 
