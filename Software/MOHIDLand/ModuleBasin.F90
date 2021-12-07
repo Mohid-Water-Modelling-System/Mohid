@@ -254,7 +254,8 @@ Module ModuleBasin
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1
-        integer                                     :: RestartFormat         = BIN_
+        integer                                     :: RestartFormat        = BIN_
+        logical                                     :: Simple               = .false.
     end type T_OutPut
 
     type T_Coupling
@@ -1489,6 +1490,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsOn   = Me%OutPut%Yes,                                  &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR320'
+
+        if(Me%OutPut%Yes)then
+
+            call GetData(Me%OutPut%Simple,                                              &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'SIMPLE_OUTPUT',                                &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleBasin',                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR325'
+
+        endif
 
         call GetOutPutTime(Me%ObjEnterData,                          &
                            CurrentTime   = Me%CurrentTime,           &
@@ -8906,37 +8920,39 @@ cd0:    if (Exist) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR080'
 
-            !Writes the Acc Flow Production
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
-                                  "AccFlowProduction", "m",                  &
-                                  Array2D      = Me%AccFlowProduction,          &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR090'
+            if(.not. Me%OutPut%Simple)then
+                !Writes the Acc Flow Production
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
+                                      "AccFlowProduction", "m",                  &
+                                      Array2D      = Me%AccFlowProduction,          &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR090'
+            
+                !Writes the Acc EVTP
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
+                                      "AccEVTP", "m",                               &
+                                      Array2D      = Me%AccEVTP,                    &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
 
-            !Writes the Acc EVTP
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
-                                  "AccEVTP", "m",                               &
-                                  Array2D      = Me%AccEVTP,                    &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
-
+                if (Me%Coupled%SCSCNRunoffModel) then
+                    call HDF5WriteData   (Me%ObjHDF5, "//Results/ActualCurveNumber",   &
+                                            "ActualCurveNumber", "-",                  &
+                                            Array2D      = Me%SCSCNRunOffModel%ActualCurveNumber,       &
+                                            OutputNumber = Me%OutPut%NextOutPut,       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
                 
-            if (Me%Coupled%SCSCNRunoffModel) then
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/ActualCurveNumber",   &
-                                        "ActualCurveNumber", "-",                  &
-                                        Array2D      = Me%SCSCNRunOffModel%ActualCurveNumber,       &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
-                
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
-                                        "Acc5DayRain", "mm",                       &
-                                        Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR106'                  
+                    call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
+                                            "Acc5DayRain", "mm",                       &
+                                            Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
+                                            OutputNumber = Me%OutPut%NextOutPut,       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR106'     
+             
+                endif
             endif
 
             if (Me%Coupled%Snow) then
