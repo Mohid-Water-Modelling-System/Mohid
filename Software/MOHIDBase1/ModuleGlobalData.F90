@@ -118,7 +118,7 @@ Module ModuleGlobalData
 #elif defined(_BIG_LINE_LENGTH)
     integer, parameter  :: line_length          = 6144    
 #elif defined(_EXTRA_LONG_LINE_LENGTH)
-    integer, parameter  :: line_length          = 131072
+    integer, parameter  :: line_length          = 7168
 #elif defined(_EXTRA_SHORT_LINE_LENGTH)
     integer, parameter  :: line_length          = 32
 #else
