@@ -1771,6 +1771,8 @@ do4:                do iH = 1, Me%HDF5Number
                         do nP = 1, nPoints
                             if (.not. NoData(nP)) then
                                 Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = Prop1D(nP)
+                            else
+                                Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = FillValueReal
                             endif
                         enddo
                     enddo do4

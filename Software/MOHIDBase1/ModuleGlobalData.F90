@@ -118,7 +118,7 @@ Module ModuleGlobalData
 #elif defined(_BIG_LINE_LENGTH)
     integer, parameter  :: line_length          = 6144    
 #elif defined(_EXTRA_LONG_LINE_LENGTH)
-    integer, parameter  :: line_length          = 131072
+    integer, parameter  :: line_length          = 7168
 #elif defined(_EXTRA_SHORT_LINE_LENGTH)
     integer, parameter  :: line_length          = 32
 #else
@@ -466,6 +466,7 @@ Module ModuleGlobalData
     !MRV. Barotropic velocities for using in Flather condition
     integer, parameter :: BarotropicVelocityU_              = 97
     integer, parameter :: BarotropicVelocityV_              = 98
+    integer, parameter :: BarotropicVelocityM_              = 99000    
 
     !Hydrodynamic Properties
     integer, parameter :: VelocityW_                        = 99
@@ -1338,6 +1339,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_HorizontalTransportY_= 'horizontal transport Y'
     character(StringLength), private, parameter :: Char_BarotropicVelocityU_ = 'barotropic velocity U'
     character(StringLength), private, parameter :: Char_BarotropicVelocityV_ = 'barotropic velocity V'
+    character(StringLength), private, parameter :: Char_BarotropicVelocityM_ = 'barotropic velocity modulus'    
     character(StringLength), private, parameter :: Char_BaroclinicVelocityU_ = 'baroclinic velocity U'
     character(StringLength), private, parameter :: Char_BaroclinicVelocityV_ = 'baroclinic velocity V'
 
@@ -2897,6 +2899,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (HorizontalTransportY_,    Char_HorizontalTransportY_,     ListNumber)
             call AddPropList (BarotropicVelocityU_ ,    Char_BarotropicVelocityU_ ,     ListNumber)
             call AddPropList (BarotropicVelocityV_ ,    Char_BarotropicVelocityV_ ,     ListNumber)
+            call AddPropList (BarotropicVelocityM_ ,    Char_BarotropicVelocityM_ ,     ListNumber)            
             call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
