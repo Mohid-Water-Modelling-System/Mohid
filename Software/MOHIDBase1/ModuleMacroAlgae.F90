@@ -35,7 +35,7 @@
 !   NITROGEN            : 0/1           [0]
 !   PHOSPHORUS          : 0/1
 !   DRIFTING            : 0/1                           !If drifting macroalgae is computed
-!   DETTACHMENT_METHOD  : 1/2/3                         ! 1-None 2-BottomShearStress 3-Velocity 
+!   DETTACHMENT_METHOD  : 1/2/3                         ! 1-None 2-Velocity 3-BottomShearStress 
     
 !<begin_macroalgae>
 !   GROWMAX             : real          [0.4]           !macroalgae maximum growth rate
