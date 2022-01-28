@@ -10,7 +10,7 @@
     ! DATE          : 30 Set 2013
     ! REVISION      : 26 Oct 2020 by Sofia Saraiva
     ! DESCRIPTION   : Individual Based Population (or individual) model for one/several bivalve
-    !                 species following DED theory  
+    !                 species following DEB theory  
     !
     !-----------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
@@ -25,7 +25,6 @@
     !PHOSPHOR                  : 1
     !FEEDING_MODEL             : 1/2/3    ! 1 - Impose filtration/2 - Simple filtration/3 - Complex filtration
     !CORRECT_FILTRATION        : 1        !  0/1     .only important if population
-    !INDEX_OUTPUTS             : 2
     !MASS_BALANCE              : 0      !  0/1     .only no predators. same NC or with life + complex filtration
     !FEEDBACK_ON_WATER         : 1        ! If there is feedback on the water properties
     !MIN_NUMBER                : 0.0001   !          .minimum number of organisms in a cohort
@@ -86,7 +85,7 @@
     !TAH                       : 31376    !31376. K. Arrhenius temperature for upper boundary (van der Veer etal.. 2006)
     !
     !F_FIX                     : 1        !1. adim. constant food density parameter (only if simple filtration)
-    !PAM_FIX                   : 94.79    !80.5. Jd-1cm-2. bivalve surface-specific assimilation rate if fix 
+    !PXM_FIX                   : 94.79    !80.5. Jd-1cm-2. bivalve surface-specific assimilation rate if fix 
     !
     !DELTA_M                   : 0.297    !0.297   . cm(volumetric)/cm(real). shape coefficient  (Saraiva etal.2011b)
     !E_M                       : 1438     ! J/cm-3 .  Maximum reserves density  (Saraiva etal.2011b)
@@ -215,7 +214,6 @@
     private ::                  ConstructCohort
     private ::                      AddCohort
     private ::                      ConstructCohortOutput
-    private ::              ConstructOutputs
     private ::          PropertyIndexNumber
     private ::          ConstructPropertyList
     private ::          KillEnterData    
@@ -232,6 +230,9 @@
     public  ::      UnGetBivalve
     public  ::      SearchPropIndex
     public  ::      SetSettlementOnBivalve
+    public  ::      SetBivalveTimeSeries
+    private ::          ConstructOutputs
+    private ::              ConstructPopulationOutputs
 
     !Modifier
     public  ::      ModifyBivalve
@@ -297,7 +298,7 @@
     end interface    UnGetBivalve
 
     !Types--------------------------------------------------------------------------
-    type     T_ExternalVar
+    type     T_BivalveExternalVar
         type(T_Time)                     :: CurrentTime
         real,    pointer, dimension(:  ) :: Salinity       => null()
         real,    pointer, dimension(:  ) :: Temperature    => null()
@@ -308,7 +309,7 @@
         real,    pointer, dimension(:  ) :: Velocity       => null()
         real,    pointer, dimension(:  ) :: InitialPhyto   => null()    
         real,    pointer, dimension(:  ) :: InitialShrimp  => null()     
-    end type T_ExternalVar
+    end type T_BivalveExternalVar
 
     type     T_ComputeOptions
         logical                          :: Nitrogen           = .false.
@@ -667,20 +668,20 @@
         real                             :: TNField                      = 0.0             
         real                             :: MaxLength                    = 0.0 !#cm,             
         real                             :: LastLength                   = null_real !length of the last cohort before death
-        real, pointer, dimension(:)      :: SumLogAllMortalityInNumbers  => null() !Product of mortalities in numbers
-        real, pointer, dimension(:)      :: SumAllMortalityInMass        => null() !sum of all death rates of all instants
-        real, pointer, dimension(:)      :: AverageMortalityInNumbers    => null() !geometricAverage of all death rates 
+        real, pointer, dimension(:)      :: SumLogAllMortalityInNumbers  => null()   !Product of mortalities in numbers
+        real, pointer, dimension(:)      :: SumAllMortalityInMass        => null()   !sum of all death rates of all instants
+        real, pointer, dimension(:)      :: AverageMortalityInNumbers    => null()   !geometricAverage of all death rates 
         integer                          :: nInstantsForAverage          = null_int
-        integer                          :: nSpawning                    = null_int !number of spawning events
+        integer                          :: nSpawning                    = null_int  !number of spawning events
         real                             :: nNewborns                    = 0
     end type T_PopulationProcesses        
      
-    type     T_Output
-        integer, dimension(:), pointer   :: Unit                         => null()
+    type     T_BivalveOutput
+        integer, pointer, dimension(:)   :: Unit                         => null()
         integer                          :: nParticles
         character(len=StringLength)      :: FileName    = '   '    
-        real, dimension(:), pointer      :: Aux
-    end type T_Output
+        real, pointer, dimension(:)      :: Aux
+    end type T_BivalveOutput
 
     type     T_Cohort
         type(T_ID                    )   :: ID
@@ -688,7 +689,7 @@
         type(T_BivalveCondition      )   :: BivalveCondition
         type(T_Processes             )   :: Processes
         real,  pointer, dimension(:,:)   :: FeedingOn   => null()  !to store, Columns = Filtered|ingested|assimilated (molC/g.d.ind)
-        type(T_Output                )   :: CohortOutput
+        type(T_BivalveOutput         )   :: CohortOutput
         logical                          :: IsLarvae      = OFF
         integer                          :: Dead        = 0
         integer                          :: GlobalDeath = 1
@@ -705,9 +706,9 @@
         type(T_SpeciesComposition   )    :: SpeciesComposition
         type(T_IndividualParameters )    :: IndividualParameters
         type(T_AuxiliarParameters   )    :: AuxiliarParameters
-        type(T_Output               )    :: PopulationOutput
-        type(T_Output               )    :: SizeDistributionOutput
-        type(T_Output               )    :: TestingParametersOutput
+        type(T_BivalveOutput        )    :: PopulationOutput
+        type(T_BivalveOutput        )    :: SizeDistributionOutput
+        type(T_BivalveOutput        )    :: TestingParametersOutput
         type(T_PopulationProcesses  )    :: PopulationProcesses
         logical                          :: CohortOutput          = OFF 
         logical                          :: Population            = OFF
@@ -742,59 +743,59 @@
     end type T_RestartSpecies
     
     type     T_BivalveAux
-        real                                 :: TotalFiltrationWish      = 0 !To be saved in each step
+        real                              :: TotalFiltrationWish      = 0 !To be saved in each step
     end type T_BivalveAux
     
     type     T_Bivalve
         integer                              :: InstanceID
-        integer                              :: ObjTime                  = 0
-        integer                              :: ObjEnterData             = 0
-        integer                              :: DensityUnits             = 0 ! 0: m2, 1:m3
+        integer                              :: ObjTime                       = 0
+        integer                              :: ObjEnterData                  = 0
+        integer                              :: DensityUnits                  = 0 ! 0: m2, 1:m3
         type(T_Time)                         :: InitialDate, FinalDate
-        logical                              :: Old                      = .false.
-        real                                 :: DT                       = null_real
-        real                                 :: DTDay                    = null_real
+        logical                              :: Old                           = .false.
+        real                                 :: DT                            = null_real
+        real                                 :: DTDay                         = null_real
         type (T_Size1D)                      :: Array                    
         type (T_Size1D)                      :: Prop                   
-        integer                              :: nSpecies                 = 0
-        logical                              :: LackOfFood               = .false.
-        integer, dimension(:), pointer       :: PropertyList             => null()
-        integer                              :: nPropertiesFromBivalve   = 0
-        integer                              :: nCohortProperties        = 7          !Each cohort has 7 associated properties
-        real                                 :: MinNumber                = null_real
-        integer, dimension(:), pointer       :: ListDeadIDs              => null()
-        integer                              :: nLastDeadID              = 0
-        integer, dimension(:), pointer       :: ListNewbornsIDs          => null()    !List of SpeciesID with newborns  
-        integer                              :: nLastNewbornsID          = 0
-        real, dimension(:,:)   , pointer     :: MatrixNewborns           => null()    !col = SpeciesID | Index +1  (nNewborns)
-        real                                 :: DT_OutputTime            = null_real
-        logical                              :: Testing_Parameters       = OFF
-        logical                              :: OutputON                 = OFF
-        integer                              :: TotalOutputs, NextOutPut = null_int
+        integer                              :: nSpecies                      = 0
+        logical                              :: LackOfFood                    = .false.
+        integer, pointer, dimension(:)       :: PropertyList                  => null()
+        integer                              :: nPropertiesFromBivalve        = 0
+        integer                              :: nCohortProperties             = 7              !Each cohort has 7 associated properties
+        real                                 :: MinNumber                     = null_real
+        integer, pointer, dimension(:)       :: ListDeadIDs                   => null()
+        integer                              :: nLastDeadID                   = 0
+        integer, pointer, dimension(:)       :: ListNewbornsIDs               => null()        !List of SpeciesID with newborns  
+        integer                              :: nLastNewbornsID               = 0
+        real   , pointer, dimension(:,:)     :: MatrixNewborns                => null()   !col = SpeciesID | Index +1(nNewborns)
+        real                                 :: DT_OutputTime                 = null_real
+        logical                              :: Testing_Parameters            = OFF
+        logical                              :: OutputON                      = OFF
+        integer                              :: TotalOutputs, NextOutPut      = null_int
         type (T_Time), pointer, dimension(:) :: BivalveOutputTimes
-        integer, dimension(1:30)             :: IndexOutputs             = null_int 
-        integer                              :: nIndexOutputs            = null_int              
-        real                                 :: ConvertionFactor         = 1.0 !convertion from m2 to m3
-        type (T_Output        )              :: MassOutput
+        integer, pointer, dimension(:)       :: IndexOutputs                  => null() 
+        character(len=StringLength), pointer, dimension(:):: IndexOutputNames => null()
+        integer                              :: nIndexOutputs                 = null_int              
+        real                                 :: ConvertionFactor              = 1.0 !convertion from m2 to m3
+        type (T_BivalveOutput )              :: MassOutput
         type (T_PropIndex     )              :: PropIndex
         type (T_ComputeOptions)              :: ComputeOptions
         type (T_Species       ), pointer     :: FirstSpecies
-        type (T_ExternalVar   )              :: ExternalVar
-        real                                 :: MassLoss                 = 0.0
+        type (T_BivalveExternalVar   )       :: ExternalVar
+        real                                 :: MassLoss                       = 0.0
         type (T_BivalveAux   )               :: BivalveAux
-        real                                 :: MaxTNField               = 0.0  ! #/m2
+        real                                 :: MaxTNField                     = 0.0  ! #/m2
         !character(len = PathLength)         :: PathFileName = '/home/saraiva/00_Projects/Parametric/Running/' !biocluster
-        character(len = PathLength)          :: PathFileName = ''  
-        character(len = PathLength)          :: InitialFileName = ''  
-        character(len = PathLength)          :: FinalFileName = '' 
-        
-        type (T_RestartSpecies), dimension(:), pointer  :: RestartSpecies
+        character(len = PathLength)          :: PathFileName                   = ''  
+        character(len = PathLength)          :: InitialFileName                = ''  
+        character(len = PathLength)          :: FinalFileName                  = '' 
+        type (T_RestartSpecies), pointer, dimension(:)    :: RestartSpecies
         integer                              :: nRestartSpecies
-        logical                              :: ComputeThisIndex        = .true.
-        logical                              :: OutputThisIndex         = .false.
-        logical                              :: SpawningAllowed         = .true. 
+        logical                              :: ComputeThisIndex               = .true.
+        logical                              :: OutputThisIndex                = .false.
+        logical                              :: SpawningAllowed                = .true. 
         type (T_Time)                        :: NextSpawnTime
-        real                                 :: MIN_SPAWN_TIME          = null_real 
+        real                                 :: MIN_SPAWN_TIME                 = null_real 
 
         type (T_Bivalve       ), pointer     :: Next
     end type T_Bivalve
@@ -821,17 +822,17 @@
     subroutine ConstructBivalve(ObjBivalveID, FileName, BeginTime, EndTime, ArraySize, STAT)
 
         !Arguments------------------------------------------------------------------
-        integer                           :: ObjBivalveID
-        character(len=*)                  :: FileName
-        type(T_Time)                      :: BeginTime, EndTime
-        type(T_Size1D)                    :: ArraySize
-        integer, optional, intent(OUT)    :: STAT     
+        integer                                            :: ObjBivalveID
+        character(len=*)                                   :: FileName
+        type(T_Time)                                       :: BeginTime, EndTime
+        type(T_Size1D)                                     :: ArraySize
+        integer, optional, intent(OUT)                     :: STAT     
 
         !External-------------------------------------------------------------------
-        integer                           :: ready_, STAT_CALL         
+        integer                                            :: ready_, STAT_CALL         
 
         !Local----------------------------------------------------------------------
-        integer                           :: STAT_
+        integer                                            :: STAT_
 
         !---------------------------------------------------------------------------
 
@@ -846,8 +847,7 @@
         call Ready(ObjBivalveID, ready_)    
 
 cd1 :   if (ready_ .EQ. OFF_ERR_) then
-
-
+    
             call AllocateInstance
 
             call ConstructEnterData(Me%ObjEnterData, trim(FileName), STAT = STAT_CALL) 
@@ -859,7 +859,7 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%Array%ILB = ArraySize%ILB
             Me%Array%IUB = ArraySize%IUB
-
+            
             call ReadDataBivalve
             
             call PropertyIndexNumber
@@ -927,39 +927,12 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ReadDataBivalve
     
         !Local----------------------------------------------------------------------
-        integer                         :: i
-        type(T_Species), pointer        :: Species
 
         !Begin----------------------------------------------------------------------
 
         call ConstructGlobalVariables
         
         call ConstructSpecies
-
-        if (Me%OutputON) then
-        
-            Species => Me%FirstSpecies
-            do while(associated(Species))
-            
-                if(Species%Population)then
-                    allocate(Species%PopulationOutput%Unit(1:Me%nIndexOutputs))
-                endif
-                
-                if (Species%BySizeOutput) then
-                    allocate(Species%SizeDistributionOutput%Unit(1:Me%nIndexOutputs))
-                endif
-                
-                Species => Species%Next
-            enddo
-            
-            if(Me%ComputeOptions%MassBalance) then
-                allocate(Me%MassOutput%Unit(1:Me%nIndexOutputs))
-            endif
-        
-            do i=1, Me%nIndexOutputs
-                call ConstructOutputs(i)
-            enddo
-        end if
 
     end subroutine ReadDataBivalve
 
@@ -991,7 +964,7 @@ cd1 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%OutputON) then
 
             Me%NextOutPut = 1
-
+            
         endif 
 
         call GetData(Me%DT                                                  , &
@@ -1193,22 +1166,22 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if (STAT_CALL .NE. SUCCESS_)                                       &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
         
-        call GetData(Me%IndexOutputs                                     , &
-                    Me%ObjEnterData, flag                                , &
-                    SearchType   = FromFile                              , &
-                    keyword      = 'INDEX_OUTPUTS'                       , &
-                    ClientModule = 'ModuleBivalve'                       , &
-                    STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)then
-            !By default 30 values are read so this error always exist.
-            if (STAT_CALL /= SIZE_ERR_) then 
-                stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR130'
-            else
-                Me%nIndexOutputs = flag
-            endif
-        else
-            Me%nIndexOutputs = 0
-        endif
+        !call GetData(Me%IndexOutputs                                     , &
+        !            Me%ObjEnterData, flag                                , &
+        !            SearchType   = FromFile                              , &
+        !            keyword      = 'INDEX_OUTPUTS'                       , &
+        !            ClientModule = 'ModuleBivalve'                       , &
+        !            STAT         = STAT_CALL)
+        !if (STAT_CALL .NE. SUCCESS_)then
+        !    !By default 30 values are read so this error always exist.
+        !    if (STAT_CALL /= SIZE_ERR_) then 
+        !        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR130'
+        !    else
+        !        Me%nIndexOutputs = flag
+        !    endif
+        !else
+        !    Me%nIndexOutputs = 0
+        !endif
         
         call GetData(Me%Old                                              , &
                      Me%ObjEnterData, flag                               , &
@@ -1423,8 +1396,6 @@ cd2 :           if (BlockFound) then
                         
                     endif
 
-                        
-
                     nullify(NewSpecies)
 
                 else cd2
@@ -1536,7 +1507,10 @@ do1:        do while (associated(ObjSpecies))
 
         NewCohort%ID%Name = trim(adjustl(NewSpecies%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
 
-        if (NewSpecies%CohortOutput) then
+        !if it's a newborn cohort the output files are constructed here
+        !the ones constructed from Bivalve input file are constructed in 
+        !subroutine ConstructOutputs
+        if (NewSpecies%CohortOutput .and. NewSpecies%NewbornCohort) then
         
             allocate(NewCohort%CohortOutput%Unit(1:Me%nIndexOutputs))
         
@@ -1544,12 +1518,6 @@ do1:        do while (associated(ObjSpecies))
                 call ConstructCohortOutput (NewCohort, i)
             enddo
         end if
-        
-!        allocate(NewCohort%LarvaeState(Me%Array%ILB:Me%Array%IUB))
-!        
-!        do Index = Me%Array%ILB, Me%Array%IUB 
-!            NewCohort%LarvaeState(Index) = -99
-!        enddo
         
         nullify(NewCohort)
 
@@ -1623,8 +1591,56 @@ do1:        do while (associated(ObjCohort%Next))
     end subroutine ComputeCohortLarvaeState
     
     !-------------------------------------------------------------------------------
+    
+    subroutine ConstructOutputs
+    
+        type (T_Species)  , pointer                 :: Species
+        type(T_Cohort)    , pointer                 :: Cohort
+        integer                                     :: i
+        
+        
+        Species => Me%FirstSpecies
+        do while(associated(Species))
+            
+            if (Species%Population) then
+                allocate(Species%PopulationOutput%Unit(1:Me%nIndexOutputs))
+            endif
+            
+            if (Species%BySizeOutput) then
+                allocate(Species%SizeDistributionOutput%Unit(1:Me%nIndexOutputs))
+            endif  
+                      
+            Cohort => Species%FirstCohort
+            do while(associated(Cohort))
+                
+                if (Species%CohortOutput) then
+        
+                    allocate(Cohort%CohortOutput%Unit(1:Me%nIndexOutputs))
+        
+                    do i=1, Me%nIndexOutputs
+                        call ConstructCohortOutput (Cohort, i)
+                    enddo
+                end if
 
-    subroutine ConstructOutputs(iIndexOutput)
+                Cohort => Cohort%Next
+            enddo
+
+            Species => Species%Next
+        enddo
+        
+        if (Me%ComputeOptions%MassBalance) then
+            allocate(Me%MassOutput%Unit(1:Me%nIndexOutputs))
+        endif
+
+        do i=1, Me%nIndexOutputs
+            call ConstructPopulationOutputs(i)
+        enddo
+    
+    end subroutine ConstructOutputs
+
+    !-------------------------------------------------------------------------------
+
+    subroutine ConstructPopulationOutputs(iIndexOutput)
         
         !Arguments-------------------------------------------------------------
         integer                                         :: iIndexOutput
@@ -1635,27 +1651,27 @@ do1:        do while (associated(ObjCohort%Next))
             type (T_Predator)       , pointer           :: Predator
             character(len=900)                          :: SizeDistributionHeader
             character(len=900)                          :: OuputHeader
-            character(len=500)                          :: OuputFileName
-            character(len=16)                           :: IndexOutputStr
+            character(len=PathLength)                   :: OuputFileName
+            character(len=StringLength)                 :: NameTimeSeries
             character(len=16)                           :: SizeClassNameStr
             character(len=16)                           :: ParameterValueStr
             !character(len=16)                           :: ArgumentInComand
         !Begin----------------------------------------------------------------------
         
         !call getarg(1,ArgumentInComand) 
-        write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
+        NameTimeSeries = Me%IndexOutputNames(iIndexOutput)
 
         Species => Me%FirstSpecies
         do while(associated(Species))
-        
+            
             if (Species%Population) then
 
                 call UnitsManager(Species%PopulationOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR20'
+                if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructPopulationOutputs - ModuleBivalve - ERR20'
 
                 !OuputFileName = "Output/"//trim(ArgumentInComand)  !biocluster
 
-                OuputFileName = trim(adjustl(IndexOutputStr))//"_"//trim(Species%ID%Name)
+                OuputFileName = trim(adjustl(NameTimeSeries))//"_"//trim(Species%ID%Name)
 
                 !Species population output
                 if (Me%Testing_Parameters) then
@@ -1695,7 +1711,7 @@ do1:        do while (associated(ObjCohort%Next))
                 !time serie format
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "Population Results File")
 
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(OuputFileName))
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(adjustl(NameTimeSeries)))
 
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
@@ -1707,8 +1723,6 @@ do1:        do while (associated(ObjCohort%Next))
         
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
                 
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
-
                 102 format(A900)
 
                 OuputHeader =   " !Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                     // &
@@ -1746,9 +1760,9 @@ do1:        do while (associated(ObjCohort%Next))
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), '<BeginTimeSerie>')
                 
                 if (Species%BySizeOutput) then
-                
+                    
                     call UnitsManager(Species%SizeDistributionOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR21'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructPopulationOutputs - ModuleBivalve - ERR21'
 
                     Species%SizeDistributionOutput%FileName = Species%PopulationOutput%FileName
                 
@@ -1763,7 +1777,7 @@ do1:        do while (associated(ObjCohort%Next))
                 !time serie format
                 call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "SizeDistribution Results File")
 
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(OuputFileName))
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", trim(adjustl(NameTimeSeries)))
 
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
@@ -1775,8 +1789,6 @@ do1:        do while (associated(ObjCohort%Next))
         
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
                 
-                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
-
                     SizeDistributionHeader = 'Seconds YY MM DD hh mm ss'
 
                     do i = 1, Species%nSizeClasses
@@ -1804,9 +1816,9 @@ do1:        do while (associated(ObjCohort%Next))
 
                 call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), '<BeginTimeSerie>')
 
-                end if
+                endif
             
-            end if !population
+            endif !population
 
             Species => Species%Next
         enddo
@@ -1817,9 +1829,9 @@ do1:        do while (associated(ObjCohort%Next))
 
             !mass balance results
             call UnitsManager(Me%MassOutput%Unit(iIndexOutput), OPEN_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructOutputs - ModuleBivalve - ERR30'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ConstructPopulationOutputs - ModuleBivalve - ERR30'
 
-            open(Unit = Me%MassOutput%Unit(iIndexOutput), File = trim(Me%PathFileName)//trim(IndexOutputStr)// &
+            open(Unit = Me%MassOutput%Unit(iIndexOutput), File = trim(Me%PathFileName)//trim(adjustl(NameTimeSeries))// &
                             '_MassBalance.dat',&
 
          Status = 'REPLACE')
@@ -1837,7 +1849,7 @@ do1:        do while (associated(ObjCohort%Next))
             end if
         end if 
 
-    end subroutine ConstructOutputs
+    end subroutine ConstructPopulationOutputs
 
     !-------------------------------------------------------------------------------
 
@@ -1853,7 +1865,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         character(len=500)                :: CohortFileName
         character(len=900)                :: OuputHeader
-        character(len=16)                 :: IndexOutputStr
+        character(len=16)                 :: NameTimeSeries
         
         !Begin----------------------------------------------------------------------
 
@@ -1862,16 +1874,18 @@ do1:        do while (associated(ObjCohort%Next))
 
         !Bivalve processes, bivalve1.dat
         
-        write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
+        !write(IndexOutputStr, ('(I5)')) Me%IndexOutputs(iIndexOutput)
         
-        CohortFileName = trim(Me%PathFileName)//trim(adjustl(IndexOutputStr))//'_'//trim(Cohort%ID%Name)//'.srw'
+        NameTimeSeries = Me%IndexOutputNames(iIndexOutput)
+        
+        CohortFileName = trim(Me%PathFileName)//trim(adjustl(NameTimeSeries))//'_'//trim(Cohort%ID%Name)//'.srw'
         
         open(Unit = Cohort%CohortOutput%Unit(iIndexOutput), File = trim(CohortFileName), Status = 'REPLACE')
                                               
         !time serie format
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "Bivalve Results File")
 
-        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(CohortFileName))
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(adjustl(NameTimeSeries)))
 
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
@@ -1883,8 +1897,6 @@ do1:        do while (associated(ObjCohort%Next))
         
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'MODEL_DOMAIN', '')
                 
-        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'INDEX', IndexOutputStr)
-
         101 format(A800)
 
         OuputHeader =  " !Seconds_1 YY_2    MM_3 DD_4 hh_5 mm_6    ss_7 "             // &
@@ -4917,6 +4929,64 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
     !--------------------------------------------------------------------------
    
+    subroutine SetBivalveTimeSeries(Bivalve_ID, TimeSeriesIndex, TimeSeriesNames, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                             :: Bivalve_ID
+        integer, pointer, dimension(:  )                    :: TimeSeriesIndex  
+        character(len=StringLength), dimension(:), pointer  :: TimeSeriesNames
+        integer, optional, intent(OUT)                      :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_
+        integer                                             :: ready_      
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Bivalve_ID, ready_)    
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_)then
+    
+            if (.not. associated(TimeSeriesIndex))then
+                
+                nullify(Me%IndexOutputs)
+                nullify(Me%IndexOutputNames)
+                
+                if(Me%OutputON)then
+                    write(*,*)"BIVALVE_OUTPUT_TIME is ON but no time series were defined in WaterProperties"
+                    stop'SetBivalveTimeSeries - ModuleBivalve - ERR01'
+                endif
+                
+                Me%nIndexOutputs = 0
+                
+            else
+                
+                Me%IndexOutputs     => TimeSeriesIndex
+                Me%IndexOutputNames => TimeSeriesNames
+                Me%nIndexOutputs    = size(Me%IndexOutputs)
+                
+                if (Me%OutputON) then
+                   
+                    call ConstructOutputs
+             
+                end if
+            endif   
+
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine SetBivalveTimeSeries
+    
+    !--------------------------------------------------------------------------
+
     subroutine UnGetBivalve1D_I(BivalveID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -5284,6 +5354,7 @@ d2:         do while (associated(Cohort))
                                                             
                         if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
                         
+                            !death by velocity
                             call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
                         
                         else
@@ -5424,6 +5495,7 @@ d2:         do while (associated(Cohort))
                         if (Me%ExternalVar%Mass(Number,Index) .eq. 0.0) then 
                         !they all died
                         
+                            !death by wrong settlement
                             call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
                         
                         else
@@ -5811,7 +5883,7 @@ d1:         do while(associated(Species))
 
         !Local-----------------------------------------------------------------
         type(T_Cohort),     pointer   :: Cohort
-        integer         :: L, M_V, M_E, M_R
+        integer                       :: L, M_V, M_E, M_R
 
         !Begin-----------------------------------------------------------------
 
@@ -7781,6 +7853,7 @@ d2:         do while(associated(Cohort))
 
             if ((Cohort%Dead .eq. 0 )) then 
             
+                !death by starvation
                 call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
 
                 if ((Species%nCohorts .eq. 1) .and. ((Cohort%Dead .eq. 1 ))) then !this was the last cohort of the population...                        
@@ -7884,8 +7957,9 @@ d2:         do while(associated(Cohort))
             Cohort%Processes%DeathByStarvation = Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) /   &
             Me%DTDay !All will die from starvation
 
-            if (Cohort%Dead .eq. 0) then 
+            if (Cohort%Dead .eq. 0) then
                 
+                !death by starvation
                 call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
 
                 if ((Species%nCohorts .eq. 1) .and. (Cohort%Dead .eq. 1 )) then !this was the last cohort of the population...                        
@@ -8662,6 +8736,7 @@ d2:         do while(associated(Cohort))
 
                     if (Cohort%Dead .eq. 0 ) then 
                     
+                        !death by predation
                         call ImposeCohortDeath (Index, Species, Cohort) !sets all proc to zero, convert mass to OM, Deadlist
 
                         if ((Species%nCohorts .eq. 1) .and. (Cohort%Dead .eq. 1 )) then 
