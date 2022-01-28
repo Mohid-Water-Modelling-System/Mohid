@@ -294,7 +294,8 @@ Module ModuleWaterProperties
 
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
                                           GetBivalveNewborns, GetBivalveOtherParameters,        &
-                                          UpdateBivalvePropertyList, UnGetBivalve
+                                          UpdateBivalvePropertyList, UnGetBivalve,              &
+                                          SetBivalveTimeSeries
 
     use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay,  &
                                           UpscaleDischarge_WP, GetUpscalingDischarge, &
@@ -909,7 +910,9 @@ Module ModuleWaterProperties
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
          real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null()
-        logical                                 :: Simple               = .false.
+         logical                                :: Simple               = .false.
+         integer, pointer, dimension(:)         :: BivalveTimeSeriesIndex => null()
+         character(len=Stringlength), pointer, dimension(:) :: BivalveTimeSeriesNames => null()
     end type T_OutPut
 
     type      T_OutW
@@ -4202,13 +4205,19 @@ i1:     if (OutputOk) then
         integer                                             :: nProperties
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
-        integer                                             :: dn, Id, Jd, TimeSerieNumber
+        integer                                             :: dn, Id, Jd, Kd, TimeSerieNumber
         character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: TimeSerieName
         type (T_Polygon), pointer                           :: ModelDomainLimit
-
+        integer                                             :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
+        integer                                             :: i, j, k, Index
+        
         !----------------------------------------------------------------------
 
+        WILB = Me%WorkSize%ILB; WJLB = Me%WorkSize%JLB; WKLB = Me%WorkSize%KLB
+        WIUB = Me%WorkSize%IUB; WJUB = Me%WorkSize%JUB; WKUB = Me%WorkSize%KUB
+
+        
         !First checks out how many properties will have time series
         PropertyX   => Me%FirstProperty
         nProperties =  0
@@ -4308,6 +4317,13 @@ i1:     if (OutputOk) then
             call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR70')
 
+            if(Me%Coupled%Bivalve%Yes)then
+                nullify(Me%Output%BivalveTimeSeriesIndex)
+                nullify(Me%Output%BivalveTimeSeriesNames)
+                allocate(Me%Output%BivalveTimeSeriesIndex(1:TimeSerieNumber))
+                allocate(Me%Output%BivalveTimeSeriesNames(1:TimeSerieNumber))
+            endif
+            
             do dn = 1, TimeSerieNumber
 
                 call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
@@ -4351,6 +4367,7 @@ i1:     if (OutputOk) then
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
                                           LocalizationI   = Id,                             &
                                           LocalizationJ   = Jd,                             &
+                                          LocalizationK   = Kd,                             &
                                           STAT     = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR120')
@@ -4359,6 +4376,36 @@ i1:     if (OutputOk) then
 
                      write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
 
+                endif
+                
+                if(Me%Coupled%Bivalve%Yes)then
+                    
+                    Index = 0
+                    
+                    do k = WKLB, WKUB
+                    do j = WJLB, WJUB
+                    do i = WILB, WIUB
+                    
+                        if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                            
+                            Index = Index + 1
+                            
+                            if(i == Id .and. j == Jd .and. k == Kd)then
+                                Me%Output%BivalveTimeSeriesIndex(dn) = Index
+                                Me%Output%BivalveTimeSeriesNames(dn) = trim(TimeSerieName)
+                            endif
+                        endif
+                    
+                    end do 
+                    end do 
+                    end do 
+                    
+                    call SetBivalveTimeSeries(Me%ObjBivalve,                    &
+                                              Me%Output%BivalveTimeSeriesIndex, &
+                                              Me%Output%BivalveTimeSeriesNames, &
+                                              STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
+                    
                 endif
 
 
@@ -5981,8 +6028,6 @@ do1 :   do while (associated(PropertyX))
 
             endif
             
-            allocate(Me%MacroAlgae%Distribution  (ILB:IUB, JLB:JUB)) !gC/m2
-            Me%MacroAlgae%Distribution   (:,:) = Me%MacroAlgae%DefaultValue
             
             !allocate(Me%MacroAlgae%DistFromTop    (ILB:IUB, JLB:JUB, KLB:KUB))
             !Me%MacroAlgae%DistFromTop     (:,:,:) = 0.
@@ -5994,6 +6039,9 @@ do1 :   do while (associated(PropertyX))
             Me%MacroAlgae%MaxSPMDepFlux  (:,:  ) = 0.
         
         endif
+
+        allocate(Me%MacroAlgae%Distribution  (ILB:IUB, JLB:JUB)) !gC/m2
+        Me%MacroAlgae%Distribution   (:,:) = Me%MacroAlgae%DefaultValue
 
         allocate(Me%MacroAlgae%ShearStress3D (ILB:IUB, JLB:JUB, KLB:KUB))
         Me%MacroAlgae%ShearStress3D  (:,:,:) = FillValueReal
@@ -6025,6 +6073,7 @@ do1 :   do while (associated(PropertyX))
 
             if(PropertyX%ID%IDNumber == MacroAlgae_)then
                 
+                
                 if(Me%MacroAlgae%AttachedToTheBottom)then
 
                     if(PropertyX%Old)then
@@ -6033,6 +6082,10 @@ do1 :   do while (associated(PropertyX))
                         call ComputeMacroAlgaeOccupation
                         call DistributeMacroAlgae
                     end if
+                    
+                else
+                    
+                    call IntegrateMacroAlgae(PropertyX)
                     
                 endif
 
@@ -15603,10 +15656,9 @@ cd5:                if (TotalVolume > 0.) then
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         call CloseAllAndStop ('MacroAlgae_Processes - ModuleWaterProperties - ERR03')
 
-                    if(PropertyX%ID%IDNumber == MacroAlgae_ .and. Me%MacroAlgae%AttachedToTheBottom)then
+                    if(PropertyX%ID%IDNumber == MacroAlgae_)then
                        
-
-                        !Integrate macroalgae distribution in the water column in to kgC/m2
+                        !Integrate macroalgae distribution in the water column in to gC/m2
                         call IntegrateMacroAlgae(PropertyX)
 
                     end if
@@ -20430,7 +20482,7 @@ dn:         do n=1, nCells
 
                                             if (.not. Me%TempFirstTimeWarning) then
                                                 call SetError(WARNING_, INTERNAL_, &
-                                       "Positive discharge without user defined concentration - discharge temperature = inside temperature", ON)
+                                       "Positive discharge without user defined concentration - temp = inside temp", ON)
                                        !"Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
                                                 Me%TempFirstTimeWarning = .true.
                                             endif
@@ -22901,7 +22953,7 @@ sp3:                if (.not. SimpleOutPut) then
                 endif
             endif
 
-            if (Me%Coupled%MacroAlgae%Yes .and. Me%MacroAlgae%AttachedToTheBottom .and. .not. SimpleOutPut)then
+            if (Me%Coupled%MacroAlgae%Yes .and. .not. SimpleOutPut)then
 
                 call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
