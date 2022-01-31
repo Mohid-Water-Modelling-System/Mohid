@@ -35,7 +35,7 @@
 !   NITROGEN            : 0/1           [0]
 !   PHOSPHORUS          : 0/1
 !   DRIFTING            : 0/1                           !If drifting macroalgae is computed
-!   DETTACHMENT_METHOD  : 1/2/3                         ! 1-None 2-BottomShearStress 3-Velocity 
+!   DETTACHMENT_METHOD  : 1/2/3                         ! 1-None 2-Velocity 3-BottomShearStress 
     
 !<begin_macroalgae>
 !   GROWMAX             : real          [0.4]           !macroalgae maximum growth rate
@@ -1064,7 +1064,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !natural mortality
         !grazing
         !zone
-        nParameters = 13
+        nParameters = 14
 
         !Allocates with 2nd dimension size = 2
         !if J = 1 Attached Macroalgae
@@ -1365,7 +1365,11 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     
                 case(CarrCapLim_)
 
-                    RateFlux => Me%Parameters(:, SecondProp, MA_CarrCapFact_   )                    
+                    RateFlux => Me%Parameters(:, SecondProp, MA_CarrCapFact_   )  
+                    
+                case(NetProd_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_NetFact_   )  
 
                 case default
 
@@ -1612,6 +1616,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real                                        :: SaltLimitingFactor 
         real                                        :: CarrCapacityLimitingFactor, MacroDensity
         real                                        :: MacAlgGrossGrowRate        
+        real                                        :: MacAlgNetGrowRate        
         real                                        :: s1,s2, ya, yb, xa, xb
         real                                        :: sx, exp_salt
         real                                        :: MacAlgNonGrazingMortalityRate
@@ -1961,8 +1966,19 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 Me%Parameters(Index, MA, MA_LLimFact_   ) = LightLimitingFactor     * Me%DT
                 Me%Parameters(Index, MA, MA_SLimFact_   ) = SaltLimitingFactor      * Me%DT
                 Me%Parameters(Index, MA, MA_CarrCapFact_) = CarrCapacityLimitingFactor  * Me%DT
+                
+                !Compute net growth
+                MacAlgNetGrowRate = MacAlgGrossGrowRate                    - &
+                                    MacAlgRespirationRate                  - &
+                                    MacAlgExcretionRate                    - &
+                                    MacAlgNonGrazingMortalityRate          - &
+                                    Parameters%GrazCons                  
+                
+                Me%Parameters(Index, MA, MA_NetFact_  )  = MacAlgNetGrowRate              * &
+                                                           MacroAlgaeMassOld     * Me%DT  
 
-
+                
+                 
                 !New macroalgae mass (kg = kg + day-1 * kg * day)
                 Me%ExternalVar%Mass(MA, Index)      = Me%ExternalVar%Mass(MA, Index)        + &
                                                      (MacAlgGrossGrowRate                   - &
@@ -1971,7 +1987,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                                       MacAlgNonGrazingMortalityRate         - &
                                                       Parameters%GrazCons)                  * &
                                                       MacroAlgaeMassOld                     * &
-                                                      Me%DTDay             
+                                                      Me%DTDay  
                 
                 if (Me%ComputeOptions%Nitrogen)then
 

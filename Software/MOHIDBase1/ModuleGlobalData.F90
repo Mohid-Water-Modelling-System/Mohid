@@ -835,6 +835,7 @@ Module ModuleGlobalData
     integer, parameter :: MA_Grazing_                       = 11
     integer, parameter :: MA_Condition_                     = 12
     integer, parameter :: MA_CarrCapFact_                   = 13
+    integer, parameter :: MA_NetFact_                       = 14
 
     integer, parameter :: ConsolidationFlux_                = 9000
     integer, parameter :: Porosity_                         = 9001
