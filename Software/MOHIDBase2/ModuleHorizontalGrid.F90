@@ -37,7 +37,7 @@ Module ModuleHorizontalGrid
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
                                   AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
-                                  SphericalToCart
+                                  SphericalToCart, PolygonBoundGridCurv
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -3463,6 +3463,10 @@ BF:     if (BlockFound) then
 
                 Me%XX_IE(ii, jj) = AuxReal(1)
                 Me%YY_IE(ii, jj) = AuxReal(2)
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                endif                
 
             end do
             end do
@@ -3496,7 +3500,6 @@ BF:     if (BlockFound) then
                 endif
                 
                 if (Me%XX_IE(ii, jj) < FillValueReal/2) then
-                    Me%GhostCorners = .true. 
                     Cycle
                 endif
 
@@ -4076,8 +4079,8 @@ BF1:    if (Me%ReadCartCorners) then
 
             Me%Distortion      = .true.
 
-djj:        do jj = Me%WorkSize%JLB, Me%WorkSize%JUB
-dii:        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB
+djj:        do jj = Me%WorkSize%JLB, Me%WorkSize%JUB + 1
+dii:        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB + 1
                 
                 if (Me%XX_IE(ii, jj) < FillValueReal/2) then
                     Me%GhostCorners = .true. 
@@ -5312,6 +5315,7 @@ Inp:    if (Me%CornersXYInput) then
         logical, optional, intent(IN)               :: Outer
 
         !Local-----------------------------------------------------------------
+        real,   dimension(:), pointer               :: XX1D, YY1D
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: Nvert, i, j, di
         logical                                     :: Outer_
@@ -5331,7 +5335,7 @@ Inp:    if (Me%CornersXYInput) then
 
 
         if      (GridBorder%Type_ == ComplexPolygon_) then
-
+            
             Nvert = 0
 
             Nvert = 2*(IUB-ILB+1)
@@ -5355,11 +5359,13 @@ Inp:    if (Me%CornersXYInput) then
         !The last vertix equal to the first
         Nvert = Nvert + 1
 
-
+        if (Me%GhostCorners) then
+            call PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, Nvert)
+        endif
 
         allocate(GridBorder%Polygon_)
         allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
-
+        
 
         if (Outer_) then
             di = 0
@@ -5367,60 +5373,70 @@ Inp:    if (Me%CornersXYInput) then
             di = 1
         endif
 
-        if      (GridBorder%Type_ == ComplexPolygon_) then
+        if (Me%GhostCorners) then 
 
-            GridBorder%Polygon_%Count = 0
-
-            !West boundary
-            do i = ILB + di, IUB-di
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+di)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+di)
-            enddo
-
-            !North boundary
-            do j = JLB+di, JUB-di + 1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB+1-di, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB+1-di, j)
-            enddo
-
-            !East boundary
-            do i =  IUB-di, ILB + di, -1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB+1-di)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB+1-di)
-            enddo
-
-
-            !South boundary
-            do j =  JUB-di, JLB+di, -1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+di, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
-            enddo
-
-!        else if (GridBorder%Type_ == RotatedRectang_) then
+            GridBorder%Polygon_%Count = Nvert
+            GridBorder%Polygon_%VerticesF(1:Nvert)%X = XX1D(1:Nvert)
+            GridBorder%Polygon_%VerticesF(1:Nvert)%Y = YY1D(1:Nvert)
 
         else
 
-            GridBorder%Polygon_%Count = Nvert
+            if      (GridBorder%Type_ == ComplexPolygon_) then
 
-            GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+di,     JLB+di)
-            GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+di,     JLB+di)
+                GridBorder%Polygon_%Count = 0
+
+                !West boundary
+                do i = ILB + di, IUB-di
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+di)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+di)
+                enddo
+
+                !North boundary
+                do j = JLB+di, JUB-di + 1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB+1-di, j)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB+1-di, j)
+                enddo
+
+                !East boundary
+                do i =  IUB-di, ILB + di, -1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB+1-di)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB+1-di)
+                enddo
 
 
-            GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+di,     JUB+1-di)
-            GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+di,     JUB+1-di)
+                !South boundary
+                do j =  JUB-di, JLB+di, -1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+di, j)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
+                enddo
 
-            GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB+1-di,   JUB+1-di)
-            GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB+1-di,   JUB+1-di)
+    !        else if (GridBorder%Type_ == RotatedRectang_) then
 
-            GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
-            GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
+            else
 
-            !Last vertex equal to first
-            GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
+                GridBorder%Polygon_%Count = Nvert
+
+                GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+di,     JLB+di)
+                GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+di,     JLB+di)
+
+
+                GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+di,     JUB+1-di)
+                GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+di,     JUB+1-di)
+
+                GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB+1-di,   JUB+1-di)
+                GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB+1-di,   JUB+1-di)
+
+                GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
+                GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
+
+                !Last vertex equal to first
+                GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
+
+            endif
 
         endif
 
@@ -10300,19 +10316,20 @@ cd3 :       if (present(SurfaceMM5)) then
                 Me%WorkSize%ILB, Me%WorkSize%IUB,           &
                 Me%WorkSize%JLB, Me%WorkSize%JUB,           &
                 I, J, CellLocated, Iold_, Jold_)
-
+            
                 
 
             if (I < 0 .or. J < 0  .or. .not. CellLocated) then
                 STAT_ = OUT_OF_BOUNDS_ERR_
             endif
             
-            if (associated(XX2D) .and. j <= Me%WorkSize%JUB .and. j >= Me%WorkSize%JLB .and. i <= Me%WorkSize%IUB .and. i >= Me%WorkSize%ILB) then
+            if (associated(XX2D) .and. j <= Me%WorkSize%JUB .and. j >= Me%WorkSize%JLB  &
+                                 .and. i <= Me%WorkSize%IUB .and. i >= Me%WorkSize%ILB) then
                 
-                SumX = XX2D(i, j) +  XX2D(i+1, j) + XX2D(i, j+1) + XX2D(i+1,j+1) 
-
+                SumX = XX2D(i, j) +  XX2D(i+1, j) + XX2D(i, j+1) + XX2D(i+1,j+1)                 
+                
                 if (SumX < FillValueReal/2.) then
-                STAT_ = OUT_OF_BOUNDS_ERR_
+                    STAT_ = OUT_OF_BOUNDS_ERR_
                 endif
                 
             else
@@ -10328,10 +10345,10 @@ cd3 :       if (present(SurfaceMM5)) then
                 if (present(PercI) .and. present(PercJ)) then
                     call RelativePosition4VertPolygon(                                  &
                         Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
-                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
-                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
-                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
-                        Xe = XPoint,         Ye = YPoint,         &
+                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1),                       &
+                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ),                       &
+                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1),                       &
+                        Xe = XPoint,         Ye = YPoint,                               &
                         Xex= PercJ,          Yey= PercI)
                 end if
             end if
@@ -10352,11 +10369,11 @@ cd3 :       if (present(SurfaceMM5)) then
                 YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
             end if
             
-            call LocateCell (XX1D_Aux,                                           &
-                YY1D_Aux,                                           &
-                XPoint2, YPoint2,                                      &
-                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
-                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
+            call LocateCell (XX1D_Aux,                                                  &
+                YY1D_Aux,                                                               &
+                XPoint2, YPoint2,                                                       &
+                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                                   &
+                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                                   &
                 I, J)
 
             if (present(PercI)) then
@@ -10484,11 +10501,11 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 call LocateCellPolygons(XX2D,                                           &
                                         YY2D,                                           &
-                                        XPoint, YPoint, LocalMe%DefineCellsMap,              &
+                                        XPoint, YPoint, LocalMe%DefineCellsMap,         &
 !                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
 !                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
-                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB,           &
-                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB,           &
+                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB,     &
+                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB,     &
                                         I, J, CellLocated)
 
                 if (I < 0 .or. J < 0 .or. .not. CellLocated) then
@@ -10765,7 +10782,7 @@ iR:         if (Referential_ == GridCoord_) then
                     YY2D        => Me%YY_IE
 
                 endif
-
+                
 
                 if (Me%GridBorderCoord%Type_ == Rectang_) then
                     if (XPoint >= XX2D(ILB+1, JLB+1) .and. XPoint <= XX2D(IUB, JUB) .and. &
@@ -10776,12 +10793,12 @@ iR:         if (Referential_ == GridCoord_) then
                     endif
 
                 else
-
-                    if (Me%GhostCorners) then
-                        GetXYInsideDomain = .false. 
-                    else
-                    GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
-                    endif
+                    
+!                    if (Me%GhostCorners) then
+!                        GetXYInsideDomain = .false. 
+!                    else
+                        GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+!                    endif
                 endif
 
 
