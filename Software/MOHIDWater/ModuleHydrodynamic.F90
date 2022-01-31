@@ -32055,6 +32055,7 @@ cd3:                   if (Manning) then
                                Me%Velocity%Horizontal%UV%New,                   &
                                Me%External_Var%Volume_UV,                       &
                                Me%External_Var%KFloor_UV,                       &
+                               Me%External_Var%KFloor_VU,                       &
                                Me%External_Var%Density)
 
         !Effect of a scraper in a settling tank

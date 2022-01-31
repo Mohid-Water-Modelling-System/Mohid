@@ -9328,7 +9328,7 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                         
                         !if it's not a property it can be a rate ID number 
                         case(GrossProd_, NutrientLim_, NLim_, PLim_, LightLim_, TemperatureLim_, SalinityLim_, &
-                             Excretion_, Respiration_, NaturalMort_, Grazing_, MACondition_, CarrCapLim_) 
+                             Excretion_, Respiration_, NaturalMort_, Grazing_, MACondition_, CarrCapLim_, NetProd_) 
 
                             nProperty = PropertyID 
 
