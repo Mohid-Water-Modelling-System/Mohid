@@ -447,6 +447,7 @@
         real                             :: kappa              = null_real !adim, allocation fraction to growth/SomMaintenace
         real                             :: kap_R              = null_real !adim, reproduction efficiency
         real                             :: pM                 = null_real !J/(d.cm3), volume specific somatic maintenace
+        real                             :: kJ                 = null_real !J/(d.cm3), volume specific maturity maintenace
         real                             :: EG                 = null_real !J/cm3(volumetric), energy costs for structure
         real                             :: EHb                = null_real !J, maturity threshold for birth
         real                             :: EHp                = null_real !J, maturity threshold for puberty
@@ -488,7 +489,6 @@
         real                             :: MHp               = null_real !molC, maturity threshold for puberty
         real                             :: y_VE              = null_real !molCV/molCE,yield coefficient of struc on reser
         real                             :: kM                = null_real !/d, somatic maintenace rate coefficient
-        real                             :: kJ                = null_real !/d, maturity maintenace rate coefficient
         real                             :: Lm                = null_real !cm, maximum length of the species
         real                             :: f                 = null_real !adim, food limitation
         
@@ -761,7 +761,7 @@
         logical                              :: LackOfFood                    = .false.
         integer, pointer, dimension(:)       :: PropertyList                  => null()
         integer                              :: nPropertiesFromBivalve        = 0
-        integer                              :: nCohortProperties             = 7              !Each cohort has 7 associated properties
+        integer                              :: nCohortProperties             = 7          !Each cohort has 7 associated properties
         real                                 :: MinNumber                     = null_real
         integer, pointer, dimension(:)       :: ListDeadIDs                   => null()
         integer                              :: nLastDeadID                   = 0
@@ -2541,6 +2541,19 @@ do1:        do while (associated(ObjCohort%Next))
 
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR16'
+
+                    
+        !J/(d.cm3), volume specific maturity maintenace energy flux
+        call GetData(IndividualParameters%kJ                , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'kJ'                     , &
+                    default      = 1.91e-4                  , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR161'
 
         !J/cm3(volumetric), energy costs for structural volume growth (Saraiva etal., inpress)
         call GetData(IndividualParameters%EG                , &
@@ -5861,8 +5874,8 @@ d1:         do while(associated(Species))
         !kM, d-1, somatic maintenance rate coefficient
         Species%AuxiliarParameters%kM   = pM / EG         
 
-        !kJ, d-1, maturity maintenance rate coefficient
-        Species%AuxiliarParameters%kJ   = Species%AuxiliarParameters%kM
+        !!kJ, d-1, maturity maintenance rate coefficient
+        !Species%AuxiliarParameters%kJ   = Species%AuxiliarParameters%kM
 
         !Lm, cm, maximum length of the species
         if (pM .gt. 0.0) then
@@ -7895,7 +7908,7 @@ d2:         do while(associated(Cohort))
 
         MHp     = Species%AuxiliarParameters%MHp  
         MHb     = Species%AuxiliarParameters%MHb  
-        kJ      = Species%AuxiliarParameters%kJ
+        kJ      = Species%IndividualParameters%kJ
         TempCorrection = Species%AuxiliarParameters%TempCorrection         
 
         Vol     = Cohort%BivalveCondition%Vol
@@ -8065,7 +8078,7 @@ d2:         do while(associated(Cohort))
         MEb            = Species%IndividualParameters%MEb
         MVb            = Species%IndividualParameters%MVb
 
-        kJ             = Species%AuxiliarParameters%kJ 
+        kJ             = Species%IndividualParameters%kJ 
         GSR            = Cohort%BivalveCondition%GSR 
 
         if(Me%SpawningAllowed)then
