@@ -308,6 +308,7 @@ Module ModuleBasin
         character(len=PathLength)                   :: TimeSerieLocation      = null_str
         character(len=PathLength)                   :: BWBTimeSeriesLocation  = null_str
         character(len=PathLength)                   :: IntegrationTimeSeriesLocation  = null_str
+        character(len=PathLength)                   :: BasinLogFile           = null_str
     end type T_Files
 
     type T_IntegratedFlow
@@ -524,6 +525,7 @@ Module ModuleBasin
         logical                                     :: StopOnWrongDate      = .true.
         logical                                     :: VerifyGlobalMass     = .false.
         logical                                     :: VerifyAtmosphereValues = .true.
+        logical                                     :: OutputBasinLogFile   = .false.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
         logical                                     :: EvapFromWaterColumn  = .false.
@@ -897,6 +899,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call HDF5OutPut       
             endif
             
+            if (VariableDT) then 
+                call ComputeNextDT(Me%CurrentDT)
+            endif
+            
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ConstructBasin'
@@ -1092,6 +1098,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR063'        
         
         endif
+
+        call GetData(Me%OutputBasinLogFile,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_BASIN_LOG_FILE',                            &
+                     ClientModule = 'ModuleBasin',                                      &
+                     Default      = .false. ,                                           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR064'     
+
         
         !Calibrating 1D column?
         call GetData(Me%Calibrating1D,                                                   &
@@ -2443,7 +2459,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         
         !Time Serie of properties variable in the Basin 
-        i = 7
+        i = 9
         if (Me%Coupled%SCSCNRunoffModel) then
              i = i + 2
         endif
@@ -2481,12 +2497,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         PropertyList(5)  = 'Throughfall Rate [mm/hour]'
         PropertyList(6)  = 'EvapoTranspiration Rate [mm/hour]'
         PropertyList(7)  = 'Water Column Removed [m]'
-        i = 8
+        PropertyList(8)  = 'Accumulated Rainfall [m]' 
+        PropertyList(9)  = 'Accumulated Infiltration [m]' 
+
+        i = 10
         if (Me%Coupled%SCSCNRunoffModel) then
-            PropertyList(i) = 'Actual Curve Vumber [-]' 
+            PropertyList(i) = 'Actual Curve Number [-]' 
             i = i + 1
             PropertyList(i) = '5 Day Accumulated Rain [mm]' 
-            i = i + 1            
+            i = i + 1    
         endif        
         if (Me%Coupled%Vegetation) then
             PropertyList(i) = 'Canopy Capacity [m]'
@@ -6211,7 +6230,7 @@ cd0:    if (Exist) then
                     previousInDayRain = Me%SCSCNRunOffModel%DailyAccRain (i, j) 
                     
                     !mm  =              m                  * mm/m
-                    rain = Me%ThroughFall (i, j) * 1000
+                    rain = Me%ThroughFall (i, j) * 1000.0
                     
                     !               mm                 =                 mm                 +  mm
                     Me%SCSCNRunOffModel%DailyAccRain (i, j) = Me%SCSCNRunOffModel%DailyAccRain (i, j) + rain
@@ -6242,7 +6261,7 @@ cd0:    if (Exist) then
                         endif                        
                     endif
                     
-                    Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254
+                    Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254.0
                     
                     !When converting Curve Numbers (at the beggining) do not need to convert also S
                     !This conversion could be done but this one is for inches (not SI)
@@ -6298,7 +6317,7 @@ cd0:    if (Exist) then
                     Me%AccEVTP          (i, j)    = 0.0      
                 
                     !Output mm/h = m/s * 1E3 mm/m * 3600 s/hour
-                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600
+                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600.0
                 
                     !m - Accumulated Infiltration of the entite area
                     Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
@@ -8586,16 +8605,28 @@ cd0:    if (Exist) then
                              STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR070'
 
+        call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                            Data2D_8     = Me%AccRainFall,                      &                             
+                            STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR071'   
+
+        call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                            Data2D_8     = Me%AccInfiltration,                  &                             
+                            STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR072'   
+
+
         if (Me%Coupled%SCSCNRunoffModel) then 
-            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
-                                 Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber, &                             
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                         &
+                                 Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber,   &                             
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR075'      
             
-            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
-                                 Data2D_8    = Me%SCSCNRunOffModel%Current5DayAccRain, &                             
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                         &
+                                 Data2D_8    = Me%SCSCNRunOffModel%Current5DayAccRain,  &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR076'               
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR076' 
+  
         endif
         
         if (Me%Coupled%Vegetation) then
@@ -10283,7 +10314,7 @@ cd0:    if (Exist) then
 
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers           
-        integer                             :: STAT_CALL     
+        integer                             :: STAT_CALL  
         type(T_BasinProperty),  pointer     :: PropertyX => null()
         logical                             :: IsFinalFile
 
@@ -10309,6 +10340,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
+
+                if(Me%OutputBasinLogFile)then
+                    call WriteOutputBasinLogFile
+                endif
 
                 if (Me%Coupled%Irrigation) then
 
@@ -10493,6 +10528,80 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !------------------------------------------------------------------------
 
     end subroutine KillBasin
+
+    !----------------------------------------------------------------------------
+
+    subroutine WriteOutputBasinLogFile
+        
+        !Local-------------------------------------------------------------------
+        integer                             :: STAT_CALL, BasinLogFileID, i, j, nCells
+        character(len=PathLength)           :: RootSRT
+        real                                :: AverageCumulativeInfiltration = 0
+        real                                :: AverageCumulativeInfiltrationVolume = 0
+
+        !------------------------------------------------------------------------
+
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR01'
+
+        call GetGridCellArea(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR02'
+
+
+        AverageCumulativeInfiltration       = 0
+        AverageCumulativeInfiltrationVolume = 0
+        nCells                              = 0
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                ![m]                          = [m] + [m]
+                AverageCumulativeInfiltration = AverageCumulativeInfiltration + Me%AccInfiltration(i,j)
+                
+                ![m3]                         = [m3] + [m] * [m2]
+                AverageCumulativeInfiltrationVolume = AverageCumulativeInfiltrationVolume + &
+                                                      Me%AccInfiltration(i,j) * Me%ExtVar%GridCellArea(i,j)
+
+                nCells = nCells + 1
+            endif
+        enddo
+        enddo 
+
+        if(nCells > 0)then
+            AverageCumulativeInfiltration       = AverageCumulativeInfiltration       / real(nCells)
+            AverageCumulativeInfiltrationVolume = AverageCumulativeInfiltrationVolume / real(nCells) 
+        endif
+
+        call ReadFileName('ROOT_SRT', RootSRT, Message = "Mass Error File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR010'
+        Me%Files%BasinLogFile = trim(adjustl(RootSRT))//"Basin.log"
+
+        call UnitsManager(BasinLogFileID, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR015'
+
+        open(UNIT = BasinLogFileID, FILE = trim(Me%Files%BasinLogFile), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR020'
+                    
+        write(BasinLogFileID, *)"------------------------ MOHID LAND-----------------------"
+        write(BasinLogFileID, *)"----------------------- BASIN STATS ----------------------"
+        write(BasinLogFileID, *)
+
+        write(BasinLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_IN_METERS            : ", AverageCumulativeInfiltration
+        write(BasinLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_VOLUME_IN_M3         : ", AverageCumulativeInfiltrationVolume
+        write(BasinLogFileID, *)
+        write(BasinLogFileID, *)"----------------------- BASIN STATS ----------------------"
+                
+        call UnitsManager(BasinLogFileID, CLOSE_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR030'
+
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR040'
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR050'
+
+
+    end subroutine WriteOutputBasinLogFile
 
     !----------------------------------------------------------------------------
     
