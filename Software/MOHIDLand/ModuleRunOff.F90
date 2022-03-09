@@ -4181,18 +4181,10 @@ do2:        do
 
             endif
                         
-            if (SpatialEmission /= DischPoint_) then            
             
-                call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
+            call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
             
-            !else
-            !    if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
-            !        call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
-            !        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
-            !    endif
-            !    deallocate(VectorI, VectorJ, VectorK)
-            endif
 
         enddo
         
