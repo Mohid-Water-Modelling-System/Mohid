@@ -263,7 +263,8 @@ Module ModuleRunOff
 
     !Destructor
     public  ::  KillRunOff                                                     
-    
+    public  ::      SetBasinStatsToRunOff
+
     !Management
     private ::  ReadLockExternalVar
     private ::  ReadUnLockExternalVar
@@ -488,8 +489,10 @@ Module ModuleRunOff
         logical                                     :: WriteFloodArrivalTime          = .false.
         character(Pathlength)                       :: FloodArrivalTimeFile           = null_str
         real, dimension(:,:), pointer               :: FloodArrivalTime               => null()
-        real                                        :: FloodArrivalWaterColumnLimit   = null_real
-        
+        real                                        :: FloodArrivalWaterColumnLimit   = null_real        
+        real                                        :: TotalFloodedArea               = null_real
+        real                                        :: MaxTotalFloodedArea            = null_real
+
         logical                                     :: TimeSeries                     = .false.
         logical                                     :: TimeSerieDischON               = .false. 
         integer                                     :: DischargesNumber               = null_int 
@@ -499,6 +502,7 @@ Module ModuleRunOff
         type (T_Time)                               :: NextOutPutDisch    
         real                                        :: OutPutDischDT
         character(len=PathLength)                   :: TimeSerieLocationFile, DiscTimeSerieLocationFile
+
         
     end type T_OutPutRunOff
 
@@ -749,12 +753,21 @@ Module ModuleRunOff
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
-        real(8)                                     :: TotalDischargeFlowVolume  = 0.0        
+        real(8)                                     :: TotalDischargeFlowVolume  = 0.0  
+        real(8)                                     :: TotalBoundaryFlowVolume   = 0.0     
+        real(8)                                     :: TotalInfiltrationVolume   = 0.0     
+        real(8)                                     :: TotalRainfallVolume       = 0.0  
+        real(8)                                     :: TotalStoredVolume         = 0.0
+        real                                        :: InitialTotalVolume        = 0.0
+        real                                        :: TotalStormWaterVolume     = 0.0
+        real(8)                                     :: AvrgAccInfiltrationDepth  = 0.0   
+        real(8)                                     :: AvrgAccInfiltrationVolume = 0.0   
+   
         
         logical                                     :: Continuous          = .false.
         logical                                     :: StopOnWrongDate     = .true.
         
-        real(8)                                     :: TotalStoredVolume  = 0.
+
         integer                                     :: BasinCellsCount    = 0
 
         !Grid size
@@ -926,6 +939,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
             call CalculateTotalStoredVolume
+
+            Me%InitialTotalVolume = Me%TotalStoredVolume
 
             !Output Results
             if (Me%OutPut%Yes .or. Me%OutPut%TimeSeries) then
@@ -3855,6 +3870,7 @@ do2:        do
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                     Me%myWaterLevel(i, j)       = Me%InitialWaterColumn(i,j) + Me%ExtVar%Topography(i, j)
                     Me%MyWaterColumn(i, j)      = Me%InitialWaterColumn(i,j)
+                    Me%myWaterVolume(i, j)      = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
                     Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
                     Me%StabilityPoints(i, j)    = 1
                 endif
@@ -3873,6 +3889,7 @@ do2:        do
                         Me%myWaterLevel(i, j)   = Me%ExtVar%Topography(i, j)
                         Me%MyWaterColumn(i, j)  = 0.0
                     endif
+                    Me%myWaterVolume(i, j)      = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
                     Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
                     Me%StabilityPoints(i, j)    = 1
                 endif
@@ -4659,6 +4676,8 @@ do2:        do
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
+        Me%TotalStormWaterVolume = 0.0
+
         if (Me%StormWaterModel .and. Me%ObjDrainageNetwork /= 0) then
             write(*,*)'It is not possible to activate 1D Drainage Network and SWMM at the same time'
             stop 'ConstructSewerStormWater - ModuleRunOff - ERR01'            
@@ -4947,7 +4966,8 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                         if(IsOpenChannel == 1)then
                             write(*,*)
                             write(*,*)"Cross section nodes cannot be located in active grid cell"
-                            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR180' 
+                            write(*,*)"Node name = ", trim(adjustl(Me%NodesNames(n)))
+                            stop 'ConstructSewerGEMS - ModuleRunOff - ERR180' 
                         else
                             !Check inlet name and set inlet node index
                             if(ValidateInlet(Me%NodesNames(n), Me%NodesID(n)) > 0)then !if not inlet returns null_int (-999999)
@@ -5966,7 +5986,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            !call Read_Lock(mRUNOFF_, Me%InstanceID)
             Volume = Me%TotalDischargeFlowVolume
 
             STAT_ = SUCCESS_
@@ -6452,6 +6471,49 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_
                     
     end subroutine SetBasinColumnToRunoff
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetBasinStatsToRunoff(ObjRunOffID, TotalCumulativeRainfallVolume,        &
+                                                  TotalCumulativeInfiltrationVolume,    &
+                                                  AverageCumulativeInfiltrationVolume,  &
+                                                  AverageCumulativeInfiltrationDepth,   &
+                                                  STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real(8)                                         :: TotalCumulativeRainfallVolume
+        real(8)                                         :: TotalCumulativeInfiltrationVolume
+        real(8)                                         :: AverageCumulativeInfiltrationVolume
+        real(8)                                         :: AverageCumulativeInfiltrationDepth
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+
+        call Ready(ObjRunOffID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_)) then
+        
+            Me%TotalRainfallVolume          = TotalCumulativeRainfallVolume
+            Me%TotalInfiltrationVolume      = TotalCumulativeInfiltrationVolume
+            Me%AvrgAccInfiltrationVolume    = AverageCumulativeInfiltrationVolume
+            Me%AvrgAccInfiltrationDepth     = AverageCumulativeInfiltrationDepth
+            
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+                    
+    end subroutine SetBasinStatsToRunoff
 
     !--------------------------------------------------------------------------
 
@@ -8980,6 +9042,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Get SewerGEMS SWMM flow out of manhole
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Manholes(n)%NodeIndex, Me%Manholes(n)%Outflow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
             
             WaterColumn = Max(Me%MyWaterColumn(Me%Manholes(n)%I, Me%Manholes(n)%J) - Me%MinimumWaterColumn, 0.0)
 
@@ -8992,7 +9056,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Get SewerGEMS SWMM flow in or out of inlet
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Inlets(n)%NodeIndex, Me%Inlets(n)%EffectiveFlow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR03a'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
                 
             WaterColumn = Max(Me%MyWaterColumn(Me%Inlets(n)%I, Me%Inlets(n)%J) - Me%MinimumWaterColumn, 0.0)
             
@@ -9014,6 +9080,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_getOutflowByNode(Me%Outfalls(n)%NodeIndex, Me%Outfalls(n)%Flow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR05'
 
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+
             WaterLevel =  Me%myWaterLevel(Me%Outfalls(n)%I, Me%Outfalls(n)%J)
             
             !Set 2D water level over outfall node to SewerGEMS SWMM 
@@ -9031,6 +9099,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%NodeRiverLevel(Me%CrossSections(n)%I, Me%CrossSections(n)%J) = Me%CrossSections(n)%WaterLevel
 
             Me%CrossSections(n)%Flow = Me%iFlowToChannels(Me%CrossSections(n)%I, Me%CrossSections(n)%J)
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%CrossSections(n)%Flow * Me%ExtVar%DT
             
             !Set 2D flow to/from cross section node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%CrossSections(n)%NodeIndex, Me%CrossSections(n)%Flow)
@@ -9053,6 +9123,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
                 !write(*,*)"Pond outflow = ", Me%Ponds(n)%Flow
 
+                Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Ponds(n)%Flow * Me%ExtVar%DT
+
                 Me%Ponds(n)%Flow = Me%Ponds(n)%Flow/Me%Ponds(n)%nCells
 
                 do cell = 1, Me%Ponds(n)%nCells
@@ -9060,7 +9132,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     !Updates Water Volume
                     Me%myWaterVolume (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))    =    &
                         Me%myWaterVolume (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) +   &
-                        Me%Ponds(n)%Flow * Me%StormWaterModelDT 
+                        Me%Ponds(n)%Flow * Me%ExtVar%DT 
                     
                     !Updates Water Column
                     Me%myWaterColumn  (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))   =     &
@@ -9091,15 +9163,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             Flow  = 0.4 * CellWidth  * sqrt(2.0 * Gravity) * (Me%myWaterColumn (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))**1.5)
 
                             Me%Ponds(n)%Flow  = Me%Ponds(n)%Flow +  min(Flow, (Me%myWaterColumn (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) - Me%MinimumWaterColumn) * &
-                                            Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%StormWaterModelDT,     &
+                                            Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%ExtVar%DT,     &
                                         (Me%myWaterLevel (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) - Me%Ponds(n)%WaterLevel) / 2.0 * &
-                                        Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%StormWaterModelDT)
-                           
+                                        Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%ExtVar%DT)
+
                         endif
 
                     endif
 
                 enddo
+
+                Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Ponds(n)%Flow * Me%ExtVar%DT
 
                 STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%Flow)
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
@@ -9128,7 +9202,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: InletInflow
+        real                                        :: InletInflow, FlowEnteringCell
         real                                        :: AverageCellLength, y0, dH1, dH2
         integer                                     :: n, iStage
 
@@ -9143,7 +9217,15 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
             i = Me%Inlets(n)%I
             j = Me%Inlets(n)%J
-                
+
+            FlowEnteringCell = 0.0
+
+            !Compute flow entering grid cell 
+            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,j)
+            if(Me%iFlowX(i,j+1) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,j)
+            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,j)
+            if(Me%iFlowX(i+1,j) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,j)
+
             if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
                     
                 if(Me%Inlets(n)%TypeOf == Weir_)then
@@ -9166,8 +9248,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     
                 elseif(Me%Inlets(n)%TypeOf == FlowCapture_)then
                     
-                    if(Me%FlowModulus(i, j) > 0.0)then
-                        InletInflow = Me%FlowModulus(i, j) * Me%Inlets(n)%FlowCaptureFraction
+                    if(FlowEnteringCell > 0.0)then
+                        InletInflow = FlowEnteringCell * Me%Inlets(n)%FlowCaptureFraction
                     else
                         InletInflow = 0.0
                     end if
@@ -9201,23 +9283,23 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 elseif(Me%Inlets(n)%TypeOf == FlowFlowRatingCurve_)then
 
-                    if    (Me%FlowModulus(i, j) < Me%Inlets(n)%RatingCurveStage(1))then
+                    if    (FlowEnteringCell < Me%Inlets(n)%RatingCurveStage(1))then
                         !if lower than minimum stage then set to minimum flow
                         InletInflow = Me%Inlets(n)%RatingCurveBelowMin
-                    elseif(Me%FlowModulus(i, j) > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
+                    elseif(FlowEnteringCell > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
                         !if higher than maximum stage then set to maximum flow
                         InletInflow = Me%Inlets(n)%RatingCurveAboveMax
                     else
                         !if within stage levels average the flow
                         iStage = 2 !start at second stage level
                         do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
-                            if(Me%FlowModulus(i, j) .le. Me%Inlets(n)%RatingCurveStage(iStage))then
+                            if(FlowEnteringCell .le. Me%Inlets(n)%RatingCurveStage(iStage))then
                                 exit
                             endif
                         enddo
 
-                        dH1 = Me%FlowModulus(i, j) - Me%Inlets(n)%RatingCurveStage(iStage-1) 
-                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - Me%FlowModulus(i, j)
+                        dH1 = FlowEnteringCell - Me%Inlets(n)%RatingCurveStage(iStage-1) 
+                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - FlowEnteringCell
 
                         InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
                                        dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
@@ -10973,13 +11055,15 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: CHUNK
-        real(8)                                     :: sum
+        real(8)                                     :: sumDischarge
         
         !----------------------------------------------------------------------
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J) REDUCTION(+:sum)
+        sumDischarge = Me%TotalDischargeFlowVolume
+
+        !$OMP PARALLEL PRIVATE(I,J) 
 
         !Integrates along X Directions
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -11013,36 +11097,36 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             !$OMP END DO NOWAIT
         endif
         
-        !Integrates Flow At boundary
-!        if (Me%ImposeBoundaryValue) then
-!           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-!            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-!            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-!                Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
-!                                         (SumDT + LocalDT)
-!            enddo
-!            enddo
-!            !$OMP END DO NOWAIT
-!        endif
+        !Integrates Flow At boundary 
+        !if (Me%ImposeBoundaryValue) then
+        !   !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sumBoundary)
+        !    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !        Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
+        !                                 (SumDT + LocalDT)
+        !
+        !        sumBoundary = sumBoundary + (Me%iFlowBoundary(i, j) * LocalDT)
+        !    enddo
+        !    enddo
+        !    !$OMP END DO NOWAIT
+        !endif
 
-        sum = Me%TotalDischargeFlowVolume
         !Integrates Flow Discharges
         if (Me%Discharges) then
-           !$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
+           !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sumDischarge)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB                
                 Me%iFlowDischarge(i, j) = (Me%iFlowDischarge(i, j) * SumDT + Me%lFlowDischarge(i, j) * LocalDT) / &
                                           (SumDT + LocalDT)
-                sum = sum + (Me%lFlowDischarge(i, j) * LocalDT)
+                sumDischarge = sumDischarge + (Me%lFlowDischarge(i, j) * LocalDT)
             enddo
             enddo
             !$OMP END DO NOWAIT
         endif
-        Me%TotalDischargeFlowVolume = sum
 
         !$OMP END PARALLEL        
 
-
+        Me%TotalDischargeFlowVolume = sumDischarge
 
     end subroutine IntegrateFlow
 
@@ -11187,6 +11271,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         
         !Default is zero
         Me%iFlowBoundary = 0.0
+
+        Me%BoundaryFlowVolume = 0.0
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -11244,6 +11330,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         
                     !Updates Water Volume
                     Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
+
+                    Me%BoundaryFlowVolume     = Me%BoundaryFlowVolume + dVol
                         
                     !Updates Water Column
                     Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
@@ -11261,7 +11349,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
         enddo
 
-    
+        Me%TotalBoundaryFlowVolume  = Me%TotalBoundaryFlowVolume + Me%BoundaryFlowVolume
+
     end subroutine ImposeBoundaryValue
     
     !--------------------------------------------------------------------------
@@ -11329,6 +11418,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             endif
         enddo
         enddo
+
+        Me%TotalBoundaryFlowVolume  = Me%TotalBoundaryFlowVolume + Me%BoundaryFlowVolume
 
     
     end subroutine ImposeBoundaryValue_v2       
@@ -12142,6 +12233,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Locals----------------------------------------------------------------
         integer                                 :: ILB,IUB, JLB, JUB, i, j
         integer                                 :: CHUNK
+        real                                    :: Sum
 
         !Begin-----------------------------------------------------------------        
 
@@ -12154,16 +12246,23 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
    
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        Sum   = 0.0
 
         !$OMP PARALLEL PRIVATE(I,J)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sum)
         do j = JLB, JUB
         do i = ILB, IUB
    
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                if(Me%Output%FloodArrivalTime(i, j) < 0.0 .and. &
-                   Me%myWaterColumn(i, j) > Me%Output%FloodArrivalWaterColumnLimit)then
-                    Me%Output%FloodArrivalTime(i, j) = Me%ExtVar%Now - Me%BeginTime
+
+                if(Me%myWaterColumn(i, j) > Me%Output%FloodArrivalWaterColumnLimit)then
+
+                    Sum = Sum + Me%ExtVar%GridCellArea(i,j)
+
+                    if(Me%Output%FloodArrivalTime(i, j) < 0.0)then
+                        Me%Output%FloodArrivalTime(i, j) = Me%ExtVar%Now - Me%BeginTime
+                    endif
                 endif
             endif
 
@@ -12171,6 +12270,12 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        Me%Output%TotalFloodedArea = Sum
+
+        if(Me%Output%TotalFloodedArea > Me%Output%MaxTotalFloodedArea)then
+            Me%Output%MaxTotalFloodedArea = Me%Output%TotalFloodedArea
+        endif
 
     end subroutine OutputFloodArrivalTime
 
@@ -12274,27 +12379,30 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
-        
-        Me%TotalStoredVolume = 0.0
-        
-        Me%VolumeStoredInSurface     = 0.0
-        Me%VolumeStoredInStormSystem = 0.0
+        integer                                     :: i, j, CHUNK
+        real(8)                                     :: Sum
+        !Begin-----------------------------------------------------------------
 
+        Sum = 0.0
+
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sum)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
             if (Me%ExtVar%BasinPoints(i, j) == 1) then
-                !m3 = m3 + m3
-                Me%TotalStoredVolume = Me%TotalStoredVolume + Me%MyWaterVolume(i, j)
-                
-                !m3 = m3 + m3
-                Me%VolumeStoredInSurface = Me%VolumeStoredInSurface + Me%MyWaterVolume(i, j)
+                !m3 = m3  + m3
+                Sum = Sum + Me%MyWaterVolume(i, j)
+
             endif
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
+        Me%TotalStoredVolume        = Sum
+        Me%VolumeStoredInSurface    = Sum
 
     end subroutine CalculateTotalStoredVolume
 
@@ -12515,19 +12623,35 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call WriteFinalFile_Hdf(IsFinalFile)
                 endif
 
+                call UnitsManager(RunOffLogFileID, OPEN_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
 
-                if(Me%Output%OutputFloodRisk)then
-                    call UnitsManager(RunOffLogFileID, OPEN_FILE, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
+                open(UNIT = RunOffLogFileID, FILE = trim(Me%Files%RunOffLogFile), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR01'
 
-                    open(UNIT = RunOffLogFileID, FILE = trim(Me%Files%RunOffLogFile), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR01'
-                    
-                    write(RunOffLogFileID, *)"------------------------ MOHID LAND-----------------------"
-                    write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
-                    write(RunOffLogFileID, *)
+                write(RunOffLogFileID, *)"------------------------ MOHID LAND-----------------------"
+                write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
+                write(RunOffLogFileID, *)
 
-                endif
+                write(RunOffLogFileID, *)"INITIAL_TOTAL_VOLUME           : ", Me%InitialTotalVolume
+                write(RunOffLogFileID, *)"FINAL_TOTAL_VOLUME             : ", Me%TotalStoredVolume
+                write(RunOffLogFileID, *)"TOTAL_INFLOW_VOLUME            : ", Me%TotalDischargeFlowVolume
+                write(RunOffLogFileID, *)"TOTAL_BOUNDARY_VOLUME          : ", Me%TotalBoundaryFlowVolume
+                write(RunOffLogFileID, *)"TOTAL_STORMWATER_VOLUME        : ", Me%TotalStormWaterVolume
+                write(RunOffLogFileID, *)"TOTAL_RAINFALL_VOLUME          : ", Me%TotalRainfallVolume
+                write(RunOffLogFileID, *)"TOTAL_INFILTRATION_VOLUME      : ", Me%TotalInfiltrationVolume
+                write(RunOffLogFileID, *)"VOLUME_ERROR                   : ", Me%TotalStoredVolume -        &
+                                                                                Me%InitialTotalVolume -       &
+                                                                                Me%TotalDischargeFlowVolume - &
+                                                                                Me%TotalBoundaryFlowVolume  - & 
+                                                                                Me%TotalRainfallVolume      - & 
+                                                                                Me%TotalStormWaterVolume    + & 
+                                                                                Me%TotalInfiltrationVolume
+
+                write(RunOffLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_IN_METERS            : ",         &
+                                                                        Me%AvrgAccInfiltrationDepth
+                write(RunOffLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_VOLUME_IN_M3         : ",         &
+                                                                        Me%AvrgAccInfiltrationVolume
                 
                 call WriteGridData  (Me%Files%MassErrorFile,                   &
                      COMENT1          = "MassErrorFile",                       &
@@ -12652,8 +12776,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                         if(Me%Output%OutputFloodRisk)then
                             write(RunOffLogFileID, *)"VEL_AT_MAX_WATER_COLUMN        : ", maxval(Me%Output%VelocityAtMaxWaterColumn)
-                            write(RunOffLogFileID, *)
-                            write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
                         endif
 
                         deallocate(Me%Output%VelocityAtMaxWaterColumn)
@@ -12732,14 +12854,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Output%FloodArrivalTime)
 
-                endif
-
-                if(Me%Output%OutputFloodRisk)then
-                    
-                    call UnitsManager(RunOffLogFileID, CLOSE_FILE, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR76'
+                    write(RunOffLogFileID, *)"TOTAL_FLOODED_AREA_AT_END        : ", Me%Output%TotalFloodedArea
+                    write(RunOffLogFileID, *)"MAXIMUM_TOTAL_FLOODED_AREA       : ", Me%Output%MaxTotalFloodedArea
 
                 endif
+
+                write(RunOffLogFileID, *)
+                write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
+                call UnitsManager(RunOffLogFileID, CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR76'
 
 
                 if (Me%ObjDrainageNetwork /= 0) then

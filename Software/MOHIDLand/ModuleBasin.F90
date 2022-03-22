@@ -81,7 +81,8 @@ Module ModuleBasin
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
                                      GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume,& 
-                                     GetRunOffTotalDischargeFlowVolume
+                                     GetRunOffTotalDischargeFlowVolume,                  &
+                                     SetBasinStatsToRunoff
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -1099,16 +1100,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         endif
 
-        call GetData(Me%OutputBasinLogFile,                                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'OUTPUT_BASIN_LOG_FILE',                            &
-                     ClientModule = 'ModuleBasin',                                      &
-                     Default      = .false. ,                                           &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR064'     
-
-        
         !Calibrating 1D column?
         call GetData(Me%Calibrating1D,                                                   &
                      Me%ObjEnterData, iflag,                                             &
@@ -9931,8 +9922,9 @@ cd0:    if (Exist) then
                                    (FinalVol + Me%BWB%Output - Me%BWB%Boundary)
         OldValue                 = Me%BWB%AccErrorInVolume
         Me%BWB%AccErrorInVolume  = Me%BWB%AccErrorInVolume + Me%BWB%ErrorInVolume
-        Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
-              
+        if(FinalVol > 0.0)then
+            Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
+        endif
         !Writes to Timeseries
         
         Me%BWBBuffer(1)  = Me%BWB%Rain
@@ -10341,10 +10333,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
 
-                if(Me%OutputBasinLogFile)then
-                    call WriteOutputBasinLogFile
-                endif
-
                 if (Me%Coupled%Irrigation) then
 
                     call KillIrrigation (Me%ObjIrrigation, STAT = STAT_CALL)
@@ -10356,7 +10344,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (Me%Coupled%RunoffProperties) then
                         call KillRunoffProperties (Me%ObjRunoffProperties, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR020'
-                    endif                    
+                    endif          
+
+                    call ComputeBasinCalcSummary          
                     
                     call KillRunOff         (Me%ObjRunOff,      STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR030'
@@ -10530,37 +10520,45 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     end subroutine KillBasin
 
     !----------------------------------------------------------------------------
+                    
 
-    subroutine WriteOutputBasinLogFile
+    subroutine ComputeBasinCalcSummary
         
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_CALL, BasinLogFileID, i, j, nCells
-        character(len=PathLength)           :: RootSRT
-        real                                :: AverageCumulativeInfiltration = 0
-        real                                :: AverageCumulativeInfiltrationVolume = 0
+        integer                             :: STAT_CALL, i, j, nCells
+        real(8)                             :: AverageCumulativeInfiltrationDepth   = 0
+        real(8)                             :: AverageCumulativeInfiltrationVolume  = 0
+        real(8)                             :: TotalCumulativeInfiltrationVolume    = 0
+        real(8)                             :: TotalCumulativeRainfallVolume        = 0
+        real(8)                             :: TotalCumulativeInfiltrationDepth     = 0
 
         !------------------------------------------------------------------------
 
         call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR01'
 
         call GetGridCellArea(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR10'
 
-
-        AverageCumulativeInfiltration       = 0
+        TotalCumulativeInfiltrationVolume   = 0
+        TotalCumulativeRainfallVolume       = 0
+        AverageCumulativeInfiltrationDepth  = 0
         AverageCumulativeInfiltrationVolume = 0
         nCells                              = 0
 
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                ![m3]                           = [m3] + [m*m2]
+                TotalCumulativeRainfallVolume   = TotalCumulativeRainfallVolume + &
+                                                  Me%AccRainfall(i,j) * Me%ExtVar%GridCellArea(i,j)
+
                 ![m]                          = [m] + [m]
-                AverageCumulativeInfiltration = AverageCumulativeInfiltration + Me%AccInfiltration(i,j)
+                TotalCumulativeInfiltrationDepth    = TotalCumulativeInfiltrationDepth + Me%AccInfiltration(i,j)
                 
                 ![m3]                         = [m3] + [m] * [m2]
-                AverageCumulativeInfiltrationVolume = AverageCumulativeInfiltrationVolume + &
-                                                      Me%AccInfiltration(i,j) * Me%ExtVar%GridCellArea(i,j)
+                TotalCumulativeInfiltrationVolume = TotalCumulativeInfiltrationVolume + &
+                                                    Me%AccInfiltration(i,j) * Me%ExtVar%GridCellArea(i,j)
 
                 nCells = nCells + 1
             endif
@@ -10568,40 +10566,25 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         enddo 
 
         if(nCells > 0)then
-            AverageCumulativeInfiltration       = AverageCumulativeInfiltration       / real(nCells)
-            AverageCumulativeInfiltrationVolume = AverageCumulativeInfiltrationVolume / real(nCells) 
+            AverageCumulativeInfiltrationDepth  = TotalCumulativeInfiltrationDepth  / real(nCells)
+            AverageCumulativeInfiltrationVolume = TotalCumulativeInfiltrationVolume / real(nCells) 
         endif
 
-        call ReadFileName('ROOT_SRT', RootSRT, Message = "Mass Error File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR010'
-        Me%Files%BasinLogFile = trim(adjustl(RootSRT))//"Basin.log"
-
-        call UnitsManager(BasinLogFileID, OPEN_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR015'
-
-        open(UNIT = BasinLogFileID, FILE = trim(Me%Files%BasinLogFile), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR020'
-                    
-        write(BasinLogFileID, *)"------------------------ MOHID LAND-----------------------"
-        write(BasinLogFileID, *)"----------------------- BASIN STATS ----------------------"
-        write(BasinLogFileID, *)
-
-        write(BasinLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_IN_METERS            : ", AverageCumulativeInfiltration
-        write(BasinLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_VOLUME_IN_M3         : ", AverageCumulativeInfiltrationVolume
-        write(BasinLogFileID, *)
-        write(BasinLogFileID, *)"----------------------- BASIN STATS ----------------------"
-                
-        call UnitsManager(BasinLogFileID, CLOSE_FILE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR030'
+        call SetBasinStatsToRunoff(Me%ObjRunOff, TotalCumulativeRainfallVolume,         &
+                                                 TotalCumulativeInfiltrationVolume,     &
+                                                 AverageCumulativeInfiltrationVolume,   &
+                                                 AverageCumulativeInfiltrationDepth,    &
+                                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR030'
 
         call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR040'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR040'
         
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputBasinLogFile - ModuleBasin - ERR050'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR050'
 
 
-    end subroutine WriteOutputBasinLogFile
+    end subroutine ComputeBasinCalcSummary
 
     !----------------------------------------------------------------------------
     
