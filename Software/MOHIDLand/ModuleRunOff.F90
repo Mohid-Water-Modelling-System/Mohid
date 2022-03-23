@@ -9221,10 +9221,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             FlowEnteringCell = 0.0
 
             !Compute flow entering grid cell 
-            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,j)
-            if(Me%iFlowX(i,j+1) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,j)
-            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,j)
-            if(Me%iFlowX(i+1,j) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,j)
+            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,  j  )
+            if(Me%iFlowX(i,j+1) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,  j+1)
+            if(Me%iFlowY(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowY(i,  j  )
+            if(Me%iFlowY(i+1,j) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowY(i+1,j  )
 
             if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
                     
@@ -12382,6 +12382,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: i, j, CHUNK
         real(8)                                     :: Sum
         !Begin-----------------------------------------------------------------
+
+        CHUNK = ChunkJ
 
         Sum = 0.0
 
