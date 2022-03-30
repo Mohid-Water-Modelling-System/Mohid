@@ -218,6 +218,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: CenterX, CenterY
         logical                                 :: ComputeRH
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
+        logical                                 :: ComputeRH_V2
+        character(len=StringLength)             :: DewPointRH       
         logical                                 :: ExtractLayer
         integer                                 :: LayerNumber
         integer                                 :: LayerDim       
@@ -369,6 +371,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         call WriteBeaufort 
         
         call WriteRelativeHumidity
+        
+        call WriteRelativeHumidityV2        
         
         call WriteAverageInDepth
         
@@ -1098,6 +1102,103 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         enddo    
         
     end subroutine WriteRelativeHumidity
+    
+    !------------------------------------------------------------------------       
+    subroutine WriteRelativeHumidityV2
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: T, D, RH
+        integer                                     :: i, iP, iPt, iPd
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        nullify(T, D, RH)
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%ComputeRH_V2) then
+        
+                !Found temperature
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%TempRH)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteRelativeHumidityV2 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+                !Dewpoint 
+                Found = .false.
+                do iPd = 1, Me%PropNumber
+                    if (trim(Me%Field(iPd)%ID%Name)==trim(Me%Field(iP)%DewPointRH)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteRelativeHumidityV2 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+                do i=1, Me%Date%TotalInstOut
+                    !Read temperature
+
+                    if      (Me%Field(iPt)%Dim/=2) then
+                        stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    endif
+
+                    allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                    T => Me%Field(iPt)%Value2DOut
+
+                    if      (Me%Field(iP)%Dim/=2) then
+                        stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    endif
+                    
+                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                    RH => Me%Field(iP)%Value2DOut                    
+                    
+                    call ReadFieldHDF5(iPt, i)
+                    
+                    !Compute relative humidity
+                    call ComputeRelativeHumidityV2(T, D, RH, step = 1) 
+                    
+                    deallocate(Me%Field(iPt)%Value2DOut)
+                    nullify(Me%Field(iPt)%Value2DOut, T)
+                    
+                    if      (Me%Field(iPd)%Dim/=2) then
+                        stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+                    endif
+
+                    allocate(Me%Field(iPd)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                    D => Me%Field(iPd)%Value2DOut
+
+                                 
+                    
+                    !Read pressure               
+                    call ReadFieldHDF5(iPd, i)
+
+                    !Compute RelativeHumidity
+                    call ComputeRelativeHumidityV2(T, D, RH, step = 2) 
+
+                    deallocate(Me%Field(iPd)%Value2DOut)
+                    nullify(Me%Field(iPd)%Value2DOut, D)
+                    
+                    !Write Intensity
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+
+                    deallocate(Me%Field(iP)%Value2DOut)
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteRelativeHumidityV2
     
     !------------------------------------------------------------------------       
 
@@ -2346,6 +2447,64 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         enddo
 
     end subroutine ComputeRelativeHumidity
+    
+    !------------------------------------------------------------------------
+    
+    subroutine ComputeRelativeHumidityV2(T, D, RH, step)
+    
+        ! T   - Temperature
+        ! D   - dewpoint
+        ! RH  - relative humidity (-) - fraction
+        ! RH: = (EXP((17.625*D)/(243.04+D))/EXP((17.625*T)/(243.04+T)))
+        ! T and TD inputs/outputs to the equations are in Celsius)
+
+        !References:
+        !Alduchov, O. A., and R. E. Eskridge, 1996: Improved Magnus' form approximation of saturation vapor pressure. J. Appl. Meteor., 35, 601–609.
+        !August, E. F., 1828: Ueber die Berechnung der Expansivkraft des Wasserdunstes. Ann. Phys. Chem., 13, 122–137.
+        !Magnus, G., 1844: Versuche über die Spannkräfte des Wasserdampfs. Ann. Phys. Chem., 61, 225–247.        
+        !https://bmcnoldy.rsmas.miami.edu/Humidity.html    
+    
+        !Argument-----------------------------------------------------
+        real, dimension(:,:), pointer               :: T, D, RH
+        integer                                     :: step
+
+        !Local--------------------------------------------------------
+        integer                                     :: i, j
+        
+        !Begin--------------------------------------------------------
+
+        if (.not.associated(RH)) then
+            stop 'ComputeRelativeHumidityV2 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        endif
+
+        if (step == 1) then
+            if (.not.associated(T)) then
+                stop 'ComputeRelativeHumidityV2 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            endif
+        else if (Step == 2) then
+            if (.not.associated(D)) then
+                stop 'ComputeRelativeHumidityV2 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            endif
+        endif
+
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            if (step == 1) then
+                !fraction
+                RH(i,j) = 1 / EXP((17.625*T(i,j))/(243.04+T(i,j))) 
+                
+            else if (Step == 2) then
+                !fraction    
+                RH(i,j) = RH(i,j) * EXP((17.625*D(i,j))/(243.04+D(i,j)))
+                
+            endif
+            
+        enddo
+        enddo
+
+    end subroutine ComputeRelativeHumidityV2
     !------------------------------------------------------------------------
 
     subroutine ComputeVectorRotation(iPx, step, iP, Component)
@@ -3870,6 +4029,7 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)       
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR300'
 
+
                     if (Me%Field(ip)%ComputeRH) then
 
                         call GetData(Me%Field(ip)%TempRH,                               &
@@ -3898,6 +4058,34 @@ BF:         if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2640'
 
                     endif                        
+
+                    call GetData(Me%Field(ip)%ComputeRH_V2,                         &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'RELATIVE_HUMIDITY_V2',             &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2645'  
+                    
+                    if (Me%Field(ip)%ComputeRH_V2) then                    
+                    
+                        call GetData(Me%Field(ip)%TempRH,                               &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'TEMPERATURE_RH',                   &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2646'
+
+                        call GetData(Me%Field(ip)%DewPointRH,                           &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'DEW_POINT_RH',                     &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2647'                    
+                    
+                    endif
 
                     call GetData(Me%Field(ip)%FromMeteo2Algebric,                       &
                                  Me%ObjEnterData, iflag,                                &
@@ -4242,7 +4430,8 @@ BF:         if (BlockFound) then
                 Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection           .or. &
                 Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation .or. &
                 Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst          .or. &
-                Me%Field(iP)%Wfp              .or. Me%Field(iP)%ComputeRotatedVector  ) then
+                Me%Field(iP)%Wfp              .or. Me%Field(iP)%ComputeRotatedVector       .or. &
+                Me%Field(iP)%ComputeRH_V2) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -4675,7 +4864,7 @@ BF:             if (BlockFound) then
         integer                                         :: ncid
         
         !Local-----------------------------------------------------------------
-        integer                                         :: status, numDims, i, j
+        integer                                         :: status, numDims
         integer                                         :: RhVarIdLong
         integer, dimension(nf90_max_var_dims)           :: rhDimIdsLong
         integer                                         :: ObjHorizontalGrid
@@ -5152,7 +5341,8 @@ BF:             if (BlockFound) then
                     Me%Field(iP)%ComputeDirection           .or. Me%Field(iP)%AverageInDepth .or.  &
                     Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power   .or.  &
                     Me%Field(iP)%AvModelStart2Inst          .or. Me%Field(iP)%Wfp            .or.  &
-                    Me%Field(iP)%ComputeRotatedVector) then
+                    Me%Field(iP)%ComputeRotatedVector       .or. Me%Field(iP)%ComputeRH      .or.  &
+                    Me%Field(iP)%ComputeRH_V2) then
                 
                     WriteProp       = .false.
                 
@@ -5178,7 +5368,8 @@ BF:             if (BlockFound) then
                            Me%Field(iP)%ComputeDirection            .or. Me%Field(iP)%AverageInDepth.or.&
                            Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power  .or.&
                            Me%Field(iP)%AvModelStart2Inst           .or. Me%Field(iP)%Wfp           .or.&
-                           Me%Field(iP)%ComputeRotatedVector))  &
+                           Me%Field(iP)%ComputeRotatedVector        .or. Me%Field(iP)%ComputeRH      .or.  &
+                           Me%Field(iP)%ComputeRH_V2))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo

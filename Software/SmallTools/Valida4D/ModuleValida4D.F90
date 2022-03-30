@@ -125,6 +125,7 @@ Module ModuleValida4D
         real,    dimension(:), pointer              :: T, X, Y, Z, PercI, PercJ, D
         real,    dimension(:), pointer              :: InstantsValue        
         logical                                     :: TimeViaHDF5 = .false.
+        logical                                     :: OnlyFirstInstant = .false.        
         integer, dimension(:), pointer              :: i, j
         
         character (len = StringLength), dimension(:), pointer :: StationName
@@ -438,6 +439,15 @@ Module ModuleValida4D
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                          
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR210'
+        
+        call GetData(Me%OnlyFirstInstant,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ONLY_FIRST_INSTANT',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR215'        
         
 
         if (.not. Me%TimeViaTable) then
@@ -1120,6 +1130,10 @@ do1 :                   do i = 2, iLength
 
             end if BF
 
+            if (Me%OnlyFirstInstant) then
+                 Me%T(2:Me%TableValues) =  Me%T(1)
+            endif
+
             call Block_Unlock(Me%ObjEnterDataTable, ClientNumber, STAT = STAT_CALL) 
 
             if (STAT_CALL /= SUCCESS_)                                                  &
@@ -1312,6 +1326,9 @@ do1 :                   do i = 2, iLength
                 Me%InstantsValue(i) = real(i-1)*Me%DT                
             enddo
         endif
+        
+        
+        
         
         
             Me%TableValues  =  Me%NoTimeValues * real(Me%Ninstants)
@@ -1754,6 +1771,8 @@ do4:                do iH = 1, Me%HDF5Number
                         do nP = 1, nPoints
                             if (.not. NoData(nP)) then
                                 Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = Prop1D(nP)
+                            else
+                                Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = FillValueReal
                             endif
                         enddo
                     enddo do4

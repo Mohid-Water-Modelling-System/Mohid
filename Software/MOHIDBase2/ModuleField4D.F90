@@ -46,13 +46,15 @@ Module ModuleField4D
                                        FillMatrix2D, LinearInterpolation,               &
                                        FillMatrix3D, InterpolateProfileR8,              &
                                        CheckAlternativeTidalCompNames,                  &
-                                       AmpPhase_To_Complex
+                                       AmpPhase_To_Complex, FromCoord2RegGrid
     use ModuleDrawing,          only : ArrayPolygonWindow
     use ModuleHorizontalGrid,   only : GetHorizontalGridSize, ConstructHorizontalGrid,  &
                                        WriteHorizontalGrid,                             &
                                        GetXYInsideDomain, GetXYCellZ, GetZCoordinates,  &
-                                       KillHorizontalGrid, UnGetHorizontalGrid
-    use ModuleGridData,         only : ConstructGridData, GetGridData, UngetGridData, KillGridData
+                                       KillHorizontalGrid, UnGetHorizontalGrid,         &
+                                       GetGhostCorners 
+    use ModuleGridData,         only : ConstructGridData, GetGridData, UngetGridData,   &
+                                       KillGridData
     use ModuleHorizontalMap
     use ModuleGeometry,         only : ConstructGeometry, GetGeometrySize,              &
                                        ComputeInitialGeometry, GetGeometryDistances,    &
@@ -243,6 +245,7 @@ Module ModuleField4D
     type T_File
         character(PathLength)                           :: FileName             = null_str
         character(PathLength)                           :: FieldName            = null_str
+        character(PathLength)                           :: FieldName_2          = null_str
         logical                                         :: FieldNameArgument    = .false.
         type (T_Time)                                   :: StartTime
         type (T_Time)                                   :: EndTime
@@ -284,7 +287,9 @@ Module ModuleField4D
 
     type T_PropField
         character(PathLength)                       :: FieldName            = null_str
+        character(PathLength)                       :: FieldName_2          = null_str
         character(PathLength)                       :: VGroupPath           = null_str
+        character(PathLength)                       :: VGroupPath_2         = null_str
         real                                        :: MultiplyingFactor    = null_real
         logical                                     :: HasMultiplyingFactor = .false.
         real                                        :: AddingFactor         = null_real
@@ -301,6 +306,13 @@ Module ModuleField4D
         type(T_Generic4D)                           :: Generic4D
         type (T_Harmonics)                          :: Harmonics
         type (T_MapIn     )                         :: MapIn
+        
+        logical                                     :: RegGrid              = .false. 
+        real                                        :: Xorig                = null_real 
+        real                                        :: Yorig                = null_real 
+        real                                        :: DX                   = null_real 
+        real                                        :: DY                   = null_real 
+        
         !2D/3D
         integer                                     :: SpaceDim             = null_int
         !Z/U/V
@@ -361,6 +373,7 @@ Module ModuleField4D
         type (T_OutPut)                             :: OutPut
 
         logical                                     :: Backtracking         = .false.
+        logical                                     :: GhostCorners         = .false. 
 
         integer                                     :: ObjEnterData         = 0
         integer                                     :: ObjTime              = 0
@@ -422,7 +435,7 @@ Module ModuleField4D
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, OnlyReadGridFromFile,          &
+                                FileNameList, FieldName, FieldName_2, OnlyReadGridFromFile,  &
                                 DiscardFillValues, CheckHDF5_File, Upscaling, STAT)
 
         !Arguments---------------------------------------------------------------
@@ -446,7 +459,7 @@ Module ModuleField4D
         type (T_PropertyID),                  optional, intent(INOUT) :: PropertyID !Sobrinho
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList
-        character(*),                         optional, intent(IN )   :: FieldName
+        character(*),                         optional, intent(IN )   :: FieldName, FieldName_2
         logical,                              optional, intent(IN )   :: OnlyReadGridFromFile
         logical,                              optional, intent(IN )   :: DiscardFillValues
         logical,                              optional, intent(IN )   :: CheckHDF5_File
@@ -520,6 +533,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(FieldName)) then
                 Me%File%FieldNameArgument = ON
                 Me%File%FieldName         = trim(FieldName)
+                
+                Me%File%FieldName_2 = ' '
+                if (present(FieldName_2)) Me%File%FieldName_2       = trim(FieldName_2)
             endif
 
             Me%WindowWithData    = .true.
@@ -533,8 +549,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructFile(ExtractType)
 
             if (present(HorizontalGridID)) then
-                Me%ObjHorizontalGrid        = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
-                Me%BuildHorizontalGrid      = .false.
+                Me%ObjHorizontalGrid    = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
+                Me%BuildHorizontalGrid  = .false.
             else
                 Me%BuildHorizontalGrid  = .true.
                 Me%ReadWindowXY         = .false.
@@ -564,6 +580,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ReadGridFromFile()
 
             endif
+            
+            Me%GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                              STAT             = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR55'
+
 
             OnlyReadGridFromFile_ = .false.
             if (present(OnlyReadGridFromFile)) OnlyReadGridFromFile_ = OnlyReadGridFromFile
@@ -1385,7 +1406,7 @@ wwd1:       if (Me%WindowWithData) then
 
         !Local-----------------------------------------------------------------
          real,      pointer, dimension(:,:,:)    :: SZZ
-         integer,   pointer, dimension(:,:,:)    :: mask
+         integer,   pointer, dimension(:,:,:)    :: mask, OpenPoints
          integer,   pointer, dimension(:,:  )    :: Array2D
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
          logical                                 :: Exist, Exist1, Exist2
@@ -1568,6 +1589,46 @@ wwd1:       if (Me%WindowWithData) then
                                     STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR140'
 
+        if (Me%Upscaling) then
+            
+            if  (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
+                                                           JLB = JLB, JUB = JUB,            &
+                                                           KLB = KLB, KUB = KUB,          &
+                                     STAT   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR150'
+
+                call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/OpenPoints/OpenPoints_00001",&
+                                          Exist  = Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR160'
+
+                if (Exist) then
+                    !Get openpoints pointer to update
+                    call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR170'
+                    
+                    !Update OpenPoints3D
+                    call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                                        GroupName     = "/Grid/OpenPoints",                 &
+                                        Name          = "OpenPoints_00001",                 &
+                                        Array3D       = OpenPoints,                         &
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR180'
+                    
+                    call UnGetMap(Me%ObjMap, OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR190'
+                    
+                else
+                    write (*,*) 'OpenPoints not found, and Upscaling needs OpenPoints3D from the HDF'
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR200'
+                endif
+            else
+                write (*,*) 'Upscaling not yet ready to recieve Netcdf files'
+                stop 'ReadMap3DFromFile - ModuleField4D - ERR210'
+            end if
+        end if
+
     end subroutine ReadMap3DFromFile
 
 
@@ -1617,7 +1678,7 @@ wwd1:       if (Me%WindowWithData) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: iflag
-        logical                                         :: LastGroupEqualField
+        logical                                         :: LastGroupEqualField, FieldNameExist
         integer                                         :: ExtractTypeBlock
         real                                            :: DT
         !---------------------------------------------------------------------
@@ -1720,9 +1781,19 @@ wwd1:       if (Me%WindowWithData) then
                              ClientModule = 'ModuleField4D',                            &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
+                
+                call GetData(PropField%FieldName_2,                                     &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'HDF_FIELD_NAME_2',                         &
+                             default      = trim(PropField%ID%Name),                    &
+                             ClientModule = 'ModuleField4D',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR85'
             endif
         else
             PropField%FieldName = Me%File%FieldName
+            PropField%FieldName_2 = Me%File%FieldName_2
         endif
 
         call GetData(LastGroupEqualField,                                               &
@@ -1899,8 +1970,34 @@ wwd1:       if (Me%WindowWithData) then
 
         endif
 
-        if (LastGroupEqualField)                                                        &
+        if (LastGroupEqualField) then
+            PropField%VGroupPath_2 = PropField%VGroupPath
             PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
+            PropField%VGroupPath_2=trim(PropField%VGroupPath_2)//"/"//trim(PropField%FieldName_2)
+        endif
+        
+        call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                GroupName   = trim(PropField%VGroupPath),           &
+                                Exist       = FieldNameExist,                       &
+                                STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-a'
+                
+        if (.not. FieldNameExist) then
+            write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+            !Model will stop, so now it will try with second Field name provided by user
+            PropField%VGroupPath = PropField%VGroupPath_2
+            PropField%FieldName  = PropField%FieldName_2
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
+                                    GroupName   = trim(PropField%VGroupPath),       &
+                                    Exist       = FieldNameExist,                   &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-b'
+            if ( .not. FieldNameExist) then
+                write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+                stop 'ReadOptions - ModuleField4D - ERR198-c'
+            endif
+        endif
+        
 
         call GetData(PropField%SpaceDim,                                                &
                      Me%ObjEnterData , iflag,                                           &
@@ -2065,7 +2162,55 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR330'     
 
+        call GetData(PropField%RegGrid,                                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'REGULAR_GRID',                                     &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR340'            
+  
+        if (PropField%RegGrid) then
+            
+            call GetData(PropField%Xorig,                                               &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'XORIG',                                        &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR350'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleField4D - ERR360'
+  
+            call GetData(PropField%Yorig,                                               &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'YORIG',                                        &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR370'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleField4D - ERR380'
 
+            call GetData(PropField%DX,                                                  &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'DX',                                           &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR390'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleField4D - ERR400'
+
+            call GetData(PropField%DY,                                                  &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'DY',                                           &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR410'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleField4D - ERR420'
+            
+        endif
+    
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR340'
@@ -2963,6 +3108,8 @@ it:     if (NewPropField%ChangeInTime) then
                 endif
             end do d2
 
+    
+
     i4:     if(NewPropField%SpaceDim == Dim2D)then
 
                 ILB = Me%Size2D%ILB
@@ -3562,7 +3709,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
         real,    dimension(:,:,:), pointer      :: Field, Aux3D, FieldAux, SZZ
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, OpenPoints
         real                                    :: HT
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k
@@ -3570,6 +3717,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer                                 :: SILB, SIUB, SJLB, SJUB, SKLB, SKUB
         integer                                 :: Obj, iaux, kbottom
         integer                                 :: nItems, iVert
+        logical                                 :: Exist
 
         !Begin-----------------------------------------------------------------
 
@@ -3771,6 +3919,55 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
          endif
 
          nullify(FieldAux)
+
+        if (Me%Upscaling) then
+            
+            if  (Me%File%Form == HDF5_  ) then
+
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
+                                                           JLB = JLB, JUB = JUB,            &
+                                                           KLB = KLB, KUB = KUB,          &
+                                     STAT   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR150'
+
+                call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/OpenPoints/OpenPoints_00001",&
+                                          Exist  = Exist, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR160'
+
+                if (Exist) then
+                    !Get openpoints pointer to update
+                    call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR170'
+                    
+                    !Update OpenPoints3D
+                    !call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
+                    !                    GroupName     = "/Grid/OpenPoints",                 &
+                    !                    Name          = "OpenPoints_00001",                 &
+                    !                    Array3D       = OpenPoints,                         &
+                    !                    STAT          = STAT_CALL)
+                    !if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR180'
+                    call HDF5ReadWindow(HDF5ID        = Obj,                                    &
+                                        GroupName     = "/Grid/OpenPoints",                     &
+                                        Name          = "OpenPoints",                           &
+                                        Array3D       = OpenPoints,                             &
+                                        OutputNumber  = iaux,                                   &
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)then
+                        write(*,*) "Can not read OpenPoints, instant number = iaux for current upscaling field"
+                        stop 'ReadMap3DFromFile - ModuleField4D - ERR185'
+                    endif
+                    call UnGetMap(Me%ObjMap, OpenPoints, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR190'
+                    
+                else
+                    write (*,*) 'OpenPoints not found, and Upscaling needs OpenPoints3D from the HDF'
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR200'
+                endif
+            else
+                write (*,*) 'Upscaling not yet ready to recieve Netcdf files'
+                stop 'ReadMap3DFromFile - ModuleField4D - ERR210'
+            end if
+        end if
 
         if(NewPropField%HasMultiplyingFactor)then
 
@@ -5322,12 +5519,13 @@ d2:     do N =1, NW
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, Matrix2D, Matrix3D, Instant, STAT)
+    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, FieldUpscalingID, Matrix2D, Matrix3D, Instant, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                 intent(IN)             :: Field4DID
         integer,                 intent(IN)             :: PropertyIDNumber
         type (T_Time),           intent(IN)             :: CurrentTime
+        integer,                 intent(IN),  optional  :: FieldUpscalingID
         real,    dimension(:, :),    pointer, optional  :: Matrix2D
         real,    dimension(:, :, :), pointer, optional  :: Matrix3D
         integer,                 intent(IN),  optional  :: Instant
@@ -5425,14 +5623,21 @@ d2:     do N =1, NW
 
             if (present(Matrix2D)) then
                 if (Me%Upscaling) then !Sobrinho
-                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid, FatherMatrix2D = Matrix2D, &
+                    if (PropertyIDNumber == VelocityU_ .or. PropertyIDNumber == VelocityV_) then
+                        call ModifyTwoWay ( SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
+                                            SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, &
+                                            VelocityID = PropertyIDNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    else
+                        call ModifyTwoWay (SonID = FieldUpscalingID, FatherMatrix2D = Matrix2D, &
                                        SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    endif
 
-                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
                 else
                     Matrix2D(:,:) = Me%Matrix2D(:,:)
@@ -5442,15 +5647,23 @@ d2:     do N =1, NW
             if (present(Matrix3D)) then
 
                 if (Me%Upscaling) then !Sobrinho
-                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    
+                    call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
-                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid,                        &
+                    if (PropertyIDNumber == VelocityU_ .or. PropertyIDNumber == VelocityV_) then
+                        call ModifyTwoWay (SonID = FieldUpscalingID,                        &
+                                            FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
+                                            CallerID = mField4D_, VelocityID = PropertyIDNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    else
+                        call ModifyTwoWay (SonID = FieldUpscalingID,                        &
                                         FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
                                         CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    endif
 
-                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed UngetTwoWay call in ModifyField4D - ModuleField4D.'
 
                 else
@@ -5884,8 +6097,9 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
                               WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                               STAT              = STAT_CALL)
 
-        if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR02'
-
+        if (STAT_CALL/=SUCCESS_) then
+            stop 'Interpolate2DCloud - ModuleField4D - ERR10'
+        endif
 
         if (PropField%ExtrapolateGrid) then
             call FillMatrix2D(Me%WorkSize2D%ILB,                             &
@@ -5896,22 +6110,46 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
                               Me%Matrix2D,                                   &
                               FillGridMethod = PropField%ExtrapolateMethod)
         endif
+        
+        
 
 dnP:    do nP = 1,nPoints
 
             if (NoData(nP)) then
-                InsideDomain = GetXYInsideDomain(Me%ObjHorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud - ModuleValida4D - ERR10'
+                
+                if (PropField%RegGrid) then
+                    
+                    call FromCoord2RegGrid(Xcoord   = X(nP),                            & 
+                                           Ycoord   = Y(nP),                            &
+                                           Xorig    = PropField%Xorig,                  &
+                                           Yorig    = PropField%Yorig,                  &
+                                           DX       = PropField%DX   ,                  &
+                                           DY       = PropField%DY   ,                  &
+                                           i        = i,                                &
+                                           j        = j,                                &
+                                           PercI    = PercI,                            &
+                                           PercJ    = PercJ)
+                    
+                else
+                    
+                    InsideDomain = GetXYInsideDomain(Me%ObjHorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'Interpolate2DCloud - ModuleField4D - ERR20'
+                    endif
 
-                if (.not. InsideDomain) then
-                    cycle
+!                    if (.not. InsideDomain .and. .not. Me%GhostCorners) then
+                    if (.not. InsideDomain) then
+                        cycle
+                    endif
+
+                    call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        !if (Me%GhostCorners) cycle 
+                        stop 'Interpolate2DCloud - ModuleField4D - ERR30'
+                    endif
+                    
                 endif
-
-                call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'Interpolate2DCloud - ModuleValida4D - ERR20'
-                endif
-
+                
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
 
                     if (Me%ExternalVar%Waterpoints2D(i, j) == WaterPoint) then
@@ -6136,7 +6374,7 @@ dnP:    do nP = 1,nPoints
                                 Array             = Me%ExternalVar%WaterPoints2D,       &
                                 STAT              = STAT_CALL)
 
-        if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR30'
+        if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR40'
 
 
 
@@ -6245,16 +6483,33 @@ dnP:    do nP = 1,nPoints
 dnP:    do nP = 1,nPoints
 
             if (NoData(nP)) then
-                InsideDomain = GetXYInsideDomain(Me%ObjHorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleValida4D - ERR10'
 
-                if (.not. InsideDomain) then
-                    cycle
+                if (PropField%RegGrid) then
+                    
+                    call FromCoord2RegGrid(Xcoord   = X(nP),                            & 
+                                           Ycoord   = Y(nP),                            &
+                                           Xorig    = PropField%Xorig,                  &
+                                           Yorig    = PropField%Yorig,                  &
+                                           DX       = PropField%DX   ,                  &
+                                           DY       = PropField%DY   ,                  &
+                                           i        = i,                                &
+                                           j        = j,                                &
+                                           PercI    = PercI,                            &
+                                           PercJ    = PercJ)
+                    
+                else       
+                    
+                    InsideDomain = GetXYInsideDomain(Me%ObjHorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleValida4D - ERR10'
+
+                    if (.not. InsideDomain) then
+                        cycle
+                    endif
+
+                    call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleValida4D - ERR20'
+
                 endif
-
-                call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleValida4D - ERR20'
-
 
                 if (PropField%InterpolMethod == NoInterpolation2D_) then
 
@@ -6527,7 +6782,6 @@ dnP:    do nP = 1,nPoints
                 call GetXYCellZ(Me%ObjHorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InterpolateBathym - ModuleValida4D - ERR40'
 
-
                 if (PercJ > 0.5) then
                     jW = j
                     jE = j+1
@@ -6742,24 +6996,46 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 dnP:    do nP = 1,nPoints
 
             if (NoData(nP)) then
-                InsideDomain = GetXYInsideDomain(HorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR40'
+                
+                if (PropField%RegGrid) then
+                    
+                    call FromCoord2RegGrid(Xcoord   = X(nP),                            & 
+                                           Ycoord   = Y(nP),                            &
+                                           Xorig    = PropField%Xorig,                  &
+                                           Yorig    = PropField%Yorig,                  &
+                                           DX       = PropField%DX   ,                  &
+                                           DY       = PropField%DY   ,                  &
+                                           i        = i,                                &
+                                           j        = j,                                &
+                                           PercI    = PercI,                            &
+                                           PercJ    = PercJ)
+                    
+                else
+                    
+                    InsideDomain = GetXYInsideDomain(HorizontalGrid, X(nP), Y(nP), STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR10'
+                
+!                    if (.not. InsideDomain .and. .not. Me%GhostCorners) then
+                    if (.not. InsideDomain) then                    
+                        cycle
+                    endif
 
-                if (.not. InsideDomain) then
-                    cycle
+                    call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        !if (Me%GhostCorners) cycle 
+                        stop 'Interpolate2DCloud - ModuleField4D - ERR20'
+                    endif                
+                    
                 endif
-
-                call GetXYCellZ(HorizontalGrid, X(nP), Y(nP), i, j, PercI, PercJ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR50'
                 
                 if (PercI < 0 .or. PercI >1) then
                     write(*,*) 'Wrong 0<PercI<1 =',PercI, 'Cell i,j=',i, j
-                    stop 'Interpolate3DCloud - ModuleValida4D - ERR55'
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR30'
                 endif
                 
                 if (PercJ < 0 .or. PercJ >1) then
                     write(*,*) 'Wrong 0<PercJ<1 =',PercJ, 'Cell i,j=',i, j
-                    stop 'Interpolate3DCloud - ModuleValida4D - ERR57'
+                    stop 'Interpolate3DCloud - ModuleValida4D - ERR40'
                 endif
                 
 

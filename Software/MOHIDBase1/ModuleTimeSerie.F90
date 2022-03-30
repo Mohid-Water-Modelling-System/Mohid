@@ -904,13 +904,13 @@ i12:        if (Me%TimeSerie(iTimeSerie)%CoordON .and. Me%ModelDomainON) then
             
                 Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
                 
-                if (Me%GhostCorners) then
-                    Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
-                else
+                !if (Me%GhostCorners) then
+                !    Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
+                !else
                 if (.not. IsPointInsidePolygon(TimeSeriesXY, Me%ModelDomain)) then
                     Me%TimeSerie(iTimeSerie)%IgnoreON = .true. 
                 endif
-                endif
+                !endif
                 deallocate(TimeSeriesXY)
                 
             endif i12
@@ -1126,7 +1126,7 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
 
     end function ReadTimeSeriesTimes
     
-        integer function ReadTimeSeriesTimesTurbine ()
+    integer function ReadTimeSeriesTimesTurbine ()
 
         !Local-----------------------------------------------------------------
         type (T_Time)                       :: AuxTime, DummyTime
@@ -1596,7 +1596,9 @@ cd1:    if(present(WaterPoints3D)) then
         
 d1:     do iTimeSerie = 1, Me%NumberOfTimeSeries
 
-            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) then
+                cycle
+            endif
 
 cd1 :       if (present(ResultFileName)) then
                 !Constructs the name of the file

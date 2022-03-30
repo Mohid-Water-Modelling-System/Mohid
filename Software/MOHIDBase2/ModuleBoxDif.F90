@@ -38,7 +38,7 @@ Module ModuleBoxDif
     use ModuleHorizontalGrid,   only: GetZCoordinates,  GetGridBorderPolygon,           &
                                       GetHorizontalGridSize, UnGetHorizontalGrid,       &
                                       GetCornersCoordinates, Add_MPI_ID_2_Filename,     &
-                                      No_BoxMap_HaloArea  
+                                      No_BoxMap_HaloArea, GetDDecompON  
     use ModuleTimeSerie,        only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie
     use ModuleDrawing
 
@@ -655,6 +655,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadGlobalOptions - ModuleBoxDif - ERR10'
         
+        if (GetDDecompON(Me%ObjHorizontalGrid)) then
+            if (Me%CoordinateType == Grid_Coordinates) then
+                write(*,*) 'Grid Coordinates can not be used with domain decomposition parallelization'
+                stop 'ReadGlobalOptions - ModuleBoxDif - ERR15'
+            endif
+            
+        endif
+        
         call GetData(Me%WriteBoxes,                                             &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
@@ -1034,7 +1042,15 @@ cd2 :           if (BlockFound) then
                     Y = Me%ExternalVar%ZCoordY(Ic, Jc)
                         
                         
-                    if (X<FillValueReal/4. .or.  Y<FillValueReal/4.) stop 'ConstructBox2D - ModuleBoxDif - ERR30'
+                    if (X<FillValueReal/4. .or.  Y<FillValueReal/4.) then
+                        write(*,*) 'Bad box vertix'
+                        write(*,*) 'Box number =', i
+                        write(*,*) 'I =',Ic
+                        write(*,*) 'J =',Jc  
+                        write(*,*) 'X =',X
+                        write(*,*) 'Y =',Y
+                        stop 'ConstructBox2D - ModuleBoxDif - ERR30'
+                    endif
                  
 
                     NewBox%Polygon%VerticesF(i)%X = X
@@ -1062,7 +1078,7 @@ cd2 :           if (BlockFound) then
 
         call GetGridBorderPolygon(Me%ObjHorizontalGrid, ModelDomainPolygon, STAT = STAT_CALL)
         
-        if(STAT_CALL /= SUCCESS_)stop 'ConstructBox2D - ModuleBoxDif - ERR30'
+        if(STAT_CALL /= SUCCESS_)stop 'ConstructBox2D - ModuleBoxDif - ERR40'
 
         NewBox%InsideDomain = VertPolygonInsidePolygon(NewBox%Polygon, ModelDomainPolygon)
 
