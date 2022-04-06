@@ -49,7 +49,7 @@ Module ModuleRunOff
                                         GetCellZInterceptByLine,                         &
                                         GetCellZInterceptByPolygon, GetGridRotation,     &
                                         GetGridAngle, GetCheckDistortion,                & 
-                                        GetCellIDfromIJ, GetCellIJfromID
+                                        GetCellIDfromIJ, GetCellIJfromID, GetCellZ_XY
     use ModuleHorizontalMap     ,only : GetBoundaries, UngetHorizontalMap
     use ModuleGridData          ,only : GetGridData, UngetGridData, WriteGridData
     use ModuleBasinGeometry     ,only : GetBasinPoints, GetRiverPoints, GetCellSlope,    &
@@ -82,7 +82,7 @@ Module ModuleRunOff
 
     private 
 
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _SEWERGEMSENGINECOUPLER_
 
     interface
 
@@ -111,7 +111,7 @@ Module ModuleRunOff
             integer(c_int) :: nNodes
         end function SewerGEMSEngine_getNumberOfNodes
         
-        integer(c_int) function SewerGEMSEngine_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXYByID')
+        integer(c_int) function SewerGEMSEngine_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXY')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: xx
@@ -135,43 +135,43 @@ Module ModuleRunOff
             real(c_double) :: imposedDt
         end function SewerGEMSEngine_step_imposed_dt
 
-        integer(c_int) function SewerGEMSEngine_getInflowByNode(id, inflow) bind(C, name='swmm_getInflowByNodeByID')
+        integer(c_int) function SewerGEMSEngine_getInflowByNode(id, inflow) bind(C, name='swmm_getInflowByNode')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: inflow
         end function SewerGEMSEngine_getInflowByNode
 
-        integer(c_int) function SewerGEMSEngine_getOutflowByNode(id, outflow) bind(C, name='swmm_getOutflowByNodeByID')
+        integer(c_int) function SewerGEMSEngine_getOutflowByNode(id, outflow) bind(C, name='swmm_getOutflowByNode')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: outflow
         end function SewerGEMSEngine_getOutflowByNode
 
-        integer(c_int) function SewerGEMSEngine_setPondedWaterColumn(id, level) bind(C, name='swmm_setPondedWaterColumnByID')
+        integer(c_int) function SewerGEMSEngine_setPondedWaterColumn(id, level) bind(C, name='swmm_setPondedWaterColumn')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: level
         end function SewerGEMSEngine_setPondedWaterColumn
 
-        integer(c_int) function SewerGEMSEngine_setStormWaterPotentialInflow(id, inflow) bind(C, name='swmm_setStormWaterPotentialInflowByID')
+        integer(c_int) function SewerGEMSEngine_setStormWaterPotentialInflow(id, inflow) bind(C, name='swmm_setStormWaterPotentialInflow')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: inflow
         end function SewerGEMSEngine_setStormWaterPotentialInflow
 
-        integer(c_int) function SewerGEMSEngine_setDownstreamWaterLevel(id, level) bind(C, name='swmm_setDownstreamWaterLevelByID')
+        integer(c_int) function SewerGEMSEngine_setDownstreamWaterLevel(id, level) bind(C, name='swmm_setDownstreamWaterLevel')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: level
         end function SewerGEMSEngine_setDownstreamWaterLevel
 
-        integer(c_int) function SewerGEMSEngine_getLevelByNode(id, level) bind(C, name='swmm_getLevelByNodeByID')
+        integer(c_int) function SewerGEMSEngine_getLevelByNode(id, level) bind(C, name='swmm_getLevelByNode')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: level
         end function SewerGEMSEngine_getLevelByNode
 
-        integer(c_int) function SewerGEMSEngine_setOpenXSectionInflow(id, inflow) bind(C, name='swmm_setOpenXSectionInflowByID')
+        integer(c_int) function SewerGEMSEngine_setOpenXSectionInflow(id, inflow) bind(C, name='swmm_setOpenXSectionInflow')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: inflow
@@ -185,13 +185,13 @@ Module ModuleRunOff
             character(kind = c_char) :: endTime(*)
         end function SewerGEMSEngine_getDates
 
-        integer(c_int) function SewerGEMSEngine_getNodeType(id, nType) bind(C, name='swmm_getNodeTypeByID')
+        integer(c_int) function SewerGEMSEngine_getNodeType(id, nType) bind(C, name='swmm_getNodeType')
             use iso_c_binding
             integer(c_int) :: id
             integer(c_int) :: nType
         end function SewerGEMSEngine_getNodeType
 
-        integer(c_int) function  SewerGEMSEngine_getIsNodeOpenChannel(id, isOpen) bind(C, name='swmm_getIsNodeOpenChannelByID')
+        integer(c_int) function  SewerGEMSEngine_getIsNodeOpenChannel(id, isOpen) bind(C, name='swmm_getIsNodeOpenChannel')
             use iso_c_binding
             integer(c_int) :: id
             integer(c_int) :: isOpen
@@ -208,7 +208,7 @@ Module ModuleRunOff
         
     end interface
 
-#endif
+#endif _SEWERGEMSENGINECOUPLER_
 
     !Subroutines---------------------------------------------------------------
 
@@ -263,7 +263,8 @@ Module ModuleRunOff
 
     !Destructor
     public  ::  KillRunOff                                                     
-    
+    public  ::      SetBasinStatsToRunOff
+
     !Management
     private ::  ReadLockExternalVar
     private ::  ReadUnLockExternalVar
@@ -303,7 +304,9 @@ Module ModuleRunOff
     
     !Inlet types
     integer, parameter                              :: Weir_                = 1
-    integer, parameter                              :: FlowCapture_         = 2        
+    integer, parameter                              :: FlowCapture_         = 2  
+    integer, parameter                              :: DepthFlowRatingCurve_= 3    
+    integer, parameter                              :: FlowFlowRatingCurve_ = 4    
     
     !SewerGEMS node types
     !Outside domai or, not connectedto 2D RunOff bolted e.g. manhole
@@ -316,8 +319,14 @@ Module ModuleRunOff
     integer, parameter                              :: CrossSection_        = 3
     !Outfall (can flow from SewerGEMS to 2D RunOff and from 2D to SewerGEMS)
     integer, parameter                              :: Outfall_             = 4
+    !Pond (can flow from SewerGEMS to 2D RunOff and from 2D to SewerGEMS)
+    integer, parameter                              :: Pond_                = 5
 
-
+    !SWMM node types
+    integer, parameter                              :: SWMMJunction_        = 0
+    integer, parameter                              :: SWMMOutfall_         = 1
+    integer, parameter                              :: SWMMStorage_         = 2
+    
     !Types---------------------------------------------------------------------
     
     !TODO: Use inheritance to make these types less code management and repititions
@@ -371,6 +380,20 @@ Module ModuleRunOff
         class(T_MarginGridPoint), pointer :: ptr => null() ! the actual pointer
     end type MarginGridPointPtr_class
 
+    type T_SewerGEMSPond
+        integer                                     :: ID                   = null_int !1 to ponds
+        integer                                     :: NodeIndex            = null_int !SWMM node id
+        character(Stringlength)                     :: Name                 = null_str
+        real                                        :: WaterLevel           = null_real
+        real                                        :: Flow                 = null_real
+        integer, dimension(:), allocatable          :: I 
+        integer, dimension(:), allocatable          :: J 
+        character(Pathlength)                       :: LineFileName         = null_str
+        character(Pathlength)                       :: CellsFileName        = null_str
+        type (T_Lines),   pointer                   :: Line                 => null()
+        integer                                     :: nCells               = null_int 
+    end type T_SewerGEMSPond
+
     type T_SewerGEMSCrossSection
         integer                                     :: ID                   = null_int !1 to number of cross-sections
         integer                                     :: NodeIndex            = null_int !SWMM node id
@@ -400,7 +423,6 @@ Module ModuleRunOff
         real                                        :: Outflow              = null_real
     end type T_SewerGEMSManhole
 
-
     type T_SewerGEMSInlet
         integer                                     :: ID                   = null_int !1 to number of inlets
         integer                                     :: NodeIndex            = null_int !SWMM node id
@@ -414,6 +436,12 @@ Module ModuleRunOff
         real                                        :: EffectiveFlow        = null_real
         integer                                     :: CellID               = null_int
         integer                                     :: nInletsInGridCell    = null_int
+        character(Pathlength)                       :: RatingCurveFileName  = null_str
+        real, dimension(:), allocatable             :: RatingCurveStage
+        real, dimension(:), allocatable             :: RatingCurveFlow
+        integer                                     :: RatingCurve_nValues  = null_int 
+        real                                        :: RatingCurveBelowMin  = null_real 
+        real                                        :: RatingCurveAboveMax  = null_real 
     end type T_SewerGEMSInlet
     
     type T_OutPutRunOff
@@ -461,8 +489,10 @@ Module ModuleRunOff
         logical                                     :: WriteFloodArrivalTime          = .false.
         character(Pathlength)                       :: FloodArrivalTimeFile           = null_str
         real, dimension(:,:), pointer               :: FloodArrivalTime               => null()
-        real                                        :: FloodArrivalWaterColumnLimit   = null_real
-        
+        real                                        :: FloodArrivalWaterColumnLimit   = null_real        
+        real                                        :: TotalFloodedArea               = null_real
+        real                                        :: MaxTotalFloodedArea            = null_real
+
         logical                                     :: TimeSeries                     = .false.
         logical                                     :: TimeSerieDischON               = .false. 
         integer                                     :: DischargesNumber               = null_int 
@@ -472,6 +502,7 @@ Module ModuleRunOff
         type (T_Time)                               :: NextOutPutDisch    
         real                                        :: OutPutDischDT
         character(len=PathLength)                   :: TimeSerieLocationFile, DiscTimeSerieLocationFile
+
         
     end type T_OutPutRunOff
 
@@ -489,6 +520,8 @@ Module ModuleRunOff
         character(PathLength)                       :: SWMMHDF              = null_str
         character(PathLength)                       :: SWMMTimeSeries       = null_str
         character(PathLength)                       :: SWMMTimeSeriesDir    = null_str
+        character(PathLength)                       :: MassErrorFile        = null_str
+        character(PathLength)                       :: RunOffLogFile        = null_str
     end type T_FilesRunOff    
 
     type T_ExtVarRunOff
@@ -627,13 +660,18 @@ Module ModuleRunOff
         
         logical                                     :: StormWaterModel          = .false. !If connected to SWMM
         real                                        :: StormWaterModelDT        = -null_real
+
         type(T_SewerGEMSInlet),   dimension(:), allocatable         :: Inlets
         type(T_SewerGEMSManhole), dimension(:), allocatable         :: Manholes
         type(T_SewerGEMSOutfall), dimension(:), allocatable         :: Outfalls
         type(T_SewerGEMSCrossSection), dimension(:), allocatable    :: CrossSections
+        type(T_SewerGEMSPond),    dimension(:), allocatable         :: Ponds
 
         integer                                     :: NumberOfInlets           = null_int
         integer                                     :: NumberOfNodes            = null_int
+        integer                                     :: NumberOfIgnoredNodes     = null_int
+        character(len=99), dimension(:), allocatable:: IgnoredNodes
+
         real, dimension(:), allocatable             :: NodesX, NodesY
         integer, dimension(:), allocatable          :: NodesI, NodesJ, NodesID, NodesCellID
         integer, dimension(:), allocatable          :: NodesType
@@ -644,6 +682,7 @@ Module ModuleRunOff
         integer                                     :: NumberOfManholes         = null_int
         integer                                     :: NumberOfOutfalls         = null_int
         integer                                     :: NumberOfCrossSections    = null_int
+        integer                                     :: NumberOfPonds            = null_int
 
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
         integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
@@ -714,12 +753,21 @@ Module ModuleRunOff
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
-        real(8)                                     :: TotalDischargeFlowVolume  = 0.0        
+        real(8)                                     :: TotalDischargeFlowVolume  = 0.0  
+        real(8)                                     :: TotalBoundaryFlowVolume   = 0.0     
+        real(8)                                     :: TotalInfiltrationVolume   = 0.0     
+        real(8)                                     :: TotalRainfallVolume       = 0.0  
+        real(8)                                     :: TotalStoredVolume         = 0.0
+        real                                        :: InitialTotalVolume        = 0.0
+        real                                        :: TotalStormWaterVolume     = 0.0
+        real(8)                                     :: AvrgAccInfiltrationDepth  = 0.0   
+        real(8)                                     :: AvrgAccInfiltrationVolume = 0.0   
+   
         
         logical                                     :: Continuous          = .false.
         logical                                     :: StopOnWrongDate     = .true.
         
-        real(8)                                     :: TotalStoredVolume  = 0.
+
         integer                                     :: BasinCellsCount    = 0
 
         !Grid size
@@ -863,7 +911,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
            
             !Constructs SewerStormWaterNodesMap
             if (Me%StormWaterModel) then
-                call ConstructSewerStormWater                
+                call ConstructSewerStormWater     
             endif
             
             !Constructs Boundary Cells
@@ -892,6 +940,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call CalculateTotalStoredVolume
 
+            Me%InitialTotalVolume = Me%TotalStoredVolume
+
             !Output Results
             if (Me%OutPut%Yes .or. Me%OutPut%TimeSeries) then
                 call ComputeCenterValues      
@@ -905,6 +955,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call OutputTimeSeries
             endif
 
+            call ComputeNextDT (Me%CV%NextNiteration)                                    
 
             call ReadUnLockExternalVar (StaticOnly = .false.)
 
@@ -971,7 +1022,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: STAT_CALL
         type(T_PropertyID)                          :: InitialWaterColumnID, InitialWaterLevelID
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
-        character(len=PathLength)                   :: MappingFileName, InletsFileName
+        character(len=PathLength)                   :: MappingFileName, RootSRT
+        character(len=PathLength)                   :: IgnoredNodesFileName
+        character(len=PathLength)                   :: InletsFileName, PondsFileName
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
         integer                                     :: i, j, n
@@ -986,9 +1039,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName ('RUNOFF_HDF', Me%Files%TransientHDF, "RunOff HDF File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR020'
 
-        call ReadFileName('RUNOFF_FIN', Me%Files%FinalFile,                              &
+        call ReadFileName('RUNOFF_FIN', Me%Files%FinalFile,                             &
                            Message = "RunOff Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR030'
+        
+        call ReadFileName('ROOT_SRT', RootSRT,                                          &
+                           Message = "Mass Error File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR031'
+        Me%Files%MassErrorFile = trim(adjustl(RootSRT))//"MassError.dat"
+        Me%Files%RunOffLogFile = trim(adjustl(RootSRT))//"RunOff.log"
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
@@ -1093,7 +1152,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Adjusts Slope according to
         !http://www.hkh-friend.net.np/rhdc/training/lectures/HEGGEN/Tc_3.pdf
         call GetData(Me%AdjustSlope,                                            &
-                     Me%ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
                      keyword      = 'ADJUST_SLOPE',                             &
                      default      = .true.,                                     &
@@ -1117,8 +1176,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%HydrodynamicApproximation /= DynamicWave_) then
             write (*,*) 'Invalid Hydrodynamic Approximation [HYDRODYNAMIC_APROX]'
             stop 'ReadDataFile - ModuleRunOff - ERR0150'
-        end if
-        
+        end if     
+   
         if (Me%HydrodynamicApproximation == DynamicWave_) then
 
             !Gets if advection is to be calculated
@@ -1339,7 +1398,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR371'
             
-            if (Me%MomentumDischarges .and. Me%HydrodynamicApproximation .ne. DynamicWave_) then
+            if (Me%MomentumDischarges) then
                 write (*,*) "MOMENTUM_DISCHARGE is only allowed when HYDRODYNAMIC_APROX is 3 (Dynamic Wave)"
                 stop 'ReadDataFile - ModuleRunOff - ERR372'
             end if
@@ -1638,9 +1697,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%StormWaterModel) then
         
-            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
-    
+            !Catch-basins/inlets
             call GetData(InletsFileName,                                                    &
                          Me%ObjEnterData,                                                   &
                          iflag,                                                             &
@@ -1657,11 +1714,56 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 Me%NumberOfInlets = 0
                 
-            else    
+            else
+
                 call ReadInletsFromFile(InletsFileName)
+
+            endif
+
+            !Ponds
+            call GetData(PondsFileName,                                                     &
+                         Me%ObjEnterData,                                                   &
+                         iflag,                                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'PONDS_FILENAME',                                   &
+                         ClientModule = 'ModuleRunOff',                                     &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR698'
+                
+            if (iflag == 0) then
+                write(*,*)
+                write(*,*)"PONDS_FILENAME keyword setting the ponds file path was not found"
+                write(*,*)"Simulation will not consider ponds"
+
+                Me%NumberOfPonds = 0
+                
+            else    
+                call ReadPondsFromFile(PondsFileName)
+            endif
+
+            !Ignored SWMM nodes (nodes inside grid that are not linked to 2D surface)
+            call GetData(IgnoredNodesFileName,                                              &
+                         Me%ObjEnterData,                                                   &
+                         iflag,                                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'IGNORED_NODES_FILENAME',                           &
+                         ClientModule = 'ModuleRunOff',                                     &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR700'
+                
+            if (iflag == 0) then
+                write(*,*)
+                write(*,*)"IGNORED_NODES_FILENAME keyword setting the ponds file path was not found"
+                write(*,*)"Simulation will link all SWMM nodes inside the 2D grid"
+
+                Me%NumberOfIgnoredNodes = 0
+                
+            else    
+                call ReadIgnoredNodesFromFile(IgnoredNodesFileName)
             endif
                 
         endif
+
                 
         !Get mapping to river in case of external model or DN
         if (Me%StormWaterModel .or. Me%ObjDrainageNetwork /= 0) then
@@ -1672,8 +1774,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             keyword      = '1D_INTERACTION_MAPPING_FILE',          &
                             ClientModule = 'ModuleRunoff',                         &
                             STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'ReadDataFile - ModuleRunOff - ERR800'                
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR800' 
+                               
             
             if (iflag .EQ. 1) then
                 Me%Use1D2DInteractionMapping = .true.
@@ -2217,6 +2319,330 @@ do3:    do
     end subroutine Read1DInteractionMapping
 
     !--------------------------------------------------------------------------
+
+    subroutine ReadIgnoredNodesFromFile(Filename)
+
+        !Arguments-------------------------------------------------------------
+        character(len=PathLength)                   :: Filename
+
+        !Local----------------------------------------------------------------
+        integer                                     :: IgnoredNodesObjEnterData, ClientNumber, STAT_CALL
+        integer                                     :: iflag, nLine, nNode
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine
+        !Begin----------------------------------------------------------------    
+        
+        IgnoredNodesObjEnterData  = 0
+        Me%NumberOfIgnoredNodes   = 0
+
+        call ConstructEnterData(IgnoredNodesObjEnterData, Filename, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadIgnoredNodesFromFile - ModuleRunoff - ERR01'  
+        
+
+        !Count number of ignored nodes
+        call ExtractBlockFromBuffer(IgnoredNodesObjEnterData,                               &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_ignored_nodes>',              &
+                                    block_end       = '<end_ignored_nodes>',                &
+                                    BlockFound      = BlockFound,                           &
+                                    FirstLine       = FirstLine,                            &
+                                    LastLine        = LastLine,                             &  
+                                    STAT            = STAT_CALL)
+        if(STAT_CALL .EQ. SUCCESS_)then
+            
+            if (BlockFound) then
+
+                Me%NumberOfIgnoredNodes = LastLine - FirstLine - 1
+
+                if(Me%NumberOfIgnoredNodes > 0)then
+
+                    allocate(Me%IgnoredNodes(1:Me%NumberOfIgnoredNodes))
+            
+                    nNode = 1
+
+                    do nLine = FirstLine + 1, LastLine - 1
+                    
+                        call GetData(Me%IgnoredNodes(nNode), IgnoredNodesObjEnterData, &
+                                     iflag, Buffer_Line = nLine, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadIgnoredNodesFromFile - ModuleRunoff - ERR02'
+
+                        nNode = nNode + 1 
+                    enddo 
+
+                else
+
+                    write(*,*)
+                    write(*,*)"No SWMM ignored nodes were defined."
+                    write(*,*)"All SWMM nodes inside the grid will be linked to 2D model."
+                    write(*,*)"File: ", trim(adjustl(Filename))
+                    write(*,*)"ReadIgnoredNodesFromFile - ModuleRunoff - WRN01"
+                    write(*,*)
+
+                endif
+                
+                call Block_Unlock(IgnoredNodesObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIgnoredNodesFromFile - ModuleRunoff - ERR03'  
+
+            else
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                write(*,*) 'Could not find <begin_ignored_nodes>...<end_ignored_nodes> block'
+                stop    'ReadIgnoredNodesFromFile - ModuleRunoff - ERR04'
+
+            endif
+
+        elseif (STAT_CALL .EQ. BLOCK_END_ERR_) then
+                
+            write(*,*)  
+            write(*,*) 'Error calling ExtractBlockFromBuffer. '
+            stop    'ReadIgnoredNodesFromFile - ModuleRunoff - ERR05'
+        
+        else
+            stop    'ReadIgnoredNodesFromFile - ModuleRunoff - ERR06'
+        end if
+            
+        call KillEnterData(IgnoredNodesObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadIgnoredNodesFromFile - ModuleRunoff - ERR10'  
+
+
+
+    end subroutine ReadIgnoredNodesFromFile
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadPondsFromFile(Filename)
+    
+        !Arguments-------------------------------------------------------------
+        character(len=PathLength)                   :: Filename
+
+        !Local----------------------------------------------------------------
+        integer                                     :: PondsObjEnterData, ClientNumber, STAT_CALL
+        integer                                     :: iflag, n, i
+        logical                                     :: BlockFound, CellsFromLine
+        integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
+
+        !Begin----------------------------------------------------------------    
+        
+        PondsObjEnterData  = 0
+        Me%NumberOfPonds   = 0
+
+        call ConstructEnterData(PondsObjEnterData, Filename, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunoff - ERR01'  
+        
+
+do1:    do         
+            !Count number of ponds
+            call ExtractBlockFromBuffer(PondsObjEnterData,                                      &
+                                        ClientNumber    = ClientNumber,                         &
+                                        block_begin     = '<begin_pond>',                       &
+                                        block_end       = '<end_pond>',                         &
+                                        BlockFound      = BlockFound,                           &   
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+                
+                Me%NumberOfPonds = Me%NumberOfPonds + 1
+                
+            else
+                
+                call Block_Unlock(PondsObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunoff - ERR02'                             
+                
+                exit do1   
+                
+            endif
+            
+        enddo do1
+
+        if(Me%NumberOfPonds < 1)then
+            write(*,*)
+            write(*,*)"No ponds were defined."
+            write(*,*)"File: ", trim(adjustl(Filename))
+            write(*,*)"ReadPondsFromFile - ModuleRunoff - WRN01"
+            write(*,*)
+            return
+        endif
+
+        allocate(Me%Ponds(1:Me%NumberOfPonds))
+        
+        call RewindBuffer (PondsObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunOff - ERR03'
+        
+        n = 0
+        
+do2:    do         
+            !Count number of ponds
+            call ExtractBlockFromBuffer(PondsObjEnterData,                                      &
+                                        ClientNumber    = ClientNumber,                         &
+                                        block_begin     = '<begin_pond>',                       &
+                                        block_end       = '<end_pond>',                         &
+                                        BlockFound      = BlockFound,                           &   
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+                
+                n = n + 1
+
+                Me%Ponds(n)%ID = n
+
+                call GetData(Me%Ponds(n)%Name,                                                  &
+                             PondsObjEnterData, iflag,                                          &
+                             Keyword        = 'NAME',                                           &
+                             SearchType     = FromBlock,                                        &
+                             ClientModule   ='ModuleRunoff',                                    &
+                             STAT           = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadPondsFromFile - ModuleRunOff - ERR04'
+
+                if(iflag == 0)then
+                    write(*,*)"Please define NAME for pond"
+                    write(*,*)"ID = ", n
+                    stop 'ReadPondsFromFile - ModuleRunOff - ERR05'
+                endif
+                
+                call GetData(Me%Ponds(n)%LineFileName,                                          &
+                             PondsObjEnterData, iflag,                                          &
+                             Keyword        = 'LINE_FILENAME',                                  &
+                             SearchType     = FromBlock,                                        &
+                             ClientModule   ='ModuleRunoff',                                    &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadPondsFromFile - ModuleRunOff - ERR11'
+                
+                if(iflag == 0)then
+                    
+                    write(*,*)"No LINE_FILENAME was specified for ", trim(adjustl(Me%Ponds(n)%Name))
+                    write(*,*)
+                    write(*,*)"Searching PONDCELLS_FILENAME for   ", trim(adjustl(Me%Ponds(n)%Name))
+
+                    CellsFromLine = .false.
+
+                    call GetData(Me%Ponds(n)%CellsFileName,                                         &
+                                 PondsObjEnterData, iflag,                                          &
+                                 Keyword        = 'PONDCELLS_FILENAME',                             &
+                                 SearchType     = FromBlock,                                        &
+                                 ClientModule   ='ModuleRunoff',                                    &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadPondsFromFile - ModuleRunOff - ERR12'
+                
+                    if(iflag == 0)then
+                        write(*,*)"No PONDCELLS_FILENAME was specified for ", trim(adjustl(Me%Ponds(n)%Name))
+                        stop 'ReadPondsFromFile - ModuleRunOff - ERR13'
+                    else
+                        write(*,*)"Found PONDCELLS_FILENAME for   ", trim(adjustl(Me%Ponds(n)%Name))
+                        write(*,*)
+                    endif
+
+                    call ReadPondCellsFile(Me%Ponds(n)%ID)
+
+                else
+                    CellsFromLine = .true.
+
+                    call New(Me%Ponds(n)%Line, Me%Ponds(n)%LineFileName)
+
+                    call GetCellZInterceptByLine(Me%ObjHorizontalGrid, Me%Ponds(n)%Line,                &
+                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ, VectorK,      &
+                                                 Me%Ponds(n)%nCells, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunOff - ERR14'
+
+                    if (Me%Ponds(n)%nCells < 1) then
+                        write(*,*) 'Pond polygon does not intercept any grid cells'       
+                        stop 'ReadPondsFromFile - ModuleRunOff - ERR15' 
+                    endif
+
+                    allocate(Me%Ponds(n)%I(1:Me%Ponds(n)%nCells))
+                    allocate(Me%Ponds(n)%J(1:Me%Ponds(n)%nCells))
+
+                    do i = 1, Me%Ponds(n)%nCells
+                        Me%Ponds(n)%I(i) = VectorI(i)
+                        Me%Ponds(n)%J(i) = VectorJ(i)
+                    enddo
+
+                endif
+
+
+            else
+                
+                call Block_Unlock(PondsObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunoff - ERR100'                             
+                
+                exit do2   
+                
+            endif
+            
+        enddo do2
+
+
+        call KillEnterData(PondsObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPondsFromFile - ModuleRunoff - ERR900'  
+    
+    end subroutine ReadPondsFromFile
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadPondCellsFile(PondID)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: PondID
+
+        !Local----------------------------------------------------------------
+        
+        integer                                     :: PondCellsObjEnterData, ClientNumber, STAT_CALL
+        integer                                     :: iflag
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine, iValue, iLine
+        real, dimension(:), pointer                 :: BufferLine
+
+        !Begin----------------------------------------------------------------    
+
+        PondCellsObjEnterData = 0
+
+        call ConstructEnterData(PondCellsObjEnterData, Me%Ponds(PondID)%CellsFileName, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPondCellsFile - ModuleRunoff - ERR01'  
+
+        !Count number of inlets
+        call ExtractBlockFromBuffer(PondCellsObjEnterData,                                  &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_pond_cells>',                 &
+                                    block_end       = '<end_pond_cells>',                   &
+                                    BlockFound      = BlockFound,                           &   
+                                    FirstLine       = FirstLine,                            &
+                                    LastLine        = LastLine,                             &
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+                
+            Me%Ponds(PondID)%nCells = LastLine - FirstLine - 1
+
+            allocate(Me%Ponds(PondID)%I(1:Me%Ponds(PondID)%nCells))
+            allocate(Me%Ponds(PondID)%J(1:Me%Ponds(PondID)%nCells))
+
+            allocate(BufferLine(2))
+
+            iValue = 1
+            do  iLine = FirstLine+1, LastLine-1
+                call GetData(BufferLine,                                &
+                             PondCellsObjEnterData,                     &
+                             iflag, Buffer_Line = iLine,                &
+                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ .or. iflag /= 2) stop 'ReadPondCellsFile - ModuleRunoff - ERR10'                             
+  
+                Me%Ponds(PondID)%I(iValue) = BufferLine (1)
+                Me%Ponds(PondID)%J(iValue) = BufferLine (2)
+                iValue = iValue + 1
+            end do
+
+            deallocate (BufferLine)
+                
+        else
+                
+            call Block_Unlock(PondCellsObjEnterData, ClientNumber, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadPondCellsFile - ModuleRunoff - ERR20'                             
+                
+        endif
+        
+        call KillEnterData(PondCellsObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadPondCellsFile - ModuleRunoff - ERR30'                             
+
+
+    end subroutine ReadPondCellsFile
+
+    !--------------------------------------------------------------------------
     
     subroutine ReadInletsFromFile(Filename)
     
@@ -2227,7 +2653,7 @@ do3:    do
         integer                                     :: InletsObjEnterData, ClientNumber, STAT_CALL
         integer                                     :: iflag, n
         logical                                     :: BlockFound
-        
+        real                                        :: InletFlowBelowMinStage, InletFlowAboveMaxStage
         !Begin----------------------------------------------------------------    
         
         InletsObjEnterData  = 0
@@ -2252,7 +2678,7 @@ do1:    do
             else
                 
                 call Block_Unlock(InletsObjEnterData, ClientNumber, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR02'                             
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR10'                             
                 
                 exit do1   
                 
@@ -2271,8 +2697,8 @@ do1:    do
 
         allocate(Me%Inlets(1:Me%NumberOfInlets))
         
-        call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR03'
+        call RewindBuffer (InletsObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR20'
         
         n = 0
         
@@ -2296,7 +2722,7 @@ do2:    do
                              SearchType     = FromBlock,                                        &
                              ClientModule   ='ModuleRunoff',                                    &
                              STAT           = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR04'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR30'
 
                 if(iflag == 0)then
                     write(*,*)"Please define NAME for inlet"
@@ -2311,7 +2737,7 @@ do2:    do
                              ClientModule   ='ModuleRunoff',                                    &
                              Default        = Weir_,                                            &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR11'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR40'
                 
                 if(Me%Inlets(n)%TypeOf .eq. Weir_)then
 
@@ -2321,11 +2747,11 @@ do2:    do
                                  SearchType     = FromBlock,                                        &
                                  ClientModule   ='ModuleRunoff',                                    &
                                  STAT           = STAT_CALL)                                      
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR12'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR50'
                     
                     if(iflag == 0)then
                         write(*,*)"No WIDTH was specified for ", trim(adjustl(Me%Inlets(n)%Name))
-                        stop 'ReadInletsFromFile - ModuleRunOff - ERR13'
+                        stop 'ReadInletsFromFile - ModuleRunOff - ERR60'
                     endif 
                     
                     
@@ -2338,19 +2764,57 @@ do2:    do
                                  Default        = 1.0,                                              &
                                  ClientModule   ='ModuleRunoff',                                    &
                                  STAT           = STAT_CALL)                                      
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR14'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR70'
+
+                elseif(Me%Inlets(n)%TypeOf .eq. DepthFlowRatingCurve_ .or. Me%Inlets(n)%TypeOf .eq. FlowFlowRatingCurve_)then
+
+                    call GetData(Me%Inlets(n)%RatingCurveFileName,                                  &
+                                 InletsObjEnterData, iflag,                                         &
+                                 Keyword        = 'RATING_CURVE_FILENAME',                          &
+                                 SearchType     = FromBlock,                                        &
+                                 ClientModule   ='ModuleRunoff',                                    &
+                                 STAT           = STAT_CALL)                                      
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR80'
+                    
+                    if(iflag == 0)then
+                        write(*,*)"No RATING_CURVE_FILENAME was specified for ", trim(adjustl(Me%Inlets(n)%Name))
+                        stop 'ReadInletsFromFile - ModuleRunOff - ERR90'
+                    endif 
+
+                    call ReadRatingCurveFile(Me%Inlets(n))
+
+                    InletFlowBelowMinStage = Me%Inlets(n)%RatingCurveFlow(1)
+                    InletFlowAboveMaxStage = Me%Inlets(n)%RatingCurveFlow(Me%Inlets(n)%RatingCurve_nValues)
+
+                    call GetData(Me%Inlets(n)%RatingCurveBelowMin,                                  &
+                                 InletsObjEnterData, iflag,                                         &
+                                 Keyword        = 'FLOW_BELOW_MIN_STAGE',                           &
+                                 SearchType     = FromBlock,                                        &
+                                 ClientModule   = 'ModuleRunoff',                                   &
+                                 Default        = InletFlowBelowMinStage,                           &
+                                 STAT           = STAT_CALL)                                      
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadRatingCurvesFromFile - ModuleRunOff - ERR100'
+                    
+                    call GetData(Me%Inlets(n)%RatingCurveAboveMax,                                  &
+                                 InletsObjEnterData, iflag,                                         &
+                                 Keyword        = 'FLOW_ABOVE_MAX_STAGE',                           &
+                                 SearchType     = FromBlock,                                        &
+                                 ClientModule   = 'ModuleRunoff',                                   &
+                                 Default        = InletFlowAboveMaxStage,                           &
+                                 STAT           = STAT_CALL)                                      
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR120'
 
                 else
                     
                     write(*,*)"Invalid INLET_TYPE"
-                    stop 'ReadInletsFromFile - ModuleRunOff - ERR15'
+                    stop 'ReadInletsFromFile - ModuleRunOff - ERR140'
                     
                 endif
                
             else
                 
                 call Block_Unlock(InletsObjEnterData, ClientNumber, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR100'                             
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR150'                             
                 
                 exit do2   
                 
@@ -2360,9 +2824,71 @@ do2:    do
 
 
         call KillEnterData(InletsObjEnterData, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR900'  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInletsFromFile - ModuleRunoff - ERR200'  
     
     end subroutine ReadInletsFromFile
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadRatingCurveFile(Inlet)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_SewerGEMSInlet)                      :: Inlet
+
+        !Local----------------------------------------------------------------
+        integer                                     :: RatingCurveObjEnterData, ClientNumber, STAT_CALL
+        integer                                     :: iflag, FirstLine, LastLine, iValue, iLine
+        logical                                     :: BlockFound
+        real, dimension(:), pointer                 :: BufferLine
+
+        !Begin----------------------------------------------------------------
+
+        call ConstructEnterData(RatingCurveObjEnterData, Inlet%RatingCurveFilename, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadRatingCurveFile - ModuleRunoff - ERR01'  
+            
+        !Get Block with rating curves values
+        call ExtractBlockFromBuffer(RatingCurveObjEnterData, ClientNumber,                      &
+                                    "<begin_rating_curve_table>", "<end_rating_curve_table>",   &
+                                    BlockFound, FirstLine = FirstLine, LastLine = LastLine,     &
+                                    STAT      = STAT_CALL)
+
+        if (STAT_CALL .EQ. SUCCESS_  .and. BlockFound) then
+
+            Inlet%RatingCurve_nValues = LastLine - FirstLine - 1
+            
+            allocate(Inlet%RatingCurveStage(1:Inlet%RatingCurve_nValues))
+            allocate(Inlet%RatingCurveFlow (1:Inlet%RatingCurve_nValues))
+                    
+            allocate(BufferLine(2))
+
+            iValue = 1;
+            do  iLine = FirstLine+1, LastLine-1
+                call GetData(BufferLine,                                &
+                             RatingCurveObjEnterData,                   &
+                             iflag, Buffer_Line = iLine,                &
+                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ .or. iflag /= 2)stop 'ReadRatingCurveFile - ModuleRunoff - ERR10'  
+                    
+                Inlet%RatingCurveStage(iValue) = BufferLine (1)
+                Inlet%RatingCurveFlow (iValue) = BufferLine (2)
+                iValue = iValue + 1
+            end do
+
+            deallocate (BufferLine)
+
+            call Block_Unlock(RatingCurveObjEnterData, ClientNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadRatingCurveFile - ModuleRunoff - ERR20'  
+                    
+            call KillEnterData(RatingCurveObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadRatingCurveFile - ModuleRunoff - ERR30'  
+
+        else
+
+            stop 'ReadRatingCurveFile - ModuleRunoff - ERR40'
+
+        endif 
+
+    end subroutine ReadRatingCurveFile
 
     !--------------------------------------------------------------------------
 
@@ -3024,17 +3550,31 @@ do4:            do di = -1, 1
                 if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR70' 
 
                 if (iflag == 0) then
-                    write(*,*)'if using boundary, BOUNDARY_VALUE must be defined in ModuleRunoff'
+                    write(*,*)'if using water elevation boundary, BOUNDARY_VALUE must be defined in ModuleRunoff'
                     stop 'ReadBoundaryConditions - ModuleRunoff - ERR75'
                 endif
         
             endif
         
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR080'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR076'
 
 
         else !use multiple lines to define different boundary conditions at different open boundary cells
+
+            call GetData(Me%BoundaryValue,                                              &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'BOUNDARY_VALUE',                                 &
+                         ClientModule ='ModuleRunoff',                                  &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR77' 
+
+            if (iflag == 0) then
+                write(*,*)'if using water elevation boundary, BOUNDARY_VALUE must be defined in ModuleRunoff'
+                stop 'ReadBoundaryConditions - ModuleRunoff - ERR78'
+            endif
+
 
             call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR81'
@@ -3330,6 +3870,7 @@ do2:        do
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                     Me%myWaterLevel(i, j)       = Me%InitialWaterColumn(i,j) + Me%ExtVar%Topography(i, j)
                     Me%MyWaterColumn(i, j)      = Me%InitialWaterColumn(i,j)
+                    Me%myWaterVolume(i, j)      = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
                     Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
                     Me%StabilityPoints(i, j)    = 1
                 endif
@@ -3348,6 +3889,7 @@ do2:        do
                         Me%myWaterLevel(i, j)   = Me%ExtVar%Topography(i, j)
                         Me%MyWaterColumn(i, j)  = 0.0
                     endif
+                    Me%myWaterVolume(i, j)      = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
                     Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
                     Me%StabilityPoints(i, j)    = 1
                 endif
@@ -3656,18 +4198,10 @@ do2:        do
 
             endif
                         
-            if (SpatialEmission /= DischPoint_) then            
             
-                call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
+            call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
             
-            !else
-            !    if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
-            !        call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
-            !        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
-            !    endif
-            !    deallocate(VectorI, VectorJ, VectorK)
-            endif
 
         enddo
         
@@ -3876,6 +4410,8 @@ do2:        do
         allocate(Me%ComputeAdvectionV    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%VelModFaceU          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%VelModFaceV          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+
 
         Me%iFlowX               = 0.0
         Me%iFlowY               = 0.0
@@ -4126,7 +4662,7 @@ do2:        do
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _SEWERGEMSENGINECOUPLER_
 
         integer                                             :: ILB, IUB, JLB, JUB    
         integer                                             :: i, j, idx
@@ -4139,6 +4675,8 @@ do2:        do
                 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
+
+        Me%TotalStormWaterVolume = 0.0
 
         if (Me%StormWaterModel .and. Me%ObjDrainageNetwork /= 0) then
             write(*,*)'It is not possible to activate 1D Drainage Network and SWMM at the same time'
@@ -4183,16 +4721,16 @@ do2:        do
             Me%MarginFlowToChannels      = null_real 
         endif
 
-#else    
+#else _SEWERGEMSENGINECOUPLER_    
     print*, 'Executable not compiled to use SewerGEMS Engine coupler, aborting'
     stop
-#endif
+#endif _SEWERGEMSENGINECOUPLER_
             
             
     end subroutine ConstructSewerStormWater
     
     !--------------------------------------------------------------------------
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _SEWERGEMSENGINECOUPLER_
     
     subroutine ConstructSewerGEMS
         
@@ -4205,7 +4743,7 @@ do2:        do
         character(len = :), allocatable                 :: year, month, day, hour, minute, second, fullDate
         type(T_Time)                                    :: SWMMBeginTime, SWMMEndTime
         integer(c_int)                                  :: isOpenChannel
-        integer                                         :: nInlets, iNode, nManholes, nOutfalls, nCrossSections
+        integer                                         :: nInlets, iNode, nManholes, nOutfalls, nCrossSections, nPonds
         logical                                         :: Exists
         !--------------------------------------------------------------------------
         
@@ -4217,10 +4755,10 @@ do2:        do
         if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR01'
         
         call ReadFileName('STORMWATER_HDF', Me%Files%SWMMHDF, Message = "SWMM HDF file", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR10'
 
         call ReadFileName('ROOT_SRT', Me%Files%SWMMTimeSeriesDir, Message = "SWMM Time Series folder", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR20'
 
         dpos = scan(trim(Me%Files%SWMMHDF),".", BACK= .true.)
     
@@ -4230,11 +4768,11 @@ do2:        do
             Me%Files%SWMMout = Me%Files%SWMMHDF(1:dpos)//'swm'
         else
             write(*,*)'STORMWATER_HDF file extension in nomfich.dat not recognized'
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR04' 
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR30' 
         end if
         
         call ConstructEnterData (ObjStormWaterEnterData, Me%Files%SWMMdat, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR05' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR40' 
 
         call GetData(Me%Files%SWMMinp,                                                   &
                      ObjStormWaterEnterData, iflag,                                      &
@@ -4242,19 +4780,19 @@ do2:        do
                      keyword      = 'MODEL_CONFIGURATION',                               &
                      ClientModule = 'ModuleStormWater',                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR06' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR50' 
 
         if(iflag == 0)then
             write(*,*)"Please set keyword MODEL_CONFIGURATION."
             write(*,*)"File = " , trim(adjustl(Me%Files%SWMMdat))
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR07'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR60'
         endif
 
         inquire (FILE=trim(Me%Files%SWMMinp), EXIST = Exists)
         if(.not. Exists)then
             write(*,*)"Could not find SWMM stormwater file"
             write(*,*)"File = " , trim(adjustl(Me%Files%SWMMinp))
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR07a'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR070'
         end if
 
         
@@ -4264,7 +4802,7 @@ do2:        do
                      keyword      = 'TIME_SERIE_LOCATION',                               &
                      ClientModule = 'ModuleStormWater',                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR08' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR80' 
 
         if(iflag == 0)then
             write(*,*)
@@ -4279,7 +4817,7 @@ do2:        do
 
         
         call KillEnterData (ObjStormWaterEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR09' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR90' 
 
         
         inpFile = trim(ADJUSTL(Me%Files%SWMMinp))//C_NULL_CHAR
@@ -4292,14 +4830,14 @@ do2:        do
             write(*,*)
             write(*,*)"Error initializing SWMM"
             write(*,*)"SWMM error code : ", STAT_CALL
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR10'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR100'
         endif
         
         STAT_CALL = SewerGEMSEngine_start(SaveResults)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR11'
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR110'
+
         STAT_CALL = SewerGEMSEngine_getDates(startDate, startTime, endDate, endTime)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR12'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR120'
         
         month   = startDate(1:2)
         day     = startDate(4:5)
@@ -4329,7 +4867,7 @@ do2:        do
         end if
         
         STAT_CALL = SewerGEMSEngine_getNumberOfNodes(Me%NumberOfNodes)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR130'
         
         write(*,*)
         write(*,*)"SewerGEMS - Total Number of Nodes :", Me%NumberOfNodes
@@ -4355,6 +4893,7 @@ do2:        do
         Me%NumberOfCrossSections= 0 
         Me%NumberOfOutfalls     = 0
         nInlets                 = 0 
+        nPonds                  = 0 
 
         do n = 1, Me%NumberOfNodes
             
@@ -4363,7 +4902,7 @@ do2:        do
             
             nodeName = " "//C_NULL_CHAR
             STAT_CALL = SewerGEMSEngine_getNodeName(Me%NodesID(n), nodeName)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR140'
             
             do c = 1, 99
                 i = iachar(nodeName(c:c))
@@ -4375,40 +4914,60 @@ do2:        do
             !do c = 1, 99
                !if (nodeName(c:c) == C_NULL_CHAR) nodeName(c:c) = space
             !end do
-        
 
             Me%NodesNames(n) = nodeName
 
+            if(IgnoreSWMMNode(Me%NodesNames(n))) then
+                Me%InactiveNodes = Me%InactiveNodes + 1 !add to list of inactive nodes
+                cycle                                   !go directly to next node
+            endif 
+
+            !Check the type of node (0 = junction; 1 = outfall; 2 = storage)
+            STAT_CALL = SewerGEMSEngine_getNodeType(Me%NodesID(n), nodeType)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR150'
+            
+            !Ponds - check if pond in SWMM file is valid and listed in the Ponds file; 
+            !2D engine does not check for (I,J) location of pond as with other nodes
+            if(nodeType == SWMMStorage_)then
+                if(ValidatePond(Me%NodesNames(n), Me%NodesID(n)) > 0)then !if not pond returns null_int (-999999)
+                    Me%NodesType(n) = Pond_
+                    nPonds          = nPonds + 1
+                    cycle !go directly to next node
+                else
+                    write(*,*)"Node is defined as pond/storage area in SWMM inp file"
+                    write(*,*)"But it's not listed in the ponds file"
+                    write(*,*)"Node name = ", trim(adjustl(Me%NodesNames(n)))
+                    stop 'ConstructSewerGEMS - ModuleRunOff - ERR210'
+                endif
+
+            endif
+
             !Get node coordinates
             STAT_CALL = SewerGEMSEngine_getNodeXY(Me%NodesID(n), Me%NodesX(n), Me%NodesY(n))
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR15'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR160'
             
             !Check if node is located inside the computational grid
-            if (GetXYInsideDomain(Me%ObjHorizontalGrid, Me%NodesX(n), Me%NodesY(n))) then
+insidegrid: if (GetXYInsideDomain(Me%ObjHorizontalGrid, Me%NodesX(n), Me%NodesY(n))) then
                 
                 !Get the nodes I and J grid cell indexes from node's X and Y
                 call GetXYCellZ(Me%ObjHorizontalGrid, Me%NodesX(n), Me%NodesY(n),         &
                                                       Me%NodesI(n), Me%NodesJ(n))
                 
-                !Check the type of node (0 = junction; 1 = outfall)
-                STAT_CALL = SewerGEMSEngine_getNodeType(Me%NodesID(n), nodeType)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR16'
 
                 !Check if grid cell is an active compute point
-                if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
+ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                 
-                    !0 = junction
-                    !1 = outfall
-                    if(nodeType == 0)then
+                    if(nodeType == SWMMJunction_)then
                         
                         !Check the node is an open channel 
                         STAT_CALL = SewerGEMSEngine_getIsNodeOpenChannel(Me%NodesID(n), IsOpenChannel)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR17'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR170'
 
                         if(IsOpenChannel == 1)then
                             write(*,*)
                             write(*,*)"Cross section nodes cannot be located in active grid cell"
-                            if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR17a' 
+                            write(*,*)"Node name = ", trim(adjustl(Me%NodesNames(n)))
+                            stop 'ConstructSewerGEMS - ModuleRunOff - ERR180' 
                         else
                             !Check inlet name and set inlet node index
                             if(ValidateInlet(Me%NodesNames(n), Me%NodesID(n)) > 0)then !if not inlet returns null_int (-999999)
@@ -4421,47 +4980,73 @@ do2:        do
                             endif
                         endif
                    
-                    else
+                    elseif(nodeType == SWMMOutfall_)then
+
                         Me%NodesType(n)     = Outfall_ 
                         Me%NumberOfOutfalls = Me%NumberOfOutfalls + 1
+
+                    elseif(nodeType == SWMMStorage_)then
+
+                        write(*,*)
+                        write(*,*)"Ponds/Storage nodes cannot be located in active grid cell"
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR190' 
+
                     endif
                     !Convert I and J to cell index
                     call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%NodesI(n), Me%NodesJ(n), Me%NodesCellID(n))
 
-                else
+                else ifactivepoint
 
-                    !Check the node is an open channel
+                    !Check the node is an open channelF
                     !Cross section nodes are located in non-compute points
                     STAT_CALL = SewerGEMSEngine_getIsNodeOpenChannel(Me%NodesID(n), IsOpenChannel)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR17b'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR200'
 
-                    if(IsOpenChannel == 1)then
-                        Me%NodesType(n)          = CrossSection_
-                        Me%NumberOfCrossSections = Me%NumberOfCrossSections + 1 
+                    !0 = junction
+                    !1 = outfall
+                    !2 = storage
+                    if(nodeType == SWMMJunction_)then
+
+                        if(IsOpenChannel == 1)then
+                            Me%NodesType(n)          = CrossSection_
+                            Me%NumberOfCrossSections = Me%NumberOfCrossSections + 1 
+                        else
+                            !if node is not a cross section and is in a non-compute grid cell then it's ignored. 
+                            Me%NodesType(n)     = NotCoupled_
+                            Me%NodesCellID(n)   = null_int
+                            Me%InactiveNodes    = Me%InactiveNodes + 1
+                        endif
+
                     else
-                        !if node is not a cross section and is in a non-compute grid cell then it's ignored. 
+                        !if node is not a cross section nor pond and is in a non-compute grid cell then it's ignored. 
                         Me%NodesType(n)     = NotCoupled_
                         Me%NodesCellID(n)   = null_int
                         Me%InactiveNodes    = Me%InactiveNodes + 1
                     endif
 
-                endif
+                endif ifactivepoint
             
-            else
+            else insidegrid
                 !if node is in outside the computational grid then it's ignored. 
                 Me%NodesI(n)        = null_int
                 Me%NodesJ(n)        = null_int
                 Me%NodesType(n)     = NotCoupled_
                 Me%NodesCellID(n)   = null_int
                 Me%InactiveNodes    = Me%InactiveNodes + 1
-            endif
+            endif insidegrid
 
         enddo
 
-        !Double check
+        !Double check inlets
         if(nInlets .ne. Me%NumberOfInlets)then
             write(*,*)"Number of Inlets in SWMM input file differs from Inlets config file"
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR18'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR220'
+        endif
+
+        !Double check ponds
+        if(nPonds .ne. Me%NumberOfPonds)then
+            write(*,*)"Number of Ponds in SWMM input file differs from Ponds config file"
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR230'
         endif
         
         !Confirm that number of cross sections in SewerGEMS inp file 
@@ -4469,14 +5054,14 @@ do2:        do
         if(Me%NodeGridPointNumber .ne. Me%NumberOfCrossSections)then
             write(*,*)"Number of Cross Sections in SWMM input file differs", Me%NodeGridPointNumber
             write(*,*)"from 1D/2D cross sections config file", Me%NumberOfCrossSections
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR19'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR240'
         endif
 
         Me%ActiveNodes = Me%NumberOfManholes      + Me%NumberOfInlets   + &
-                         Me%NumberOfCrossSections + Me%NumberOfOutfalls
+                         Me%NumberOfCrossSections + Me%NumberOfOutfalls + Me%NumberOfPonds
         !Double check
         if(Me%ActiveNodes + Me%InactiveNodes .ne. Me%NumberOfNodes)then
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR20'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR250'
         endif
 
         write(*,*)
@@ -4486,7 +5071,9 @@ do2:        do
         write(*,*)"SewerGEMS - Inlets                : ", Me%NumberOfInlets
         write(*,*)"SewerGEMS - Cross Sections        : ", Me%NumberOfCrossSections
         write(*,*)"SewerGEMS - Outfalls              : ", Me%NumberOfOutfalls
+        write(*,*)"SewerGEMS - Ponds                 : ", Me%NumberOfPonds
         write(*,*)"SewerGEMS - Inactive/Outside Grid : ", Me%InactiveNodes
+        write(*,*)"SewerGEMS - Ignored Nodes         : ", Me%NumberOfIgnoredNodes
         write(*,*)
 
         do n = 1, Me%NumberOfInlets
@@ -4533,7 +5120,7 @@ do2:        do
         endif
 
         if(nManholes .ne. Me%NumberOfManholes)then
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR21'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR260'
         endif
 
         nOutfalls = 0
@@ -4556,7 +5143,7 @@ do2:        do
         endif
 
         if(nOutfalls .ne. Me%NumberOfOutfalls)then
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR22'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR270'
         endif
 
         nCrossSections = 0
@@ -4580,8 +5167,12 @@ do2:        do
         endif
 
         if(nCrossSections .ne. Me%NumberOfCrossSections)then
-            stop 'ConstructSewerGEMS - ModuleRunOff - ERR23'
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR280'
         endif
+
+        STAT_CALL = SewerGEMSEngine_getdt(Me%StormWaterModelDT)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR290'
+
 
         write(*,*)
         write(*,*)"SewerGEMS - Successfully constructed"
@@ -4597,7 +5188,24 @@ do2:        do
         deallocate(Me%NodesType   )
     
     end subroutine ConstructSewerGEMS
+
+    !--------------------------------------------------------------------------
+
+    logical function IgnoreSWMMNode(Name)
     
+        character(len = 99), intent(in) :: Name
+        integer                         :: n
+        
+        IgnoreSWMMNode = .false.
+        do n = 1, Me%NumberOfIgnoredNodes
+            if(trim(adjustl(Name)) == trim(adjustl(Me%IgnoredNodes(n))))then
+                IgnoreSWMMNode           = .true.
+                exit 
+            end if 
+        enddo
+    
+    end function IgnoreSWMMNode
+
     !--------------------------------------------------------------------------
     
     integer function ValidateInlet(Name, NodeIndex)
@@ -4617,8 +5225,27 @@ do2:        do
     
     end function ValidateInlet
 
-#endif
     !--------------------------------------------------------------------------
+    
+    integer function ValidatePond(Name, NodeIndex)
+    
+        character(len = 99), intent(in) :: Name
+        integer,             intent(in) :: NodeIndex
+        integer                         :: n
+        
+        ValidatePond = null_int
+        do n = 1, Me%NumberOfPonds
+            if(trim(adjustl(Name)) == trim(adjustl(Me%Ponds(n)%Name)))then
+                ValidatePond           = Me%Ponds(n)%ID
+                Me%Ponds(n)%NodeIndex  = NodeIndex
+                exit 
+            end if 
+        enddo
+    
+    end function ValidatePond
+
+
+#endif _SEWERGEMSENGINECOUPLER_
 
     !--------------------------------------------------------------------------
 
@@ -5359,7 +5986,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            !call Read_Lock(mRUNOFF_, Me%InstanceID)
             Volume = Me%TotalDischargeFlowVolume
 
             STAT_ = SUCCESS_
@@ -5845,6 +6471,49 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_
                     
     end subroutine SetBasinColumnToRunoff
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetBasinStatsToRunoff(ObjRunOffID, TotalCumulativeRainfallVolume,        &
+                                                  TotalCumulativeInfiltrationVolume,    &
+                                                  AverageCumulativeInfiltrationVolume,  &
+                                                  AverageCumulativeInfiltrationDepth,   &
+                                                  STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real(8)                                         :: TotalCumulativeRainfallVolume
+        real(8)                                         :: TotalCumulativeInfiltrationVolume
+        real(8)                                         :: AverageCumulativeInfiltrationVolume
+        real(8)                                         :: AverageCumulativeInfiltrationDepth
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+
+        call Ready(ObjRunOffID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_)) then
+        
+            Me%TotalRainfallVolume          = TotalCumulativeRainfallVolume
+            Me%TotalInfiltrationVolume      = TotalCumulativeInfiltrationVolume
+            Me%AvrgAccInfiltrationVolume    = AverageCumulativeInfiltrationVolume
+            Me%AvrgAccInfiltrationDepth     = AverageCumulativeInfiltrationDepth
+            
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+                    
+    end subroutine SetBasinStatsToRunoff
 
     !--------------------------------------------------------------------------
 
@@ -6516,7 +7185,7 @@ doIter:         do while (iter <= Niter)
                 endif                
 
                 !Horizontal distribution
-i1:             if (nCells > 1) then
+i1:             if (nCells .ge. 1) then
                     allocate(DistributionCoef(1:nCells))
 i2:                 if      (FlowDistribution == DischByCell_ ) then
                     
@@ -6533,7 +7202,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
  dn:            do n=1, nCells
  
-                    if (nCells > 1) then
+                    if (nCells .ge. 1) then
                         i         = VectorI(n)
                         j         = VectorJ(n)
                         
@@ -6716,7 +7385,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 enddo dn
 
-                if (nCells > 1) deallocate(DistributionCoef)
+                if (nCells .ge. 1) deallocate(DistributionCoef)
                 
                 
                 if (Me%OutPut%TimeSerieDischON) then
@@ -8353,12 +9022,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
     subroutine ComputeStormWaterModel
 
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _SEWERGEMSENGINECOUPLER_
    
         !--------------------------------------------------------------------------
         real(c_double)              :: dt, elapsedTime, WaterColumn, WaterLevel
-        integer                     :: STAT_CALL, n
-
+        integer                     :: STAT_CALL, n, cell
+        real                        :: WaterLevelSlope, Flow, CellWidth
         !--------------------------------------------------------------------------
 
         !Compute inlet potential flow
@@ -8373,6 +9042,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Get SewerGEMS SWMM flow out of manhole
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Manholes(n)%NodeIndex, Me%Manholes(n)%Outflow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
             
             WaterColumn = Max(Me%MyWaterColumn(Me%Manholes(n)%I, Me%Manholes(n)%J) - Me%MinimumWaterColumn, 0.0)
 
@@ -8385,7 +9056,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Get SewerGEMS SWMM flow in or out of inlet
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Inlets(n)%NodeIndex, Me%Inlets(n)%EffectiveFlow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR03a'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
                 
             WaterColumn = Max(Me%MyWaterColumn(Me%Inlets(n)%I, Me%Inlets(n)%J) - Me%MinimumWaterColumn, 0.0)
             
@@ -8407,6 +9080,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_getOutflowByNode(Me%Outfalls(n)%NodeIndex, Me%Outfalls(n)%Flow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR05'
 
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+
             WaterLevel =  Me%myWaterLevel(Me%Outfalls(n)%I, Me%Outfalls(n)%J)
             
             !Set 2D water level over outfall node to SewerGEMS SWMM 
@@ -8424,11 +9099,87 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%NodeRiverLevel(Me%CrossSections(n)%I, Me%CrossSections(n)%J) = Me%CrossSections(n)%WaterLevel
 
             Me%CrossSections(n)%Flow = Me%iFlowToChannels(Me%CrossSections(n)%I, Me%CrossSections(n)%J)
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%CrossSections(n)%Flow * Me%ExtVar%DT
             
             !Set 2D flow to/from cross section node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%CrossSections(n)%NodeIndex, Me%CrossSections(n)%Flow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR08'
                 
+        enddo
+
+        do n = 1, Me%NumberOfPonds
+
+            !Get SewerGEMS SWMM cross section node water level 
+
+            STAT_CALL = SewerGEMSEngine_getLevelByNode(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%WaterLevel)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR09'
+
+            !Get SewerGEMS SWMM flow in or out of outfall. 
+            STAT_CALL = SewerGEMSEngine_getOutflowByNode(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR05'
+
+            if(Me%Ponds(n)%Flow > 0.0)then
+                
+                !write(*,*)"Pond outflow = ", Me%Ponds(n)%Flow
+
+                Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Ponds(n)%Flow * Me%ExtVar%DT
+
+                Me%Ponds(n)%Flow = Me%Ponds(n)%Flow/Me%Ponds(n)%nCells
+
+                do cell = 1, Me%Ponds(n)%nCells
+
+                    !Updates Water Volume
+                    Me%myWaterVolume (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))    =    &
+                        Me%myWaterVolume (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) +   &
+                        Me%Ponds(n)%Flow * Me%ExtVar%DT 
+                    
+                    !Updates Water Column
+                    Me%myWaterColumn  (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))   =     &
+                        Me%myWaterVolume (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))    / & 
+                        Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))
+                        
+                    !Updates Water Level
+                    Me%myWaterLevel(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) = Me%Ponds(n)%WaterLevel
+
+                enddo
+
+            else 
+                
+                Me%Ponds(n)%Flow = 0
+
+                do cell = 1, Me%Ponds(n)%nCells
+
+                    if(Me%myWaterColumn(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) > Me%MinimumWaterColumn) then
+
+                        WaterLevelSlope = Me%myWaterLevel(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) - Me%Ponds(n)%WaterLevel
+
+                        !Water level is higher in 2D grid than in pond
+                        if(WaterLevelSlope > 0.0)then
+
+                            CellWidth = (Me%ExtVar%DUX(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) + Me%ExtVar%DVY(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) ) / 2.0
+                            
+                            !Weir equation with 0.4 as coeficient.
+                            Flow  = 0.4 * CellWidth  * sqrt(2.0 * Gravity) * (Me%myWaterColumn (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell))**1.5)
+
+                            Me%Ponds(n)%Flow  = Me%Ponds(n)%Flow +  min(Flow, (Me%myWaterColumn (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) - Me%MinimumWaterColumn) * &
+                                            Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%ExtVar%DT,     &
+                                        (Me%myWaterLevel (Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) - Me%Ponds(n)%WaterLevel) / 2.0 * &
+                                        Me%ExtVar%GridCellArea(Me%Ponds(n)%I(cell), Me%Ponds(n)%J(cell)) / Me%ExtVar%DT)
+
+                        endif
+
+                    endif
+
+                enddo
+
+                Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Ponds(n)%Flow * Me%ExtVar%DT
+
+                STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%Flow)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+
+            endif
+
         enddo
 
         !Get SewerGEMS SWMM current time step 
@@ -8438,8 +9189,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Store SewerGEMS SWMM current time step
         !Check subroutine ComputeNextTimeStep where 
         Me%StormWaterModelDT = dt
-#endif
-
+#endif _SEWERGEMSENGINECOUPLER_
+ 
     end subroutine ComputeStormWaterModel
 
      !--------------------------------------------------------------------------
@@ -8451,9 +9202,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: flow
-        real                                        :: AverageCellLength, y0
-        integer                                     :: n
+        real                                        :: InletInflow, FlowEnteringCell
+        real                                        :: AverageCellLength, y0, dH1, dH2
+        integer                                     :: n, iStage
+
         !Local-----------------------------------------------------------------
         
         ILB = Me%WorkSize%ILB
@@ -8465,7 +9217,15 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
             i = Me%Inlets(n)%I
             j = Me%Inlets(n)%J
-                
+
+            FlowEnteringCell = 0.0
+
+            !Compute flow entering grid cell 
+            if(Me%iFlowX(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowX(i,  j  )
+            if(Me%iFlowX(i,j+1) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowX(i,  j+1)
+            if(Me%iFlowY(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowY(i,  j  )
+            if(Me%iFlowY(i+1,j) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowY(i+1,j  )
+
             if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
                     
                 if(Me%Inlets(n)%TypeOf == Weir_)then
@@ -8484,19 +9244,74 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     !L  = inlet width = 0.5
                     !K  = Coef = 0.2
                     !y0 = downstream level
-                    flow = Me%Inlets(n)%Width * 0.2 * y0**1.5 * sqrt(Gravity)       
+                    InletInflow = Me%Inlets(n)%Width * 0.2 * y0**1.5 * sqrt(Gravity)       
                     
-                else
+                elseif(Me%Inlets(n)%TypeOf == FlowCapture_)then
                     
-                    if(Me%FlowModulus(i, j) > 0.0)then
-                        flow = Me%FlowModulus(i, j) * Me%Inlets(n)%FlowCaptureFraction
+                    if(FlowEnteringCell > 0.0)then
+                        InletInflow = FlowEnteringCell * Me%Inlets(n)%FlowCaptureFraction
                     else
-                        flow = 0.0
+                        InletInflow = 0.0
                     end if
+                
+                elseif(Me%Inlets(n)%TypeOf == DepthFlowRatingCurve_)then
+
+                    if    (Me%myWaterColumn(i, j) < Me%Inlets(n)%RatingCurveStage(1))then
+                        !if lower than minimum stage then set to minimum flow
+                        InletInflow = Me%Inlets(n)%RatingCurveBelowMin
+                    elseif(Me%myWaterColumn(i, j) > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
+                        !if higher than maximum stage then set to maximum flow
+                        InletInflow = Me%Inlets(n)%RatingCurveAboveMax
+                    else
+                        !if within stage levels average the flow
+                        iStage = 2 !start at second stage level
+                        do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
+                            if(Me%myWaterColumn(i, j) .le. Me%Inlets(n)%RatingCurveStage(iStage))then
+                                exit
+                            endif
+                        enddo
+
+                        dH1 = Me%myWaterColumn(i, j) - Me%Inlets(n)%RatingCurveStage(iStage-1) 
+                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - Me%myWaterColumn(i, j)
+
+                        InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
+                                       dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
+                                      (Me%Inlets(n)%RatingCurveStage(iStage )        - &
+                                       Me%Inlets(n)%RatingCurveStage(iStage-1))
+
+                    endif
+
+                elseif(Me%Inlets(n)%TypeOf == FlowFlowRatingCurve_)then
+
+                    if    (FlowEnteringCell < Me%Inlets(n)%RatingCurveStage(1))then
+                        !if lower than minimum stage then set to minimum flow
+                        InletInflow = Me%Inlets(n)%RatingCurveBelowMin
+                    elseif(FlowEnteringCell > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
+                        !if higher than maximum stage then set to maximum flow
+                        InletInflow = Me%Inlets(n)%RatingCurveAboveMax
+                    else
+                        !if within stage levels average the flow
+                        iStage = 2 !start at second stage level
+                        do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
+                            if(FlowEnteringCell .le. Me%Inlets(n)%RatingCurveStage(iStage))then
+                                exit
+                            endif
+                        enddo
+
+                        dH1 = FlowEnteringCell - Me%Inlets(n)%RatingCurveStage(iStage-1) 
+                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - FlowEnteringCell
+
+                        InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
+                                       dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
+                                      (Me%Inlets(n)%RatingCurveStage(iStage )        - &
+                                       Me%Inlets(n)%RatingCurveStage(iStage-1))
+
+                    endif
+
 
                 endif
 
-                Me%Inlets(n)%PotentialFlow = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)             
+                Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)             
 
             else
                   
@@ -8510,7 +9325,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     end subroutine ComputeInletsPotentialFlow
         
     !--------------------------------------------------------------------------
-        
+
     subroutine AddFlowFromStormWaterModel
 
         !Arguments-------------------------------------------------------------
@@ -10240,13 +11055,15 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: CHUNK
-        real(8)                                     :: sum
+        real(8)                                     :: sumDischarge
         
         !----------------------------------------------------------------------
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J) REDUCTION(+:sum)
+        sumDischarge = Me%TotalDischargeFlowVolume
+
+        !$OMP PARALLEL PRIVATE(I,J) 
 
         !Integrates along X Directions
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -10280,36 +11097,36 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             !$OMP END DO NOWAIT
         endif
         
-        !Integrates Flow At boundary
-!        if (Me%ImposeBoundaryValue) then
-!           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-!            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-!            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-!                Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
-!                                         (SumDT + LocalDT)
-!            enddo
-!            enddo
-!            !$OMP END DO NOWAIT
-!        endif
+        !Integrates Flow At boundary 
+        !if (Me%ImposeBoundaryValue) then
+        !   !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sumBoundary)
+        !    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !        Me%iFlowBoundary(i, j) = (Me%iFlowBoundary(i, j) * SumDT + Me%lFlowBoundary(i, j) * LocalDT) / &
+        !                                 (SumDT + LocalDT)
+        !
+        !        sumBoundary = sumBoundary + (Me%iFlowBoundary(i, j) * LocalDT)
+        !    enddo
+        !    enddo
+        !    !$OMP END DO NOWAIT
+        !endif
 
-        sum = Me%TotalDischargeFlowVolume
         !Integrates Flow Discharges
         if (Me%Discharges) then
-           !$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
+           !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sumDischarge)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB                
                 Me%iFlowDischarge(i, j) = (Me%iFlowDischarge(i, j) * SumDT + Me%lFlowDischarge(i, j) * LocalDT) / &
                                           (SumDT + LocalDT)
-                sum = sum + (Me%lFlowDischarge(i, j) * LocalDT)
+                sumDischarge = sumDischarge + (Me%lFlowDischarge(i, j) * LocalDT)
             enddo
             enddo
             !$OMP END DO NOWAIT
         endif
-        Me%TotalDischargeFlowVolume = sum
 
         !$OMP END PARALLEL        
 
-
+        Me%TotalDischargeFlowVolume = sumDischarge
 
     end subroutine IntegrateFlow
 
@@ -10454,6 +11271,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         
         !Default is zero
         Me%iFlowBoundary = 0.0
+
+        Me%BoundaryFlowVolume = 0.0
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10511,6 +11330,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         
                     !Updates Water Volume
                     Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
+
+                    Me%BoundaryFlowVolume     = Me%BoundaryFlowVolume + dVol
                         
                     !Updates Water Column
                     Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
@@ -10528,7 +11349,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
         enddo
 
-    
+        Me%TotalBoundaryFlowVolume  = Me%TotalBoundaryFlowVolume + Me%BoundaryFlowVolume
+
     end subroutine ImposeBoundaryValue
     
     !--------------------------------------------------------------------------
@@ -10596,6 +11418,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             endif
         enddo
         enddo
+
+        Me%TotalBoundaryFlowVolume  = Me%TotalBoundaryFlowVolume + Me%BoundaryFlowVolume
 
     
     end subroutine ImposeBoundaryValue_v2       
@@ -11409,6 +12233,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Locals----------------------------------------------------------------
         integer                                 :: ILB,IUB, JLB, JUB, i, j
         integer                                 :: CHUNK
+        real                                    :: Sum
 
         !Begin-----------------------------------------------------------------        
 
@@ -11421,16 +12246,23 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
    
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        Sum   = 0.0
 
         !$OMP PARALLEL PRIVATE(I,J)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sum)
         do j = JLB, JUB
         do i = ILB, IUB
    
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                if(Me%Output%FloodArrivalTime(i, j) < 0.0 .and. &
-                   Me%myWaterColumn(i, j) > Me%Output%FloodArrivalWaterColumnLimit)then
-                    Me%Output%FloodArrivalTime(i, j) = Me%ExtVar%Now - Me%BeginTime
+
+                if(Me%myWaterColumn(i, j) > Me%Output%FloodArrivalWaterColumnLimit)then
+
+                    Sum = Sum + Me%ExtVar%GridCellArea(i,j)
+
+                    if(Me%Output%FloodArrivalTime(i, j) < 0.0)then
+                        Me%Output%FloodArrivalTime(i, j) = Me%ExtVar%Now - Me%BeginTime
+                    endif
                 endif
             endif
 
@@ -11438,6 +12270,12 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        Me%Output%TotalFloodedArea = Sum
+
+        if(Me%Output%TotalFloodedArea > Me%Output%MaxTotalFloodedArea)then
+            Me%Output%MaxTotalFloodedArea = Me%Output%TotalFloodedArea
+        endif
 
     end subroutine OutputFloodArrivalTime
 
@@ -11541,27 +12379,32 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
-        
-        Me%TotalStoredVolume = 0.0
-        
-        Me%VolumeStoredInSurface     = 0.0
-        Me%VolumeStoredInStormSystem = 0.0
+        integer                                     :: i, j, CHUNK
+        real(8)                                     :: Sum
+        !Begin-----------------------------------------------------------------
 
+        CHUNK = ChunkJ
+
+        Sum = 0.0
+
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+:sum)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
             if (Me%ExtVar%BasinPoints(i, j) == 1) then
-                !m3 = m3 + m3
-                Me%TotalStoredVolume = Me%TotalStoredVolume + Me%MyWaterVolume(i, j)
-                
-                !m3 = m3 + m3
-                Me%VolumeStoredInSurface = Me%VolumeStoredInSurface + Me%MyWaterVolume(i, j)
+                !m3 = m3  + m3
+                Sum = Sum + Me%MyWaterVolume(i, j)
+
             endif
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
+        Me%TotalStoredVolume        = Sum
+        Me%VolumeStoredInSurface    = Sum
 
     end subroutine CalculateTotalStoredVolume
 
@@ -11754,10 +12597,13 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                             :: ready_              
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_, nUsers, STAT_CALL, dis, n   
-        character(len=PathLength)           :: MassErrorFile
+        integer                             :: STAT_, nUsers, STAT_CALL, dis, n
+        integer                             :: RunOffLogFileID
         logical                             :: IsFinalFile
         real, dimension(:,:), pointer       :: FloodPeriod
+        integer, dimension(2)               :: MaxWC_IJ
+        real                                :: X, Y
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -11779,12 +12625,37 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call WriteFinalFile_Hdf(IsFinalFile)
                 endif
 
-                !Writes Mass Error
-                call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR010'
-                MassErrorFile = trim(adjustl(MassErrorFile))//"MassError.dat"
+                call UnitsManager(RunOffLogFileID, OPEN_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
+
+                open(UNIT = RunOffLogFileID, FILE = trim(Me%Files%RunOffLogFile), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR01'
+
+                write(RunOffLogFileID, *)"------------------------ MOHID LAND-----------------------"
+                write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
+                write(RunOffLogFileID, *)
+
+                write(RunOffLogFileID, *)"INITIAL_TOTAL_VOLUME           : ", Me%InitialTotalVolume
+                write(RunOffLogFileID, *)"FINAL_TOTAL_VOLUME             : ", Me%TotalStoredVolume
+                write(RunOffLogFileID, *)"TOTAL_INFLOW_VOLUME            : ", Me%TotalDischargeFlowVolume
+                write(RunOffLogFileID, *)"TOTAL_BOUNDARY_VOLUME          : ", Me%TotalBoundaryFlowVolume
+                write(RunOffLogFileID, *)"TOTAL_STORMWATER_VOLUME        : ", Me%TotalStormWaterVolume
+                write(RunOffLogFileID, *)"TOTAL_RAINFALL_VOLUME          : ", Me%TotalRainfallVolume
+                write(RunOffLogFileID, *)"TOTAL_INFILTRATION_VOLUME      : ", Me%TotalInfiltrationVolume
+                write(RunOffLogFileID, *)"VOLUME_ERROR                   : ", Me%TotalStoredVolume -        &
+                                                                                Me%InitialTotalVolume -       &
+                                                                                Me%TotalDischargeFlowVolume - &
+                                                                                Me%TotalBoundaryFlowVolume  - & 
+                                                                                Me%TotalRainfallVolume      - & 
+                                                                                Me%TotalStormWaterVolume    + & 
+                                                                                Me%TotalInfiltrationVolume
+
+                write(RunOffLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_IN_METERS            : ",         &
+                                                                        Me%AvrgAccInfiltrationDepth
+                write(RunOffLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_VOLUME_IN_M3         : ",         &
+                                                                        Me%AvrgAccInfiltrationVolume
                 
-                call WriteGridData  (MassErrorFile,                            &
+                call WriteGridData  (Me%Files%MassErrorFile,                   &
                      COMENT1          = "MassErrorFile",                       &
                      COMENT2          = "MassErrorFile",                       &
                      HorizontalGridID = Me%ObjHorizontalGrid,                  &
@@ -11824,12 +12695,28 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR040'
 
+                    if(Me%Output%OutputFloodRisk)then
+                        write(RunOffLogFileID, *)"MAX_WATER_COLUMN_IN_METERS     : ", maxval(Me%Output%MaxWaterColumn)
+
+                        MaxWC_IJ = maxloc(Me%Output%MaxWaterColumn)
+
+                        call GetCellZ_XY(Me%ObjHorizontalGrid, MaxWC_IJ(1)-1, MaxWC_IJ(2)-1, 0.5, 0.5, X, Y, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR049'
+
+                        write(RunOffLogFileID, *)"MAX_WATER_COLUMN_I             : ", MaxWC_IJ(1)-1
+                        write(RunOffLogFileID, *)"MAX_WATER_COLUMN_J             : ", MaxWC_IJ(2)-1
+                        write(RunOffLogFileID, *)"MAX_WATER_COLUMN_X_IN_METERS   : ", X
+                        write(RunOffLogFileID, *)"MAX_WATER_COLUMN_Y_IN_METERS   : ", Y
+
+                    endif
+
                     call GetGridData      (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR041'
-
+                    
+                    !Temporarilu use the max water column array to compute max water level
                     Me%Output%MaxWaterColumn = Me%Output%MaxWaterColumn + Me%ExtVar%Topography
+                    
                     !Gets a pointer to Topography
-
                     call UnGetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR042'
 
@@ -11843,6 +12730,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR043'
 
+                    if(Me%Output%OutputFloodRisk)then
+                        write(RunOffLogFileID, *)"MAX_WATER_LEVEL_IN_METERS      : ", maxval(Me%Output%MaxWaterColumn)
+
+                        MaxWC_IJ = maxloc(Me%Output%MaxWaterColumn)
+
+                        call GetCellZ_XY(Me%ObjHorizontalGrid, MaxWC_IJ(1)-1, MaxWC_IJ(2)-1, 0.5, 0.5, X, Y, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR043a'
+
+                        write(RunOffLogFileID, *)"MAX_WATER_LEVEL_I              : ", MaxWC_IJ(1)-1
+                        write(RunOffLogFileID, *)"MAX_WATER_LEVEL_J              : ", MaxWC_IJ(2)-1
+                        write(RunOffLogFileID, *)"MAX_WATER_LEVEL_X_IN_METERS    : ", X
+                        write(RunOffLogFileID, *)"MAX_WATER_LEVEL_Y_IN_METERS    : ", Y
+
+                    endif
+
                     deallocate(Me%Output%MaxWaterColumn)
 
                     call WriteGridData  (Me%Output%TimeOfMaxWaterColumnFile,   &
@@ -11855,20 +12757,29 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR044'
 
+                    if(Me%Output%OutputFloodRisk)then
+                        write(RunOffLogFileID, *)"TIME_OF_MAX_WATER_COLUMN       : ", maxval(Me%Output%TimeOfMaxWaterColumn)
+                    endif
+
+
                     deallocate(Me%Output%TimeOfMaxWaterColumn)
 
                     
                     if (Me%Output%WriteVelocityAtMaxWaterColumn) then
-                        call WriteGridData  (Me%Output%VelocityAtMaxWaterColumnFile, &
-                             COMENT1          = "VelocityAtMaxWaterColumnFile",    &
-                             COMENT2          = "VelocityAtMaxWaterColumnFile",    &
-                             HorizontalGridID = Me%ObjHorizontalGrid,              &
-                             FillValue        = -99.0,                             &
-                             OverWrite        = .true.,                            &
+                        call WriteGridData  (Me%Output%VelocityAtMaxWaterColumnFile,&
+                             COMENT1          = "VelocityAtMaxWaterColumnFile",     &
+                             COMENT2          = "VelocityAtMaxWaterColumnFile",     &
+                             HorizontalGridID = Me%ObjHorizontalGrid,               &
+                             FillValue        = -99.0,                              &
+                             OverWrite        = .true.,                             &
                              GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn, &
                              STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR050'    
-                        
+
+                        if(Me%Output%OutputFloodRisk)then
+                            write(RunOffLogFileID, *)"VEL_AT_MAX_WATER_COLUMN        : ", maxval(Me%Output%VelocityAtMaxWaterColumn)
+                        endif
+
                         deallocate(Me%Output%VelocityAtMaxWaterColumn)
                     endif
 
@@ -11945,7 +12856,16 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Output%FloodArrivalTime)
 
+                    write(RunOffLogFileID, *)"TOTAL_FLOODED_AREA_AT_END        : ", Me%Output%TotalFloodedArea
+                    write(RunOffLogFileID, *)"MAXIMUM_TOTAL_FLOODED_AREA       : ", Me%Output%MaxTotalFloodedArea
+
                 endif
+
+                write(RunOffLogFileID, *)
+                write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
+                call UnitsManager(RunOffLogFileID, CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR76'
+
 
                 if (Me%ObjDrainageNetwork /= 0) then
  
@@ -11956,23 +12876,28 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
                 
                 if(Me%StormWaterModel)then
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _SEWERGEMSENGINECOUPLER_
 
                     STAT_CALL = SewerGEMSEngine_end()
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR081'
                     
                     STAT_CALL = SewerGEMSEngine_close()
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR082'
-                    
+
+#ifdef _CONVERT_SWMM_TO_HDF5_
                     !Convert SewerGEMS SWMM outputs to HDF5 and time series format
                     call ConvertSewerGEMSEngine()
+#endif _CONVERT_SWMM_TO_HDF5_
 
                     if(Me%NumberOfCrossSections > 0)deallocate(Me%CrossSections)
                     if(Me%NumberOfInlets        > 0)deallocate(Me%Inlets       )
                     if(Me%NumberOfManholes      > 0)deallocate(Me%Manholes     )
                     if(Me%NumberOfOutfalls      > 0)deallocate(Me%Outfalls     )
+                    if(Me%NumberOfPonds         > 0)deallocate(Me%Ponds        )
+                    if(Me%NumberOfIgnoredNodes  > 0)deallocate(Me%IgnoredNodes )
+                    
 
-#endif
+#endif _SEWERGEMSENGINECOUPLER_
                 endif
                 
 
@@ -12114,7 +13039,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     end subroutine KillRunOff
 
     !------------------------------------------------------------------------
-#ifdef _SewerGEMSEngineCoupler_
+#ifdef _CONVERT_SWMM_TO_HDF5_
     subroutine ConvertSewerGEMSEngine
 
         character(len = :, kind = c_char), allocatable  :: swmmInputFile, swmmBinaryFile, swmmHDF5File
@@ -12131,7 +13056,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
      
     end subroutine ConvertSewerGEMSEngine
-#endif
+#endif _CONVERT_SWMM_TO_HDF5_
     
     subroutine DeallocateInstance ()
 
@@ -12341,36 +13266,5 @@ cd1:    if (RunOffID > 0) then
         endif 
         
     end subroutine ReadUnLockExternalVar
-    
-
-!External access functions for coupling
-
-    !---------------------------------------------------------------------------
-    !> @author Ricardo Birjukovs Canelas - Bentley Systems
-    !> @brief
-    !> Sets river levels at appropriate nodes
-    !> @param[in] RunOffID, riverLevel
-    !---------------------------------------------------------------------------
-    logical function SetExternalRiverWaterLevel(RunOffID, riverLevel)    
-        !Arguments-------------------------------------------------------------
-        integer                                     :: RunOffID
-        real(8), dimension(:,:)                     :: riverLevel        
-        !Local-----------------------------------------------------------------        
-        integer                                     :: ready_         
-        integer                                     :: i
-
-        call Ready(RunOffID, ready_)
-        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            do i = 1, size(riverLevel,1)
-                Me%NodeRiverLevel(int(riverLevel(i,1)), int(riverLevel(i,2))) = riverLevel(i,3)
-            end do
-            SetExternalRiverWaterLevel = .true.
-        else
-            call PlaceErrorMessageOnStack("Runoff not ready")
-            SetExternalRiverWaterLevel = .false.
-        end if
-
-    end function SetExternalRiverWaterLevel
     
 end module ModuleRunOff
