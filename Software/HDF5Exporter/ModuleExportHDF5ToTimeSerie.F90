@@ -1912,8 +1912,8 @@ cd2 :           if (BlockFound) then
 
             call CreateTSHDF5File(Me%FirstTSHDF5File, HDF5FileX)
             call CreateTSHDF5File(Me%LastTSHDF5File, HDF5FileX)
-            deallocate(Me%FirstTSHDF5File%Next) 
-            nullify(Me%FirstTSHDF5File%Next)
+            !deallocate(Me%FirstTSHDF5File%Next) 
+            !nullify(Me%FirstTSHDF5File%Next)
 
         else
 
@@ -1944,8 +1944,8 @@ cd2 :           if (BlockFound) then
                         call CreateTSHDF5File(PreviousHDF5File%Next, HDF5FileX)
                         allocate(LastHDF5File)
                         LastHDF5File => PreviousHDF5File%Next
-                        deallocate(LastHDF5File%Next)
-                        nullify(LastHDF5File%Next)
+                        !deallocate(LastHDF5File%Next)
+                        !nullify(LastHDF5File%Next)
                         call CreateTSHDF5File(Me%LastTSHDF5File, HDF5FileX)
 
                         !current file was added to list

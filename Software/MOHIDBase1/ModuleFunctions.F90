@@ -178,6 +178,8 @@ Module ModuleFunctions
 
     public  :: AngleFromFieldToGrid
     public  :: AngleFromGridToField
+    
+    public  :: PolygonBoundGridCurv
 
     !Interpolation of a value in Time
     public  :: InterpolateValueInTime
@@ -212,13 +214,13 @@ Module ModuleFunctions
     public  :: FeedBack_IWD
     public  :: FeedBack_IWD_UV
     public  :: FeedBack_IWD_WL
-
+    
     public  :: Upscaling_Avrg_WL
     !public  :: FeedBack_Avrg_WL
     !public  :: FeedBack_Avrg_UV
     public  :: Upscaling_Avrg
     !public  :: FeedBack_Avrg
-
+    
 
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -481,7 +483,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
     end interface SetMatrixValueAllocatable
-    
+
     interface SetMatrixValueAllocatableV2
         module procedure SetMatrixValues3D_R4_FromMatrixPointer
         module procedure SetMatrixValues3D_R8_FromMatrixPointer
@@ -1397,7 +1399,7 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrixAllocatable
-    
+
     !--------------------------------------------------------------------------
     subroutine SetMatrixValues3D_R8_FromMatrixPointer(Matrix, Size, InMatrix, MapMatrix)
 
@@ -1757,7 +1759,7 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R8_ConstantAllocatable
-    
+
     subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, Dummy)
 
         !Arguments-------------------------------------------------------------
@@ -1994,7 +1996,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     end subroutine SetMatrixValues3D_R4_FromMatrixPointer
     
     !--------------------------------------------------------------------------
-    
+
     subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
@@ -2054,9 +2056,9 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine SetMatrixValues3D_R8_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
@@ -2416,10 +2418,10 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable, intent (INOUT)       :: MatrixA
-        real, dimension(:, :, :), pointer, intent (IN)              :: MatrixB
-        type (T_Size3D)                                             :: Size
-        integer, dimension(:,:), pointer, intent(IN)                :: KFloor
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
         integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
         !Local-----------------------------------------------------------------
         integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
@@ -2444,7 +2446,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes_jik
-    
+
     subroutine SumMatrixes_jik_V2(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), pointer, intent (INOUT)           :: MatrixA
@@ -5046,7 +5048,7 @@ end function
     end subroutine RodaXY
 
     !--------------------------------------------------------------------------
-
+    
 
     subroutine FromCartesianToGrid (Xcart, Ycart, Tetha1, Tetha2, Xgrid, Ygrid)
 
@@ -5075,7 +5077,7 @@ end function
     end subroutine FromCartesianToGrid
 
     !--------------------------------------------------------------------------
-
+    
     
     subroutine FromCoord2RegGrid(Xcoord, Ycoord, Xorig, Yorig, DX, DY, i, j, PercI, PercJ)
 
@@ -5216,7 +5218,327 @@ end function
     end subroutine AngleFromGridToField
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    !returns the boundary vertixes of curvilinear grid taking in consideration ghost vertixes = FillValueReal
+    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, Nvert)
 
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:,:), pointer, intent(IN)   :: XX2D, YY2D
+        integer,                             intent(IN)   :: ILB, IUB, JLB, JUB
+        real,       dimension(:  ), pointer, intent(OUT)  :: XX1D, YY1D
+        integer                                           :: Nvert
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:), pointer               :: Aux_XX2D, Aux_YY2D
+        real,       dimension(:  ), pointer               :: Aux_XX1D, Aux_YY1D, Aux_ZZ1D
+        logical                                           :: StopCycle
+        integer                                           :: MaxVert, c1, c2, auxINT, MAXINT, icount
+        integer                                           :: ip1, ip2, ip3, ip4
+        integer                                           :: i, j
+        
+        !Begin-----------------------------------------------------------------
+        
+        MaxVert =  (JUB - JLB) * (IUB-ILB)
+        allocate(Aux_XX1D(MaxVert), Aux_YY1D(MaxVert), Aux_ZZ1D(MaxVert))
+        allocate(Aux_XX2D(ILB-1:IUB+1, JLB-1:JUB+1))
+        allocate(Aux_YY2D(ILB-1:IUB+1, JLB-1:JUB+1))
+
+        Aux_XX2D(ILB:IUB, JLB:JUB) = XX2D(ILB:IUB, JLB:JUB)
+        Aux_YY2D(ILB:IUB, JLB:JUB) = YY2D(ILB:IUB, JLB:JUB)
+        
+        !Find the initial position to create the path
+        !for(i=0;i<S->l;i++){
+        !    for(j=0;j< S->c;j++){
+        !        c1 = i;
+        !        c2 = j;
+        !
+        !        if(S->x2D[i][j] != S->nonevalue)
+        !        {
+        !            linha = 0;
+        !            break;
+        !        }
+        !    }
+        !    if(linha==0)
+        !    {
+        !        break;
+        !    }
+        !}
+
+        !Find the initial position to create the path        
+        StopCycle = .false. 
+        do j= JLB, JUB
+            do i= ILB, IUB
+                if (XX2D(i,j) > HalfFillValueReal) then
+                    c1         = i
+                    c2         = j
+                    StopCycle = .true. 
+                    exit
+                endif
+            enddo
+            if (StopCycle) exit
+        enddo
+        
+       !while(linha!=12)
+       ! {
+       !     //the MAXINT value is assigned to the positions so that there is no possibility 
+       ! to return to that square in order to go through all the squares once
+       !    if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
+       !    {
+       !         S->z1[auxINT] = path(c1,c2+1,S);
+       !         S->x1[auxINT] = S->x2D[c1][c2+1];
+       !         S->y1[auxINT++] = S->y2D[c1][c2+1];
+       !         S->x2D[c1][c2] = MAXINT;
+       !         c2++;
+       !         S->cord++;
+       !    }
+       !    else if(( (path(c1+1,c2,S) == 0) || (path(c1+1,c2,S) == 1) ) && S->x2D[c1+1][c2]!=MAXINT)
+       !    {
+       !         S->z1[auxINT] = path(c1+1,c2,S);
+       !         S->x1[auxINT] = S->x2D[c1+1][c2];
+       !         S->y1[auxINT++] = S->y2D[c1+1][c2];
+       !         S->x2D[c1][c2] = MAXINT;
+       !         c1++;
+       !         S->cord++;
+       !    }
+       !    else if(( (path(c1,c2-1,S) == 0) || (path(c1,c2-1,S) == 1) ) && S->x2D[c1][c2-1]!= MAXINT)
+       !    {
+       !         S->z1[auxINT] = path(c1,c2-1,S);
+       !         S->x1[auxINT] = S->x2D[c1][c2-1];
+       !         S->y1[auxINT++] = S->y2D[c1][c2-1];
+       !         S->x2D[c1][c2] = MAXINT;
+       !         c2--;
+       !         S->cord++;
+       !    }
+       !    else if( ( (path(c1-1,c2,S) == 0) || (path(c1-1,c2,S) == 1) ) && S->x2D[c1-1][c2] !=  MAXINT)
+       !    {
+       !         S->z1[auxINT] = path(c1-1,c2,S);
+       !         S->x1[auxINT] = S->x2D[c1-1][c2];
+       !         S->y1[auxINT++] = S->y2D[c1-1][c2];
+       !         S->x2D[c1][c2] = MAXINT;
+       !         c1--;
+       !         S->cord++;
+       !    }
+       !    else
+       !    {
+       !        S->x2D[c1][c2] = MAXINT;
+       !        S->cord++;
+       !        linha = 12;
+       !    }
+       ! }
+        
+       
+       !Variable intialization
+        AuxInt           = 1
+        Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
+        Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
+        Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
+
+        StopCycle = .false.
+        MAXINT    = - FillValueInt
+        icount    = 0
+
+        do while (.not. StopCycle)
+            
+            ip1 = path_bound(c1,c2+1, ILB, IUB, JLB, JUB, XX2D)              
+            ip2 = path_bound(c1+1,c2, ILB, IUB, JLB, JUB, XX2D)  
+            ip3 = path_bound(c1,c2-1, ILB, IUB, JLB, JUB, XX2D)  
+            ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
+            
+            if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
+                 AuxInt = AuxInt + 1
+                 Aux_ZZ1D(AuxInt) = ip1
+                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
+                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
+                 Aux_XX2D(c1, c2) = MAXINT
+                 c2 = c2 + 1
+                 icount = icount + 1
+
+            elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
+                 AuxInt = AuxInt + 1
+                 Aux_ZZ1D(AuxInt) = ip2
+                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
+                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
+                 Aux_XX2D(c1, c2) = MAXINT
+                 c1 = c1 + 1
+                 icount = icount + 1            
+
+            elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
+                 AuxInt = AuxInt + 1
+                 Aux_ZZ1D(AuxInt) = ip3
+                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
+                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
+                 Aux_XX2D(c1, c2) = MAXINT
+                 c2 = c2 - 1
+                 icount = icount + 1
+
+            elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
+                 AuxInt = AuxInt + 1
+                 Aux_ZZ1D(AuxInt) = ip4
+                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
+                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
+                 Aux_XX2D(c1, c2) = MAXINT
+                 c1 = c1 - 1
+                 icount = icount + 1                             
+            else
+                Aux_XX2D(c1, c2) = MAXINT            
+                icount = icount + 1
+                StopCycle = .true.
+            endif
+        enddo
+
+        allocate(XX1D(1:icount), YY1D(1:icount))        
+
+        XX1D(1:icount) = Aux_XX1D(1:icount)
+        YY1D(1:icount) = Aux_YY1D(1:icount)
+
+        !Last verttix equal to the first
+        XX1D(icount+1) = XX1D(1)
+        YY1D(icount+1) = YY1D(1)
+
+        NVert = icount + 1
+        
+        !do i =1, icount
+        !    write(*,*)  XX1D(i), YY1D(i), Aux_ZZ1D(i)
+        !enddo
+
+        deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
+        deallocate(Aux_XX2D, Aux_YY2D)
+        
+    end subroutine PolygonBoundGridCurv
+
+    !--------------------------------------------------------------------------
+    
+    integer function path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
+
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:,:), pointer, intent(IN)   :: XX2D
+        integer,                             intent(IN)   :: ILB, IUB, JLB, JUB, c1, c2
+        
+        !Local-----------------------------------------------------------------
+        integer                                           :: a1
+        
+        !Begin-----------------------------------------------------------------    
+    
+    !{
+    !//Verify if is out of the table
+    !if(c1 < 0 || c1 >= S->l || c2 <0 || c2 >= S->c)
+    !{
+    !     return -1;
+    !}
+    !//Checks if the position has neighbors that contain nonevalue or if any of the 
+    ! neighbors are outside the board and the position can´t contain the value "nonevalue"
+    !if( S->x2D[c1][c2] != S->nonevalue && ( vizi(c1,c2,S) == 0 || vizi(c1,c2,S) == 1 ) )
+    !{
+    !    //Return 0 if any of the neighbors is out of the table and 1 if there is one with value "nonevalue"
+    !    return vizi(c1,c2,S);
+    !}
+    !
+    !return -1;  
+    
+        if (c1 < ILB .or. c1 > IUB .or. c2 < JLB .or. c2 > JUB) then
+            path_bound = -1
+        elseif (XX2D(c1,c2) > HalfFillValueReal) then
+            a1 = vizi(ILB, IUB, JLB, JUB, c1, c2, XX2D)
+            if (a1 == 0 .or. a1 == 1) then
+                path_bound = a1
+            else
+                path_bound = -1
+            endif
+        else
+            path_bound = -1 
+        endif
+
+    end function path_bound
+    
+    !--------------------------------------------------------------------------    
+    
+    integer function vizi(ILB, IUB, JLB, JUB, c1, c2, XX2D)
+
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:,:), pointer, intent(IN)   :: XX2D
+        integer                                           :: ILB, IUB, JLB, JUB, c1, c2
+
+        !Local-----------------------------------------------------------------
+
+        
+        !Begin-----------------------------------------------------------------    
+!int vizi(int c1,int c2,tab *S)
+!{
+!    if( c2+1 >= S->c)
+!        return 1;
+!
+!    if(c2-1 < 0)
+!        return 1;
+!
+!    if(c1+1 >= S->l)
+!       return 1;
+!
+!    if(c1-1 < 0)
+!       return 1;
+!
+!    if(S->x2D[c1][c2+1] == S->nonevalue)
+!        return 0;
+!
+!    if( S->x2D[c1][c2-1] == S->nonevalue)
+!        return 0;
+!
+!    if( S->x2D[c1+1][c2] == S->nonevalue)
+!        return 0;
+!
+!    if(S->x2D[c1-1][c2] == S->nonevalue)
+!        return 0;
+!
+!    if(S->x2D[c1+1][c2+1] == S->nonevalue)
+!        return 0;
+!
+!    if(S->x2D[c1+1][c2-1] == S->nonevalue)
+!        return 0;
+!
+!    if(S->x2D[c1-1][c2+1] == S->nonevalue)
+!        return 0;
+!
+!    if(S->x2D[c1-1][c2-1] == S->nonevalue)
+!        return 0;
+!
+!    return -1;
+!}    
+
+        
+        if (c2+1 > JUB .or. c2-1 < JLB .or. c1+1 > IUB .or. c1-1 < ILB) then
+            vizi = 1
+        else
+            if    ( XX2D(c1,c2+1) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif( XX2D(c1,c2-1) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif( XX2D(c1+1,c2) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif(XX2D(c1-1,c2) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif(XX2D(c1+1,c2+1) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif(XX2D(c1+1,c2-1) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif(XX2D(c1-1,c2+1) < HalfFillValueReal) then
+                vizi = 0
+
+            elseif(XX2D(c1-1,c2-1) < HalfFillValueReal) then
+                vizi = 0
+            else
+                vizi = -1
+            endif
+        endif
+
+    end function vizi
+    
+    !--------------------------------------------------------------------------    
     subroutine InterpolateValueInTime(ActualTime, Time1, Value1, Time2, Value2, ValueOut)
 
         !Arguments-------------------------------------------------------------
@@ -5548,7 +5870,7 @@ end function
                                         X2, Matrix2, MatrixOUT, PointsToFill3D)
 
     end subroutine InterpolateMatrix3DInTime
-    
+
     subroutine InterpolateMatrix3DInTime_Alloc(ActualTime, Size, Time1, Matrix1, &
                                          Time2, Matrix2, MatrixOUT, PointsToFill3D)
 
@@ -5736,7 +6058,7 @@ end function
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
 
     end subroutine InterpolateLinearyMatrix3D
-    
+
     subroutine InterpolateLinearyMatrix3D_Alloc(X, Size, X1, Matrix1, &
                                          X2, Matrix2, MatrixOUT, PointsToFill3D)
 
@@ -6880,17 +7202,17 @@ d5:     do k = klast + 1,KUB
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
         KUBSon = SizeSon%KUB
-
+    
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             ifather = ILink(i, j) ; jfather = JLink(i, j)
             if (SonMask(i, j, KUBSon) == 1) then
-                FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
+            FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
                                              + SonMatrix2D(i, j) * VolumeSon2D(i, j) * SonMask(i, j, KUBSon)
             endif
         enddo
         enddo
-
+        
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             if (TotSonIn2D(i, j) > 0.1 .and. FatherMask(i, j, SizeFather%KUB)==1) then
@@ -6899,9 +7221,9 @@ d5:     do k = klast + 1,KUB
             endif
         enddo
         enddo
-
+        
     end subroutine Upscaling_Avrg_WL
-
+                                
 
     !--------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6996,7 +7318,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-
+    
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !!$OMP PARALLEL PRIVATE(i,j,k,Flag, ifather, jfather, kfather)
         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7010,7 +7332,7 @@ d5:     do k = klast + 1,KUB
                     ! .or. (IgnoreOBCells(i, j) == 1 .and. IgnoreOBCells(i, j + 1) == 1)) then
                 ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
-                                                   SonMatrix(i, j, k) * VolumeSon(i, j, k)
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
                 !endif
             endif
         enddo
@@ -7018,9 +7340,9 @@ d5:     do k = klast + 1,KUB
         enddo
         !!$OMP END DO
         !!$OMP END PARALLEL
-
+    
         DecayFactor = DT / DecayTime
-
+    
         do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
@@ -7036,7 +7358,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-
+    
     end subroutine FeedBack_Avrg_UV
 
     !>@author Joao Sobrinho Maretec
@@ -7125,7 +7447,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-
+    
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !!$OMP PARALLEL PRIVATE(i,j,k, Flag, ifather, jfather, kfather)
         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7144,7 +7466,7 @@ d5:     do k = klast + 1,KUB
         enddo
         !!$OMP END DO
         !!$OMP END PARALLEL
-
+    
         DecayFactor = DT / DecayTime
         do k = SizeFather%KLB, SizeFather%KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -7160,10 +7482,10 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
-
-   end subroutine FeedBack_Avrg
+    
+    end subroutine FeedBack_Avrg
     !---------------------------------------------------------------------------------------------
-
+                             
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes son mass in each father cell. routine for Z types
@@ -7202,7 +7524,7 @@ d5:     do k = klast + 1,KUB
         end do
         end do
         end do
-
+    
         CHUNK = CHUNK_K(KLBSon, KUBSon)
         !!$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -7213,8 +7535,8 @@ d5:     do k = klast + 1,KUB
             ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = KLink(i, j, k)
             if (kfather /= FillValueInt) then
                 if (FatherMatrix(ifather,jfather,kfather) > HalfFillValueReal) then
-                    FatherMatrix(ifather,jfather,kfather) = FatherMatrix(ifather, jfather, kfather) +   &
-                                                            SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+            FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
                 elseif (SonMask(i, j, k) == 1) then
                     FatherMatrix(ifather,jfather,kfather) = SonMatrix(i, j, k) * VolumeSon(i, j, k)
                 endif
@@ -7224,7 +7546,7 @@ d5:     do k = klast + 1,KUB
         enddo
         !!$OMP END DO
         !!$OMP END PARALLEL
-
+        
         do k = FatherK_min, FatherK_max
         do j = FatherJ_min, FatherJ_max
         do i = FatherI_min, FatherI_max
@@ -7237,14 +7559,14 @@ d5:     do k = klast + 1,KUB
         enddo
     end subroutine Upscaling_Avrg
     !---------------------------------------------------------------------------------------------------
-
+                             
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
     !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
     subroutine FeedBack_IWD (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, ILink, JLink, Connections, &
-    Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+                             Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
 
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
@@ -7293,7 +7615,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-    end subroutine FeedBack_IWD
+                             end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -7357,7 +7679,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-    end subroutine FeedBack_IWD_UV
+                                end subroutine FeedBack_IWD_UV
     !-------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -7365,7 +7687,7 @@ d5:     do k = klast + 1,KUB
     !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
     !>                         Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
-    Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+                                Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
         real,    dimension(:,:  ), pointer, intent(IN)    :: SonMatrix2D
@@ -14225,7 +14547,7 @@ D2:     do I=imax-1,2,-1
             dj      = 1
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
         endif
-
+        
         call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
 
     end subroutine SearchDischargeFace
@@ -14256,9 +14578,9 @@ D2:     do I=imax-1,2,-1
                 endif
             endif
         enddo
-
+        
         if (StartIndex /= 0) then
-
+            
             if (di /=0) IJFather = IFather ! means we are searching the north/South direction
             if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
             Aux2 = Aux
@@ -14286,7 +14608,7 @@ D2:     do I=imax-1,2,-1
     end subroutine SearchFace
 
     !-------------------------------------------------------------------------------------
-
+    
     !-------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -14391,9 +14713,9 @@ D2:     do I=imax-1,2,-1
             Flow(line) = Flow(line) + F_South + F_North
         enddo
     end subroutine DischargeFluxV
-
+    
     !---------------------------------------------------------------------------------------
-
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - V direction
@@ -14412,9 +14734,9 @@ D2:     do I=imax-1,2,-1
         real                                                     :: Est_VelFather_East, Est_VelFather_West
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
-
+        
         if (CoefCold < 1) then
-
+                        
             do line = 1, MaxSize
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
@@ -14427,12 +14749,12 @@ D2:     do I=imax-1,2,-1
                 !In principle HalfFillValueReal should be used, but this way we make sure the model does not read bad values
                 if (VelSon(i, j , k) > -10) then
                     Est_VelFather_West = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_W
-                    F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
                 endif
                 
                 if (VelSon(i, j+1, k) > -10) then
                     Est_VelFather_East = VelFather(i,j+1,k) + (VelSon(i,j+1,k)-VelFather(i,j+1,k))*TimeCoef*VolRat_E
-                    F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
                 endif
 
                 Flow(line) = F_East + F_West
@@ -14449,26 +14771,26 @@ D2:     do I=imax-1,2,-1
                 VolRat_E = SonVolInFather(i,j+1,k) / FatherVolume(i,j+1,k)
                 if (VelSon(i, j , k) > -10) then
                     Est_VelFather_West = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_W
-                    F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
+                F_West =  (VelFather(i, j  , k) - Est_VelFather_West) * AreaU(i, j  , k)
                 endif
                 
                 if (VelSon(i, j+1, k) > -10) then
                     Est_VelFather_East = VelFather(i,j+1,k) + (VelSon(i,j+1,k)-VelFather(i,j+1,k))*TimeCoef*VolRat_E
-                    F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
+                F_East = -(VelFather(i, j+1, k) - Est_VelFather_East) * AreaU(i, j+1, k)
                 endif
 
                 Flow(line) = F_East + F_West
-            enddo
+            enddo   
         endif
-
+        
     end subroutine Offline_DischargeFluxU
-
+    
     !---------------------------------------------------------------------------------------
-
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes flow to be added or removed due to offline upscaling discharge - U direction
-    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold
+    !>@param[in] Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, CoefCold 
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
@@ -14483,13 +14805,13 @@ D2:     do I=imax-1,2,-1
         real                                                 :: Est_VelFather_South, Est_VelFather_North
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
-
+        
         if (CoefCold < 1) then
             do line = 1, MaxSize
                 i = DischargeConnection(line, 1)
                 j = DischargeConnection(line, 2)
                 k = DischargeConnection(line, 3)
-                
+                        
                 F_South = 0
                 F_North = 0
                 TimeCoef = (VelDT * CoefCold) / DecayTime(i, j)
@@ -14497,12 +14819,12 @@ D2:     do I=imax-1,2,-1
                 VolRat_N = SonVolInFather(i+1,j,k) / FatherVolume(i+1,j,k)
                 if (VelSon(i, j , k) > -10) then
                     Est_VelFather_South = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_S
-                    F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
                 endif
                 
                 if (VelSon(i+1, j, k) > -10) then
                     Est_VelFather_North = VelFather(i+1,j,k) + (VelSon(i+1,j,k)-VelFather(i+1,j,k)) * TimeCoef*VolRat_N
-                    F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
                 endif
 
                 Flow(line) = Flow(line) + F_South + F_North
@@ -14519,18 +14841,18 @@ D2:     do I=imax-1,2,-1
                 VolRat_N = SonVolInFather(i+1,j,k) / FatherVolume(i+1,j,k)
                 if (VelSon(i, j , k) > -10) then
                     Est_VelFather_South = VelFather(i,j,k) + (VelSon(i,j,k) - VelFather(i,j,k)) * TimeCoef * VolRat_S
-                    F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
+                F_South =  (VelFather(i  , j, k) - Est_VelFather_South) * AreaV(i  , j, k)
                 endif
                 
                 if (VelSon(i+1, j, k) > -10) then
                     Est_VelFather_North = VelFather(i+1,j,k) + (VelSon(i+1,j,k)-VelFather(i+1,j,k)) * TimeCoef*VolRat_N
-                    F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
+                F_North = -(VelFather(i+1, j, k) - Est_VelFather_North) * AreaV(i+1, j, k)
                 endif
 
                 Flow(line) = Flow(line) + F_South + F_North
             enddo
         endif
-
+        
     end subroutine Offline_DischargeFluxV
 
     !>@author Joao Sobrinho Maretec
@@ -14574,7 +14896,7 @@ D2:     do I=imax-1,2,-1
         enddo
     end subroutine UpdateDischargeConnections
     !------------------------------------------------------------------------------
-
+    
     logical function DischargeIsAssociated (Connections, IFather, JFather)
         !Arguments------------------------------------------------------------------
         integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
