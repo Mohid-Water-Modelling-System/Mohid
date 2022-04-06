@@ -85,6 +85,7 @@ Module ModuleHDF5
     public  ::  GetHDF5DataTypeID
     public  ::  GetHDF5FileName
     public  ::  GetHDF5AllDataSetsOK
+    public  ::  GetHDF5ItemName
 
 #ifdef _GUI_
     public  :: HDF5InquireFile
@@ -7374,6 +7375,83 @@ if11 :              if (size == 8) then
     end subroutine GetHDF5AllDataSetsOK
 
     !--------------------------------------------------------------------------    
+    
+     subroutine GetHDF5ItemName (HDF5ID, GroupName,nitem,obj_nameIn,  STAT)
+    
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: HDF5ID
+        integer, optional                               :: STAT
+        character(len=*)                                :: GroupName
+        character(StringLength)                         :: obj_nameIn
+        integer                                         :: nitem
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                                  :: gr_idIn
+        integer                                         :: STAT_, ready_
+        character(len=1)                                :: GroupNameIn  
+        integer                                         :: obj_type, idx
+        integer                                         :: nmembersIn
+        integer(HID_T)                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+            
+            !GroupNameIn = "/"
+            
+            
+            call h5gopen_f        (Me%FileID, trim(adjustl(GroupName)), gr_idIn, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'GetHDF5ItemName - ModuleHDF5 - ERR10'
+            endif
+ 
+            !Get the number of members in the Group
+            call h5gn_members_f(gr_idIn, trim(adjustl(GroupName)), nmembersIn, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) "IDIn       =", gr_idIn
+                write(*,*) "FileName   =", trim(Me%Filename)
+                write(*,*) "GroupName  =", trim(GroupName)  
+                write(*,*) "nmembersIn =", nmembersIn
+                stop 'GetHDF5ItemName - ModuleHDF5 - ERR20'
+            endif
+        
+            do idx = 1, nmembersIn
+
+                call h5gget_obj_info_idx_f(gr_idIn, trim(GroupName), idx-1, obj_nameIn, obj_type, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                     write(*,*) "FileName  =",trim(Me%Filename)
+                     write(*,*) "GroupName =",trim(GroupNameIn)
+                     write(*,*) "DataSet   =",trim(obj_nameIn )                
+                    stop 'GetHDF5ItemName - ModuleHDF5 - ERR30'
+                endif
+                
+                if (nitem == idx) exit
+                
+            enddo
+            
+            call h5gclose_f       (gr_idIn, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'GetHDF5ItemName - ModuleHDF5 - ERR40'
+            endif            
+            
+            
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetHDF5ItemName
+
+    !--------------------------------------------------------------------------        
     
 
     recursive subroutine CheckAllDataSets (IDIn, GroupNameIn)

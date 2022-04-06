@@ -8249,8 +8249,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if      (DataTypeIn == Real8_   ) then
 
                 status = NF90_GET_VAR(ncid,n,ValueIn%R81D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
-                
+                if (status /= nf90_noerr) then
+                    stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                endif
             else if (DataTypeIn == Real4_   ) then
             
                 status = NF90_GET_VAR(ncid,n,ValueIn%R41D)
