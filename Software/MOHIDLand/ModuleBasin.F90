@@ -4676,8 +4676,8 @@ cd0:    if (Exist) then
         Me%MB%RainRunoff      = 0.0  !arriving to runoff (leaf drainage + direct)
         
         
-        !$OMP PARALLEL PRIVATE(I,J,CurrentFlux,GrossPrecipitation,NewVolumeOnLeafs, OldVolumeOnLeafs,AreaFraction)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+        !!$OMP PARALLEL PRIVATE(I,J,CurrentFlux,GrossPrecipitation,NewVolumeOnLeafs, OldVolumeOnLeafs,AreaFraction)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then
@@ -4892,8 +4892,8 @@ cd0:    if (Exist) then
             endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         !if (Me%Coupled%Snow) then
         !    !UnGets Air Temperature [ºC]

@@ -3510,11 +3510,8 @@ BF:         if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR183'  
                     
                     if (iflag == 0) then
-                        Me%LongLat%ImposedRegular = .true.
-                    else
-                        Me%LongLat%ImposedRegular = .false.
-                    endif
                 
+                        Me%LongLat%ImposedRegular = .true.
 
                     call GetData(Me%LongLat%LongOrig,                                   &
                                  Me%ObjEnterData, iflag,                                &
@@ -3563,6 +3560,10 @@ BF:         if (BlockFound) then
                     if (iflag == 0) then
                         stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR260'  
                     endif
+                    
+                    else
+                        Me%LongLat%ImposedRegular = .false.
+                    endif             
                     
                 
                     call GetData(Me%Depth%RemoveNsurfLayers,                            &
@@ -4865,13 +4866,15 @@ BF:             if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer                                         :: status, numDims
-        integer                                         :: RhVarIdLong
-        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLong
-        integer                                         :: ObjHorizontalGrid
+        integer                                         :: RhVarIdLong, RhVarIdLat
+        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLong, rhDimIdsLat
+        integer                                         :: ObjHorizontalGrid = 0
+        real, dimension(:,:),     pointer               :: LongOut_dummy, LatOut_dummy
         
         !Begin-----------------------------------------------------------------        
 
-
+        write(*,*)
+        write(*,*)'Imposing MOHID Grid file...'
         
         status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLong),RhVarIdLong)
         if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
@@ -4885,17 +4888,38 @@ BF:             if (BlockFound) then
         status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
         if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR30'  
 
+        status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLat),RhVarIdLat)
+        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+        
+        if      (numDims == 2 .or. numDims == 3) then     
+        
+            if (Me%ReadInvertLat) then
+                write(*,*) 'Can only invert the latitude reading if the Grid in not 2D'
+                stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR60' 
+            endif
+
         status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
-        if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR50'         
+            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
         
         if (Me%ReadInvertXY) then
 
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
-            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+                if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR80'        
 
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
-            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+                if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR90' 
         
+        endif
+        
+        else if (numDims == 1) then
+            status = nf90_inquire_variable(ncid, RhVarIdLat, dimids = rhDimIdsLat(:numDims))
+            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR100'      
+            
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLat(1), len = Me%LongLat%imax)
+            if (status /= nf90_noerr) stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR110' 
+            
+        else
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
         endif
         
     
@@ -4923,6 +4947,8 @@ BF:             if (BlockFound) then
         allocate(Me%LongLat%LongOut   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%LongLat%LatOut    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
        
+                
+       
         call ConstructHorizontalGrid(HorizontalGridID   = ObjHorizontalGrid,            &                  
                                      DataFile           = Me%LongLat%MohidGrid,         &
                                      STAT               = status)        
@@ -4931,12 +4957,23 @@ BF:             if (BlockFound) then
         endif
         
         call GetCornersCoordinates(HorizontalGridID   = ObjHorizontalGrid,              &                   
-                                   CoordX             = Me%LongLat%LongOut,             &
-                                   CoordY             = Me%LongLat%LatOut,              &
+                                   CoordX             = LongOut_dummy,                  &
+                                   CoordY             = LatOut_dummy,                   &
                                    STAT               = status)        
         if (status /= SUCCESS_) then
             stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR100'         
         endif        
+                
+        if ((size(LongOut_dummy) .ne. size(Me%LongLat%LongOut)) .or. &
+              size(LatOut_dummy) .ne. size(Me%LongLat%LatOut)) then
+            stop 'ImposedMohidGrid - ModuleNetCDFCF_2_HDF5MOHID - ERR120' 
+        end if
+        
+        Me%LongLat%LongOut  = LongOut_dummy
+        Me%LongLat%LatOut   = LatOut_dummy
+        
+        call UngetHorizontalGrid(ObjHorizontalGrid, LongOut_dummy, STAT = status)
+        call UngetHorizontalGrid(ObjHorizontalGrid, LatOut_dummy, STAT = status)
        
         call KillHorizontalGrid(HorizontalGridID   = ObjHorizontalGrid,                 &                  
                                 STAT               = status)        

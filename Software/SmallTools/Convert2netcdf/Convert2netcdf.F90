@@ -63,6 +63,7 @@ program Convert2netcdf
     use ModuleHDF5
     use ModuleNETCDF
     use ModuleFunctions
+    use ModuleHorizontalGrid
     use HDF5
 
     implicit none
@@ -125,6 +126,7 @@ program Convert2netcdf
         integer, dimension(8)                               :: F95Time
         logical                                             :: MohidStandardInOutUnits = .false. 
         logical                                             :: OdysseaProject          = .false. 
+        logical                                             :: Round2hours             = .false.
                                                             
         integer                                             :: ObjEnterData     = 0
                                                             
@@ -166,6 +168,10 @@ program Convert2netcdf
         
         real                                                :: MissingValue     = FillValueReal
         real                                                :: MissingValueIn   = FillValueReal        
+
+        integer                                             :: ObjHorizontalGrid     = 0
+        logical                                             :: ImposeGrid        = .false. 
+        character(len=PathLength)                           :: ImposedGridFile   = null_str
 
     end type T_Conv2netcdf
 
@@ -690,6 +696,32 @@ program Convert2netcdf
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR490'
         
      
+        call GetData(Me%ImposeGrid,                                                     &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'IMPOSE_GRID',                                      &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR491'
+        if (Me%ImposeGrid .and. .not. Me%SimpleGrid) then
+            write(*,*) 'Imposed grid must be used if SIMPLE_GRID is activated' 
+            stop 'ReadKeywords - Convert2netcdf - ERR491.1'
+        end if
+        
+        call GetData(Me%ImposedGridFile,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'IMPOSED_GRID_PATH',                                &
+                     ClientModule = 'Convert2netcdf',                                   & 
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR492'
+        
+        if (Me%ImposeGrid .and. iflag == 0) then
+            write(*,*) 'If IMPOSE_GRID is activated, IMPOSED_GRID_PATH must be provided'
+            stop 'ReadKeywords - Convert2netcdf - ERR492.1'
+        end if      
+     
         if(.not. Me%ConvertEverything)then
 
              call ReadVGroupsToConvert
@@ -732,6 +764,15 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR520'        
+        
+        call GetData(Me%Round2hours,                                                   &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ROUND_2_HOURS',                                    &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR520'  
         
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
@@ -1104,7 +1145,8 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL, i, j
-        real, dimension(:,:), pointer       :: Lat, Lon, Lat_Stag, Lon_Stag, Aux4
+        real, dimension(:,:), pointer       :: Lat, Lon, Lat_Stag, Lon_Stag, Aux4, LatAux, LonAux
+        real, dimension(:,:), pointer       :: CornersX, CornersY
         real(8), dimension(:,:), pointer    :: SphericX, SphericY               
         character(len=StringLength)         :: LatVar, LonVar
 
@@ -1170,11 +1212,40 @@ program Convert2netcdf
         
         if (Me%SimpleGrid) then
         
+            if(Me%ImposeGrid) then
+                !FLAVIO SANTOS                
+                allocate (CornersX(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+                allocate (CornersY(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+                allocate (LatAux(1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
+                allocate (LonAux(1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
+                
+                call ConstructHorizontalGrid (Me%ObjHorizontalGrid, Me%ImposedGridFile, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR40'
+                
+                call GetCornersCoordinates (Me%ObjHorizontalGrid, CornersX, CornersY, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR41'
+                
+                do j = 1, Me%HDFFile%Size%JUB                    
+                    Lon(j,1) = (CornersX(1,j) + CornersX(1,j + 1))/2
+                end do
+                
+                
+                do i = 1, Me%HDFFile%Size%IUB
+                    Lat(1,i) = (CornersY(i,1) + CornersY(i + 1,1))/2
+                end do
+                
+                
+                
+                
+                
+                deallocate (CornersX, CornersY)
+            end if
+                
             call NETCDFWriteLatLon1D(NCDFID           = Me%NCDF_File%ObjNETCDF,         &
                                      Lat              = Lat,                            &
                                      Lon              = Lon,                            &
                                      STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR40'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR50'
         
         else
         
@@ -1195,7 +1266,7 @@ program Convert2netcdf
                                        SphericX         = SphericX,                     &
                                        SphericY         = SphericY,                     &
                                        STAT             = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR50'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'
 
                 deallocate(SphericX, SphericY)
                 
@@ -1207,7 +1278,7 @@ program Convert2netcdf
                                        Lat_Stag         = Lat_Stag,                     &
                                        Lon_Stag         = Lon_Stag,                     &
                                        STAT             = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'        
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR70'        
             
             endif
                     
@@ -2717,6 +2788,18 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                              OutputNumber   = Instant,                                  &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'HDF5TimeInstant - Convert2netcdf - ERR01'
+        
+        if (Me%Round2hours) then
+            !section that rounds mohid land time instants that slightly deviate from the 00:00 (min:sec)
+            !instant. Round to 0 seconds and 0 minutes of the hour.
+            if (TimeVector(5) >= 30.) then
+                TimeVector(4) = TimeVector(4) + 1.0
+                
+            end if
+            
+            TimeVector(6) = 0.0                
+            TimeVector(5) = 0.0
+        end if
 
         call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
                                       Day      = TimeVector(3), Hour   = TimeVector(4), &
