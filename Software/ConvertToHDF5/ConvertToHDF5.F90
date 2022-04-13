@@ -60,6 +60,7 @@ program ConvertToHDF5
     use ModuleInterpolateTime
     use ModuleGlueHDF5Files
     use ModulePatchHDF5Files
+    use ModuleUpscaleHDF5
 #ifndef _NO_NETCDF
     use ModuleCFFormat
     use ModuleCFPolcomFormat
@@ -109,6 +110,7 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: InterpolateTime              = 'INTERPOLATE TIME'    
     character(len = StringLength), parameter:: GluesHD5Files                = 'GLUES HDF5 FILES'
     character(len = StringLength), parameter:: PatchHD5Files                = 'PATCH HDF5 FILES'
+    character(len = StringLength), parameter:: UpscaleHDF5                  = 'UPSCALE HDF5 FILES'
     character(len = StringLength), parameter:: ConvertIHRadarFormatToHDF5   = 'CONVERT IH RADAR FORMAT'
     
     character(len = StringLength), parameter:: ConvertDelft3DFormatToHDF5   = 'CONVERT DELFT3D FORMAT'    
@@ -531,8 +533,13 @@ if2 :           if (BlockFound) then
 
                         case (ConvertDelft3DFormatToHDF5)
                         
-                            call ConvertDelft3D_2_Mohid(ObjEnterData, ClientNumber, STAT = STAT_CALL)                        
+                            call ConvertDelft3D_2_Mohid(ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                            
+                        case (UpscaleHDF5)
                         
+                            call StartUpscaleHDF5(ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR270'
+                            
                         case default
                             
                             stop 'Option not known - ReadOptions - ConvertToHDF5 - ERR299'
