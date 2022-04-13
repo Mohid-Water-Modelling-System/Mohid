@@ -99,6 +99,8 @@
 !   OVERLAPPING                 : 0/1              [0]          !Overlap information based on grid data and polygons files
 !   OVERLAPPING_NUMBER          : int               -           !Number of grid data files used to overlap information
 
+!   CONVERT_2_XBEACH            : 0/1              [0]          !Write also the bathymetry in the XBEACH format
+
 !
 !   <BeginGridDataInfo>
 !       LEVEL                   : int               -           !Order of importance of the grid data file
@@ -295,6 +297,7 @@ program DigitalTerrainCreator
         logical                                     :: CreateMarginPoints
         integer                                     :: MarginPointsToAdd
         logical                                     :: ExportXYZ
+        logical                                     :: Convert2Xbeach
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -1090,6 +1093,18 @@ i2:         if      (trim(AuxChar) == 'j') then
                      ClientModule ='DigitalTerrainCreator',                             &
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR110'
+
+        
+        call GetData(Me%Convert2Xbeach,                                                 &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='CONVERT_2_XBEACH',                                  &
+                     Default      = .false.,                                            &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR120'        
+        
+      
 
     end subroutine ConstructGlobalOptions
 
@@ -2088,6 +2103,12 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                 
             endif 
                         
+        if (Me%Convert2Xbeach) then
+                
+            call Convert_2_Xbeach(Me%Depth, Me%LandPoint, Me%BatimFilePathOut)
+                
+        endif         
+                        
 
     end subroutine WriteDigitalTerrain
     
@@ -2147,6 +2168,85 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
  
     !--------------------------------------------------------------------------
     
+    !--------------------------------------------------------------------------
+    subroutine Convert_2_Xbeach(Depth, LandPoint, Filename)
+
+        !Arguments---------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Depth
+        real                                            :: LandPoint
+        character(len=*)                                :: Filename        
+        !Local-------------------------------------------------------------------
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY
+        type (T_Size2D)                                 :: WorkSize
+        integer                                         :: i, j, STAT_CALL, Ub, Ux, Uy, SplitByExtension
+      
+        
+        !------------------------------------------------------------------------
+
+        write(*,*)"Writing MOHID XBEACH bathymetry files file..."
+
+        call GetZCoordinates(Me%ObjGrid, CoordX, CoordY)
+        
+        call GetHorizontalGridSize(Me%ObjGrid, WorkSize = WorkSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR10'
+              
+        SplitByExtension = scan(trim(Filename),'.',Back = .true.)
+        
+        call UnitsManager (Ub, OPEN_FILE, STAT = STAT_CALL)
+                    
+        open(   Unit   = Ub,                                                            &
+                File   = trim(Filename(1:SplitByExtension-1)//'.dep'),                  &
+                Form   = 'FORMATTED',                                                   &
+                STATUS = 'UNKNOWN',                                                     &
+                Action = 'WRITE',                                                       &
+                IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR20'
+        
+                    
+        do i = WorkSize%ILB, WorkSize%IUB
+            write(Ub,'(10000f8.2)') (Depth (i, j),j=WorkSize%JLB,WorkSize%JUB)
+        enddo
+        
+        call UnitsManager(Ub, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR30'
+
+        call UnitsManager (Ux, OPEN_FILE, STAT = STAT_CALL)
+                    
+        open(   Unit   = Ux,                                                            &
+                File   = trim(Filename(1:SplitByExtension-1)//'_x.grd'),                &
+                Form   = 'FORMATTED',                                                   &
+                STATUS = 'UNKNOWN',                                                     &
+                Action = 'WRITE',                                                       &
+                IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR40'
+        
+        do i = WorkSize%ILB, WorkSize%IUB
+            write(Ux,'(10000f12.2)')  (CoordX(i, j),j=WorkSize%JLB,WorkSize%JUB)
+        enddo
+        
+        call UnitsManager(Ux, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR50'
+        
+        call UnitsManager (Uy, OPEN_FILE, STAT = STAT_CALL)        
+        
+        open(   Unit   = Uy,                                                            &
+                File   = trim(Filename(1:SplitByExtension-1)//'_y.grd'),                &
+                Form   = 'FORMATTED',                                                   &
+                STATUS = 'UNKNOWN',                                                     &
+                Action = 'WRITE',                                                       &
+                IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR60'
+                    
+        do i = WorkSize%ILB, WorkSize%IUB
+            write(Uy,'(10000f12.2)') (CoordY(i, j),j=WorkSize%JLB,WorkSize%JUB)
+        enddo
+        
+        call UnitsManager(Uy, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Convert_2_Xbeach - DigitalTerrainTool - ERR70'        
+        
+    end subroutine Convert_2_Xbeach
+ 
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     
@@ -2793,7 +2893,8 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
                     end do
 
                     if(nPointsInside .eq. 0)then
-                        Me%Depth(i, j) = Me%NoDataPoint
+                        !Assume the default vaule Me%NoDataPoint or BATIM_INI
+                        !Me%Depth(i, j) = Me%NoDataPoint
                     else
                         if      (Me%FillMethod == Average_) then
                             Me%Depth(i, j) = SumOfDepths / nPointsInside
@@ -2911,7 +3012,8 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
         do i = ILB,  IUB
 
             if(nPointsInside(i, j) .eq. 0)then
-                Me%Depth(i, j) = Me%NoDataPoint
+                !Assume the default vaule Me%NoDataPoint or BATIM_INI
+                !Me%Depth(i, j) = Me%NoDataPoint
             else
                 if      (Me%FillMethod == Average_) then
                     Me%Depth(i, j) = SumOfDepths(i,j) / nPointsInside(i, j)
@@ -3083,7 +3185,8 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
                 end do
 
                 if(nPointsInside .eq. 0)then
-                    Me%Depth(i, j) = Me%NoDataPoint
+                    !Assume the default vaule Me%NoDataPoint or BATIM_INI
+                    !Me%Depth(i, j) = Me%NoDataPoint
                 else
                     Me%Depth(i, j) = SumOfDepths / nPointsInside
                 end if

@@ -99,12 +99,16 @@
     !DENSITYLIMIT              : 0        ! 0/1  .  mortality by density
     !DENSITY_MAXVALUE          : 0        ! #/m3 .  maximum allowed density per cell
     !
+    !SM_DYNAMIC                : 0        ! 0/1 . 0 - Fixed value for acceleration; 1 - acceleration computed dynamically = L/Lj
+    !SM_FIX                    : 1        ! adim. acceleration factor when fixed (1 - no acceleration effect)
     !V_COND                    : 0.056    !0.056. cm/d. energy conductance (Saraiva etal.. in press)
     !KAPPA                     : 0.67     !0.67. adim. allocation fraction to growth/somatic maintenace 
     !KAP_R                     : 0.95     !0.95. adim. fraction of flux allocated to reproduction (Kooijman. 2010)
     !pM                        : 11.6     !11.6. J/(d.cm3). volume specific somatic maintenace energy flux 
+    !kJ                        : 1.9e-3   !1.91e-4. d-1, maturity maintenance rate coefficient                  
     !EG                        : 5993     !5993. J/cm3(volumetric). energy costs for structural volume growth 
     !EH_B                      : 2.95e-5  !2.99e-5. J. Maturity threshold for birth (Saraiva etal.. inpress)
+    !EH_J                      : 2.95e-5  !2.99e-5. J. Maturity threshold for metamorphosis
     !EH_P                      : 1.58e2   !1.58e2. J. Maturity threshold for puberty (Saraiva etal.. inpress)
     !CRM                       : 0.096    !0.096. m3/d.cm2. maximum clearance rate (Saraiva etal.. 2011)
     !JX1FM                     : 4.8e-4   !4.8e-4. molC/(d.cm2). algae maximum surface area-specific filtration rate
@@ -126,6 +130,7 @@
     !L_B                       : 7.3e-3   !7.3e-3. molC. length in a new born individual at optimal food conditions 
     !DV                        : 0.2      !0.2. g(dw)/cm3. bivalve structure and reserves specific density 
     !MU_E                      : 6.97e5   !6.97e5. J/molC(reser). chemical potential of reserves (van der Veer etal.. 2006)
+    !MU_X                      : 6.97e5   !6.97e5. J/molC(food). chemical potential of food 
     !SIMPLE_ASSI               : 0        !0. 0/1 option to compute simple assimilation
     !SIMPLE_TEMP               : 1        !0. 0/1 option to compute simple temperature
     !
@@ -443,12 +448,16 @@
         real                             :: m_spat             = null_real !/d, constant natural mortality rate
         logical                          :: DensityLimOption   = .false.   !density limitation?
         real                             :: MAX_density        = null_real !3000 #/m2, maxium density found in field observations       
+        logical                          :: SM_DYNAMIC         = .false.   !acceleration computed dynamically?
+        real                             :: SM_FIX             = null_real !fixed acceleration factor(1-no acceleration effect)       
         real                             :: v_cond             = null_real !cm/d, energy conductance
         real                             :: kappa              = null_real !adim, allocation fraction to growth/SomMaintenace
         real                             :: kap_R              = null_real !adim, reproduction efficiency
         real                             :: pM                 = null_real !J/(d.cm3), volume specific somatic maintenace
+        real                             :: kJ                 = null_real !J/(d.cm3), volume specific maturity maintenace
         real                             :: EG                 = null_real !J/cm3(volumetric), energy costs for structure
         real                             :: EHb                = null_real !J, maturity threshold for birth
+        real                             :: EHj                = null_real !J, maturity threshold for metamorphosis
         real                             :: EHp                = null_real !J, maturity threshold for puberty
         real                             :: Crm                = null_real !m3/d.cm2, maximum clearance rate
         real                             :: JX1Fm              = null_real !molC/(d.cm2),max surf area-specific filt algae
@@ -470,6 +479,7 @@
         real                             :: Lb                 = null_real !molC, length in a new born at optimal food
         real                             :: d_V                = null_real !g(dw)/cm3, density of  structure
         real                             :: mu_E               = null_real !J/molC(reser), chemical potential of reserves          
+        real                             :: mu_X               = null_real !J/molC(food), chemical potential of food          
         integer                          :: SIMPLE_ASSI        = null_int  !1/0,Compute simple assimilation? 
         integer                          :: SIMPLE_TEMP        = null_int  !1/0,Compute simple temperature correction factor?
     end type T_IndividualParameters          
@@ -485,13 +495,12 @@
         real                             :: WV                = null_real !gDW/molC, AFDW to carbonE convertion
         real                             :: Mv                = null_real !molC(struc)/cm3, volume specific struc mass
         real                             :: MHb               = null_real !molC, maturity threshold for birth
+        real                             :: MHj               = null_real !molC, maturity threshold for metamorphosis
         real                             :: MHp               = null_real !molC, maturity threshold for puberty
         real                             :: y_VE              = null_real !molCV/molCE,yield coefficient of struc on reser
         real                             :: kM                = null_real !/d, somatic maintenace rate coefficient
-        real                             :: kJ                = null_real !/d, maturity maintenace rate coefficient
         real                             :: Lm                = null_real !cm, maximum length of the species
         real                             :: f                 = null_real !adim, food limitation
-        
     end type T_AuxiliarParameters 
 
     type     T_BivalveCondition       
@@ -503,6 +512,10 @@
         real                             :: TotalmolC         = null_real !molC, organism total molC
         real                             :: TotalmolN         = null_real !molN, organism total molN
         real                             :: TotalmolP         = null_real !molP, organism total molP
+        real, dimension(:), pointer      :: SM                => null()   !adim, aceleration factor
+        logical, dimension(:), pointer   :: SM_IsNowFixed     => null()   !1/0, check if still        
+        real                             :: v_cond_now        = null_real !cm/d, actual energy conductance
+        real                             :: PXM_FIX_now       = null_real !Jd-1cm-2, bivalve sur-spec ingestion rate
     end type T_BivalveCondition 
 
     type     T_ByElement          
@@ -761,7 +774,7 @@
         logical                              :: LackOfFood                    = .false.
         integer, pointer, dimension(:)       :: PropertyList                  => null()
         integer                              :: nPropertiesFromBivalve        = 0
-        integer                              :: nCohortProperties             = 7              !Each cohort has 7 associated properties
+        integer                              :: nCohortProperties             = 7          !Each cohort has 7 associated properties
         real                                 :: MinNumber                     = null_real
         integer, pointer, dimension(:)       :: ListDeadIDs                   => null()
         integer                              :: nLastDeadID                   = 0
@@ -1501,7 +1514,20 @@ do1:        do while (associated(ObjSpecies))
         else
             call AddCohort(NewSpecies, NewCohort)
         endif
+        
+        allocate(NewCohort%BivalveCondition%SM(Me%Array%ILB:Me%Array%IUB))
+        allocate(NewCohort%BivalveCondition%SM_IsNowFixed(Me%Array%ILB:Me%Array%IUB))
+        
+        if(NewSpecies%IndividualParameters%SM_DYNAMIC) then
+            
+            NewCohort%BivalveCondition%SM(:) = null_real
+            NewCohort%BivalveCondition%SM_IsNowFixed(:) = .false.
+            
+        else
+            NewCohort%BivalveCondition%SM(:) = NewSpecies%IndividualParameters%SM_FIX
+            NewCohort%BivalveCondition%SM_IsNowFixed(:) = .true.
 
+        endif
 
         write(CohortIDStr, ('(i5)'))NewCohort%ID%ID
 
@@ -1908,20 +1934,22 @@ do1:        do while (associated(ObjCohort%Next))
                        "mol/d_35 mol/d_36 mol/d_37 mol/d_38 mol/d_39 "                // &
                        "#/d.m2_40 #/d.m2_41 #/d.m2_42 #/d.m2_43 #/d.m2_44 "           // &
                        "#/d.m2_45 #/d.m2_46 #/d.m2_47 #/d.m2_48 #/d.m2_49 "           // &
-                       "#/d.m2_50 #/d.m2_51 #/d.m2_52 #/d.m2_53 adim_54 adim_55"
+                       "#/d.m2_50 #/d.m2_51 #/d.m2_52 #/d.m2_53 adim_54 adim_55 "      // &
+                       "adim_56 adim_57"
 
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
 
-        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "           // &
-                      "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
-                      "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "           // &
-                      "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "               // &
-                      "JE_26 dE_27 GamLoss_28 StruLoss_29 JV_30 "           // &
-                      "MatLoss_31 JS_32 Gam_33 JR_34 "                      // &
-                      "CO2_35 H2O_36 O2_37 NH3_38 PO4_39 "                  // &
-                      "m_A_40 m_O_41 m_F_42 m_nat_43 m_shr_44 "             // &
-                      "m_cra_45 m_oys_46 m_duck_47 m_gull_48 m_low_49 "     // &
-                      "m_self_50 m_others_51 m_vel_52 m_settle_53 fpot54 freal55"
+        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                 // &
+                      "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "          // &
+                      "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "                 // &
+                      "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "                     // &
+                      "JE_26 dE_27 GamLoss_28 StruLoss_29 JV_30 "                 // &
+                      "MatLoss_31 JS_32 Gam_33 JR_34 "                            // &
+                      "CO2_35 H2O_36 O2_37 NH3_38 PO4_39 "                        // &
+                      "m_A_40 m_O_41 m_F_42 m_nat_43 m_shr_44 "                   // &
+                      "m_cra_45 m_oys_46 m_duck_47 m_gull_48 m_low_49 "           // &
+                      "m_self_50 m_others_51 m_vel_52 m_settle_53 fpot54 freal55 " // &
+                      "SM_56 SM_IsNowFix57"
         
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
         
@@ -2494,6 +2522,30 @@ do1:        do while (associated(ObjCohort%Next))
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR12'
 
+        ! 0/1 . 0 - Fixed value for acceleration; 1 - acceleration computed dynamically = L/Lj    
+        call GetData(IndividualParameters%SM_DYNAMIC        , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'SM_DYNAMIC'             , &
+                    default      = .false.                  , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR0131'
+
+        ! adim. acceleration factor when fixed (1 - no acceleration effect)   
+        call GetData(IndividualParameters%SM_FIX            , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'SM_FIX'                 , &
+                    default      = 1.0                      , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR0132'
+
         !cm/d, energy conductance (Saraiva etal., in press)    
         call GetData(IndividualParameters%v_cond            , &
                     Me%ObjEnterData, flag                   , &
@@ -2542,6 +2594,19 @@ do1:        do while (associated(ObjCohort%Next))
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR16'
 
+                    
+        !J/(d.cm3), volume specific maturity maintenace energy flux
+        call GetData(IndividualParameters%kJ                , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'kJ'                     , &
+                    default      = 1.91e-4                  , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR161'
+
         !J/cm3(volumetric), energy costs for structural volume growth (Saraiva etal., inpress)
         call GetData(IndividualParameters%EG                , &
                     Me%ObjEnterData, flag                   , &
@@ -2566,6 +2631,19 @@ do1:        do while (associated(ObjCohort%Next))
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR18'
 
+        !J, Maturity threshold for metamorphosis 
+        call GetData(IndividualParameters%EHj               , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'EH_J'                   , &
+                    default      = 3.64e-7                  , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR181'
+                    
+                    
         !J, Maturity threshold for puberty (Saraiva etal., inpress)
         call GetData(IndividualParameters%EHp               , &
                     Me%ObjEnterData, flag                   , &
@@ -2797,6 +2875,19 @@ do1:        do while (associated(ObjCohort%Next))
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR38'
 
+        !J/molC(food), chemical potential of food 
+        call GetData(IndividualParameters%mu_X              , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'MU_X'                   , &
+                    default      = 6.97e5                   , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR38b'
+                    
+                    
         !option to compute simple assimilation 
         call GetData(IndividualParameters%SIMPLE_ASSI       , &
                     Me%ObjEnterData, flag                   , &
@@ -4345,7 +4436,7 @@ do1:        do while (associated(ObjPredator%Next))
         
         if(TotalNumberOfIndividuals .gt. 0.0)then
             Me%ComputeThisIndex = .true.
-                !write(*,*)Index
+            !write(*,*)Index
         else
             Me%ComputeThisIndex = .false.
         endif
@@ -5701,7 +5792,6 @@ d1:         do while(associated(Species))
 
         !Begin-----------------------------------------------------------------
 
-
         C_AtomicMass  = Species%AuxiliarParameters%C_AtomicMass        
         H_AtomicMass  = Species%AuxiliarParameters%H_AtomicMass        
         O_AtomicMass  = Species%AuxiliarParameters%O_AtomicMass        
@@ -5798,7 +5888,7 @@ d1:         do while(associated(Species))
         !Local-----------------------------------------------------------------
         real                            :: Tref, TA, TL, TH, TAL, TAH
         real                            :: pM, EG, mu_E, d_V
-        real                            :: PXM_FIX, delta_M, kappa
+        real                            :: delta_M, kappa
         real                            :: T
 
         !Begin-----------------------------------------------------------------
@@ -5813,7 +5903,6 @@ d1:         do while(associated(Species))
         EG          = Species%IndividualParameters%EG     
         mu_E        = Species%IndividualParameters%mu_E
         d_V         = Species%IndividualParameters%d_V
-        PXM_FIX     = Species%IndividualParameters%PXM_FIX
         delta_M     = Species%IndividualParameters%delta_M
         kappa       = Species%IndividualParameters%kappa
 
@@ -5852,6 +5941,9 @@ d1:         do while(associated(Species))
         !MHb, molC, Maturity threshold for birth
         Species%AuxiliarParameters%MHb  = Species%IndividualParameters%EHb / mu_E 
 
+        !MHj, molC, Maturity threshold for metamorphosis
+        Species%AuxiliarParameters%MHj  = Species%IndividualParameters%EHj / mu_E 
+        
         !MHp, molC, Maturity threshold for puberty
         Species%AuxiliarParameters%MHp  = Species%IndividualParameters%EHp / mu_E 
 
@@ -5861,15 +5953,8 @@ d1:         do while(associated(Species))
         !kM, d-1, somatic maintenance rate coefficient
         Species%AuxiliarParameters%kM   = pM / EG         
 
-        !kJ, d-1, maturity maintenance rate coefficient
-        Species%AuxiliarParameters%kJ   = Species%AuxiliarParameters%kM
-
-        !Lm, cm, maximum length of the species
-        if (pM .gt. 0.0) then
-            Species%AuxiliarParameters%Lm   = ((kappa * PXM_FIX) / pM) / delta_M 
-        else
-            Species%AuxiliarParameters%Lm   = 0.0
-        end if
+        !!kJ, d-1, maturity maintenance rate coefficient
+        !Species%AuxiliarParameters%kJ   = Species%AuxiliarParameters%kM
                 
     end subroutine ComputeAuxiliarParameters
 
@@ -5883,8 +5968,8 @@ d1:         do while(associated(Species))
 
         !Local-----------------------------------------------------------------
         type(T_Cohort),     pointer   :: Cohort
-        integer                       :: L, M_V, M_E, M_R
-
+        integer                       :: L, M_V, M_E, M_R, M_H
+        
         !Begin-----------------------------------------------------------------
 
         Cohort => Species%FirstCohort
@@ -5894,6 +5979,7 @@ d1:         do while(associated(Species))
             M_V = Cohort%StateIndex%M_V
             M_E = Cohort%StateIndex%M_E
             M_R = Cohort%StateIndex%M_R
+            M_H = Cohort%StateIndex%M_H
 
             !Vol, cm3, Structural volume of the organism
             Cohort%BivalveCondition%Vol  = Me%ExternalVar%Mass(M_V, Index) / Species%AuxiliarParameters%Mv
@@ -5946,10 +6032,41 @@ d1:         do while(associated(Species))
                                             Species%SpeciesComposition%StructureComposition%nP                  + &
                                             (Me%ExternalVar%Mass(M_E, Index) + Me%ExternalVar%Mass(M_R, Index)) * &
                                             Species%SpeciesComposition%ReservesComposition%nP     
+           
+            !acceleration factor, 
+            if(Species%IndividualParameters%SM_DYNAMIC) then
+                
+                if(.not. Cohort%BivalveCondition%SM_IsNowFixed(Index))then 
+                    
+                    if(Me%ExternalVar%Mass(M_H, Index) .le. Species%AuxiliarParameters%MHj) then
+                        Cohort%BivalveCondition%SM(Index) = Me%ExternalVar%Mass(L, Index)/ Species%IndividualParameters%Lb 
+                    else
+                        if (Cohort%BivalveCondition%SM(Index) .eq. null_real) then
+                            Cohort%BivalveCondition%SM(Index) = Me%ExternalVar%Mass(L, Index)/ Species%IndividualParameters%Lb                             
+                        endif
+                        Cohort%BivalveCondition%SM_IsNowFixed(Index) = .true.
+                    endif
+                end if
 
+            endif
+            
+            !Compute actual values of v_cond and PXM_FIX that depend on the acceleration factor
+            Cohort%BivalveCondition%v_cond_now  = Species%IndividualParameters%v_cond * Cohort%BivalveCondition%SM(Index)
+            Cohort%BivalveCondition%PXM_FIX_now = Species%IndividualParameters%PXM_FIX * Cohort%BivalveCondition%SM(Index)
 
             Cohort => Cohort%Next
         end do d1
+        
+        
+        !!Lm, cm, maximum length of the species
+        !if (Species%IndividualParameters%pM .gt. 0.0) then
+        !    Species%AuxiliarParameters%Lm   = ((Species%IndividualParameters%kappa * Species%AuxiliarParameters%PXM_FIX_now) / &
+        !                                        Species%IndividualParameters%pM)                                             / &
+        !                                        Species%IndividualParameters%delta_M 
+        !else
+        !    Species%AuxiliarParameters%Lm   = 0.0
+        !end if
+
 
     end subroutine ComputeBivalveCondition
 
@@ -6015,7 +6132,7 @@ d1:         do while(associated(Species))
         type(T_Species)  ,   pointer        :: Species
         type(T_Cohort)   ,   pointer        :: Cohort
         integer                             :: M_H, Number
-        real                                :: PXM_FIX, mu_E, YEX
+        real                                :: PXM_FIX_now, mu_X, YEX
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass
         real                                :: P_AtomicMass, N_AtomicMass
         real                                :: nH,nO,nN,nP
@@ -6026,8 +6143,7 @@ d1:         do while(associated(Species))
         Species   => Me%FirstSpecies
 d1:     do while(associated(Species))
            
-            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
-            mu_E            = Species%IndividualParameters%mu_E
+            mu_X            = Species%IndividualParameters%mu_X
             YEX             = Species%IndividualParameters%YEX
 
             C_AtomicMass    = Species%AuxiliarParameters%C_AtomicMass        
@@ -6038,6 +6154,7 @@ d1:     do while(associated(Species))
             TempCorrection  = Species%AuxiliarParameters%TempCorrection         
             MHb             = Species%AuxiliarParameters%MHb
             
+
             nH              = Species%SpeciesComposition%StructureComposition%nH
             nO              = Species%SpeciesComposition%StructureComposition%nO
             nP              = Species%SpeciesComposition%StructureComposition%nP
@@ -6049,6 +6166,8 @@ d2:         do while(associated(Cohort))
                 M_H         = Cohort%StateIndex%M_H    
                 Vol         = Cohort%BivalveCondition%Vol
                 Number      = Cohort%StateIndex%Number
+
+                PXM_FIX_now = Cohort%BivalveCondition%PXM_FIX_now 
                 
                 Cohort%Processes%f_potential = Species%IndividualParameters%F_FIX         
                 Cohort%Processes%f_real      = Species%IndividualParameters%F_FIX         
@@ -6058,7 +6177,7 @@ d2:         do while(associated(Cohort))
                     !Filtration, molC/d
                     Cohort%Processes%FilteredInorganic = 0.0
                     Cohort%Processes%FilteredFood%C    = Cohort%Processes%f_real *    & 
-                                                          PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
+                                                          PXM_FIX_now / mu_X * TempCorrection * Vol**(2.0/3.0)
                     Cohort%Processes%FilteredFood%H    = Cohort%Processes%FilteredFood%C * nH
                     Cohort%Processes%FilteredFood%O    = Cohort%Processes%FilteredFood%C * nO
                     Cohort%Processes%FilteredFood%N    = Cohort%Processes%FilteredFood%C * nN
@@ -6181,7 +6300,7 @@ d2:         do while(associated(Cohort))
         type(T_Cohort)   ,   pointer        :: Cohort
         type(T_Particles),   pointer        :: Particles
         integer                             :: M_H, Number, par
-        real                                :: PXM_FIX, mu_E, YEX
+        real                                :: PXM_FIX_now, mu_X, YEX
         real                                :: K_Food,K_Sed
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass
         real                                :: P_AtomicMass, N_AtomicMass
@@ -6209,8 +6328,7 @@ d1:     do while(associated(Species))
            
             K_Food          = Species%IndividualParameters%K_Food
             K_Sed           = Species%IndividualParameters%K_Sed
-            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
-            mu_E            = Species%IndividualParameters%mu_E
+            mu_X            = Species%IndividualParameters%mu_X
             YEX             = Species%IndividualParameters%YEX
 
             C_AtomicMass    = Species%AuxiliarParameters%C_AtomicMass        
@@ -6245,6 +6363,7 @@ d2:         do while(associated(Cohort))
                 M_H         = Cohort%StateIndex%M_H    
                 Vol         = Cohort%BivalveCondition%Vol
                 Number      = Cohort%StateIndex%Number
+                PXM_FIX_now = Cohort%BivalveCondition%PXM_FIX_now
 
                 if ((Me%ExternalVar%Mass(M_H,Index) .gt. MHb)           &
                     .and.                                               &
@@ -6252,7 +6371,7 @@ d2:         do while(associated(Cohort))
                                       
                     !total molC per l required by this cohort = molC/d.ind
                     FiltrationWish =  Cohort%Processes%f_potential                       &
-                                      * PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)              
+                                      * PXM_FIX_now / mu_X * TempCorrection * Vol**(2.0/3.0)              
 
                     if (Me%ComputeOptions%CorrectFiltration .and. Me%LackOfFood ) then
                         
@@ -6264,7 +6383,7 @@ d2:         do while(associated(Cohort))
                                                           / Me%ExternalVar%Mass(Number,Index) / Me%DTDay
                     
                         Cohort%Processes%f_real = Cohort%Processes%FilteredFood%C / &
-                                                  (PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0))
+                                                  (PXM_FIX_now / mu_X * TempCorrection * Vol**(2.0/3.0))
                      
                     else
                         !Filtration, molC/d
@@ -6379,7 +6498,7 @@ d2:         do while(associated(Cohort))
         type(T_Species)  ,   pointer        :: Species
         type(T_Cohort)   ,   pointer        :: Cohort
         integer                             :: M_H, Number
-        real                                :: PXM_FIX, mu_E, YEX
+        real                                :: PXM_FIX_now, mu_X, YEX
         real                                :: Combined_K,K_Food,K_Sed
         real                                :: Vol, TempCorrection,MHb, C_AtomicMass
         real                                :: Sediments, Phyto
@@ -6406,8 +6525,7 @@ d1:     do while(associated(Species))
            
             K_Food          = Species%IndividualParameters%K_Food
             K_Sed           = Species%IndividualParameters%K_Sed
-            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
-            mu_E            = Species%IndividualParameters%mu_E
+            mu_X            = Species%IndividualParameters%mu_X
             YEX             = Species%IndividualParameters%YEX
 
             TempCorrection  = Species%AuxiliarParameters%TempCorrection         
@@ -6425,6 +6543,7 @@ d2:         do while(associated(Cohort))
                 M_H         = Cohort%StateIndex%M_H    
                 Vol         = Cohort%BivalveCondition%Vol
                 Number      = Cohort%StateIndex%Number
+                PXM_FIX_now = Cohort%BivalveCondition%PXM_FIX_now
                 
                 Cohort%Processes%f_potential = Phyto / (Phyto + Combined_K)
 
@@ -6432,7 +6551,7 @@ d2:         do while(associated(Cohort))
                                            
                     !Filtration, molC/d.ind
                     CohortPotentialFiltration =  Cohort%Processes%f_potential    *  &
-                                                 PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
+                                                 PXM_FIX_now / mu_X * TempCorrection * Vol**(2.0/3.0)
                     
                     !total Filtration, mgC/d                    
                     TotalFiltration    = TotalFiltration + CohortPotentialFiltration * &
@@ -7712,7 +7831,7 @@ d2:         do while(associated(Cohort))
 
         !Local-----------------------------------------------------------------
         real                                :: Vol,TempCorrection,E
-        real                                :: pM, mu_E, EG,v_cond,kappa  
+        real                                :: pM, mu_E, EG,v_cond_now,kappa  
         !Begin-----------------------------------------------------------------
 
         Vol            = Cohort%BivalveCondition%Vol
@@ -7723,8 +7842,9 @@ d2:         do while(associated(Cohort))
         pM             = Species%IndividualParameters%pM   
         mu_E           = Species%IndividualParameters%mu_E
         EG             = Species%IndividualParameters%EG     
-        v_cond         = Species%IndividualParameters%v_cond 
         kappa          = Species%IndividualParameters%kappa
+
+        v_cond_now     = Cohort%BivalveCondition%v_cond_now
 
         if (Vol .eq. 0.0) then
 
@@ -7734,7 +7854,7 @@ d2:         do while(associated(Cohort))
 
             !molC (res)/d, Mobilization
             Cohort%Processes%Mobilization = E / (EG/mu_E + kappa * E)                                *  &
-                                            (EG/mu_E * v_cond * TempCorrection * Vol**(2./3.) +         &
+                                            (EG/mu_E * v_cond_now * TempCorrection * Vol**(2./3.) +         &
                                             Cohort%Processes%SomaticMaintenance)
 
         end if
@@ -7895,7 +8015,7 @@ d2:         do while(associated(Cohort))
 
         MHp     = Species%AuxiliarParameters%MHp  
         MHb     = Species%AuxiliarParameters%MHb  
-        kJ      = Species%AuxiliarParameters%kJ
+        kJ      = Species%IndividualParameters%kJ
         TempCorrection = Species%AuxiliarParameters%TempCorrection         
 
         Vol     = Cohort%BivalveCondition%Vol
@@ -7955,7 +8075,7 @@ d2:         do while(associated(Cohort))
         if ((Me%ExternalVar%Mass(M_H,Index) .lt. MHb) .and. (Me%ExternalVar%Mass(L,Index) .gt. Lb)) then
 
             Cohort%Processes%DeathByStarvation = Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) /   &
-            Me%DTDay !All will die from starvation
+            Me%DTDay !All individuals will die from starvation
 
             if (Cohort%Dead .eq. 0) then
                 
@@ -8065,7 +8185,7 @@ d2:         do while(associated(Cohort))
         MEb            = Species%IndividualParameters%MEb
         MVb            = Species%IndividualParameters%MVb
 
-        kJ             = Species%AuxiliarParameters%kJ 
+        kJ             = Species%IndividualParameters%kJ 
         GSR            = Cohort%BivalveCondition%GSR 
 
         if(Me%SpawningAllowed)then
@@ -9435,7 +9555,8 @@ d2:             do while(associated(Cohort))
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !40
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !45
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !50
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x)                              !55
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !55
+                                E20.13, 1x, L1    , 1x)                                                                  !57
 
                     write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day) ,& !1,2,3,4
                                     int(hour), int(minute), int(second)                                              ,& !5,6,7
@@ -9443,7 +9564,7 @@ d2:             do while(associated(Cohort))
                                     Me%ExternalVar%Mass(M_E,Index)                                                   ,& !9
                                     Me%ExternalVar%Mass(M_V,Index)        , Me%ExternalVar%Mass(M_H,Index)           ,& !10,11    
                                     Me%ExternalVar%Mass(M_R,Index)        , Me%ExternalVar%Mass(L,Index)             ,& !12,13    
-                                    Me%ExternalVar%Mass(Age,Index)/365.                                              ,& !14
+                                    Me%ExternalVar%Mass(Age,Index)                                                   ,& !14
                                     Cohort%Processes%ClearanceRate        , Cohort%Processes%FilteredInorganic       ,& !15,16   
                                     Cohort%Processes%FilteredFood%C       , Cohort%Processes%IngestionInorganic      ,& !17,18
                                     Cohort%Processes%IngestionFood%C      , Cohort%Processes%PFContributionInorganic ,& !19,20
@@ -9473,8 +9594,10 @@ d2:             do while(associated(Cohort))
                                     Cohort%Processes%DeathByVelocity                /Factor                          ,& !52, #.d/m2
                                     Cohort%Processes%DeathByWrongSettlement         /Factor                          ,& !53, #.d/m2
                                     !Cohort%BivalveCondition%ScaledE                                                  ,& !54, #.d/m2
-                                    Cohort%Processes%f_potential                                                     ,&   !54, adim
-                                    Cohort%Processes%f_real                                                              !55, adim
+                                    Cohort%Processes%f_potential                                                     ,& !54, adim
+                                    Cohort%Processes%f_real                                                          ,& !55, adim
+                                    Cohort%BivalveCondition%SM(Index)                                                ,& !56, adim
+                                    Cohort%BivalveCondition%SM_IsNowFixed (Index)                                       !57, adim
 
                     Cohort => Cohort%Next
                 end do d2
@@ -10528,6 +10651,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         !soffs
                         if(associated(Cohort%FeedingOn)) deallocate (Cohort%FeedingOn)
                         
+                        if(associated(Cohort%BivalveCondition%SM)) deallocate (Cohort%BivalveCondition%SM)
+        
                         !deallocate(Cohort%LarvaeState)
 
                         !deallocate(Cohort%FeedingOn)

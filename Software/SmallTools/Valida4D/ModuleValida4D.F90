@@ -1828,7 +1828,7 @@ diV:    do iV = 1, Me%TableValues
 
             nPoints = 1
             
-            do while ((DX < Me%DX_Filter .or. DY < Me%DX_Filter) .or. DT < Me%DT_Filter)
+            do while ((DX < Me%DX_Filter .and. DY < Me%DX_Filter) .and. DT < Me%DT_Filter)
                 
                 nPoints = nPoints + 1
                 
@@ -2527,6 +2527,8 @@ diV:    do iV = 1, Me%TableValues
         integer                      :: iV, iP, STAT_CALL, i
         real                         :: year, month, day, hour, minutes, seconds
         character(len=1000)          :: AuxC
+        character(len=PathLength)    :: Filename
+        character(10)                :: myString
       
         
         !----------------------------------------------------------------------
@@ -2538,8 +2540,14 @@ diV:    do iV = 1, Me%TableValues
             call UnitsManager(unit(i), OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteNewTable - ModuleValida4D - ERR10'
 
+            if (trim(adjustl(Me%StationName(i)))== 'NoName') then
+                write(myString,'(i10)') i
+                Filename = "TS_"//trim(adjustl(myString))//".ts"
+            else
+                Filename = trim(adjustl(Me%StationName(i)))//".ts"
+            endif
 
-            open(UNIT = unit(i), FILE = trim(adjustl(Me%StationName(i)))//".ts",                         &
+            open(UNIT = unit(i), FILE = trim(Filename),                         &
                  FORM = "FORMATTED",   STATUS = "UNKNOWN", ACTION = "WRITE", IOSTAT = STAT_CALL)
         
             if (STAT_CALL /= SUCCESS_) stop 'WriteNewTable - ModuleValida4D - ERR20'

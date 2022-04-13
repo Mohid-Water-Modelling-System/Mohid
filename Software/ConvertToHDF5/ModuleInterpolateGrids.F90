@@ -127,6 +127,9 @@ Module ModuleInterpolateGrids
         integer, dimension(:,:),    pointer                 :: WaterPoints2D
         integer, dimension(:,:, :), pointer                 :: WaterPoints3D
         real,    dimension(:,:),    pointer                 :: ConnectionX, ConnectionY
+        integer, dimension(:), allocatable                  :: FatherPoint_ID_I, FatherPoint_ID_J
+        logical, dimension(:), allocatable                  :: PointNotUsed
+        integer, dimension(:,:), allocatable                :: nPointsInside, State_window
     end type  T_Grid
 
     type       T_InterpolateGrids
@@ -149,6 +152,8 @@ Module ModuleInterpolateGrids
         integer, dimension(:,:), pointer                    :: WaterPoints2D
         integer                                             :: Count
         real,    dimension(:  ), pointer                    :: NodeX, NodeY, NodeZ
+        real,    dimension(:  ), allocatable                :: NodeX_2, NodeY_2, NodeZ_2
+        integer,    dimension(:  ), allocatable             :: State_window, State_open
         logical                                             :: DoNotBelieveMap, PoliIsEven, ExtrapolateProfile
         integer                                             :: Extrapolate2DFields
         real                                                :: ExtrapolateLimit
@@ -174,6 +179,8 @@ Module ModuleInterpolateGrids
         
         real                                                :: ExtrapolateValue
         type (T_StationaryMap)                              :: StationaryMap
+        logical                                             :: first_time = .true.
+        logical                                             :: grids_constant_in_time = .false.
     end type  T_InterpolateGrids
 
     type(T_InterpolateGrids), pointer                       :: Me
@@ -721,6 +728,43 @@ Module ModuleInterpolateGrids
                      ClientModule = 'ConvertToHDF5',                                    &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR250'
+        
+        call GetData(Me%grids_constant_in_time,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'GRIDS_CONSTANT_IN_TIME',                           &
+                     default      =  .false.,                                           &
+                     ClientModule = 'ConvertToHDF5',                                    &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR260'
+        
+        !!$ if ( .not. FirstModel%FatherModelFlag ) then
+        !!$ call GetData(openmp_num_threads, ObjEnterData, flag, keyword = 'OPENMP_NUM_THREADS',  &
+        !!$         SearchType   = FromFile,                                                      &
+        !!$         ClientModule = 'ModuleModel',                                                 &
+        !!$         default      = 0,                                                             &
+        !!$         STAT         = STAT_CALL)
+        !!$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94' 
+        !!$    FirstModel%FatherModelFlag = .true.
+        !!$    write(*,*)
+        !!$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+        !!$    if ( openmp_num_threads .gt. 0 ) then
+        !!$       write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+        !!$       if (openmp_num_threads .gt. omp_get_max_threads()) then
+        !!$        openmp_num_threads = omp_get_max_threads()
+        !!$        write(*,*)"<Compilation Options Warning>"
+        !!$       endif
+        !!$       call omp_set_num_threads(openmp_num_threads)
+        !!$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+        !!$    else
+        !!$       openmp_num_threads = omp_get_max_threads()
+        !!$       write(*,*)"OPENMP: Using the max number of threads available"
+        !!$    endif
+        !!!$ else
+        !!!$    if ( openmp_num_threads .gt. 0 ) then
+        !!!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
+        !!!$    endif
+        !!$ endif
         
 
         
@@ -1456,6 +1500,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                 !if(trim(PropertyName) == 'salinity' .or. trim(PropertyName) == 'temperature') then
                 !check dimensions
+                
                 if(Dimensions(1) .ne. Me%Father%WorkSize3D%IUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
                     stop 'InterpolateGrids - ModuleInterpolateGrids - ERR160'
@@ -1574,7 +1619,6 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                             call Triangulator (NewFatherField, AuxField, Me%Aux)
 
                         else if (Me%TypeOfInterpolation == AverageInCells)then
-
                             call AveragePointsInCells (NewFatherField, AuxField, Me%Aux, k)
 
                         else
@@ -1699,39 +1743,24 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                     do k=Me%Father%WorkSize3D%KLB-1,Me%Father%WorkSize3D%KUB
 
                         NewFatherSZZ%Values2D  (:,:) = NewFatherSZZ%Values3D   (:,:,k)
-
+                        Me%Father%WaterPoints2D(:,:) = 0
                         do j = Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB
                         do i = Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB
 
                             WetFace = Me%Father%WaterPoints3D (i,j,k) + Me%Father%WaterPoints3D (i,j,k+1) 
 
-                            if (WetFace>0) then
-
-                                Me%Father%WaterPoints2D(i,j) = 1
-
-                            else
-
-                                Me%Father%WaterPoints2D(i,j) = 0
-
-                            endif
+                            if (WetFace==2) Me%Father%WaterPoints2D(i,j) = 1
 
                         enddo
                         enddo
-
+                        
+                        Me%Aux%WaterPoints2D(:,:) = 0
                         do j = Me%Aux%WorkSize3D%JLB, Me%Aux%WorkSize3D%JUB
                         do i = Me%Aux%WorkSize3D%ILB, Me%Aux%WorkSize3D%IUB
 
                             WetFace = Me%Aux%WaterPoints3D (i,j,k) + Me%Aux%WaterPoints3D (i,j,k+1) 
 
-                            if (WetFace>0) then
-
-                                Me%Aux%WaterPoints2D(i,j) = 1
-
-                            else
-
-                                Me%Aux%WaterPoints2D(i,j) = 0
-
-                            endif
+                            if (WetFace>0) Me%Aux%WaterPoints2D(i,j) = 1
 
                         enddo
                         enddo
@@ -1757,7 +1786,6 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                             call Triangulator (NewFatherSZZ, AuxSZZ, Me%Aux)
 
                         else if (Me%TypeOfInterpolation == AverageInCells)then
-
                             call AveragePointsInCells (NewFatherSZZ, AuxSZZ, Me%Aux, kin)
 
                         else
@@ -3914,7 +3942,6 @@ in2:    if (NumberOfNodes >= 3) then
         !Local-----------------------------------------------------------------
         integer                                     :: k_
         !Begin-----------------------------------------------------------------
-
         if (Me%StationaryMap%ON) then
             if (present(k)) then
                 k_ = k
@@ -3925,9 +3952,25 @@ in2:    if (NumberOfNodes >= 3) then
             call ModifyFillingCells(FatherField, NewField, k_)
 
         else
-
-            call AverageInCellsNotStationary (FatherField, NewField, NewGrid)
-
+            if (Me%first_time) then
+                if (Me%grids_constant_in_time) then
+                    !Should be similar to Me%StationaryMap%ON option but it is much faster. In time, should be integrated
+                    !in the Me%StationaryMap%ON routines
+                    call AverageInCellsNotStationary_2 (FatherField, NewField, NewGrid, firsttime=.true.)
+                else
+                    !recompute grid point locations (takes 100x longer than for stationary grids in time)
+                    call AverageInCellsNotStationary (FatherField, NewField, NewGrid)
+                end if
+                Me%first_time = .false.
+            else
+                if (Me%grids_constant_in_time) then
+                    call AverageInCellsNotStationary_2 (FatherField, NewField, NewGrid, firsttime=.false.)
+                else
+                    !recompute grid point locations (takes 100x longer than for stationary grids in time)
+                    call AverageInCellsNotStationary (FatherField, NewField, NewGrid)
+                end if
+                Me%first_time = .false.
+            end if
         endif
 
     end subroutine AveragePointsInCells 
@@ -4013,6 +4056,80 @@ in2:    if (NumberOfNodes >= 3) then
 
 
     end subroutine AverageInCellsNotStationary
+    
+    subroutine AverageInCellsNotStationary_2 (FatherField, NewField, NewGrid, firsttime)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Field),              pointer,intent(IN)    :: FatherField
+        type(T_Field),              pointer,intent(INOUT) :: NewField
+        type(T_Grid )                      ,intent(INOUT) :: NewGrid
+        logical, intent(IN)                               :: firsttime
+        !Local-----------------------------------------------------------------
+        real                                            :: Xmin, Xmax, Ymin, Ymax
+        integer                                         :: NumberOfNodes, Count, i, j
+        !Begin-----------------------------------------------------------------
+        
+        Count = 0
+        
+        Xmin = Me%InterpolWindow%Xmin
+        Xmax = Me%InterpolWindow%Xmax
+        Ymin = Me%InterpolWindow%Ymin
+        Ymax = Me%InterpolWindow%Ymax
+        
+        NumberOfNodes =  (Me%Father%WorkSize2D%IUB - Me%Father%WorkSize2D%ILB + 1) * (Me%Father%WorkSize2D%JUB - Me%Father%WorkSize2D%JLB + 1)
+        
+        if (firsttime) then
+            allocate(Me%NodeX_2(NumberOfNodes))
+            allocate(Me%NodeY_2(NumberOfNodes))
+            allocate(Me%NodeZ_2(NumberOfNodes))
+            allocate(Me%State_window(NumberOfNodes))
+            allocate(Me%State_open(NumberOfNodes))
+            Me%NodeX_2(:) = 0
+            Me%NodeY_2(:) = 0
+            Me%NodeZ_2(:) = 0
+            Me%State_window(:) = 0
+            Me%State_open(:) = 0
+            !!$OMP PARALLEL PRIVATE(i,j,Count)
+            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
+            do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
+                Count = Count + 1
+                
+                Me%NodeX_2(Count) = ((Me%Father%ConnectionX(i, j  ) + Me%Father%ConnectionX(i+1, j  ))/2. + &
+                                    (Me%Father%ConnectionX(i, j+1) + Me%Father%ConnectionX(i+1, j+1))/2.)/2.
+    
+                Me%NodeY_2(Count) = ((Me%Father%ConnectionY(i, j  ) + Me%Father%ConnectionY(i+1, j  ))/2. + &
+                                    (Me%Father%ConnectionY(i, j+1) + Me%Father%ConnectionY(i+1, j+1))/2.)/2.             
+
+                if (Me%NodeX_2(Count) > Xmin .and. Me%NodeX_2(Count) < Xmax .and. &
+                    Me%NodeY_2(Count) > Ymin .and. Me%NodeY_2(Count) < Ymax) then
+                    Me%State_window(Count) = 1
+                else
+                    Me%State_window(Count) = 0
+                end if
+                Me%State_open(Count) = Me%Father%WaterPoints2D(i, j) 
+                Me%NodeZ_2(Count) = FatherField%Values2D(i, j)
+            enddo
+            enddo
+            !!$OMP END DO
+            !!$OMP END PARALLEL
+        else
+            !!$OMP PARALLEL PRIVATE(i,j,Count)
+            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
+            do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
+                Count = Count + 1
+                Me%State_open(Count) = Me%Father%WaterPoints2D(i, j)
+                Me%NodeZ_2(Count) = FatherField%Values2D(i, j)
+            enddo
+            enddo
+            !!$OMP END DO
+            !!$OMP END PARALLEL
+        endif
+        
+        call FillingCells_2(Me%NodeX_2, Me%NodeY_2, Me%NodeZ_2, NumberOfNodes, Me%State_open, Me%State_window, NewGrid, NewField, firsttime)
+
+    end subroutine AverageInCellsNotStationary_2
 
 
     !--------------------------------------------------------------------------
@@ -4160,7 +4277,124 @@ i1:             if (XC > Me%InterpolWindow%Xmin .and. XC < Me%InterpolWindow%Xma
     end subroutine FillingCells
 
     !--------------------------------------------------------------------------
+    subroutine FillingCells_2(XPoints, YPoints, ZPoints, NumberOfNodes, father_state_open, father_state_window, NewGrid, NewField, firsttime)
 
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:),   allocatable, intent(IN)    :: XPoints, YPoints, ZPoints
+        integer,    dimension(:),   allocatable, intent(IN) :: father_state_open, father_state_window
+        type(T_Grid )                   , intent(INOUT)     :: NewGrid 
+        type(T_Field),           pointer, intent(INOUT)     :: NewField
+        logical                         , intent(IN)        :: firsttime
+        integer                         , intent(IN)        :: NumberOfNodes
+        !Local-----------------------------------------------------------------
+        type (T_PointF),   pointer          :: GridPoint
+        type(T_Polygon),   pointer          :: Rect
+        real                                :: SumOfDepths, max_x, min_y
+        integer                             :: nPointsInside, p, Pmax
+        integer                             :: i, j, flag_enter
+        real                                :: XC, YC, XSW, XSE, XNE, XNW, YSW, YSE, YNE, YNW
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Filling cells with known data..."
+
+        if (firsttime) then
+            
+            allocate(NewGrid%PointNotUsed(1:NumberOfNodes))
+            allocate(NewGrid%nPointsInside(NewGrid%WorkSize2D%ILB:NewGrid%WorkSize2D%IUB, &
+                                           NewGrid%WorkSize2D%JLB:NewGrid%WorkSize2D%JUB))
+            allocate(NewGrid%State_window(NewGrid%WorkSize2D%ILB:NewGrid%WorkSize2D%IUB, &
+                                           NewGrid%WorkSize2D%JLB:NewGrid%WorkSize2D%JUB))
+            allocate(NewGrid%FatherPoint_ID_I(1:NumberOfNodes))
+            allocate(NewGrid%FatherPoint_ID_J(1:NumberOfNodes))
+            NewGrid%FatherPoint_ID_I(:) = 0
+            NewGrid%FatherPoint_ID_J(:) = 0
+            NewGrid%State_window(:,:) = 0
+            NewGrid%PointNotUsed(:) = .true.
+            
+            do j = NewGrid%WorkSize2D%JLB, NewGrid%WorkSize2D%JUB
+            do i = NewGrid%WorkSize2D%ILB, NewGrid%WorkSize2D%IUB
+                
+                XSW = NewGrid%ConnectionX(i, j)
+                YSW = NewGrid%ConnectionY(i, j)
+                XSE = NewGrid%ConnectionX(i, j + 1)
+                YSE = NewGrid%ConnectionY(i, j + 1)
+                XNE = NewGrid%ConnectionX(i + 1, j + 1)
+                YNE = NewGrid%ConnectionY(i + 1, j + 1)
+                XNW = NewGrid%ConnectionX(i + 1, j)
+                YNW = NewGrid%ConnectionY(i + 1, j)
+                
+                XC  = (XSW + XSE + XNE + XNW) / 4.
+                YC  = (YSW + YSE + YNE + YNW) / 4.
+                    
+                if (XC > Me%InterpolWindow%Xmin .and. XC < Me%InterpolWindow%Xmax .and. &
+                    YC > Me%InterpolWindow%Ymin .and. YC < Me%InterpolWindow%Ymax) then
+                    NewGrid%State_window(i,j) = 1
+                end if
+
+                SumOfDepths   = 0.
+                nPointsInside = 0
+
+                do p = 1, NumberOfNodes
+                    if (NewGrid%PointNotUsed(p)) then
+                        if (father_state_window(p) == 1) then
+                            if ((XPoints(p) < XSE) .and. (XPoints(p) > XSW)) then
+                                if ((YPoints(p) < YNW) .and. (YPoints(p) > YSW)) then
+                                    !point is inside the grid cell
+                                    if (NewGrid%State_window(i,j) == 1) then
+                                        NewGrid%FatherPoint_ID_I(p) = i
+                                        NewGrid%FatherPoint_ID_J(p) = j
+                                        if (father_state_open(p) == 1) then
+                                            nPointsInside  = nPointsInside + 1
+                                            SumOfDepths    = SumOfDepths + ZPoints(p)
+                                            NewGrid%PointNotUsed(p) = .false.
+                                        end if
+                                    end if
+                                end if
+                            end if
+                        end if
+                    end if
+                end do
+                
+                !Number of points inside the current NewGrid grid point
+                NewGrid%nPointsInside(i, j) = nPointsInside
+
+                if(nPointsInside > 0)then
+                    NewField%Values2D(i, j) = SumOfDepths / nPointsInside
+                end if
+            end do
+            end do 
+        else
+            NewField%Values2D(:,:) = 0
+            NewGrid%nPointsInside(:,:) = 0
+            !Fill every grid cell
+            do p = 1, NumberOfNodes
+                i = NewGrid%FatherPoint_ID_I(p)
+                j = NewGrid%FatherPoint_ID_J(p)
+                if (i + j > 1) then
+                    Flag_enter = father_state_window(p)*father_state_open(p)*NewGrid%State_window(i,j)
+                    NewGrid%nPointsInside(i, j) = NewGrid%nPointsInside(i, j) + Flag_enter
+                    NewField%Values2D(i, j) = NewField%Values2D(i, j) + ZPoints(p) * Flag_enter
+                end if
+            end do
+                
+            do j = NewGrid%WorkSize2D%JLB, NewGrid%WorkSize2D%JUB
+            do i = NewGrid%WorkSize2D%ILB, NewGrid%WorkSize2D%IUB
+                if (NewGrid%nPointsInside(i, j) > 0) then
+                    NewField%Values2D(i, j) =  NewField%Values2D(i, j) / NewGrid%nPointsInside(i, j)
+                else
+                    NewField%Values2D(i, j) = -99
+                end if
+            end do
+            end do
+            
+        end if
+        
+        write(*,*)"Finished filling cells for a vertical layer..."
+
+    end subroutine FillingCells_2
+
+    !--------------------------------------------------------------------------
 
     subroutine ConstructFillingCells
 
