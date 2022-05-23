@@ -164,6 +164,10 @@ Module ModuleValida4D
         
         real                                        :: DX_Filter         = FillValueReal        
         
+        logical                                     :: DXYmin_ON         = .false.                   
+        
+        real                                        :: DXYmin            = FillValueReal           
+        
         integer                                     :: ObjTime           = 0
         integer                                     :: ObjEnterData      = 0
         integer                                     :: ObjEnterDataTable = 0        
@@ -220,6 +224,10 @@ Module ModuleValida4D
         call ReadInputTable
 
         call ReadHDF5FileName
+        
+        if (Me%DXYmin_ON) then
+            call PointCloudWithMinimumDX
+        endif
         
         if (.not. Me%TimeViaTable) then
             call PointCloudWithAlternativeTime      
@@ -394,6 +402,8 @@ Module ModuleValida4D
             write(Me%OutSpace,*) " X     Y     Z "
         else if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
             write(Me%OutSpace,*) "X     Y     D "
+        else
+            write(Me%OutSpace,*) "X     Y       "
         endif             
         
 
@@ -544,6 +554,26 @@ Module ModuleValida4D
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR290'
             
+        endif
+        
+        call GetData(Me%DXYmin,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DXY_MIN',                                          &
+                     default      = FillValueReal,                                      &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR300'
+        
+        
+        if (iflag== 1) then
+            
+            Me%DXYmin_ON = .true. 
+            
+            if (.not. Me%Field4D) then
+                stop 'ReadOptions - ModuleValida4D - ERR310'      
+            endif
+        
         endif
         
     end subroutine ReadOptions
@@ -1468,6 +1498,284 @@ do1 :                   do i = 2, iLength
     end subroutine PointCloudWithAlternativeTime        
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine PointCloudWithMinimumDX
+        !Arguments-------------------------------------------------------------
+          
+        !Local-----------------------------------------------------------------
+        real                                                :: yc, xc, x1, x2, y1, y2, racio
+        real                                                :: dx, dy, dxy
+        integer                                             :: i, n, ip, j, r, NewTableValues
+        real,       dimension(:  ), pointer                 :: AuxT, AuxX, AuxY, AuxZ, AuxD
+        real,       dimension(:,:), pointer                 :: AuxP
+        logical,    dimension(:), pointer                   :: Aux_NullValue  
+        character(len=StringLength), dimension(:), pointer  :: Aux_StationName
+        integer,    dimension(:), pointer                   :: Aux_i, Aux_j          
+        real,       dimension(:), pointer                   :: Aux_PercI, Aux_PercJ        
+    
+        
+        !Begin-----------------------------------------------------------------    
+        
+        if (.not. Me%Field4D) then
+            stop 'PointCloudWithMinimumDX - ModuleValida4D - ERR10'
+        endif
+    
+       
+        n = 1
+            
+        !Number of new X,Y points to force minimum horziontal spatial step
+        do i =1, Me%TableValues-1
+            
+            dx  = Me%X(i+1) - Me%X(i)
+            dy  = Me%Y(i+1) - Me%Y(i)
+            dxy = sqrt(dx**2+dy**2)            
+            if (dxy >0) then
+                racio = dxy / Me%DXYmin     
+                if (racio >= 2) then
+                    n = n + int(racio) - 1
+                endif
+            endif
+            
+        enddo
+        
+        NewTableValues  = n + 1
+        
+        allocate(AuxX           (1:NewTableValues))
+        allocate(AuxY           (1:NewTableValues))
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            allocate(AuxT           (1:NewTableValues))
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            allocate(AuxZ           (1:NewTableValues))
+        endif
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            allocate(AuxD           (1:NewTableValues))
+        endif
+        
+        allocate(Aux_NullValue  (1:NewTableValues))
+        allocate(Aux_StationName(1:NewTableValues))
+        allocate(AuxP           (1:NewTableValues, Me%PropNumber))
+        
+        allocate(Aux_i          (1:NewTableValues))
+        allocate(Aux_j          (1:NewTableValues))
+        allocate(Aux_PercJ      (1:NewTableValues))
+        allocate(Aux_PercI      (1:NewTableValues))        
+        
+        
+        n = 1
+       
+        do i =1, Me%TableValues-1
+            
+            call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                   Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                   Aux_PercJ, n, i)
+            
+            dx  = Me%X(i+1) - Me%X(i)
+            dy  = Me%Y(i+1) - Me%Y(i)
+            
+            dxy = sqrt(dx**2+dy**2)            
+            
+            if (dxy >0) then
+                
+                racio = dxy / Me%DXYmin     
+                
+                if (racio >= 2) then
+                    
+                    r = int(racio) - 1
+                    do j=1, r
+                        
+                        x1 = Me%X(i)
+                        y1 = Me%Y(i)
+                        x2 = Me%X(i+1)
+                        y2 = Me%Y(i+1)
+                        
+                        if (abs(dx)>0) then
+                            xc = x1 + real(j) / real(r) * dx 
+                            yc = LinearInterpolation (x1, y1, x2, y2, xc)    
+                        else
+                            yc = y1 + real(j) / real(r) * dy
+                            xc = LinearInterpolation (y1, x1, y2, x2, yc)                            
+                        endif
+                        
+                        n = n + 1
+                        
+                        call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                               Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                               Aux_PercJ, n, i)
+
+                        AuxX(n) = xc
+                        AuxY(n) = yc
+                        
+                    enddo
+                        
+                endif
+            endif
+                
+        enddo        
+        
+        if (n+1 == NewTableValues) then
+            call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                   Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                   Aux_PercJ, n+1, Me%TableValues)
+        else
+            stop 'PointCloudWithMinimumDX - ModuleValida4D - ERR20'
+        endif
+        
+        Me%TableValues = NewTableValues
+
+        if (Me%Tcolumn > FillValueInt) then
+            deallocate  (Me%T)
+            allocate    (Me%T(Me%TableValues))
+            Me%T(:) = AuxT(:)            
+        endif
+
+        if (associated(Me%X)) then
+            deallocate  (Me%X)
+            allocate    (Me%X(Me%TableValues))
+            Me%X(:) = AuxX(:)
+        endif
+
+        if (associated(Me%Y)) then
+            deallocate  (Me%Y)
+            allocate    (Me%Y(Me%TableValues))
+            Me%Y(:) = AuxY(:)
+        endif            
+
+            
+        if (associated(Me%NullValue)) then
+            deallocate  (Me%NullValue)
+            allocate    (Me%NullValue(Me%TableValues))
+            Me%NullValue  (:) = Aux_NullValue  (:)
+        endif                                
+
+        if (associated(Me%StationName)) then
+            deallocate  (Me%StationName)
+            allocate    (Me%StationName(Me%TableValues))
+            Me%StationName(:) = Aux_StationName(:)
+        endif                                          
+            
+
+        if (Me%Zcolumn > FillValueInt) then
+            allocate  (Me%Z(1:Me%TableValues))
+            Me%Z(:) = AuxZ(:)
+        endif
+
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            allocate  (Me%D(1:Me%TableValues))
+            Me%D(:) = AuxD(:)
+        endif
+
+            
+        do ip=1, Me%PropNumber
+            deallocate(Me%Properties(ip)%ValueTable, Me%Properties(iP)%ValueHDF5)   
+
+            allocate(Me%Properties(iP)%ValueTable(Me%TableValues))
+            allocate(Me%Properties(iP)%ValueHDF5 (Me%TableValues))
+            Me%Properties(iP)%ValueTable(:) = AuxP(:,ip)
+                
+        enddo
+        
+        if (associated(Me%i)) then
+            deallocate  (Me%i)
+            allocate    (Me%i(Me%TableValues))
+            Me%i  (:) = Aux_i  (:)
+        endif               
+        
+        if (associated(Me%j)) then
+            deallocate  (Me%j)
+            allocate    (Me%j(Me%TableValues))
+            Me%j  (:) = Aux_j  (:)
+        endif                       
+                    
+        if (associated(Me%PercI)) then
+            deallocate  (Me%PercI)
+            allocate    (Me%PercI(Me%TableValues))
+            Me%PercI (:) = Aux_PercI  (:)
+        endif               
+        
+        if (associated(Me%PercJ)) then
+            deallocate  (Me%PercJ)
+            allocate    (Me%PercJ(Me%TableValues))
+            Me%PercJ (:) = Aux_PercJ  (:)
+        endif           
+        
+        deallocate(AuxX)
+        deallocate(AuxY)
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            deallocate(AuxT)
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            deallocate(AuxZ)
+        endif
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            deallocate(AuxD)
+        endif
+        
+        deallocate(Aux_NullValue  )
+        deallocate(Aux_StationName)
+        deallocate(AuxP           )
+        deallocate(Aux_i          )
+        deallocate(Aux_j          )
+        deallocate(Aux_Percj      )
+        deallocate(Aux_Perci      )               
+        
+    end subroutine PointCloudWithMinimumDX        
+
+    !--------------------------------------------------------------------------
+    
+    subroutine PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,           &
+                                Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,         &
+                                Aux_PercJ, n, i)
+                                                                                                     
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:  ), pointer                 :: AuxT, AuxX, AuxY, AuxZ, AuxD
+        real,       dimension(:,:), pointer                 :: AuxP
+        logical,    dimension(:), pointer                   :: Aux_NullValue  
+        character(len=StringLength), dimension(:), pointer  :: Aux_StationName
+        integer,    dimension(:), pointer                   :: Aux_i, Aux_j          
+        real,       dimension(:), pointer                   :: Aux_PercI, Aux_PercJ              
+        integer                                             :: n, i
+         
+        !Local-----------------------------------------------------------------
+        integer                                             :: ip
+        
+        !Begin-----------------------------------------------------------------   
+        
+        AuxX (n) = Me%X(i)
+        AuxY (n) = Me%Y(i)
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            AuxT (n) = Me%T(i)
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            AuxZ (n) = Me%Z(i)
+        endif
+        if (Me%Dcolumn > FillValueInt  .or. Me%ComputeD) then
+            AuxD (n) = Me%D(i)
+        endif
+        
+        Aux_NullValue  (n) = Me%NullValue   (i)
+        Aux_StationName(n) = Me%StationName (i)
+        
+        Aux_i          (n) = Me%I           (i)
+        Aux_j          (n) = Me%J           (i)
+        Aux_PercI      (n) = Me%PercI       (i)
+        Aux_PercJ      (n) = Me%PercJ       (i)        
+            
+        do ip=1, Me%PropNumber
+            AuxP(n, ip) = Me%Properties(ip)%ValueTable(i)
+        enddo
+        
+    end subroutine PointAEqualPointB            
+    
+    !--------------------------------------------------------------------------    
     
     subroutine ConstructSubModules
 
