@@ -193,6 +193,7 @@ Module ModuleHDF5Statistics
         type(T_Time)                                        :: StartTime
         type(T_Time)                                        :: EndTime
         logical                                             :: DailyOutputTime          = .false.
+        logical                                             :: Accumulated              = .false.
         logical                                             :: WriteFinalOutput         = .false.
         type(T_HDF5File), pointer                           :: FirstHDF5File
         type (T_Parameter), pointer                         :: FirstParameter
@@ -431,6 +432,17 @@ Module ModuleHDF5Statistics
             stop 'ReadGlobalData - ModuleHDF5Statistics - ERR50'   
         endif
         
+        !accumulated for daily output time
+        call GetData(Me%Accumulated, Me%ObjEnterData, iflag,                            &
+                     keyword      = 'ACCUMULATED',                                      &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR60'   
+        endif
+        
         !Write final output
         call GetData(Me%WriteFinalOutput, Me%ObjEnterData, iflag,                       &
                      keyword      = 'WRITE_FINAL_OUTPUT',                               &
@@ -439,7 +451,7 @@ Module ModuleHDF5Statistics
                      default      = .true.,                                             &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  then
-            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR60'   
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR70'   
         endif
         
         
@@ -1393,11 +1405,13 @@ cd2 :           if (BlockFound) then
             
             OutputNumber = 1
             
-            NextOutputTime = Me%FirstStatHDF5File%StartFieldTime + 86400
+            NextOutputTime = Me%FirstStatHDF5File%StartFieldTime + 86400  
+            if (Me%Accumulated) NextOutputTime = Me%FirstStatHDF5File%StartFieldTime
             
             do while (NextOutputTime <= Me%LastStatHDF5File%EndFieldTime)
                 
-                TimeAux = NextOutputTime - 86400. 
+                TimeAux = NextOutputTime - 86400.   
+                if (Me%Accumulated) TimeAux = NextOutputTime
                 
                 call ExtractDate (TimeAux,                                              &
                                   AuxTime(1), AuxTime(2), AuxTime(3),                   &
@@ -1559,7 +1573,7 @@ cd2 :           if (BlockFound) then
 
             call CreateStatHDF5File(Me%FirstStatHDF5File, HDF5FileX)
             call CreateStatHDF5File(Me%LastStatHDF5File, HDF5FileX)
-            deallocate(Me%FirstStatHDF5File%Next) 
+            if (associated(Me%FirstStatHDF5File%Next)) deallocate(Me%FirstStatHDF5File%Next) 
             nullify(Me%FirstStatHDF5File%Next)
 
         else
