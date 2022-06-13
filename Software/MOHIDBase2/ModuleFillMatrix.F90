@@ -13325,12 +13325,14 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
 
 #ifndef _NOT_IEEE_ARITHMETIC
-                if (ieee_is_nan (field2D(i,j))) &
+                if (ieee_is_nan (field2D(i,j))) then
                     field2D(i,j) = FillValueReal
+                endif
 #endif
 
-                if (abs(field2D(i,j)) > abs(FillValueReal)) &
+                if (abs(field2D(i,j)) > abs(FillValueReal)) then
                     field2D(i,j) = FillValueReal
+                endif
 
             enddo
             enddo

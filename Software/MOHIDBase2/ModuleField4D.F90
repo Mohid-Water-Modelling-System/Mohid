@@ -627,11 +627,11 @@ wwd:            if (Me%WindowWithData) then
                         if (present(GeometryID)) then
                             Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
                             Me%BuildGeometry      = .false.
-                            if (Me%Upscaling) then
+                            !if (Me%Upscaling) then
                                 call GetGeometrySize(GeometryID         = Me%ObjGeometry,                       &
                                                      Size = Me%Size3D, WorkSize = Me%WorkSize3D, STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_)stop 'GetGeometrySize - ConstructField4D - ModuleField4D'
-                            endif
+                            !endif
                         else
                             Me%BuildGeometry      = .true.
                             call ReadGeometryFromFile !Sobrinho - Busca X, Y e Z
@@ -5848,7 +5848,7 @@ d2:     do N =1, NW
 
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
-        integer                                         :: STAT_, ready_, STAT_CALL
+        integer                                         :: STAT_, ready_, STAT_CALL, i
         logical                                         :: CorrectTimeFrame
         !----------------------------------------------------------------------
 
@@ -5968,6 +5968,16 @@ CTF:                if (CorrectTimeFrame) then
 
                         endif
                     endif
+                endif
+                
+                if (PropField%MinValueON) then
+                    do i=1, size(NoData)
+                        if (.not. NoData(i)) then
+                            if (Field(i) < PropField%MinValue) then
+                                Field(i) = PropField%MinValue
+                            endif
+                        endif
+                    enddo
                 endif
 
                 if (present(InterpolationDT)) InterpolationDT = PropField%NextTime - PropField%PreviousTime
