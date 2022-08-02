@@ -4399,21 +4399,13 @@ i1:     if (OutputOk) then
                     end do 
                     end do 
                     end do 
-                    
-                    call SetBivalveTimeSeries(Me%ObjBivalve,                    &
-                                              Me%Output%BivalveTimeSeriesIndex, &
-                                              Me%Output%BivalveTimeSeriesNames, &
-                                              STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
-                    
                 endif
-
-
-
-
             enddo
-
-
+            call SetBivalveTimeSeries(Me%ObjBivalve,                    &
+                                        Me%Output%BivalveTimeSeriesIndex, &
+                                        Me%Output%BivalveTimeSeriesNames, &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
         endif
 
     end subroutine Construct_Time_Serie
