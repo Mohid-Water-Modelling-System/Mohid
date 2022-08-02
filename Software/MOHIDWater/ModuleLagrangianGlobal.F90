@@ -6111,7 +6111,7 @@ NDF:        if (.not. NewOrigin%Default) then
                                      keyword      ='DEPTH_METERS',                           &
                                      ClientModule ='ModuleLagrangianGlobal',                       &
                                      STAT         = STAT_CALL)             
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1040'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR1045'
 
                         if (flag == 1) then
 
@@ -7290,6 +7290,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             nullify(NewProperty)
 
             if (.not.(TempOK .and. SalOK)) then
+                write (*,*) 'NewOrigin Name:', NewOrigin%Name
                 call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1460')
             endif                  
                 
@@ -17465,14 +17466,14 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
                     endif
 
-                    ! First step - compute the modulus of turbulent vector
+                    ! First step - compute the random step
                         
                     call random_number(RAND)
                         
                     !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
                     HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
 
-                    ! Second step - Compute the modulus of each component of the turbulent vector
+                    ! Second step - Compute each component of the random movement
                     call random_number(RAND)
 
                     !   From 0 to Pi/2 cos and sin have positive values

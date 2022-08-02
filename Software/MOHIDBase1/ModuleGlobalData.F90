@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  100
+    integer, parameter  :: MaxModules           =  101
 
 #if   defined(_INCREASE_MAXINSTANCES)
     integer, parameter  :: MaxInstances         = 2000
@@ -118,7 +118,7 @@ Module ModuleGlobalData
 #elif defined(_BIG_LINE_LENGTH)
     integer, parameter  :: line_length          = 6144    
 #elif defined(_EXTRA_LONG_LINE_LENGTH)
-    integer, parameter  :: line_length          = 131072
+    integer, parameter  :: line_length          = 7168
 #elif defined(_EXTRA_SHORT_LINE_LENGTH)
     integer, parameter  :: line_length          = 32
 #else
@@ -466,6 +466,7 @@ Module ModuleGlobalData
     !MRV. Barotropic velocities for using in Flather condition
     integer, parameter :: BarotropicVelocityU_              = 97
     integer, parameter :: BarotropicVelocityV_              = 98
+    integer, parameter :: BarotropicVelocityM_              = 99000    
 
     !Hydrodynamic Properties
     integer, parameter :: VelocityW_                        = 99
@@ -552,6 +553,7 @@ Module ModuleGlobalData
     integer, parameter :: WindGust_                         = 624
     integer, parameter :: PBLHeight_                        = 625
     integer, parameter :: Reflectivity_                     = 626
+    integer, parameter :: DewPoint_                         = 630
     !vectorial
     integer, parameter :: WindVelocity_                     = 627
     !air quality 
@@ -833,6 +835,7 @@ Module ModuleGlobalData
     integer, parameter :: MA_Grazing_                       = 11
     integer, parameter :: MA_Condition_                     = 12
     integer, parameter :: MA_CarrCapFact_                   = 13
+    integer, parameter :: MA_NetFact_                       = 14
 
     integer, parameter :: ConsolidationFlux_                = 9000
     integer, parameter :: Porosity_                         = 9001
@@ -1336,6 +1339,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_HorizontalTransportY_= 'horizontal transport Y'
     character(StringLength), private, parameter :: Char_BarotropicVelocityU_ = 'barotropic velocity U'
     character(StringLength), private, parameter :: Char_BarotropicVelocityV_ = 'barotropic velocity V'
+    character(StringLength), private, parameter :: Char_BarotropicVelocityM_ = 'barotropic velocity modulus'    
     character(StringLength), private, parameter :: Char_BaroclinicVelocityU_ = 'baroclinic velocity U'
     character(StringLength), private, parameter :: Char_BaroclinicVelocityV_ = 'baroclinic velocity V'
 
@@ -1558,6 +1562,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_AtmospDeposReduNH4       = 'atmospheric deposition reduced NH4'  !LLP
     character(StringLength), private, parameter :: Char_Visibility               = 'visibility'
     character(StringLength), private, parameter :: Char_Dust                     = 'dust'
+    character(StringLength), private, parameter :: Char_DewPoint                 = 'dew point'
 
     
 
@@ -1984,6 +1989,7 @@ Module ModuleGlobalData
     integer, parameter ::  mOutputGrid_             = 98
     integer, parameter ::  mMeshGlue_               = 99
     integer, parameter ::  mDelftFM_2_MOHID_        = 100
+    integer, parameter ::  mGeneric_                = 101
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2113,7 +2119,7 @@ Module ModuleGlobalData
         T_Module(mIrrigation_            , "Irrigation"         ),   T_Module(mTURBINE_                , "Turbine"       ),        &
         T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        ),        &
         T_Module(mOutputGrid_            , "OutputGrid"         ),   T_Module(mMeshGlue_               , "MeshGlue"      ),        &
-        T_Module(mDelftFM_2_MOHID_       , "DelftFM_2_MOHID"    )/)
+        T_Module(mDelftFM_2_MOHID_       , "DelftFM_2_MOHID"    ),   T_Module(mGeneric_                , "GenericModule" )/)
         
 
     !Variables
@@ -2286,6 +2292,7 @@ Module ModuleGlobalData
 
         !Checks for error
         if (ObjCollector(iModule, iInstance)%Users < 0) then
+            write(*,*) trim(MohidModules(iModule)%Name)
             write(*,*)'Users cannot be negative'
             stop 'DeassociateInstance - ModuleGlobalData - ERR01'
         endif
@@ -2892,6 +2899,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (HorizontalTransportY_,    Char_HorizontalTransportY_,     ListNumber)
             call AddPropList (BarotropicVelocityU_ ,    Char_BarotropicVelocityU_ ,     ListNumber)
             call AddPropList (BarotropicVelocityV_ ,    Char_BarotropicVelocityV_ ,     ListNumber)
+            call AddPropList (BarotropicVelocityM_ ,    Char_BarotropicVelocityM_ ,     ListNumber)            
             call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
@@ -3021,6 +3029,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (MethylMercaptan_ ,        Char_MethylMercaptan     ,      ListNumber)            
             call AddPropList (Visibility_ ,             Char_Visibility          ,      ListNumber)
             call AddPropList (Dust_ ,                   Char_Dust                ,      ListNumber)
+            call AddPropList (DewPoint_ ,               Char_DewPoint               ,      ListNumber)            
          
             call AddPropList (RPOM_ ,                   Char_RPOM                ,      ListNumber)
             call AddPropList (LPOM_ ,                   Char_LPOM                ,      ListNumber)

@@ -29,7 +29,7 @@ Module ModuleCALMETFormat
     use ModuleTime
     use ModuleGridData
     use ModuleHorizontalGrid    
-    use proj4
+    use fproj
     
     implicit none
 
@@ -125,8 +125,8 @@ Module ModuleCALMETFormat
         real                                                :: XOri, YOri               = null_real
         real                                                :: DX, DY
 
-        type(prj90_projection)                              :: Proj
-        character(len=20), dimension(8)                     :: Params
+        type(fproj_prj)                                     :: Proj
+        character(256)                                      :: Params
 
         
 
@@ -348,7 +348,7 @@ Module ModuleCALMETFormat
         integer                                     :: ILB,IUB, WILB, WIUB
         integer                                     :: JLB,JUB, WJLB, WJUB        
         real, pointer, dimension(:,:)               :: DataAux        
-        
+        character(256)                              :: a1,a2,a3,a4,a5,a6,a7
         !Begin-----------------------------------------------------------------
         
 
@@ -418,18 +418,18 @@ Module ModuleCALMETFormat
             call ConvertLatLonCharToReal(Clon0, Me%CenterLon)
             call ConvertLatLonCharToReal(Csp1, Me%TrueLatLower)
             call ConvertLatLonCharToReal(Csp2, Me%TrueLatUpper)
-        
 
-            Me%Params(1) = 'proj=lcc'
-            Me%Params(2) = 'ellps=WGS84'
-            write(Me%Params(3),'(a6,f8.3)') 'lat_1=', Me%TrueLatLower
-            write(Me%Params(4),'(a6,f8.3)') 'lat_2=', Me%TrueLatUpper
-            write(Me%Params(5),'(a6,f8.3)') 'lon_0=', Me%CenterLon
-            write(Me%Params(6),'(a6,f8.3)') 'lat_0=', Me%CenterLat
-            write(Me%Params(7),'(a4,f12.3)') 'x_0=' , Me%FalseEast
-            write(Me%Params(8),'(a4,f12.3)') 'y_0=' , Me%FalseNorth
-            
-            
+            a1 = '+proj=lcc +ellps=WGS84'
+            write(a2,'(a7,f8.3)') '+lat_1=', Me%TrueLatLower
+            write(a3,'(a7,f8.3)') '+lat_2=', Me%TrueLatUpper
+            write(a4,'(a7,f8.3)') '+lon_0=', Me%CenterLon
+            write(a5,'(a7,f8.3)') '+lat_0=', Me%CenterLat
+            write(a6,'(a5,f12.3)') '+x_0=',  Me%FalseEast
+            write(a7,'(a5,f12.3)') '+y_0=',  Me%FalseNorth
+
+            write(Me%Params, '(7(a,1x))') trim(a1), trim(a2), trim(a3), trim(a4), trim(a5), trim(a6), trim(a7)
+
+
         else
             stop 'Not ready for projections other than LCC'
         endif
@@ -437,9 +437,9 @@ Module ModuleCALMETFormat
 
         write(*,*) Me%Params
         
-        STAT_CALL = prj90_init(Me%Proj,Me%Params)
+        STAT_CALL = fproj_init(Me%Proj,Me%Params)
         call handle_proj_error(STAT_CALL)
-        if (STAT_CALL /= PRJ90_NOERR) stop 'OpenReadWriteTerrainFile - ModuleCALMETFormat - ERR04'
+        if (STAT_CALL /= FPROJ_NOERR) stop 'OpenReadWriteTerrainFile - ModuleCALMETFormat - ERR04'
 
         !Read terrain -------------------------------------
         
@@ -500,9 +500,9 @@ Module ModuleCALMETFormat
             x = dble(Me%XOri + (j-1)*Me%DX)
             y = dble(Me%YOri + (i-1)*Me%DY)
                                 
-            STAT_CALL = prj90_inv(Me%Proj, x, y, lon, lat)
+            STAT_CALL = fproj_inv(Me%Proj, x, y, lon, lat)
             call handle_proj_error(STAT_CALL)
-            if (STAT_CALL /= PRJ90_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR01'
+            if (STAT_CALL /= FPROJ_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR01'
             
             Me%ConnectionX(i,j) = lon
             Me%ConnectionY(i,j) = lat
@@ -517,9 +517,9 @@ Module ModuleCALMETFormat
             x = dble(Me%XOri + Me%DX/2. + (j-1)*Me%DX)
             y = dble(Me%YOri + Me%DY/2. + (i-1)*Me%DY)
 
-            STAT_CALL = prj90_inv(Me%Proj, x, y, lon, lat)
+            STAT_CALL = fproj_inv(Me%Proj, x, y, lon, lat)
             call handle_proj_error(STAT_CALL)
-            if (STAT_CALL /= PRJ90_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR02'
+            if (STAT_CALL /= FPROJ_NOERR) stop 'WriteGridInformation - ModuleCALMETFormat - ERR02'
             
             Me%CenterX(i,j) = lon
             Me%CenterY(i,j) = lat
@@ -833,6 +833,8 @@ Module ModuleCALMETFormat
         real,pointer, dimension(:)                  :: DataAux1D
         real,pointer, dimension(:,:,:)              :: DataAux3D1, DataAux3D2, DataAux3D3
         character(len=StringLength)                 :: MohidName, Units
+        character(256)                              :: a1,a2,a3,a4,a5,a6,a7
+
         
         !Begin-----------------------------------------------------------------
         
@@ -930,16 +932,19 @@ Module ModuleCALMETFormat
                 Me%CenterLon    = relon0
                 Me%TrueLatLower = xlat1
                 Me%TrueLatUpper = xlat2
-        
-                Me%Params(1) = 'proj=lcc'
-                Me%Params(2) = 'ellps=WGS84'
-                write(Me%Params(3),'(a6,f8.3)') 'lat_1=', Me%TrueLatLower
-                write(Me%Params(4),'(a6,f8.3)') 'lat_2=', Me%TrueLatUpper
-                write(Me%Params(5),'(a6,f8.3)') 'lon_0=', Me%CenterLon
-                write(Me%Params(6),'(a6,f8.3)') 'lat_0=', Me%CenterLat
-                write(Me%Params(7),'(a4,f12.3)') 'x_0=' , Me%FalseEast
-                write(Me%Params(8),'(a4,f12.3)') 'y_0=' , Me%FalseNorth
+
             
+                a1 = '+proj=lcc +ellps=WGS84'
+                write(a2,'(a7,f8.3)') '+lat_1=', Me%TrueLatLower
+                write(a3,'(a7,f8.3)') '+lat_2=', Me%TrueLatUpper
+                write(a4,'(a7,f8.3)') '+lon_0=', Me%CenterLon
+                write(a5,'(a7,f8.3)') '+lat_0=', Me%CenterLat
+                write(a6,'(a5,f12.3)') '+x_0=',  Me%FalseEast
+                write(a7,'(a5,f12.3)') '+y_0=',  Me%FalseNorth
+
+                write(Me%Params, '(7(a,1x))') trim(a1), trim(a2), trim(a3), trim(a4), trim(a5), trim(a6), trim(a7)
+
+
             else
                 write(*,*) 'Map Projection = ', trim(adjustl(pmap))
                 write(*,*) 'Not ready for projections other than LCC'
@@ -948,9 +953,9 @@ Module ModuleCALMETFormat
 
             write(*,*) Me%Params
         
-            STAT_CALL = prj90_init(Me%Proj,Me%Params)
+            STAT_CALL = fproj_init(Me%Proj,Me%Params)
             call handle_proj_error(STAT_CALL); 
-            if (STAT_CALL /= PRJ90_NOERR) stop 'OpenAndReadCALMETFile - ModuleCALMETFormat - ERR05'
+            if (STAT_CALL /= FPROJ_NOERR) stop 'OpenAndReadCALMETFile - ModuleCALMETFormat - ERR05'
         
         else ! ConvertTERRAIN = TRUE, check that parameters are the same
             
@@ -2189,7 +2194,7 @@ if2:                if(Field%nDimensions == 2)then
 
         integer, intent(in)         :: status
 
-        if (status /= PRJ90_NOERR) write(*,*) trim(prj90_strerrno(status))
+        if (status /= FPROJ_NOERR) write(*,*) trim(fproj_strerrno(status))
 
     end subroutine handle_proj_error    
 

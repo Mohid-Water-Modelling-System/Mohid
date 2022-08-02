@@ -37,7 +37,7 @@ Module ModuleHorizontalGrid
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
                                   AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
-                                  SphericalToCart
+                                  SphericalToCart, PolygonBoundGridCurv
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -3254,7 +3254,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
 
         if (flag == 1) then
-            if (Me%Latitude < -360 .or. Me%Latitude > 360.) then
+            if (Me%Latitude < -90. .or. Me%Latitude > 90.) then
                 write(*,*) 'Wrong Latitude =', Me%Latitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
             endif
@@ -3268,7 +3268,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
 
         if (flag == 1) then
-            if (Me%Longitude < -90 .or. Me%Longitude > 90.) then
+            if (Me%Longitude < -360. .or. Me%Longitude > 360.) then
                 write(*,*) 'Wrong Longitude =', Me%Longitude
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
             endif
@@ -3463,6 +3463,10 @@ BF:     if (BlockFound) then
 
                 Me%XX_IE(ii, jj) = AuxReal(1)
                 Me%YY_IE(ii, jj) = AuxReal(2)
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                endif                
 
             end do
             end do
@@ -3496,7 +3500,6 @@ BF:     if (BlockFound) then
                 endif
                 
                 if (Me%XX_IE(ii, jj) < FillValueReal/2) then
-                    Me%GhostCorners = .true. 
                     Cycle
                 endif
 
@@ -3963,7 +3966,7 @@ BF1:    if (Me%ReadCartCorners) then
         real, dimension(:   ), pointer          :: XX, YY
         real                                    :: Xorig, Yorig
         real                                    :: Latitude, Longitude
-        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: ILB, IUB, JLB, JUB, ii, jj
 
 
         !Local-----------------------------------------------------------------
@@ -4075,6 +4078,17 @@ BF1:    if (Me%ReadCartCorners) then
             Me%XX_IE(:,:) = LongitudeConn(:,:)
 
             Me%Distortion      = .true.
+
+djj:        do jj = Me%WorkSize%JLB, Me%WorkSize%JUB + 1
+dii:        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB + 1
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                    exit djj
+                endif            
+                
+            enddo dii
+            enddo djj
 
         else
             Me%XX(:) = XX(:)
@@ -5011,7 +5025,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
     subroutine FromGeographic2SphericMercator(XX_IE, YY_IE, WorkSize, XX_aux, YY_aux)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real,    dimension(:,:), pointer         :: XX_IE, YY_IE
@@ -5023,23 +5037,22 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         integer                                  :: ILB, IUB, JLB, JUB
         integer                                  :: status, i, j
 
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(10))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
-        params(9) = 'datum=WGS84'
-        params(10)= 'units=m'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '  //&
+                 '+datum=WGS84 '//&
+                 '+units=m '
 
         ILB = WorkSize%ILB
         IUB = WorkSize%IUB
@@ -5047,9 +5060,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         JUB = WorkSize%JUB
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_init(proj,params)
+        if (status .ne. FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR10'
         endif
 
@@ -5057,9 +5070,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         do i = ILB, IUB + 1
             if (XX_IE(i,j) > FillValueReal/3.) then
 
-                status = prj90_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
-                if (status.ne.PRJ90_NOERR) then
-                    write(*,*) prj90_strerrno(status)
+                status = fproj_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
+                if (status .ne. FPROJ_NOERR) then
+                    write(*,*) fproj_strerrno(status)
                     stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR20'
                 end if
 
@@ -5071,20 +5084,18 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         enddo
         enddo
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
 
 
     end subroutine FromGeographic2SphericMercator
 
     subroutine FromGeo2SpherMercator1D(X1D_Geo, Y1D_Geo, ILB, IUB, X1D_Out, Y1D_Out)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:  ), pointer         :: X1D_Geo, Y1D_Geo
@@ -5095,33 +5106,31 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status, i
 
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
-
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(8))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR10'
         endif
 
         do i = ILB, IUB
-            status = prj90_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
-            if (status.ne.PRJ90_NOERR) then
-                write(*,*) prj90_strerrno(status)
+            status = fproj_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
+            if (status.ne.FPROJ_NOERR) then
+                write(*,*) fproj_strerrno(status)
                 stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR20'
             end if
 
@@ -5130,20 +5139,18 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
             X1D_Out(i) = real(DB_LONG)
         enddo
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
 
 
     end subroutine FromGeo2SpherMercator1D
 
     subroutine FromGeo2SpherMercatorScalar(X_Geo, Y_Geo, X_Out, Y_Out)
 
-        use proj4
+        use fproj
 
         !Arguments-------------------------------------------------------------
         real(8)                                  :: X_Geo, Y_Geo, X_Out, Y_Out
@@ -5151,33 +5158,31 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         !Local-----------------------------------------------------------------
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status
-
-        character(len=20), dimension(:), pointer :: params
-        type(prj90_projection)                   :: proj
+        character(256)                           :: params
+        type(fproj_prj)                          :: proj
 
 
         !Begin-----------------------------------------------------------------
 
-        allocate(params(8))
-        params(1) = 'proj=merc'
-        params(2) = 'lat_ts=0.0'
-        params(3) = 'lon_0=0.0'
-        params(4) = 'k=1.0'
-        params(5) = 'x_0=0.0'
-        params(6) = 'y_0=0.0'
-        params(7) = 'a=6371000'
-        params(8) = 'b=6371000'
+        params = '+proj=merc '  //&
+                 '+lat_ts=0.0 ' //&
+                 '+lon_0=0.0 '  //&
+                 '+k=1.0 '      //&
+                 '+x_0=0.0 '    //&
+                 '+y_0=0.0 '    //&
+                 '+a=6371000 '  //&
+                 '+b=6371000 '
 
 
-        status=prj90_init(proj,params)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status=fproj_init(proj,params)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR10'
         endif
 
-        status = prj90_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR20'
         end if
 
@@ -5186,14 +5191,11 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         X_Out = real(DB_LONG)
 
 
-        status = prj90_free(proj)
-        if (status.ne.PRJ90_NOERR) then
-            write(*,*) prj90_strerrno(status)
+        status = fproj_free(proj)
+        if (status.ne.FPROJ_NOERR) then
+            write(*,*) fproj_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR30'
         end if
-
-        deallocate(params)
-
 
     end subroutine FromGeo2SpherMercatorScalar
 
@@ -5313,6 +5315,7 @@ Inp:    if (Me%CornersXYInput) then
         logical, optional, intent(IN)               :: Outer
 
         !Local-----------------------------------------------------------------
+        real,   dimension(:), pointer               :: XX1D, YY1D
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: Nvert, i, j, di
         logical                                     :: Outer_
@@ -5332,7 +5335,7 @@ Inp:    if (Me%CornersXYInput) then
 
 
         if      (GridBorder%Type_ == ComplexPolygon_) then
-
+            
             Nvert = 0
 
             Nvert = 2*(IUB-ILB+1)
@@ -5356,10 +5359,13 @@ Inp:    if (Me%CornersXYInput) then
         !The last vertix equal to the first
         Nvert = Nvert + 1
 
-
+        if (Me%GhostCorners) then
+            call PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, Nvert)
+        endif
 
         allocate(GridBorder%Polygon_)
         allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
+        
 
         if (Outer_) then
             di = 0
@@ -5367,60 +5373,70 @@ Inp:    if (Me%CornersXYInput) then
             di = 1
         endif
 
-        if      (GridBorder%Type_ == ComplexPolygon_) then
+        if (Me%GhostCorners) then 
 
-            GridBorder%Polygon_%Count = 0
-
-            !West boundary
-            do i = ILB + di, IUB-di
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+di)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+di)
-            enddo
-
-            !North boundary
-            do j = JLB+di, JUB-di + 1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB+1-di, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB+1-di, j)
-            enddo
-
-            !East boundary
-            do i =  IUB-di, ILB + di, -1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB+1-di)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB+1-di)
-            enddo
-
-
-            !South boundary
-            do j =  JUB-di, JLB+di, -1
-                GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+di, j)
-                GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
-            enddo
-
-!        else if (GridBorder%Type_ == RotatedRectang_) then
+            GridBorder%Polygon_%Count = Nvert
+            GridBorder%Polygon_%VerticesF(1:Nvert)%X = XX1D(1:Nvert)
+            GridBorder%Polygon_%VerticesF(1:Nvert)%Y = YY1D(1:Nvert)
 
         else
 
-            GridBorder%Polygon_%Count = Nvert
+            if      (GridBorder%Type_ == ComplexPolygon_) then
 
-            GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+di,     JLB+di)
-            GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+di,     JLB+di)
+                GridBorder%Polygon_%Count = 0
+
+                !West boundary
+                do i = ILB + di, IUB-di
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JLB+di)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JLB+di)
+                enddo
+
+                !North boundary
+                do j = JLB+di, JUB-di + 1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(IUB+1-di, j)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(IUB+1-di, j)
+                enddo
+
+                !East boundary
+                do i =  IUB-di, ILB + di, -1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(i, JUB+1-di)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(i, JUB+1-di)
+                enddo
 
 
-            GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+di,     JUB+1-di)
-            GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+di,     JUB+1-di)
+                !South boundary
+                do j =  JUB-di, JLB+di, -1
+                    GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%X = XX2D(ILB+di, j)
+                    GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
+                enddo
 
-            GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB+1-di,   JUB+1-di)
-            GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB+1-di,   JUB+1-di)
+    !        else if (GridBorder%Type_ == RotatedRectang_) then
 
-            GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
-            GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
+            else
 
-            !Last vertex equal to first
-            GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
+                GridBorder%Polygon_%Count = Nvert
+
+                GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+di,     JLB+di)
+                GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+di,     JLB+di)
+
+
+                GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+di,     JUB+1-di)
+                GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+di,     JUB+1-di)
+
+                GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB+1-di,   JUB+1-di)
+                GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB+1-di,   JUB+1-di)
+
+                GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
+                GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
+
+                !Last vertex equal to first
+                GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
+
+            endif
 
         endif
 
@@ -9551,7 +9567,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetGeoCoordON(GeoCoordON, STAT)
+    subroutine GetGeoCoordON(HorizontalGridID, GeoCoordON, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -10242,6 +10258,7 @@ cd3 :       if (present(SurfaceMM5)) then
     integer                                     :: STAT_
     integer                                     :: ready_
     real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
+    real                                        :: SumX
     integer                                     :: Referential_, GetGridBorderType
     integer                                     :: ILB, IUB, JLB, JUB
     logical                                     :: CellLocated
@@ -10299,18 +10316,39 @@ cd3 :       if (present(SurfaceMM5)) then
                 Me%WorkSize%ILB, Me%WorkSize%IUB,           &
                 Me%WorkSize%JLB, Me%WorkSize%JUB,           &
                 I, J, CellLocated, Iold_, Jold_)
+            
+                
 
             if (I < 0 .or. J < 0  .or. .not. CellLocated) then
                 STAT_ = OUT_OF_BOUNDS_ERR_
-                !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
+            endif
+            
+            if (associated(XX2D) .and. j <= Me%WorkSize%JUB .and. j >= Me%WorkSize%JLB  &
+                                 .and. i <= Me%WorkSize%IUB .and. i >= Me%WorkSize%ILB) then
+                
+                SumX = XX2D(i, j) +  XX2D(i+1, j) + XX2D(i, j+1) + XX2D(i+1,j+1)                 
+                
+                if (SumX < FillValueReal/2.) then
+                    STAT_ = OUT_OF_BOUNDS_ERR_
+                endif
+                
             else
+                write (*,*) 'i,j',i,j
+                if (.not. associated(XX2D)) then
+                    write(*,*) '.not. associated(XX2D)'
+                endif
+                STAT_ = OUT_OF_BOUNDS_ERR_
+            endif
+                
+
+            if (STAT_ /= OUT_OF_BOUNDS_ERR_) then
                 if (present(PercI) .and. present(PercJ)) then
                     call RelativePosition4VertPolygon(                                  &
                         Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ),                       &
-                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
-                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
-                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
-                        Xe = XPoint,         Ye = YPoint,         &
+                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1),                       &
+                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ),                       &
+                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1),                       &
+                        Xe = XPoint,         Ye = YPoint,                               &
                         Xex= PercJ,          Yey= PercI)
                 end if
             end if
@@ -10331,11 +10369,11 @@ cd3 :       if (present(SurfaceMM5)) then
                 YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
             end if
             
-            call LocateCell (XX1D_Aux,                                           &
-                YY1D_Aux,                                           &
-                XPoint2, YPoint2,                                      &
-                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
-                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
+            call LocateCell (XX1D_Aux,                                                  &
+                YY1D_Aux,                                                               &
+                XPoint2, YPoint2,                                                       &
+                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                                   &
+                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                                   &
                 I, J)
 
             if (present(PercI)) then
@@ -10463,11 +10501,11 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 call LocateCellPolygons(XX2D,                                           &
                                         YY2D,                                           &
-                                        XPoint, YPoint, LocalMe%DefineCellsMap,              &
+                                        XPoint, YPoint, LocalMe%DefineCellsMap,         &
 !                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
 !                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
-                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB,           &
-                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB,           &
+                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB,     &
+                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB,     &
                                         I, J, CellLocated)
 
                 if (I < 0 .or. J < 0 .or. .not. CellLocated) then
@@ -10744,6 +10782,7 @@ iR:         if (Referential_ == GridCoord_) then
                     YY2D        => Me%YY_IE
 
                 endif
+                
 
                 if (Me%GridBorderCoord%Type_ == Rectang_) then
                     if (XPoint >= XX2D(ILB+1, JLB+1) .and. XPoint <= XX2D(IUB, JUB) .and. &
@@ -10754,8 +10793,12 @@ iR:         if (Referential_ == GridCoord_) then
                     endif
 
                 else
-
-                    GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+                    
+!                    if (Me%GhostCorners) then
+!                        GetXYInsideDomain = .false. 
+!                    else
+                        GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+!                    endif
                 endif
 
 
@@ -11155,9 +11198,9 @@ dw:         do while (associated(CurrentXYZPoints))
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
+    subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D,           &
+                                       VectorI, VectorJ, VectorK, nCell, OnlyFirstLine, &
+                                       STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(IN)              :: HorizontalGridID
@@ -11165,6 +11208,7 @@ dw:         do while (associated(CurrentXYZPoints))
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
+        logical, optional,  intent(IN)              :: OnlyFirstLine
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -11276,6 +11320,12 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
                 enddo d1
 
+                if (present(OnlyFirstLine)) then
+                    if (OnlyFirstLine) then
+                        exit
+                    endif
+                endif
+                
                 CurrentLine => CurrentLine%Next
 
             enddo dw
@@ -11317,8 +11367,6 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
     end subroutine GetCellZInterceptByLine
 
     !--------------------------------------------------------------------------
-
-   !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByPolygon(HorizontalGridID, Polygon, WaterPoints2D,     &
                                           VectorI, VectorJ, VectorK, nCell, STAT)

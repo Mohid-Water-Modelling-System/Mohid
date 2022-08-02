@@ -22,6 +22,7 @@ Module ModuleValida4D
     use ModuleHDF5
     use ModuleStopWatch,      only : CreateWatchGroup, KillWatchGroup    
     use ModuleFunctions
+    use ModuleDrawing
     use ModuleHorizontalGrid
     use ModuleGridData
     use ModuleHorizontalMap
@@ -125,6 +126,7 @@ Module ModuleValida4D
         real,    dimension(:), pointer              :: T, X, Y, Z, PercI, PercJ, D
         real,    dimension(:), pointer              :: InstantsValue        
         logical                                     :: TimeViaHDF5 = .false.
+        logical                                     :: OnlyFirstInstant = .false.        
         integer, dimension(:), pointer              :: i, j
         
         character (len = StringLength), dimension(:), pointer :: StationName
@@ -162,6 +164,38 @@ Module ModuleValida4D
         real                                        :: DT_Filter         = FillValueReal
         
         real                                        :: DX_Filter         = FillValueReal        
+        
+        logical                                     :: DXYmin_ON         = .false.                   
+        
+        real                                        :: DXYmin            = FillValueReal           
+        
+        logical                                     :: INPUT_GRID_XY     = .false.
+        real                                        :: Xorig             = FillValueReal
+        real                                        :: DX                = FillValueReal
+        integer                                     :: NX                = FillValueInt  
+        real                                        :: Yorig             = FillValueReal
+        real                                        :: DY                = FillValueReal
+        integer                                     :: NY                = FillValueInt
+        
+        logical                                     :: INPUT_GRID_Z      = .false.
+        real                                        :: Zorig             = FillValueReal
+        real                                        :: DZ                = FillValueReal
+        integer                                     :: NZ                = FillValueInt  
+        
+        logical                                     :: Read_3D_Grid      = .false.
+        
+        
+        logical                                     :: OutVector_QGIS_ON = .false.
+        character (len = StringLength)              :: VectorX_Name        = null_str
+        character (len = StringLength)              :: VectorY_Name        = null_str
+        integer                                     :: VectorXID           = FillValueInt
+        integer                                     :: VectorYID           = FillValueInt        
+        character (len = PathLength)                :: OutVector_QGIS      = null_str
+        real                                        :: Mod_Min             = FillValueReal
+        type (T_Polygon),        pointer            :: LandMapping         => null()
+
+        
+        
         
         integer                                     :: ObjTime           = 0
         integer                                     :: ObjEnterData      = 0
@@ -216,9 +250,23 @@ Module ModuleValida4D
       
         call ReadOptionsFile
         
-        call ReadInputTable
+        if (Me%INPUT_GRID_XY) then
+            call GenerateGridTable
+        else
+            call ReadInputTable
+        endif
+        
+        if (.not. Me%Field4D .or. Me%Read_3D_GRID) then
+            call ConstructSubModules        
+            call AllocateMatrixes
+        endif
+                
 
         call ReadHDF5FileName
+        
+        if (Me%DXYmin_ON) then
+            call PointCloudWithMinimumDX
+        endif
         
         if (.not. Me%TimeViaTable) then
             call PointCloudWithAlternativeTime      
@@ -227,11 +275,7 @@ Module ModuleValida4D
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructValida4D - ModuleValida4D - ERR20'        
         
-        if (.not. Me%Field4D) then
-            call ConstructSubModules        
-            call AllocateMatrixes
-        endif
-                
+
  
 
         !----------------------------------------------------------------------
@@ -281,11 +325,13 @@ Module ModuleValida4D
 
         call ReadOptions
         
-        if (.not.Me%Field4D) then
+        if (.not.Me%Field4D .or. Me%Read_3D_Grid) then
             call ReadGrid
         endif            
         
         call ReadProperties
+        
+        call ReadQGIS_VectorOutput
         
         
     end subroutine ReadOptionsFile
@@ -302,100 +348,242 @@ Module ModuleValida4D
 
         !Begin-----------------------------------------------------------------
 
-        call GetData(Me%InputTable,                                                     &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'INPUT_TABLE',                                      &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR50'
-        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR60'
         
-        Me%TimeViaTable = .true.
-
-        call GetData(Me%Tcolumn,                                                        &
+        call GetData(Me%INPUT_GRID_XY,                                                  &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'T_COLUMN',                                         &
-                     default      = FillValueInt,                                       &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR70'
-        if (iflag     == 0       ) then
-
-            Me%TimeViaTable = .false.
-
-            call GetData(Me%TimeSeriesOutput,                                           &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromFile,                                       &
-                         keyword      = 'TS_OUTPUT',                                    &
-                         default      = .false.,                                        &
-                         ClientModule = 'ModuleValida4D',                               &
-                         STAT         = STAT_CALL)                                          
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR80'   
-            
-        else
-        
-            Me%DT           = 1
-            !Read all instants 
-            Me%TimeViaTable   = .true.
-                                  
-        endif
-
-        call GetData(Me%Xcolumn,                                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'X_COLUMN',                                         &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR90'
-        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR100'
-
-        call GetData(Me%Ycolumn,                                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'Y_COLUMN',                                         &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR100'
-        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR110'
-
-        call GetData(Me%Zcolumn,                                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'Z_COLUMN',                                         &
-                     default      = FillValueInt,                                       &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR130'
-        
-        call GetData(Me%ComputeD,                                                       &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'COMPUTE_D',                                        &
+                     keyword      = 'INPUT_GRID_XY',                                    &
                      default      = .false.,                                            &
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR250'
-               
-        call GetData(Me%Dcolumn,                                                        &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'D_COLUMN',                                         &
-                     default      = FillValueInt,                                       &
-                     ClientModule = 'ModuleValida4D',                                   &
-                     STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR010'        
         
-        if (Me%Zcolumn > FillValueInt .and. (Me%Dcolumn > FillValueInt .or. Me%ComputeD)) then
-            write(Me%OutSpace,*) " X     Y     Z   D  "
-        else if (Me%Zcolumn > FillValueInt) then
-            write(Me%OutSpace,*) " X     Y     Z "
-        else if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
-            write(Me%OutSpace,*) "X     Y     D "
-        endif             
         
+        if (Me%INPUT_GRID_XY) then  
+            
+            Me%TimeViaTable   = .false.
+            Me%Xcolumn        = 1
+            Me%Ycolumn        = 2
+            
+            call GetData(Me%Xorig,                                                      &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'X_ORIG',                                       &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR020'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR030'            
+            
+            call GetData(Me%DX,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DX',                                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR040'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR050'            
+            
+            call GetData(Me%NX,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'NX',                                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR060'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR070'            
+            
+            call GetData(Me%Yorig,                                                      &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'Y_ORIG',                                       &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR080'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR090'            
+            
+            call GetData(Me%DY,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DY',                                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR100'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR110'            
+            
+            call GetData(Me%NY,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'NY',                                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR120'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR130'                        
+            
+            
+            
+        else
+            
+            call GetData(Me%InputTable,                                                     &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INPUT_TABLE',                                      &
+                         ClientModule = 'ModuleValida4D',                                   &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR190'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR200'
+        
+            Me%TimeViaTable = .true.
 
+            call GetData(Me%Tcolumn,                                                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'T_COLUMN',                                         &
+                         default      = FillValueInt,                                       &
+                         ClientModule = 'ModuleValida4D',                                   &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR210'
+            if (iflag     == 0       ) then
+
+                Me%TimeViaTable = .false.
+
+                call GetData(Me%TimeSeriesOutput,                                           &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromFile,                                       &
+                             keyword      = 'TS_OUTPUT',                                    &
+                             default      = .false.,                                        &
+                             ClientModule = 'ModuleValida4D',                               &
+                             STAT         = STAT_CALL)                                          
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR80'   
+            
+            else
+        
+                Me%DT           = 1
+                !Read all instants 
+                Me%TimeViaTable   = .true.
+                                  
+            endif
+            
+            
+
+            call GetData(Me%Xcolumn,                                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'X_COLUMN',                                     &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR90'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR100'
+
+            call GetData(Me%Ycolumn,                                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'Y_COLUMN',                                     &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR100'
+            if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR110'
+        
+        endif
+        
+        
+        if (Me%INPUT_GRID_XY) then  
+            Me%INPUT_GRID_Z = .true.
+        else
+            
+            call GetData(Me%INPUT_GRID_Z,                                                   &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INPUT_GRID_Z',                                     &
+                         default      = .false.,                                            &
+                         ClientModule = 'ModuleValida4D',                                   &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR010'              
+            
+        endif
+        
+        
+        if (Me%INPUT_GRID_Z) then
+            if (Me%INPUT_GRID_XY) then
+                Me%Zcolumn = 3
+            else
+                Me%Zcolumn = -99
+            endif
+            
+            call GetData(Me%Zorig,                                                      &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'Z_ORIG',                                       &
+                         ClientModule = 'ModuleValida4D',                               &
+                         default      = 0.,                                             &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR140'
+            
+            call GetData(Me%DZ,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'DZ',                                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         default      = 1.,                                             &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR160'
+            
+            call GetData(Me%NZ,                                                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'NZ',                                           &
+                         default      = 1,                                              & 
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR180'
+            
+            write(Me%OutSpace,*) " X     Y     Z "
+            
+            Me%ComputeD = .false. 
+            Me%Dcolumn  = FillValueInt 
+       
+        else
+            
+            call GetData(Me%Zcolumn,                                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'Z_COLUMN',                                     &
+                         default      = FillValueInt,                                   &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR190'
+            
+            call GetData(Me%ComputeD,                                                       &
+                            Me%ObjEnterData, iflag,                                         &
+                            SearchType   = FromFile,                                        &
+                            keyword      = 'COMPUTE_D',                                     &
+                            default      = .false.,                                         &
+                            ClientModule = 'ModuleValida4D',                                &
+                            STAT         = STAT_CALL)                                       
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR200'
+               
+            call GetData(Me%Dcolumn,                                                        &
+                            Me%ObjEnterData, iflag,                                         &
+                            SearchType   = FromFile,                                        &
+                            keyword      = 'D_COLUMN',                                      &
+                            default      = FillValueInt,                                    &
+                            ClientModule = 'ModuleValida4D',                                &
+                            STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR210'
+        
+        
+            if (Me%Zcolumn > FillValueInt .and. (Me%Dcolumn > FillValueInt .or. Me%ComputeD)) then
+                write(Me%OutSpace,*) " X     Y     Z   D  "
+            else if (Me%Zcolumn > FillValueInt) then
+                write(Me%OutSpace,*) " X     Y     Z "
+            else if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+                write(Me%OutSpace,*) "X     Y     D "
+            else
+                write(Me%OutSpace,*) "X     Y       "
+            endif            
+        
+        endif
+        
+            
 
         call GetData(Me%OutputTable,                                                    &
                      Me%ObjEnterData, iflag,                                            &
@@ -403,9 +591,8 @@ Module ModuleValida4D
                      keyword      = 'OUTPUT_TABLE',                                     &
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR180'
-        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR190'        
-
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR220'
+        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR230'        
             
         call GetData(Me%Field4D,                                                        &
                      Me%ObjEnterData, iflag,                                            &
@@ -414,7 +601,7 @@ Module ModuleValida4D
                      default      = .true.,                                             &
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR200'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR240'
         
         if (Me%Field4D) then
         
@@ -425,10 +612,9 @@ Module ModuleValida4D
                          default      = .true.,                                         &
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                          
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR205'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR250'
         
         endif        
-        
         
         call GetData(Me%Extrapolate,                                                    &
                      Me%ObjEnterData, iflag,                                            &
@@ -437,8 +623,16 @@ Module ModuleValida4D
                      default      = .false.,                                            &
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR260'
         
+        call GetData(Me%OnlyFirstInstant,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ONLY_FIRST_INSTANT',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR270'        
 
         if (.not. Me%TimeViaTable) then
             
@@ -449,7 +643,7 @@ Module ModuleValida4D
                          default      = .false.,                                        &
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR220'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR280'
             
             if (Me%TimeViaHDF5) then
                 
@@ -472,34 +666,31 @@ Module ModuleValida4D
                                         DT              = Me%DT,                        &
                                         VariableDT      = LogicalDummy,                 &
                                         ClientModule    = "ModuleValida4D")                           
-                
 
-            call GetData(Me%TimeStatistics,                                             &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromFile,                                       &
-                         keyword      = 'TIME_STATISTICS',                              &
-                         default      = .false.,                                        &
-                         ClientModule = 'ModuleValida4D',                               &
-                         STAT         = STAT_CALL)                                      
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR230'
-            
-            if (Me%TimeStatistics) then
-
-                call GetData(Me%OutputTableTimeStat,                                        &
-                             Me%ObjEnterData, iflag,                                        &
-                             SearchType   = FromFile,                                       &
-                             keyword      = 'OUTPUT_TABLE_TIME_STAT',                       &
-                             ClientModule = 'ModuleValida4D',                               &
+                call GetData(Me%TimeStatistics,                                         &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromFile,                                   &
+                             keyword      = 'TIME_STATISTICS',                          &
+                             default      = .false.,                                    &
+                             ClientModule = 'ModuleValida4D',                           &
                              STAT         = STAT_CALL)                                      
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR240'
-                    if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR250'     
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR290'
             
-            endif
+                if (Me%TimeStatistics) then
+
+                    call GetData(Me%OutputTableTimeStat,                                &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromFile,                               &
+                                 keyword      = 'OUTPUT_TABLE_TIME_STAT',               &
+                                 ClientModule = 'ModuleValida4D',                       &
+                                 STAT         = STAT_CALL)                                      
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR300'
+                        if (iflag     == 0       ) stop 'ReadOptions - ModuleValida4D - ERR310'     
+            
+                endif
                 
+            endif
         endif
-        endif
-        
-        
 
         call GetData(Me%Filter_Trajectory,                                              &
                      Me%ObjEnterData, iflag,                                            &
@@ -508,7 +699,7 @@ Module ModuleValida4D
                      default      = .false.,                                            &
                      ClientModule = 'ModuleValida4D',                                   &
                      STAT         = STAT_CALL)                                          
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR260'      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR320'      
         
         if (Me%Filter_Trajectory) then
             
@@ -523,7 +714,7 @@ Module ModuleValida4D
                          default      = FillValueReal,                                  &
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR330'
         
             call GetData(Me%DX_Filter,                                                  &
                          Me%ObjEnterData, iflag,                                        &
@@ -532,9 +723,30 @@ Module ModuleValida4D
                          default      = FillValueReal,                                  &
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR290'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR340'
             
         endif
+        
+        call GetData(Me%DXYmin,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DXY_MIN',                                          &
+                     default      = FillValueReal,                                      &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR350'
+        
+        call GetData(Me%Read_3D_GRID,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'READ_3D_GRID',                                     &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR360'   
+
+        
+        
         
     end subroutine ReadOptions
 
@@ -699,10 +911,122 @@ do2 :   do  iP = 1, Me%PropNumber
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadProperties - ModuleValida4D - ERR80'
+        
+        
 
         
 
     end subroutine ReadProperties
+
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+
+    subroutine ReadQGIS_VectorOutput
+
+        !Arguments-------------------------------------------------------------
+          
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, iP, iflag
+        character (len = PathLength  )              :: LandMappingFile       
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        call GetData(Me%OutVector_QGIS_ON,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUT_VECTOR_QGIS',                                  &
+                     default      = .false.,                                            &   
+                     ClientModule = 'ModuleValida4D',                                   &
+                     STAT         = STAT_CALL)                                          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR010'
+        
+        
+        if (Me%OutVector_QGIS_ON) then
+            
+            call GetData(Me%VectorX_Name,                                               &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'VECTOR_X_NAME',                                &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR020'
+            if (iflag     ==        0) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR030'            
+            
+            call GetData(Me%VectorY_Name,                                               &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'VECTOR_Y_NAME',                                &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR040'
+            if (iflag     ==        0) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR050'
+            
+            call GetData(Me%OutVector_QGIS,                                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'OUTPUT_VECTOR_QGIS',                           &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR060'
+            if (iflag     ==        0) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR070'                        
+
+            call GetData(Me%Mod_Min,                                                    &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'MODULUS_MIN',                                  &
+                         default      = 0.,                                             &  
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR080'
+            
+            call GetData(LandMappingFile,                                               &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'LAND_MAPPING',                                 &
+                         ClientModule = 'ModuleValida4D',                               &
+                         STAT         = STAT_CALL)                                          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR090'
+            
+            nullify(Me%LandMapping)
+
+            if (iflag /= 0) then
+                call New(Me%LandMapping, LandMappingFile)
+            endif
+
+            
+            ! Read Properties
+    do1 :   do  iP = 1, Me%PropNumber
+
+            
+                if (trim(adjustl(Me%VectorX_Name)) == trim(adjustl(Me%Properties(iP)%ID%Name))) then
+            
+                    Me%VectorXID = iP
+                
+                endif
+            
+                if (trim(adjustl(Me%VectorY_Name)) == trim(adjustl(Me%Properties(iP)%ID%Name))) then
+            
+                    Me%VectorYID = iP
+                
+                endif         
+            
+            enddo do1
+
+            if (Me%VectorXID == FillValueInt) then
+                stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR100'
+            endif
+        
+            if (Me%VectorYID == FillValueInt) then
+                stop 'ReadQGIS_VectorOutput - ModuleValida4D - ERR110'
+            endif        
+        endif
+                
+        
+
+    end subroutine ReadQGIS_VectorOutput
 
     !--------------------------------------------------------------------------
 
@@ -801,18 +1125,41 @@ i1:                 if (exist) then
                                 Me%HDF5Files(iH)%Name = FileName
                                 
                                 do  iP = 1, Me%PropNumber
-                                
-                                    call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(iH)%ID,&
-                                                          EnterDataID   = Me%ObjEnterData,      &
-                                                          ExtractType   = FromFile,             &
-                                                          TimeID        = Me%ObjTime,           &   
-                                                          FileName      = Me%HDF5Files(iH)%Name,&                                                      
-                                                          LatReference  = (Me%Ymin+Me%Ymax)/2., &
-                                                          LonReference  = (Me%Xmin+Me%Xmax)/2., & 
-                                                          Extrapolate   = Me%Extrapolate,       & 
-                                                          PropertyID    = Me%Properties(iP)%ID, &   
-                                                          STAT          = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR30'
+                                    
+                                    if (Me%Read_3D_GRID) then
+                                        
+                                        call ConstructField4D(Field4DID         = Me%Properties(iP)%Field(iH)%ID,&
+                                                              EnterDataID       = Me%ObjEnterData,      &
+                                                              ExtractType       = FromFile,             &
+                                                              TimeID            = Me%ObjTime,           &   
+                                                              HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                                              BathymetryID      = Me%ObjBathymetry,     &    
+                                                              HorizontalMapID   = Me%ObjHorizontalMap,  &    
+                                                              GeometryID        = Me%ObjGeometry,       &     
+                                                              MapID             = Me%ObjMap,            &    
+                                                              FileName          = Me%HDF5Files(iH)%Name,&                                                      
+                                                              LatReference      = (Me%Ymin+Me%Ymax)/2., &
+                                                              LonReference      = (Me%Xmin+Me%Xmax)/2., & 
+                                                              Extrapolate       = Me%Extrapolate,       & 
+                                                              PropertyID        = Me%Properties(iP)%ID, &   
+                                                              STAT              = STAT_CALL)
+                                        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR25'
+
+                                    else
+                                        
+                                        call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(iH)%ID,&
+                                                              EnterDataID   = Me%ObjEnterData,      &
+                                                              ExtractType   = FromFile,             &
+                                                              TimeID        = Me%ObjTime,           &   
+                                                              FileName      = Me%HDF5Files(iH)%Name,&                                                      
+                                                              LatReference  = (Me%Ymin+Me%Ymax)/2., &
+                                                              LonReference  = (Me%Xmin+Me%Xmax)/2., & 
+                                                              Extrapolate   = Me%Extrapolate,       & 
+                                                              PropertyID    = Me%Properties(iP)%ID, &   
+                                                              STAT          = STAT_CALL)
+                                        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR30'
+                                        
+                                    endif
 
                                 enddo
                                 
@@ -852,18 +1199,42 @@ i1:                 if (exist) then
             if (Me%Field4D .and. Me%FileListMode) then
     
                 do  iP = 1, Me%PropNumber
+                    
+                    if (Me%Read_3D_GRID) then                    
+                        
+                        call ConstructField4D(Field4DID             = Me%Properties(iP)%Field(1)%ID,&
+                                                EnterDataID         = Me%ObjEnterData,      &
+                                                ExtractType         = FromFile,             &
+                                                TimeID              = Me%ObjTime,           &   
+                                                HorizontalGridID    = Me%ObjHorizontalGrid, &
+                                                BathymetryID        = Me%ObjBathymetry,     &    
+                                                HorizontalMapID     = Me%ObjHorizontalMap,  &    
+                                                GeometryID          = Me%ObjGeometry,       &     
+                                                MapID               = Me%ObjMap,            & 
+                                                LatReference        = (Me%Ymin+Me%Ymax)/2., &
+                                                LonReference        = (Me%Xmin+Me%Xmax)/2., & 
+                                                Extrapolate         = Me%Extrapolate,       & 
+                                                PropertyID          = Me%Properties(iP)%ID, &  
+                                                FileNameList        = FileNameList,         &
+                                                STAT          = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR75'
+                        
+                        
+                    else
                                 
-                    call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(1)%ID,&
-                                            EnterDataID   = Me%ObjEnterData,      &
-                                            ExtractType   = FromFile,             &
-                                            TimeID        = Me%ObjTime,           &   
-                                            LatReference  = (Me%Ymin+Me%Ymax)/2., &
-                                            LonReference  = (Me%Xmin+Me%Xmax)/2., & 
-                                            Extrapolate   = Me%Extrapolate,       & 
-                                            PropertyID    = Me%Properties(iP)%ID, &  
-                                            FileNameList  = FileNameList,         &
-                                            STAT          = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR80'
+                        call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(1)%ID,&
+                                                EnterDataID   = Me%ObjEnterData,      &
+                                                ExtractType   = FromFile,             &
+                                                TimeID        = Me%ObjTime,           &   
+                                                LatReference  = (Me%Ymin+Me%Ymax)/2., &
+                                                LonReference  = (Me%Xmin+Me%Xmax)/2., & 
+                                                Extrapolate   = Me%Extrapolate,       & 
+                                                PropertyID    = Me%Properties(iP)%ID, &  
+                                                FileNameList  = FileNameList,         &
+                                                STAT          = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5FileName - ModuleValida4D - ERR80'
+                        
+                    endif
 
                 enddo            
                 
@@ -1120,6 +1491,10 @@ do1 :                   do i = 2, iLength
 
             end if BF
 
+            if (Me%OnlyFirstInstant) then
+                 Me%T(2:Me%TableValues) =  Me%T(1)
+            endif
+
             call Block_Unlock(Me%ObjEnterDataTable, ClientNumber, STAT = STAT_CALL) 
 
             if (STAT_CALL /= SUCCESS_)                                                  &
@@ -1148,7 +1523,7 @@ do1 :                   do i = 2, iLength
                                      BeginTime        = Me%BeginTime,                   &
                                      EndTime          = Me%EndTime,                     &
                                      DT               = Me%DT,                          & 
-                                        VariableDT       = LogicalDummy,               &
+                                     VariableDT       = LogicalDummy,                   &
                                      STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInputTable - ModuleValida4D - ERR170'
         
@@ -1157,7 +1532,135 @@ do1 :                   do i = 2, iLength
     end subroutine ReadInputTable
 
     !--------------------------------------------------------------------------
-    
+
+    subroutine GenerateGridTable
+
+        !Arguments-------------------------------------------------------------
+          
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:), pointer                     :: AuxTable      
+        real                                                :: X, Y, Z
+        integer                                             :: STAT_CALL
+        integer                                             :: iP, imax, ix, iy, iz, n, iV
+        logical                                             :: LogicalDummy = .false.
+        type (T_PointF),    pointer                         :: Point
+
+        !Begin-----------------------------------------------------------------
+        
+        imax = Me%NX * Me%NY * Me%NZ
+        
+        allocate(AuxTable(1:imax,3))
+        allocate(Point)
+        n = 0
+        do ix = 1, Me%NX
+            do iy = 1, Me%NY
+                do iz = 1, Me%NZ
+                    X = Me%Xorig + (ix - 1) * Me%DX
+                    Y = Me%Yorig + (iy - 1) * Me%DY
+                    
+                    if (associated(Me%LandMapping)) then
+                        
+                        Point%X = X 
+                        Point%Y = Y
+                        
+                        if (IsVisible(Me%LandMapping, Point)) then
+                            cycle    
+                        endif
+                       
+                    endif
+                    
+                    Z = Me%Zorig + (iz - 1) * Me%DZ
+                    
+                    n = n + 1
+                    AuxTable(n,1) = X 
+                    AuxTable(n,2) = Y
+                    AuxTable(n,3) = Z
+
+                enddo
+            enddo
+        enddo
+        
+ 
+        Me%TableValues =n
+                
+        allocate(Me%X(Me%TableValues),Me%Y(Me%TableValues))
+        allocate(Me%i(Me%TableValues),Me%j(Me%TableValues))
+        allocate(Me%PercI(Me%TableValues),Me%PercJ(Me%TableValues))      
+        allocate(Me%NullValue(Me%TableValues))          
+                
+        Me%NullValue(:) = .false.
+                
+        allocate(Me%StationName(Me%TableValues))
+                
+        allocate(Me%Z(Me%TableValues))
+                
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) allocate(Me%D(Me%TableValues))                
+                
+        do iP=1, Me%PropNumber
+            allocate(Me%Properties(iP)%ValueTable(Me%TableValues))
+            allocate(Me%Properties(iP)%ValueHDF5 (Me%TableValues))
+                    
+            Me%Properties(iP)%ValueTable(:) = FillValueReal
+            Me%Properties(iP)%ValueHDF5 (:) = FillValueReal
+                    
+        enddo
+                
+        Me%Xmin = - FillValueReal
+        Me%Xmax = + FillValueReal
+
+
+        Me%Ymin = - FillValueReal
+        Me%Ymax = + FillValueReal
+        
+        Me%Zmin = - FillValueReal
+        Me%Zmax = + FillValueReal        
+        
+        do iV =1, Me%TableValues
+
+            Me%StationName(iV) = "GridStation"
+                
+            Me%X(iV) = AuxTable(iV,Me%Xcolumn)
+            Me%Y(iV) = AuxTable(iV,Me%Ycolumn)
+            Me%Z(iV) = AuxTable(iV,Me%Zcolumn)
+                    
+            if (Me%X(iV) > Me%Xmax)  Me%Xmax = Me%X(iV)
+            if (Me%X(iV) < Me%Xmin)  Me%Xmin = Me%X(iV)
+                    
+            Me%Y(iV) = AuxTable(iV,Me%Ycolumn)
+                    
+            if (Me%Y(iV) > Me%Ymax)  Me%Ymax = Me%Y(iV)
+            if (Me%Y(iV) < Me%Ymin)  Me%Ymin = Me%Y(iV)
+                    
+            Me%Z(iV) = AuxTable(iV,Me%Zcolumn)
+                        
+            if (Me%Z(iV)>Me%Zmax) Me%Zmax = Me%Z(iV)
+            if (Me%Z(iV)<Me%ZmIN) Me%Zmin = Me%Z(iV)                        
+
+                    
+            do iP=1, Me%PropNumber
+                Me%Properties(iP)%ValueTable(iV) = 0.
+            enddo                    
+
+        enddo
+
+
+        
+        allocate(Me%T(Me%TableValues))
+        
+        
+        call StartComputeTime       (TimeID           = Me%ObjTime,                     &
+                                     InitialSystemTime= Me%BeginTime,                   &
+                                     BeginTime        = Me%BeginTime,                   &
+                                     EndTime          = Me%EndTime,                     &
+                                     DT               = Me%DT,                          & 
+                                     VariableDT       = LogicalDummy,                   &
+                                     STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GenerateGridTable - ModuleValida4D - ERR170'
+        
+        
+              
+    end subroutine GenerateGridTable
+
     !--------------------------------------------------------------------------
 
     subroutine PointCloudWithAlternativeTime
@@ -1180,9 +1683,9 @@ do1 :                   do i = 2, iLength
         !Begin-----------------------------------------------------------------    
     
    
-            Me%NoTimeValues = Me%TableValues
+        Me%NoTimeValues = Me%TableValues
             
-        if (Me%TimeViaHDF5) then
+if1:    if (Me%TimeViaHDF5) then
 
             if (Me%Field4d) then
                 if (Me%FileListMode) then
@@ -1300,7 +1803,7 @@ do1 :                   do i = 2, iLength
             Me%BeginTime = Me%InitialDate
                 
             
-        else
+        else if1
             
             Me%InitialDate = Me%BeginTime
             
@@ -1311,7 +1814,10 @@ do1 :                   do i = 2, iLength
             do i=1,Me%Ninstants 
                 Me%InstantsValue(i) = real(i-1)*Me%DT                
             enddo
-        endif
+        endif if1
+        
+        
+        
         
         
             Me%TableValues  =  Me%NoTimeValues * real(Me%Ninstants)
@@ -1451,6 +1957,284 @@ do1 :                   do i = 2, iLength
     end subroutine PointCloudWithAlternativeTime        
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine PointCloudWithMinimumDX
+        !Arguments-------------------------------------------------------------
+          
+        !Local-----------------------------------------------------------------
+        real                                                :: yc, xc, x1, x2, y1, y2, racio
+        real                                                :: dx, dy, dxy
+        integer                                             :: i, n, ip, j, r, NewTableValues
+        real,       dimension(:  ), pointer                 :: AuxT, AuxX, AuxY, AuxZ, AuxD
+        real,       dimension(:,:), pointer                 :: AuxP
+        logical,    dimension(:), pointer                   :: Aux_NullValue  
+        character(len=StringLength), dimension(:), pointer  :: Aux_StationName
+        integer,    dimension(:), pointer                   :: Aux_i, Aux_j          
+        real,       dimension(:), pointer                   :: Aux_PercI, Aux_PercJ        
+    
+        
+        !Begin-----------------------------------------------------------------    
+        
+        if (.not. Me%Field4D) then
+            stop 'PointCloudWithMinimumDX - ModuleValida4D - ERR10'
+        endif
+    
+       
+        n = 1
+            
+        !Number of new X,Y points to force minimum horziontal spatial step
+        do i =1, Me%TableValues-1
+            
+            dx  = Me%X(i+1) - Me%X(i)
+            dy  = Me%Y(i+1) - Me%Y(i)
+            dxy = sqrt(dx**2+dy**2)            
+            if (dxy >0) then
+                racio = dxy / Me%DXYmin     
+                if (racio >= 2) then
+                    n = n + int(racio) - 1
+                endif
+            endif
+            
+        enddo
+        
+        NewTableValues  = n + 1
+        
+        allocate(AuxX           (1:NewTableValues))
+        allocate(AuxY           (1:NewTableValues))
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            allocate(AuxT           (1:NewTableValues))
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            allocate(AuxZ           (1:NewTableValues))
+        endif
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            allocate(AuxD           (1:NewTableValues))
+        endif
+        
+        allocate(Aux_NullValue  (1:NewTableValues))
+        allocate(Aux_StationName(1:NewTableValues))
+        allocate(AuxP           (1:NewTableValues, Me%PropNumber))
+        
+        allocate(Aux_i          (1:NewTableValues))
+        allocate(Aux_j          (1:NewTableValues))
+        allocate(Aux_PercJ      (1:NewTableValues))
+        allocate(Aux_PercI      (1:NewTableValues))        
+        
+        
+        n = 1
+       
+        do i =1, Me%TableValues-1
+            
+            call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                   Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                   Aux_PercJ, n, i)
+            
+            dx  = Me%X(i+1) - Me%X(i)
+            dy  = Me%Y(i+1) - Me%Y(i)
+            
+            dxy = sqrt(dx**2+dy**2)            
+            
+            if (dxy >0) then
+                
+                racio = dxy / Me%DXYmin     
+                
+                if (racio >= 2) then
+                    
+                    r = int(racio) - 1
+                    do j=1, r
+                        
+                        x1 = Me%X(i)
+                        y1 = Me%Y(i)
+                        x2 = Me%X(i+1)
+                        y2 = Me%Y(i+1)
+                        
+                        if (abs(dx)>0) then
+                            xc = x1 + real(j) / real(r) * dx 
+                            yc = LinearInterpolation (x1, y1, x2, y2, xc)    
+                        else
+                            yc = y1 + real(j) / real(r) * dy
+                            xc = LinearInterpolation (y1, x1, y2, x2, yc)                            
+                        endif
+                        
+                        n = n + 1
+                        
+                        call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                               Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                               Aux_PercJ, n, i)
+
+                        AuxX(n) = xc
+                        AuxY(n) = yc
+                        
+                    enddo
+                        
+                endif
+            endif
+                
+        enddo        
+        
+        if (n+1 == NewTableValues) then
+            call PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,         &
+                                   Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,      &
+                                   Aux_PercJ, n+1, Me%TableValues)
+        else
+            stop 'PointCloudWithMinimumDX - ModuleValida4D - ERR20'
+        endif
+        
+        Me%TableValues = NewTableValues
+
+        if (Me%Tcolumn > FillValueInt) then
+            deallocate  (Me%T)
+            allocate    (Me%T(Me%TableValues))
+            Me%T(:) = AuxT(:)            
+        endif
+
+        if (associated(Me%X)) then
+            deallocate  (Me%X)
+            allocate    (Me%X(Me%TableValues))
+            Me%X(:) = AuxX(:)
+        endif
+
+        if (associated(Me%Y)) then
+            deallocate  (Me%Y)
+            allocate    (Me%Y(Me%TableValues))
+            Me%Y(:) = AuxY(:)
+        endif            
+
+            
+        if (associated(Me%NullValue)) then
+            deallocate  (Me%NullValue)
+            allocate    (Me%NullValue(Me%TableValues))
+            Me%NullValue  (:) = Aux_NullValue  (:)
+        endif                                
+
+        if (associated(Me%StationName)) then
+            deallocate  (Me%StationName)
+            allocate    (Me%StationName(Me%TableValues))
+            Me%StationName(:) = Aux_StationName(:)
+        endif                                          
+            
+
+        if (Me%Zcolumn > FillValueInt) then
+            allocate  (Me%Z(1:Me%TableValues))
+            Me%Z(:) = AuxZ(:)
+        endif
+
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            allocate  (Me%D(1:Me%TableValues))
+            Me%D(:) = AuxD(:)
+        endif
+
+            
+        do ip=1, Me%PropNumber
+            deallocate(Me%Properties(ip)%ValueTable, Me%Properties(iP)%ValueHDF5)   
+
+            allocate(Me%Properties(iP)%ValueTable(Me%TableValues))
+            allocate(Me%Properties(iP)%ValueHDF5 (Me%TableValues))
+            Me%Properties(iP)%ValueTable(:) = AuxP(:,ip)
+                
+        enddo
+        
+        if (associated(Me%i)) then
+            deallocate  (Me%i)
+            allocate    (Me%i(Me%TableValues))
+            Me%i  (:) = Aux_i  (:)
+        endif               
+        
+        if (associated(Me%j)) then
+            deallocate  (Me%j)
+            allocate    (Me%j(Me%TableValues))
+            Me%j  (:) = Aux_j  (:)
+        endif                       
+                    
+        if (associated(Me%PercI)) then
+            deallocate  (Me%PercI)
+            allocate    (Me%PercI(Me%TableValues))
+            Me%PercI (:) = Aux_PercI  (:)
+        endif               
+        
+        if (associated(Me%PercJ)) then
+            deallocate  (Me%PercJ)
+            allocate    (Me%PercJ(Me%TableValues))
+            Me%PercJ (:) = Aux_PercJ  (:)
+        endif           
+        
+        deallocate(AuxX)
+        deallocate(AuxY)
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            deallocate(AuxT)
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            deallocate(AuxZ)
+        endif
+        if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
+            deallocate(AuxD)
+        endif
+        
+        deallocate(Aux_NullValue  )
+        deallocate(Aux_StationName)
+        deallocate(AuxP           )
+        deallocate(Aux_i          )
+        deallocate(Aux_j          )
+        deallocate(Aux_Percj      )
+        deallocate(Aux_Perci      )               
+        
+    end subroutine PointCloudWithMinimumDX        
+
+    !--------------------------------------------------------------------------
+    
+    subroutine PointAEqualPointB(AuxX, AuxY, AuxT, AuxZ, AuxD, Aux_NullValue,           &
+                                Aux_StationName, AuxP, Aux_i, Aux_j, Aux_PercI,         &
+                                Aux_PercJ, n, i)
+                                                                                                     
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:  ), pointer                 :: AuxT, AuxX, AuxY, AuxZ, AuxD
+        real,       dimension(:,:), pointer                 :: AuxP
+        logical,    dimension(:), pointer                   :: Aux_NullValue  
+        character(len=StringLength), dimension(:), pointer  :: Aux_StationName
+        integer,    dimension(:), pointer                   :: Aux_i, Aux_j          
+        real,       dimension(:), pointer                   :: Aux_PercI, Aux_PercJ              
+        integer                                             :: n, i
+         
+        !Local-----------------------------------------------------------------
+        integer                                             :: ip
+        
+        !Begin-----------------------------------------------------------------   
+        
+        AuxX (n) = Me%X(i)
+        AuxY (n) = Me%Y(i)
+        
+        if (Me%Tcolumn > FillValueInt) then        
+            AuxT (n) = Me%T(i)
+        endif
+        
+        if (Me%Zcolumn > FillValueInt) then        
+            AuxZ (n) = Me%Z(i)
+        endif
+        if (Me%Dcolumn > FillValueInt  .or. Me%ComputeD) then
+            AuxD (n) = Me%D(i)
+        endif
+        
+        Aux_NullValue  (n) = Me%NullValue   (i)
+        Aux_StationName(n) = Me%StationName (i)
+        
+        Aux_i          (n) = Me%I           (i)
+        Aux_j          (n) = Me%J           (i)
+        Aux_PercI      (n) = Me%PercI       (i)
+        Aux_PercJ      (n) = Me%PercJ       (i)        
+            
+        do ip=1, Me%PropNumber
+            AuxP(n, ip) = Me%Properties(ip)%ValueTable(i)
+        enddo
+        
+    end subroutine PointAEqualPointB            
+    
+    !--------------------------------------------------------------------------    
     
     subroutine ConstructSubModules
 
@@ -1686,6 +2470,10 @@ do1 :                   do i = 2, iLength
             call WriteTableTimeStatistics
         endif
         
+        if (Me%OutVector_QGIS_ON) then
+            call WriteVector_QGIS
+        endif       
+        
         !Compare the input table values with the hdf5 values
         !call ComputeStatistics
         
@@ -1754,6 +2542,8 @@ do4:                do iH = 1, Me%HDF5Number
                         do nP = 1, nPoints
                             if (.not. NoData(nP)) then
                                 Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = Prop1D(nP)
+                            else
+                                Me%Properties(iP)%ValueHDF5(iStart + nP - 1) = FillValueReal
                             endif
                         enddo
                     enddo do4
@@ -1809,7 +2599,7 @@ diV:    do iV = 1, Me%TableValues
 
             nPoints = 1
             
-            do while ((DX < Me%DX_Filter .or. DY < Me%DX_Filter) .or. DT < Me%DT_Filter)
+            do while ((DX < Me%DX_Filter .and. DY < Me%DX_Filter) .and. DT < Me%DT_Filter)
                 
                 nPoints = nPoints + 1
                 
@@ -2508,6 +3298,8 @@ diV:    do iV = 1, Me%TableValues
         integer                      :: iV, iP, STAT_CALL, i
         real                         :: year, month, day, hour, minutes, seconds
         character(len=1000)          :: AuxC
+        character(len=PathLength)    :: Filename
+        character(10)                :: myString
       
         
         !----------------------------------------------------------------------
@@ -2519,8 +3311,14 @@ diV:    do iV = 1, Me%TableValues
             call UnitsManager(unit(i), OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteNewTable - ModuleValida4D - ERR10'
 
+            if (trim(adjustl(Me%StationName(i)))== 'NoName') then
+                write(myString,'(i10)') i
+                Filename = "TS_"//trim(adjustl(myString))//".ts"
+            else
+                Filename = trim(adjustl(Me%StationName(i)))//".ts"
+            endif
 
-            open(UNIT = unit(i), FILE = trim(adjustl(Me%StationName(i)))//".ts",                         &
+            open(UNIT = unit(i), FILE = trim(Filename),                         &
                  FORM = "FORMATTED",   STATUS = "UNKNOWN", ACTION = "WRITE", IOSTAT = STAT_CALL)
         
             if (STAT_CALL /= SUCCESS_) stop 'WriteNewTable - ModuleValida4D - ERR20'
@@ -2585,8 +3383,7 @@ diV:    do iV = 1, Me%TableValues
         
     end subroutine WriteTS
 
-!---------------------------------------------------------------------------------------
-
+    !---------------------------------------------------------------------------------------
 
     
     !--------------------------------------------------------------------------
@@ -2777,8 +3574,111 @@ diV3:   do iT = 1, Me%NoTimeValues
         
         
     end subroutine WriteTableTimeStatistics
+    
+    !--------------------------------------------------------------------------
 
-    !-----------------------------------------------------------------------------------
+    subroutine WriteVector_QGIS        
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                      :: iV, iP, STAT_CALL, unit
+        character(len=1000)          :: AuxC
+        character(len=30  )          :: StringDate
+        logical                      :: NewTime, CloseFile, WritePoint
+        real                         :: Mod, Angle, VelX, VelY, DT
+        type (T_Time)                :: CurrentTime
+        character(len=PathLength)    :: FileName
+        
+        !----------------------------------------------------------------------
+        
+        CurrentTime = Me%BeginTime 
+        
+        NewTime = .true.
+        
+diV:    do iV = 1,  Me%TableValues
+        
+            if (NewTime) then 
+
+                NewTime = .false.
+                
+                call UnitsManager(unit, OPEN_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteVector_QGIS - ModuleValida4D - ERR10'
+
+                StringDate = ConvertTimeToString(CurrentTime,"_")
+                
+                FileName   = trim(adjustl(Me%OutVector_QGIS))//"_Vector_"//StringDate//".csv"
+                
+                open(UNIT = unit, FILE = FileName, FORM = "FORMATTED",                  &
+                     STATUS = "UNKNOWN", ACTION = "WRITE", IOSTAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteVector_QGIS - ModuleValida4D - ERR20'
+
+                write(unit,*) "X, Y, Z , Modulus, Angle, ",trim(Me%VectorX_Name)," , ",trim(Me%VectorY_Name)
+                
+            endif
+            
+            iP = Me%VectorXID
+            VelX = Me%Properties(iP)%ValueHDF5(iV)    
+
+            iP = Me%VectorYID
+            VelY = Me%Properties(iP)%ValueHDF5(iV)    
+                
+            Mod = sqrt(VelX**2 + VelY**2)
+            
+            WritePoint = .true.
+                
+            if (Mod < Me%Mod_Min) then
+                WritePoint = .false.
+            endif
+            
+            if (WritePoint) then
+
+                if (VelX == 0) then
+                    Angle = 0.
+                else
+                    Angle = Pi/2-atan2(VelY,VelX)
+                    if (Angle < 0) then
+                        Angle = Angle + 2 * Pi
+                    endif
+                    Angle = Angle * 180. / Pi
+                    
+                endif
+                
+                write(AuxC,*) Me%X(iV), ",", Me%Y(iV), ",",  Me%Z(iV), ",", Mod, ",", Angle, ",", VelX, ",", VelY
+            
+            
+
+                write(unit,'(A)') trim(adjustl(AuxC))
+                
+            endif
+            
+            CloseFile = .false.
+            
+            if (iV == Me%TableValues) then
+                CloseFile = .true.
+            else
+                DT = Me%T(iV+1) - Me%T(iV)
+                if (DT > 0) then
+                    CloseFile = .true.
+                endif
+            endif
+            
+            if (CloseFile) then
+            
+                call UnitsManager(unit, CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteVector_QGIS - ModuleValida4D - ERR30'
+                
+                NewTime = .true. 
+                
+                CurrentTime = CurrentTime + DT
+            
+            endif 
+        enddo diV
+        
+    end subroutine WriteVector_QGIS
+
+!---------------------------------------------------------------------------------------        
+        
 
     type(T_Time) function HDF5TimeInstant(iH, Instant)
 
@@ -2836,7 +3736,7 @@ diV3:   do iT = 1, Me%NoTimeValues
         
 
         !Begin-------------------------------------------------------------------
-iF4:     if (Me%Field4D) then
+iF2:     if (Me%Field4D) then
 do1:        do  iP = 1, Me%PropNumber
 do2:            do iH = 1, Me%HDF5Number
                     call KillField4D(Field4DID = Me%Properties(iP)%Field(iH)%ID, STAT = STAT_CALL)
@@ -2845,8 +3745,10 @@ do2:            do iH = 1, Me%HDF5Number
                 if (associated(Me%Properties(iP)%Field)) deallocate(Me%Properties(iP)%Field)
             enddo do1
         
-        else iF4
-        
+
+        endif if2
+
+iF4:    if (.not. Me%Field4D .or. Me%Read_3D_Grid) then
         
             !Kills Map
             call KillMap            (Me%ObjMap,           STAT = STAT_CALL)

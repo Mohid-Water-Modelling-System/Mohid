@@ -762,6 +762,7 @@ d2:     do l= 1, Me%InstantNumber
             IUBout = IUB
             JLBout = JLB
             JUBout = JUB
+            
         endif            
                 
         
@@ -835,6 +836,7 @@ d11:    do l = 1, Me%FieldNumber
                     InPutMap2D   (:,:)  = Me%InPutMap(:,:,k)                
                 else
                     InPutMap2D   (:,:)  = 1
+                    Me%OutPutMap (:,:)  = 1
                 endif
                     
                 if (Me%InterpolOut) then

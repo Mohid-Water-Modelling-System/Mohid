@@ -115,8 +115,9 @@ Module ModuleTurbine
         integer                                     :: ObjTimeSerie = 0
         integer                                     :: ObjTime      = 0
         logical                                     :: TimeSerieON = .false.
-        real, dimension(:,:,:), pointer               :: DUZ      => null()
+        real, dimension(:,:,:), pointer             :: DWZ        => null()
         integer, dimension(:,:), pointer            :: KFloor_Z   => null()
+        integer, dimension(:,:), pointer            :: KFloor_U   => null()
     end type  T_Turbine
 
     
@@ -583,13 +584,13 @@ if1:                if (BlockInBlockFound) then
 
     
     subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VolumeUV,  &
-                              KFloor_UV, Density, STAT)
+                              KFloor_UV, KFloor_VU, Density, STAT)
     
         !Arguments------------------------------------------------------------------
         integer                             :: TurbineID
         real, dimension(:,:,:), pointer     :: VelocityUV, Density, VelocityU, VelocityV
         real(8), dimension(:,:,:), pointer  :: VolumeUV
-        integer, dimension(:,:), pointer    :: KFloor_UV
+        integer, dimension(:,:), pointer    :: KFloor_UV, KFloor_VU
         integer, optional, intent (OUT)     :: STAT
         real                                :: CT, CP, DensityAv
         !Local-----------------------------------------------------------------
@@ -600,7 +601,7 @@ if1:                if (BlockInBlockFound) then
         type (T_Turbine_param), pointer     :: PreviousTurbine, Turbine
         integer                             :: I,J,K
         integer                             :: KUB
-        integer                             :: KBottom
+        integer                             :: Kbottom_1, Kbottom_2, KBottom
         !integer                             :: iSouth, I_North, J_East, jWest
         
         real                            ::  TotalAreaTurbine, aux
@@ -621,7 +622,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Si se escoge esta rutina se deben de sacar estas dos funciones
                                                                         !,así solo la llamamos una ve 
             call GetGeometryKFloor( GeometryID = Me%ObjGeometry, Z = Me%KFloor_Z, STAT = STAT_CALL)
-            call GetGeometryDistances(GeometryID = Me%ObjGeometry, DUZ = Me%DUZ, STAT = STAT_CALL)
+            call GetGeometryDistances(GeometryID = Me%ObjGeometry, DWZ = Me%DWZ, STAT = STAT_CALL)
+            
         
         
             !----------Calculate the velocity modul-----------------------
@@ -648,8 +650,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                I        = Turbine%I 
                J        = Turbine%J
-               Kbottom  = KFloor_UV(I,J)
-           
+               Kbottom_1  = KFloor_UV(I,J)
+               Kbottom_2  = KFloor_VU(I,J)
+               Kbottom = max(Kbottom_1, Kbottom_2)
                allocate (T_Area(0:KUB))
                T_Area(:) =0. 
                !iSouth     = I - di
@@ -660,7 +663,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                !J_East      = J + di
            
                !Vertical Discretisation 3D
-               call TurbineVerticalDiscretisation(Turbine, T_Area)           
+               call TurbineVerticalDiscretisation(Turbine, T_Area, Kbottom)
                
                do K=Kbottom, KUB
                    
@@ -727,7 +730,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             end do
         
             call UnGetGeometry(Me%ObjGeometry, Me%KFloor_Z)
-            call UnGetGeometry(Me%ObjGeometry, Me%DUZ)
+            call UnGetGeometry(Me%ObjGeometry, Me%DWZ)
 
             nullify(Turbine)
             nullify(PreviousTurbine)
@@ -776,25 +779,25 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine ComputeTurbineEnergy
 
     
-    subroutine TurbineVerticalDiscretisation (Turbine,T_Area)
+    subroutine TurbineVerticalDiscretisation (Turbine,T_Area, Kbottom)
         !Arguments------------------------------------------------------------------
         real, dimension(:), pointer                 :: T_Area
         type(T_Turbine_param)                       :: Turbine
+        integer, intent(IN)                         :: Kbottom
         !integer, optional                           :: STAT
         !Local----------------------------------------------------------------------
         real, parameter                             :: pi = 3.14159
         real                                        :: Theta, Beta, H, dist, Radius, PreviousArea, aux
 
-        integer                                     :: q, I, J, K, Kbottom, KUB
-        real, dimension(:,:,:), pointer               :: DUZ
+        integer                                     :: q, I, J, K, KUB
+        real, dimension(:,:,:), pointer               :: DWZ
         !ShortenNames---------------------------------------------------------------
         I       = Turbine%I
         J       = Turbine%J
         Radius  = (Turbine%Diameter)/2.0
         H       = Turbine%H
         KUB     = Me%WorkSize%KUB
-        Kbottom = Me%KFloor_Z(I,J)
-        DUZ     => Me%DUZ
+        DWZ     => Me%DWZ
         
         !Begin----------------------------------------------------------------------
         aux             = 0.0
@@ -804,7 +807,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             T_Area(Kbottom) = pi*Radius**2
         else                
             do K = Kbottom, KUB
-                aux= aux + DUZ(I,J,K)
+                aux= aux + DWZ(I,J,K)
                 if (aux .gt. (H - Radius) .and. aux .lt. (H + Radius)) then
                     dist = abs(H-aux)
                     Theta = 2*acos(dist/Radius)

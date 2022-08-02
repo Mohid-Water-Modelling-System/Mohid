@@ -82,15 +82,7 @@ Module ModuleBasin
                                      GetRunoffTotalStoredVolume, GetMassError,           &
                                      GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume,& 
                                      GetRunOffTotalDischargeFlowVolume,                  &
-                                     SetExternalRiverWaterLevel,                         &
-                                     SetExternalStormWaterModelFlow,                     &
-                                     SetExternalOutfallFlow,                             &
-                                     GetExternalPondedWaterColumn,                       &
-                                     GetExternalPondedWaterColumnbyID,                   &
-                                     GetExternalFlowToRiversbyID,                        &
-                                     GetExternalPondedWaterLevelbyID,                    &
-                                     GetExternalInletInFlow,                             &
-                                     GetExternalFlowToRivers
+                                     SetBasinStatsToRunoff
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -174,8 +166,6 @@ Module ModuleBasin
     use ModuleCuda
 #endif _ENABLE_CUDA
 
-    use ModuleExternalCoupler
-    
     implicit none
 
     private 
@@ -206,8 +196,6 @@ Module ModuleBasin
     private ::              AdjustCropCoefficient
     private ::      VegetationProcesses
     private ::      OverLandProcesses
-    private ::      ExternalCoupledProcesses
-    private ::          ExchangeExternalCoupledData
     private ::      DrainageNetworkProcesses
     private ::      PorousMediaProcesses
     private ::      PorousMediaPropertiesProcesses
@@ -267,7 +255,8 @@ Module ModuleBasin
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1
-        integer                                     :: RestartFormat         = BIN_
+        integer                                     :: RestartFormat        = BIN_
+        logical                                     :: Simple               = .false.
     end type T_OutPut
 
     type T_Coupling
@@ -284,8 +273,6 @@ Module ModuleBasin
         logical                                     :: SCSCNRunOffModel      = .false.
         logical                                     :: Snow                  = .false.
         logical                                     :: Irrigation            = .false.
-        logical                                     :: ExternalCoupling      = .false.
-        logical                                     :: SewerGEMSEngineCoupling      = .false.
     end type T_Coupling
 
     type T_ExtVar
@@ -322,6 +309,7 @@ Module ModuleBasin
         character(len=PathLength)                   :: TimeSerieLocation      = null_str
         character(len=PathLength)                   :: BWBTimeSeriesLocation  = null_str
         character(len=PathLength)                   :: IntegrationTimeSeriesLocation  = null_str
+        character(len=PathLength)                   :: BasinLogFile           = null_str
     end type T_Files
 
     type T_IntegratedFlow
@@ -533,12 +521,12 @@ Module ModuleBasin
         type (T_ExtUpdate)                          :: ExtUpdate
         type (T_SimpleInfiltration)                 :: SI          
         type (T_SCSCNRunOffModel)                   :: SCSCNRunOffModel
-        type(external_coupler_class)                :: ExternalCoupler
         type (T_BasinProperty), pointer             :: FirstProperty        => null()
         logical                                     :: Continuous           = .false.
         logical                                     :: StopOnWrongDate      = .true.
         logical                                     :: VerifyGlobalMass     = .false.
         logical                                     :: VerifyAtmosphereValues = .true.
+        logical                                     :: OutputBasinLogFile   = .false.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
         logical                                     :: EvapFromWaterColumn  = .false.
@@ -912,6 +900,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call HDF5OutPut       
             endif
             
+            if (VariableDT) then 
+                call ComputeNextDT(Me%CurrentDT)
+            endif
+            
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ConstructBasin'
@@ -1107,7 +1099,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR063'        
         
         endif
-        
+
         !Calibrating 1D column?
         call GetData(Me%Calibrating1D,                                                   &
                      Me%ObjEnterData, iflag,                                             &
@@ -1495,27 +1487,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
         endif
         
-        !Verifies if the user wants to use external Couplers 
-        call GetData(Me%Coupled%ExternalCoupling,                                        &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'EXTERNAL_COUPLING',                                 &
-                     default      = OFF,                                                 &
-                     ClientModule = 'ModuleBasin',                                       &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.1'
-        
-        !Verifies if the user wants to use SewerGEMS Engine through external Couplers 
-        call GetData(Me%Coupled%SewerGEMSEngineCoupling,                                            &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'SewerGEMSEngine_COUPLING',                                     &
-                     default      = OFF,                                                 &
-                     ClientModule = 'ModuleBasin',                                       &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.2'
-        if (.not.Me%Coupled%ExternalCoupling) Me%Coupled%SewerGEMSEngineCoupling = .false.
-        
         !Gets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
                            CurrentTime = Me%CurrentTime,                                 &
@@ -1526,6 +1497,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsOn   = Me%OutPut%Yes,                                  &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR320'
+
+        if(Me%OutPut%Yes)then
+
+            call GetData(Me%OutPut%Simple,                                              &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'SIMPLE_OUTPUT',                                &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleBasin',                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR325'
+
+        endif
 
         call GetOutPutTime(Me%ObjEnterData,                          &
                            CurrentTime   = Me%CurrentTime,           &
@@ -1801,8 +1785,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR700'
         
         Me%InternalDT%NextDT = Me%InternalDT%SyncDT
-        write (*,*) "Basin internal DT: ", Me%InternalDT%SyncDT 
         
+        if(iflag .ne. 0)then
+            write (*,*) "Basin internal DT: ", Me%InternalDT%SyncDT 
+        endif
+
         call GetData(Me%InternalDT%MinDTThreshold,                                      &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
@@ -2463,7 +2450,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         
         !Time Serie of properties variable in the Basin 
-        i = 7
+        i = 9
         if (Me%Coupled%SCSCNRunoffModel) then
              i = i + 2
         endif
@@ -2501,12 +2488,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         PropertyList(5)  = 'Throughfall Rate [mm/hour]'
         PropertyList(6)  = 'EvapoTranspiration Rate [mm/hour]'
         PropertyList(7)  = 'Water Column Removed [m]'
-        i = 8
+        PropertyList(8)  = 'Accumulated Rainfall [m]' 
+        PropertyList(9)  = 'Accumulated Infiltration [m]' 
+
+        i = 10
         if (Me%Coupled%SCSCNRunoffModel) then
-            PropertyList(i) = 'Actual Curve Vumber [-]' 
+            PropertyList(i) = 'Actual Curve Number [-]' 
             i = i + 1
             PropertyList(i) = '5 Day Accumulated Rain [mm]' 
-            i = i + 1            
+            i = i + 1    
         endif        
         if (Me%Coupled%Vegetation) then
             PropertyList(i) = 'Canopy Capacity [m]'
@@ -3192,7 +3182,7 @@ i1:         if (CoordON) then
         integer, pointer, dimension(:,:,:)          :: mapping
         integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
-        character (Len = StringLength)              :: temp
+
         !Begin-----------------------------------------------------------------
 
 
@@ -3557,15 +3547,7 @@ do1:                do
         if (Me%Coupled%SCSCNRunoffModel) then
             call ConstructSCSCNRunOffModel ()
         endif
-        
-        if (Me%Coupled%ExternalCoupling) then
-            call me%ExternalCoupler%initialize()
-            if (Me%Coupled%SewerGEMSEngineCoupling) then
-                temp = 'SewerGEMSEngine'
-                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid, Me%ExtVar%BasinPoints, Me%BeginTime, Me%EndTime)                
-            end if
-        endif
-        
+
         !Constructs Diffuse Water Source
         if (Me%DiffuseWaterSource) then
             call ConstructDiffuseWaterSource ()
@@ -4421,11 +4403,6 @@ cd0:    if (Exist) then
                 call ComputeIntegration
             endif
                       
-            if (Me%ExternalCoupler%initialized) then
-                call ExternalCoupledProcesses(NewDT)
-                call ExchangeExternalCoupledData()
-            endif
-            
             call TimeSerieOutput
 
             !HDF 5 Output
@@ -4699,8 +4676,8 @@ cd0:    if (Exist) then
         Me%MB%RainRunoff      = 0.0  !arriving to runoff (leaf drainage + direct)
         
         
-        !$OMP PARALLEL PRIVATE(I,J,CurrentFlux,GrossPrecipitation,NewVolumeOnLeafs, OldVolumeOnLeafs,AreaFraction)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+        !!$OMP PARALLEL PRIVATE(I,J,CurrentFlux,GrossPrecipitation,NewVolumeOnLeafs, OldVolumeOnLeafs,AreaFraction)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then
@@ -4915,8 +4892,8 @@ cd0:    if (Exist) then
             endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         !if (Me%Coupled%Snow) then
         !    !UnGets Air Temperature [ºC]
@@ -6244,7 +6221,7 @@ cd0:    if (Exist) then
                     previousInDayRain = Me%SCSCNRunOffModel%DailyAccRain (i, j) 
                     
                     !mm  =              m                  * mm/m
-                    rain = Me%ThroughFall (i, j) * 1000
+                    rain = Me%ThroughFall (i, j) * 1000.0
                     
                     !               mm                 =                 mm                 +  mm
                     Me%SCSCNRunOffModel%DailyAccRain (i, j) = Me%SCSCNRunOffModel%DailyAccRain (i, j) + rain
@@ -6275,7 +6252,7 @@ cd0:    if (Exist) then
                         endif                        
                     endif
                     
-                    Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254
+                    Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254.0
                     
                     !When converting Curve Numbers (at the beggining) do not need to convert also S
                     !This conversion could be done but this one is for inches (not SI)
@@ -6331,7 +6308,7 @@ cd0:    if (Exist) then
                     Me%AccEVTP          (i, j)    = 0.0      
                 
                     !Output mm/h = m/s * 1E3 mm/m * 3600 s/hour
-                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600
+                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600.0
                 
                     !m - Accumulated Infiltration of the entite area
                     Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
@@ -6417,24 +6394,6 @@ cd0:    if (Exist) then
 
     end subroutine OverLandProcesses    
     
-    !---------------------------------------------------------------------------
-    !> @author Ricardo Birjukovs Canelas - Bentley Systems
-    !> @brief
-    !> Runs the externally coupled processes by dt
-    !> @param[in] dt
-    !---------------------------------------------------------------------------
-    subroutine ExternalCoupledProcesses(dt)
-    real, intent(in) :: dt
-            
-        if (MonitorPerformance) call StartWatch ("ModuleBasin", "ExternalCoupledProcesses")
-
-        call Me%ExternalCoupler%runStep(dt)
-
-        if (MonitorPerformance) call StopWatch ("ModuleBasin", "ExternalCoupledProcesses")
-
-    end subroutine ExternalCoupledProcesses
-
-    !--------------------------------------------------------------------------
     
     subroutine SnowProcesses
 
@@ -7984,88 +7943,6 @@ cd0:    if (Exist) then
 
     end subroutine RunoffPropertiesProcesses
 
-    
-    !---------------------------------------------------------------------------
-    !> @author Ricardo Birjukovs Canelas - Bentley Systems
-    !> @brief
-    !> Exanges data between external models and affected modules
-    !---------------------------------------------------------------------------
-    subroutine ExchangeExternalCoupledData()
-    character (Len = StringLength) :: modelName, varName
-    real, allocatable, dimension(:,:) :: Inflow, xLevel, Outflow
-    real, allocatable, dimension(:) :: waterColumm, inletInflow, xSectionFlow, outfallLevel
-    integer, allocatable, dimension(:) :: cellIDs
-    logical :: done = .false.
-    
-    if (Me%ExternalCoupler%initialized) then
-        modelName = 'SewerGEMSEngine'
-        if (Me%ExternalCoupler%isModelCoupled(modelName)) then           
-            !get data from SewerGEMSEngine to ModuleRunOff
-            varName = 'Inflow'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Inflow)
-            if (size(Inflow)>0) then
-                done = SetExternalStormWaterModelFlow(Me%ObjRunoff, Inflow) !module runoff function - seting stormwater effective flow
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
-            end if
-            
-            varName = 'Outflow'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Outflow)
-            if (size(Outflow)>0) then
-                done = SetExternalOutfallFlow(Me%ObjRunoff, Outflow) !module runoff function
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalOutfallFlow - operation failed'
-            end if
-            
-            varName = 'xLevel'
-            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, xLevel)
-            if (size(xLevel)>0) then !setting the water level at cross section nodes
-                done = SetExternalRiverWaterLevel(Me%ObjRunoff, xLevel) !module runoff function
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalRiverWaterLevel - operation failed'
-            end if
-    
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !get data from ModuleRunOff to SewerGEMSEngine
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'WaterColumn'
-            done = GetExternalPondedWaterColumn(Me%ObjRunoff, waterColumm, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumn - operation failed'
-            if (size(waterColumm)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, waterColumm, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'InletInflow'
-            done = GetExternalInletInFlow(Me%ObjRunoff, inletInflow, cellIDs) !getting stormwater potential flow
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalInletInFlow - operation failed'
-            if (size(inletInflow)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, inletInflow, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'XSections'
-            call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
-            done = GetExternalFlowToRiversbyID(Me%ObjRunoff, xSectionFlow, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalFlowToRivers - operation failed'
-            if (size(xSectionFlow)>0) then
-                varName = 'XSectionFlow'
-                call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow, cellIDs)
-            end if
-            
-            if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'Outfalls'
-            call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
-            done = GetExternalPondedWaterLevelbyID(Me%ObjRunoff, outfallLevel, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterLevelbyID - operation failed'
-            if (size(outfallLevel)>0) then
-                varName = 'OutletLevel'
-                call Me%ExternalCoupler%setValues(modelName, varName, outfallLevel, cellIDs)
-            end if
-                
-        end if
-    end if    
-    !add other models here
-    
-    end subroutine ExchangeExternalCoupledData
-    
     !--------------------------------------------------------------------------
 
     subroutine ActualizeWaterColumn ()
@@ -8719,16 +8596,28 @@ cd0:    if (Exist) then
                              STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR070'
 
+        call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                            Data2D_8     = Me%AccRainFall,                      &                             
+                            STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR071'   
+
+        call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                            Data2D_8     = Me%AccInfiltration,                  &                             
+                            STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR072'   
+
+
         if (Me%Coupled%SCSCNRunoffModel) then 
-            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
-                                 Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber, &                             
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                         &
+                                 Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber,   &                             
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR075'      
             
-            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
-                                 Data2D_8    = Me%SCSCNRunOffModel%Current5DayAccRain, &                             
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                         &
+                                 Data2D_8    = Me%SCSCNRunOffModel%Current5DayAccRain,  &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR076'               
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR076' 
+  
         endif
         
         if (Me%Coupled%Vegetation) then
@@ -9053,37 +8942,39 @@ cd0:    if (Exist) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR080'
 
-            !Writes the Acc Flow Production
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
-                                  "AccFlowProduction", "m",                  &
-                                  Array2D      = Me%AccFlowProduction,          &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR090'
+            if(.not. Me%OutPut%Simple)then
+                !Writes the Acc Flow Production
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
+                                      "AccFlowProduction", "m",                  &
+                                      Array2D      = Me%AccFlowProduction,          &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR090'
+            
+                !Writes the Acc EVTP
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
+                                      "AccEVTP", "m",                               &
+                                      Array2D      = Me%AccEVTP,                    &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
 
-            !Writes the Acc EVTP
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
-                                  "AccEVTP", "m",                               &
-                                  Array2D      = Me%AccEVTP,                    &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
-
+                if (Me%Coupled%SCSCNRunoffModel) then
+                    call HDF5WriteData   (Me%ObjHDF5, "//Results/ActualCurveNumber",   &
+                                            "ActualCurveNumber", "-",                  &
+                                            Array2D      = Me%SCSCNRunOffModel%ActualCurveNumber,       &
+                                            OutputNumber = Me%OutPut%NextOutPut,       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
                 
-            if (Me%Coupled%SCSCNRunoffModel) then
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/ActualCurveNumber",   &
-                                        "ActualCurveNumber", "-",                  &
-                                        Array2D      = Me%SCSCNRunOffModel%ActualCurveNumber,       &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
-                
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
-                                        "Acc5DayRain", "mm",                       &
-                                        Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR106'                  
+                    call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
+                                            "Acc5DayRain", "mm",                       &
+                                            Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
+                                            OutputNumber = Me%OutPut%NextOutPut,       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR106'     
+             
+                endif
             endif
 
             if (Me%Coupled%Snow) then
@@ -10031,8 +9922,9 @@ cd0:    if (Exist) then
                                    (FinalVol + Me%BWB%Output - Me%BWB%Boundary)
         OldValue                 = Me%BWB%AccErrorInVolume
         Me%BWB%AccErrorInVolume  = Me%BWB%AccErrorInVolume + Me%BWB%ErrorInVolume
-        Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
-              
+        if(FinalVol > 0.0)then
+            Me%BWB%ErrorInPercentage = (Me%BWB%ErrorInVolume / FinalVol) * 100.0
+        endif
         !Writes to Timeseries
         
         Me%BWBBuffer(1)  = Me%BWB%Rain
@@ -10191,7 +10083,6 @@ cd0:    if (Exist) then
         integer                                     :: STAT_CALL     
         real                                        :: AtmosphereDT, DTForNextEvent
         real                                        :: DNetDT, RunOffDT
-        real                                        :: ExternalCoupledDT
         real                                        :: PorousMediaDT, MaxDT
         integer                                     :: ID_DT
         character(len=132)                          :: AuxString
@@ -10236,12 +10127,6 @@ cd0:    if (Exist) then
             RunOffDT = -null_real
         end if
         
-        if (Me%ExternalCoupler%initialized) then
-            ExternalCoupledDT = Me%ExternalCoupler%getCoupledDt()
-        else
-            ExternalCoupledDT = -null_real
-        end if
-
         if (Me%Coupled%PorousMedia) then
 
             call GetNextPorousMediaDT (Me%ObjPorousMedia, PorousMediaDT, STAT = STAT_CALL)
@@ -10272,11 +10157,6 @@ cd0:    if (Exist) then
             
         endif
         
-        !If the DT asked by external coupler module is lower than the NewDT,
-        !the NewDT will be updated with its value.        
-        if (ExternalCoupledDT < NewDT) then        
-            NewDT = ExternalCoupledDT            
-        endif
 
         !If the DT asked by porous media module is lower than the NewDT,
         !the NewDT will be updated with its value.         
@@ -10426,7 +10306,7 @@ cd0:    if (Exist) then
 
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers           
-        integer                             :: STAT_CALL     
+        integer                             :: STAT_CALL  
         type(T_BasinProperty),  pointer     :: PropertyX => null()
         logical                             :: IsFinalFile
 
@@ -10464,7 +10344,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (Me%Coupled%RunoffProperties) then
                         call KillRunoffProperties (Me%ObjRunoffProperties, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR020'
-                    endif                    
+                    endif          
+
+                    call ComputeBasinCalcSummary          
                     
                     call KillRunOff         (Me%ObjRunOff,      STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR030'
@@ -10505,10 +10387,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%Snow) then
                     call KillSnow (Me%ObjSnow, STAT=STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR085'
-                endif
-                
-                if (Me%Coupled%ExternalCoupling) then
-                    call me%ExternalCoupler%finalize()                    
                 endif
                 
                 if (Me%Coupled%SCSCNRunoffModel) then
@@ -10640,6 +10518,73 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !------------------------------------------------------------------------
 
     end subroutine KillBasin
+
+    !----------------------------------------------------------------------------
+                    
+
+    subroutine ComputeBasinCalcSummary
+        
+        !Local-------------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j, nCells
+        real(8)                             :: AverageCumulativeInfiltrationDepth   = 0
+        real(8)                             :: AverageCumulativeInfiltrationVolume  = 0
+        real(8)                             :: TotalCumulativeInfiltrationVolume    = 0
+        real(8)                             :: TotalCumulativeRainfallVolume        = 0
+        real(8)                             :: TotalCumulativeInfiltrationDepth     = 0
+
+        !------------------------------------------------------------------------
+
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR01'
+
+        call GetGridCellArea(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR10'
+
+        TotalCumulativeInfiltrationVolume   = 0
+        TotalCumulativeRainfallVolume       = 0
+        AverageCumulativeInfiltrationDepth  = 0
+        AverageCumulativeInfiltrationVolume = 0
+        nCells                              = 0
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                ![m3]                           = [m3] + [m*m2]
+                TotalCumulativeRainfallVolume   = TotalCumulativeRainfallVolume + &
+                                                  Me%AccRainfall(i,j) * Me%ExtVar%GridCellArea(i,j)
+
+                ![m]                          = [m] + [m]
+                TotalCumulativeInfiltrationDepth    = TotalCumulativeInfiltrationDepth + Me%AccInfiltration(i,j)
+                
+                ![m3]                         = [m3] + [m] * [m2]
+                TotalCumulativeInfiltrationVolume = TotalCumulativeInfiltrationVolume + &
+                                                    Me%AccInfiltration(i,j) * Me%ExtVar%GridCellArea(i,j)
+
+                nCells = nCells + 1
+            endif
+        enddo
+        enddo 
+
+        if(nCells > 0)then
+            AverageCumulativeInfiltrationDepth  = TotalCumulativeInfiltrationDepth  / real(nCells)
+            AverageCumulativeInfiltrationVolume = TotalCumulativeInfiltrationVolume / real(nCells) 
+        endif
+
+        call SetBasinStatsToRunoff(Me%ObjRunOff, TotalCumulativeRainfallVolume,         &
+                                                 TotalCumulativeInfiltrationVolume,     &
+                                                 AverageCumulativeInfiltrationVolume,   &
+                                                 AverageCumulativeInfiltrationDepth,    &
+                                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR030'
+
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR040'
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeBasinCalcSummary - ModuleBasin - ERR050'
+
+
+    end subroutine ComputeBasinCalcSummary
 
     !----------------------------------------------------------------------------
     

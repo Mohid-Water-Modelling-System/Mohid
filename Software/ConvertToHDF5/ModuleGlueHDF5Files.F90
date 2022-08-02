@@ -1745,10 +1745,11 @@ if2 :           if (BlockFound) then
         integer(HID_T)                              :: gr_idIn, gr_idOut
         integer(HID_T)                              :: dset_id, gr_id
         integer(HID_T)                              :: space_id 
+        integer(HID_T)                              :: STAT_CALL
         character(StringLength)                     :: NewGroupName
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer, dimension(7)                       :: dims_int
-        integer                                     :: Rank, STAT_CALL, k, ia
+        integer                                     :: Rank, k, ia
         real, pointer, dimension(:)                 :: DataVal1D
         real, pointer, dimension(:,:)               :: DataVal2D
         integer, pointer, dimension(:,:)            :: DataInt2D
@@ -1884,7 +1885,7 @@ if2 :           if (BlockFound) then
                 call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
                 if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR140'
 
-                call h5Tset_size_f      (type_id, StringLength, STAT_CALL)
+                call h5Tset_size_f      (type_id, int(StringLength, 8), STAT_CALL)
                 if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR150'
 
                 call h5aread_f          (attr_id, type_id, Units, dims, STAT_CALL)

@@ -30,7 +30,7 @@
 !
 !   XY_WINDOW_LIMITS        : 4*integer             [4*FillValueInt] ! ilb, jlb, iub, jub
 !
-!   LAYERS_OUTPUT           : logical               [false]     !Check if the user wants to extract spefici layers
+!   LAYERS_OUTPUT           : logical               [false]     !Check if the user wants to extract specific layers
 !
 !   LAYERS_MIN_MAX          : 2*integer             [2*FillValueInt] ! klb, kub
 !

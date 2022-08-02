@@ -192,6 +192,9 @@ Module ModuleHDF5Statistics
         character(PathLength)                               :: DataFile
         type(T_Time)                                        :: StartTime
         type(T_Time)                                        :: EndTime
+        logical                                             :: DailyOutputTime          = .false.
+        logical                                             :: Accumulated              = .false.
+        logical                                             :: WriteFinalOutput         = .false.
         type(T_HDF5File), pointer                           :: FirstHDF5File
         type (T_Parameter), pointer                         :: FirstParameter
         integer                                             :: ParameterNumber          = 0
@@ -314,7 +317,8 @@ Module ModuleHDF5Statistics
             !Construct time reducing DT from start stat time
             DT = - Me%RegularDT !(because there isn't a minus DT subroutine)
 
-            RunStatBeginTime = Me%FirstStatHDF5File%InstantsArray(1) + DT
+            !RunStatBeginTime = Me%FirstStatHDF5File%InstantsArray(1) + DT
+            RunStatBeginTime = Me%FirstStatHDF5File%InstantsArray(1)
             
             call StartComputeTime(Me%ObjTime, InitialSystemTime, RunStatBeginTime,      &
                                   Me%LastStatHDF5File%InstantsArray                     &
@@ -416,6 +420,41 @@ Module ModuleHDF5Statistics
             write (*,*) 'Module :','HDF5Statistics'
             stop 'ReadGlobalData - ModuleHDF5Statistics - ERR40'
         endif
+        
+        !Daily time dates output
+        call GetData(Me%DailyOutputTime, Me%ObjEnterData, iflag,                        &
+                     keyword      = 'DAILY_OUTPUT_TIME',                                &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR50'   
+        endif
+        
+        !accumulated for daily output time
+        call GetData(Me%Accumulated, Me%ObjEnterData, iflag,                            &
+                     keyword      = 'ACCUMULATED',                                      &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR60'   
+        endif
+        
+        !Write final output
+        call GetData(Me%WriteFinalOutput, Me%ObjEnterData, iflag,                       &
+                     keyword      = 'WRITE_FINAL_OUTPUT',                               &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'HDF5Statistics',                                   &
+                     default      = .true.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ReadGlobalData - ModuleHDF5Statistics - ERR70'   
+        endif
+        
+        
     end subroutine ReadGlobalData
 
     !--------------------------------------------------------------------------
@@ -1228,6 +1267,8 @@ cd2 :           if (BlockFound) then
         integer                                     :: HDF5_CREATE
         real,    dimension(:), pointer              :: TimePtr
         real,    dimension(6), target               :: AuxTime
+        type (T_Time)                               :: NextOutputTime, TimeAux
+        integer                                     :: OutputNumber
 
         !Begin-----------------------------------------------------------------
 
@@ -1241,12 +1282,12 @@ cd2 :           if (BlockFound) then
         !Opens HDF File
         call ConstructHDF5      (Me%ObjStatHDF5, trim(Me%OutputFileName),               &
                                  HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
 
         !Set grid
         call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB+1,          &
                            Me%WorkSize%JLB, Me%WorkSize%JUB+1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR20'
         
         if (Me%ConnectionX%Exist) then        
 
@@ -1254,7 +1295,7 @@ cd2 :           if (BlockFound) then
                                   Me%ConnectionX%Units,                                 &
                                   Array2D = Me%ConnectionX%RealValues2D,                &
                                   STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR03'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR30'
 
         endif        
         
@@ -1264,32 +1305,32 @@ cd2 :           if (BlockFound) then
                                   Me%ConnectionY%Units,                                     &
                                   Array2D = Me%ConnectionY%RealValues2D,                    &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR04'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR40'
         endif
 
         call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%Latitude%Name,                &
                               Me%Latitude%Units,                                        &
                               Array2D = Me%Latitude%RealValues2D,                       &
                               STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR05'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR50'
 
         call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%Longitude%Name,               &
                               Me%Longitude%Units,                                       &
                               Array2D = Me%Longitude%RealValues2D,                      &
                               STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR06'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR60'
 
         !Set bathymetry          
         call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB,Me%WorkSize%IUB,             &
                    Me%WorkSize%JLB,Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR07'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR70'
 
         call HDF5WriteData(Me%ObjStatHDF5,                                              &
                    "/Grid",                                                             &
                    Me%Bathymetry%Name, Me%Bathymetry%Units,                             &
                    Array2D      = Me%Bathymetry%RealValues2D,                           &
                    STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR08'
+        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR80'
 
         !Set map
         if (Me%File3D) then 
@@ -1298,14 +1339,14 @@ cd2 :           if (BlockFound) then
                                Me%WorkSize%KLB, Me%WorkSize%KUB,                        &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &      
-            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR09'
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR90'
 
             call HDF5WriteData(Me%ObjStatHDF5, "/Grid", trim(Me%Mapping%Name),          &
                                trim(Me%Mapping%Units),                                  & 
                                Array3D      = Me%Mapping%IntegerValues3D,               &
                                STAT         = STAT_CALL)      
             if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR100'
             
             if (Me%ExistVerticalZ) then
                 !added set limits to represent all vertical layers (needed the Me%WorkSize%KLB-1)
@@ -1314,7 +1355,7 @@ cd2 :           if (BlockFound) then
                                    Me%WorkSize%KLB-1, Me%WorkSize%KUB,                      &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                  &      
-                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR11'
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR110'
                 
                 call HDF5WriteData(HDF5ID       = Me%ObjStatHDF5,                               &
                                    GroupName    = "/Grid/VerticalZ",                            &
@@ -1324,7 +1365,7 @@ cd2 :           if (BlockFound) then
                                    OutputNumber = 1,                                            &
                                    STAT         = STAT_CALL)      
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR12'            
+                    stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR120'            
                 
             endif
             
@@ -1335,7 +1376,7 @@ cd2 :           if (BlockFound) then
                                    Me%WorkSize%JLB, Me%WorkSize%JUB,                    &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &      
-                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR13'
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR130'
 
                 call HDF5WriteData(Me%ObjStatHDF5, "/Grid",                             &
                                    trim(Me%Mapping%AditionalName),                      &
@@ -1343,7 +1384,7 @@ cd2 :           if (BlockFound) then
                                    Array2D      = Me%Mapping%IntegerValues2D,           &
                                    STAT         = STAT_CALL)      
                 if (STAT_CALL /= SUCCESS_)                                              &
-                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR14'
+                stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR140'
 
             endif 
             
@@ -1353,12 +1394,75 @@ cd2 :           if (BlockFound) then
                                Array2D      = Me%Mapping%IntegerValues2D,               &
                                STAT         = STAT_CALL)    
             if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR15'
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR150'
         endif
 
         
         !Write First and Last Statistics Time to know the begin and end of statistics period
 
+        if (Me%DailyOutputTime) then
+            
+            
+            OutputNumber = 1
+            
+            NextOutputTime = Me%FirstStatHDF5File%StartFieldTime + 86400  
+            if (Me%Accumulated) NextOutputTime = Me%FirstStatHDF5File%StartFieldTime
+            
+            do while (NextOutputTime <= Me%LastStatHDF5File%EndFieldTime)
+                
+                TimeAux = NextOutputTime - 86400.   
+                if (Me%Accumulated) TimeAux = NextOutputTime
+                
+                call ExtractDate (TimeAux,                                              &
+                                  AuxTime(1), AuxTime(2), AuxTime(3),                   &
+                                  AuxTime(4), AuxTime(5), AuxTime(6))
+                                
+                TimePtr => AuxTime
+
+                call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR160'
+            
+
+                call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                           &
+                         "Time", "YYYY/MM/DD HH:MM:SS",                                 &
+                         Array1D = TimePtr,                                             &
+                         OutputNumber = OutputNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR170'
+                
+                OutputNumber = OutputNumber + 1
+                
+                NextOutputTime = NextOutputTime + 86400. 
+
+            enddo
+            
+            if (Me%WriteFinalOutput) then
+                
+                call ExtractDate (Me%LastStatHDF5File%EndFieldTime,                     &
+                                  AuxTime(1), AuxTime(2), AuxTime(3),                   &
+                                  AuxTime(4), AuxTime(5), AuxTime(6))
+                                
+                TimePtr => AuxTime
+
+                call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR180'
+            
+
+                call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                           &
+                         "Time", "YYYY/MM/DD HH:MM:SS",                                 &
+                         Array1D = TimePtr,                                             &
+                         OutputNumber = OutputNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR190'
+                
+            endif
+            
+            
+            call HDF5FlushMemory(Me%ObjStatHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR200'            
+            
+        else
+            
+            
         call ExtractDate (Me%FirstStatHDF5File%StartFieldTime,                          &
                           AuxTime(1), AuxTime(2), AuxTime(3),                           &
                           AuxTime(4), AuxTime(5), AuxTime(6))
@@ -1367,18 +1471,19 @@ cd2 :           if (BlockFound) then
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR16'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ER210'
+            
 
         call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                                   &
                  "Time", "YYYY/MM/DD HH:MM:SS",                                         &
                  Array1D = TimePtr,                                                     &
                  OutputNumber = 1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR17'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR220'
 
 
         call HDF5FlushMemory(Me%ObjStatHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR18'      
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR230'      
 
         
         call ExtractDate   (Me%LastStatHDF5File%EndFieldTime,                                    &
@@ -1389,19 +1494,20 @@ cd2 :           if (BlockFound) then
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjStatHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR19'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR240'
 
         call HDF5WriteData  (Me%ObjStatHDF5, "/Time",                                   &
                  "Time", "YYYY/MM/DD HH:MM:SS",                                         &
                  Array1D = TimePtr,                                                     &
                  OutputNumber = 2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR20'
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR250'
         ! ----- \\\\ //// ------
 
         call HDF5FlushMemory(Me%ObjStatHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-        stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR21'      
+            stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR260'      
 
+        endif
 
         call KillGridFields
 
@@ -1467,7 +1573,7 @@ cd2 :           if (BlockFound) then
 
             call CreateStatHDF5File(Me%FirstStatHDF5File, HDF5FileX)
             call CreateStatHDF5File(Me%LastStatHDF5File, HDF5FileX)
-            deallocate(Me%FirstStatHDF5File%Next) 
+            if (associated(Me%FirstStatHDF5File%Next)) deallocate(Me%FirstStatHDF5File%Next) 
             nullify(Me%FirstStatHDF5File%Next)
 
         else
@@ -1966,10 +2072,16 @@ do2 :       do while(associated(ObjParameter))
                     allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,        &
                              Me%Size%JLB:Me%Size%JUB))
 
-                    Me%Mapping%IntegerValues2D =                                        & 
-                                Me%Mapping%IntegerValues3D(Me%WorkSize%ILB:             &
-                                Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB,        &
-                                Me%Size%KUB)
+                    k = Me%WorkSize%KUB
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                        Me%Mapping%IntegerValues2D(i,j) = Me%Mapping%IntegerValues3D(i, j, k)
+                    
+                    enddo
+                    enddo
+                                               
                     !(assume that relevant mapping is for the upper layer)
 
                     Me%AditionalMap = .true.
@@ -2109,6 +2221,9 @@ do2 :       do while(associated(ObjParameter))
         integer                                     :: STAT_CALL
         type (T_StatisticsTime), pointer            :: ObjStatisticsTime
         real                                        :: DT
+        real, dimension(:,:  ),     pointer         :: Values2D
+        real, dimension(:,:,: ),    pointer         :: Values3D 
+        integer                                     :: CurrentInstant, HDF5_READ
 
         !----------------------------------------------------------------------
 
@@ -2124,12 +2239,32 @@ do2 :       do while(associated(ObjParameter))
         LastStartTime = Me%StartTime
         LastDT = 0
 
+        !allocate field        
+        nullify (Values2D)
+        allocate(Values2D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                     
+
+        nullify (Values3D)
+        allocate(Values3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+        
+        Count = 0        
+
         do while(associated(ObjHDF5File))
 
             !Open and read relevant data
             call OpenAndReadHDF5File(FirstFile, ObjHDF5File, LastDT, LastStartTime)
             !(HDF5 parameter data must be read in this cycle for memory to be released
             !after writing statistics)
+
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+            !Open HDF5 file
+            call ConstructHDF5 (ObjHDF5File%HDFID, trim(ObjHDF5File%Name),              & 
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) then
+                write(*,*) 'HDF5 file cannot be opened'//ObjHDF5File%Name                
+                stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR10'
+            end if            
 
             Me%CurrentTime  = ObjStatisticsTime%Time
 
@@ -2138,18 +2273,18 @@ do2 :       do while(associated(ObjParameter))
                 
                 call ActualizeCurrentTime(Me%ObjTime, Me%RegularDT, STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)                                             &
-                stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR01'
+                stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR20'
             endif
 
             !Cycle each parameter
             Running      = .true.
      
-            write(*,*)'Calculating statistics...'
-
             do while (Running)
 
                 !For each parameter calculate statistic 
                 ObjParameter => Me%FirstParameter
+            
+                CurrentInstant = ObjHDF5File%StartInstant + Count                       
             
                 Count = Count + 1 
             
@@ -2164,26 +2299,35 @@ do2 :       do while(associated(ObjParameter))
 
                     select case (ObjParameter%Rank)
 
-                        !Values in the begining of files in middle of time serie are not 
-                        !writen. These values are very close in time to last value of 
-                        !previous file.
 
                         case(2)
+
+                        ObjParameter%CurrentField%Values2D => Values2D
+                        
+                        call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)
 
                             call CalculateHDF5Statistics2D(ObjParameter%            &
                                                            CurrentField%Values2D,   & 
                                                            ObjParameter%Statistics%ID)
  
+                        nullify(ObjParameter%CurrentField%Values2D)
+ 
                         case(3)
+
+                        ObjParameter%CurrentField%Values3D => Values3D
+                        
+                        call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)                            
 
                             call CalculateHDF5Statistics3D(ObjParameter%            &
                                                            CurrentField%Values3D,   & 
                                                            ObjParameter%Statistics%ID)
 
+                        nullify(ObjParameter%CurrentField%Values3D)
+                        
                     case default 
             
                         write(*,*)'Statistics created only for 2D or 3D HDF5 parameters.'
-                        stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR02'
+                        stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR30'
             
                     end select
 
@@ -2206,7 +2350,7 @@ do2 :       do while(associated(ObjParameter))
 
                 call ActualizeCurrentTime(Me%ObjTime, DT, STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)                                         &
-                    stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR03'
+                    stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR40'
 
                 !Running dependent of the last time of file
                 if ((Me%CurrentTime <= ObjHDF5File%EndFieldTime) .and. (DT .ne. 0)) then
@@ -2231,9 +2375,23 @@ do2 :       do while(associated(ObjParameter))
 
             end do
 
+            !Kill HDF5 file
+            call KillHDF5 (ObjHDF5File%HDFID, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) then
+                stop 'ModifyHDF5Statistics - ModuleHDF5Statistics - ERR50'
+            end if              
+
             ObjHDF5File => ObjHDF5File%Next           
 
         end do 
+
+        !deallocate field        
+        deallocate(Values2D)
+        nullify   (Values2D)             
+
+        deallocate(Values3D)
+        nullify   (Values3D)             
+        
 
     end subroutine ModifyHDF5Statistics
 
@@ -2363,6 +2521,30 @@ do2 :       do while(associated(ObjParameter))
             NewField%IDNumber = Count
             Count = Count + 1
 
+            !call ReadOneParameterField(ObjHDF5File, ObjParameter, NewField, CurrentInstant)
+
+        end do
+
+    end subroutine ReadParameterFields
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadOneParameterField(ObjHDF5File, ObjParameter, NewField, CurrentInstant, Count)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Parameter), pointer              :: ObjParameter
+        type(T_HDF5File), pointer               :: ObjHDF5File
+        integer                                 :: CurrentInstant, Count
+        type (T_Field), pointer                 :: NewField
+          
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        
+        !Begin-----------------------------------------------------------------
+
+
+        !--------------------------------------------------------------------------
+    
             !get field ID, Rank and Dimensions
             !(this needs to be done for each instant)
             call GetHDF5GroupID(ObjHDF5File%HDFID, ObjParameter%Group,                  &
@@ -2370,10 +2552,10 @@ do2 :       do while(associated(ObjParameter))
                                 NewField%Units, ObjParameter%Rank,                      &
                                 STAT = STAT_CALL)                                
             if (STAT_CALL .NE. SUCCESS_)                                                &  
-            stop 'ReadParameterFields - ModuleHDF5Statistics - ERR01'
+            stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR01'
                
             NewField%Units = trim(NewField%Units)
-            NewField%Date  = ObjHDF5File%InstantsArray(NewCurrentInstant)
+        NewField%Date  = ObjHDF5File%InstantsArray(Count)
 
             !get field values
             select case (ObjParameter%Rank)
@@ -2381,17 +2563,21 @@ do2 :       do while(associated(ObjParameter))
                 case(2)
                 ! The HDF5 file contains 2D data
 
+                if (.not. associated(NewField%Values2D)) then
+                    
                     !allocate field
                     nullify (NewField%Values2D)
                     allocate(NewField%Values2D(Me%Size%ILB:Me%Size%IUB,                 &
                                                Me%Size%JLB:Me%Size%JUB))
+                       
+                endif
                        
                     call HDF5SetLimits (ObjHDF5File%HDFID, Me%WorkSize%ILB,             &
                                         Me%WorkSize%IUB, Me%WorkSize%JLB,               &
                                         Me%WorkSize%JUB,                                &
                                         STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        & 
-                    stop 'ReadParameterFields - ModuleHDF5Statistics - ERR02'
+                stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR02'
         
                     !read field
                     call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,          &
@@ -2399,23 +2585,25 @@ do2 :       do while(associated(ObjParameter))
                                       Array2D      = NewField%Values2D,                 &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'ReadParameterFields - ModuleHDF5Statistics - ERR03'
+                    stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR03'
 
                 case(3)
                 ! The HDF5 file contains 3D data
                      
+                if (.not. associated(NewField%Values3D)) then
                     !allocate field
                     nullify (NewField%Values3D)
                     allocate(NewField%Values3D(Me%Size%ILB:Me%Size%IUB,                 &
                                                Me%Size%JLB:Me%Size%JUB,                 &
                                                Me%Size%KLB:Me%Size%KUB))
+                endif
                         
-                    call HDF5SetLimits  (ObjHDF5File%HDFID, Me%WorkSize%ILB,            &
-                                         Me%WorkSize%IUB, Me%WorkSize%JLB,              &
-                                         Me%WorkSize%JUB,                               &
+                call HDF5SetLimits  (ObjHDF5File%HDFID,                                 &
+                                     Me%WorkSize%ILB, Me%WorkSize%IUB,                  &
+                                     Me%WorkSize%JLB, Me%WorkSize%JUB,                  &
                                          Me%WorkSize%KLB,Me%WorkSize%KUB, STAT = STAT_CALL)                
                     if (STAT_CALL .NE. SUCCESS_)                                        & 
-                    stop 'ReadParameterFields - ModuleHDF5Statistics - ERR04'
+                stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR04'
         
                     !read field
                     call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,            &
@@ -2423,18 +2611,17 @@ do2 :       do while(associated(ObjParameter))
                                       Array3D      = NewField%Values3D,                 &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'ReadParameterFields - ModuleHDF5Statistics - ERR05'
+                stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR05'
  
             case default 
                     
                 write(*,*)'Statistics created only for 2D or 3D HDF5 files.'
-                stop 'ReadParameterFields - ModuleHDF5Statistics - ERR06'
+            stop 'ReadOneParameterField - ModuleHDF5Statistics - ERR06'
                     
             end select
 
-        end do
 
-    end subroutine ReadParameterFields
+    end subroutine ReadOneParameterField            
 
     !--------------------------------------------------------------------------
 
@@ -2819,7 +3006,7 @@ do2 :       do while(associated(ObjParameter))
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        type(T_Field), pointer                      :: FieldToKill, CurrentField
+        type(T_Field), pointer                      :: CurrentField
 
         !Begin-----------------------------------------------------------------
 
@@ -2827,22 +3014,21 @@ do2 :       do while(associated(ObjParameter))
 
         do while(associated(CurrentField))
 
-            FieldToKill => CurrentField
-            CurrentField => CurrentField%Next
-
-            if (associated(FieldToKill%Values2D)) then
-                deallocate(FieldToKill%Values2D, STAT = STAT_CALL)
+            if (associated(CurrentField%Values2D)) then
+                deallocate(CurrentField%Values2D, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
                     stop 'KillIndividualParameterFields - ModuleHDF5Statistics - ERR01'  
-                nullify(FieldToKill%Values2D)
+                nullify(CurrentField%Values2D)
             end if
 
-            if (associated(FieldToKill%Values3D)) then
-                deallocate(FieldToKill%Values3D, STAT = STAT_CALL)
+            if (associated(CurrentField%Values3D)) then
+                deallocate(CurrentField%Values3D, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
                     stop 'KillIndividualParameterFields - ModuleHDF5Statistics - ERR02'  
-                nullify(FieldToKill%Values3D)
+                nullify(CurrentField%Values3D)
             end if
+            
+           CurrentField => CurrentField%Next            
 
         end do 
 

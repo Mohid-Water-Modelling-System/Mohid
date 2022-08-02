@@ -1901,7 +1901,8 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 i1:     if (.not. Me%Evolution%VertBoundContact) then
 
             If (Me%NumericalOptions%Parametrization == CORJET)  Then
-                Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+                !Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+                Aux = 0.
                 If (Me%Evolution%z <= SurfaceLevel + Aux) Then
                     Me%Evolution%z = SurfaceLevel + Aux + Precision
                     Me%Evolution%VelW = 0

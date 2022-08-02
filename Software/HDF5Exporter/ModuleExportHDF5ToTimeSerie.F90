@@ -193,7 +193,7 @@ Module ModuleExportHDF5ToTimeSerie
     ! Definition of type T_HDF5File
     type       T_HDF5File
         integer                                     :: HDFID = 0
-        character(len=StringLength)                 :: Name
+        character(len=PathLength)                   :: Name
         type(T_Time)                                :: StartTime
         type(T_Time)                                :: EndTime
         type(T_Time)                                :: StartFieldTime
@@ -355,16 +355,6 @@ Module ModuleExportHDF5ToTimeSerie
         
         !Begin-----------------------------------------------------------------        
         
-        if (Me%ReadWaterPointsName) then
-        
-            call GetData(Me%WaterPointsName,   Me%ObjEnterData, iflag,                  &
-                         keyword      = 'WATERPOINTS_NAME',                             &
-                         SearchType   = FromFile,                                       &
-                         ClientModule = 'ExportToTimeSerie',                            &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                  &
-                stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR10'
-        endif
                     
         call GetData(Me%WaterPointsGroup,   Me%ObjEnterData, iflag,                     &
                      keyword      = 'WATERPOINTS_GROUP',                                &
@@ -1375,6 +1365,25 @@ cd2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
+        !Flavio - in current Land Porous Media hdf structure, exporter will search for groups in
+        !order. When it finds BasinPoints it will be happy to use that group instead of Waterpoints3D,
+        !the one it should use. Now, exporter will first search for WATERPOINTS_NAME and use that.
+        !if WaterPointsName is not given by user, then old logic applies. 
+        call GetData(Me%WaterPointsName,   Me%ObjEnterData, iflag,                  &
+                     keyword      = 'WATERPOINTS_NAME',                             &
+                     SearchType   = FromFile,                                       &
+                     ClientModule = 'ExportToTimeSerie',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR01'
+        endif
+        
+        if (iflag == 0) then                            
+            Me%ReadWaterPointsName = .false.
+        else 
+            Me%ReadWaterPointsName = .true.
+        end if
+        
         ! Obtain HDF5 file name
         call GetData(NewHDF5File%Name,                                  &
                      Me%ObjEnterData, iflag,                            &
@@ -1406,40 +1415,41 @@ cd2 :           if (BlockFound) then
                 call ConstructHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR40'
                 
+                if (.not. Me%ReadWaterPointsName) then
+                
                 call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints2D",       &
                                           Exist = Exist, STAT= STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR50'
 
                 if (Exist) then
                     Me%WaterPointsName     = "WaterPoints2D"
-                    Me%ReadWaterPointsName = .false. 
+                        Me%ReadWaterPointsName = .true. 
+                    endif   
                 endif   
                 
-                if (Me%ReadWaterPointsName) then
-                
+                if (.not. Me%ReadWaterPointsName) then
                     call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/BasinPoints",        &
                                               Exist = Exist, STAT= STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR60'
 
                     if (Exist) then
                         Me%WaterPointsName     = "BasinPoints"
-                        Me%ReadWaterPointsName = .false. 
+                        Me%ReadWaterPointsName = .true. 
                     endif                  
-
                 endif                    
                 
-                if (Me%ReadWaterPointsName) then
 
+                if (.not. Me%ReadWaterPointsName) then
                     call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints3D",       &
                                               Exist = Exist, STAT= STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR70'
 
                     if (Exist) then
                         Me%WaterPointsName     = "WaterPoints3D"
-                        Me%ReadWaterPointsName = .false. 
+                        Me%ReadWaterPointsName = .true. 
                     endif    
-
                 endif
+
 
                 !Kill HDF5 file
                 call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
@@ -1912,8 +1922,8 @@ cd2 :           if (BlockFound) then
 
             call CreateTSHDF5File(Me%FirstTSHDF5File, HDF5FileX)
             call CreateTSHDF5File(Me%LastTSHDF5File, HDF5FileX)
-            deallocate(Me%FirstTSHDF5File%Next) 
-            nullify(Me%FirstTSHDF5File%Next)
+            !deallocate(Me%FirstTSHDF5File%Next) 
+            !nullify(Me%FirstTSHDF5File%Next)
 
         else
 
@@ -1944,8 +1954,8 @@ cd2 :           if (BlockFound) then
                         call CreateTSHDF5File(PreviousHDF5File%Next, HDF5FileX)
                         allocate(LastHDF5File)
                         LastHDF5File => PreviousHDF5File%Next
-                        deallocate(LastHDF5File%Next)
-                        nullify(LastHDF5File%Next)
+                        !deallocate(LastHDF5File%Next)
+                        !nullify(LastHDF5File%Next)
                         call CreateTSHDF5File(Me%LastTSHDF5File, HDF5FileX)
 
                         !current file was added to list

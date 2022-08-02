@@ -1942,7 +1942,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 else
                     ResidualIncrement_ = .false. 
                 endif
-
+                
                 CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
                 if (Add) then
                     if (ResidualIncrement_) then
