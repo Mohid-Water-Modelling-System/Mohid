@@ -432,8 +432,9 @@ Module ModuleRunOff
         integer                                     :: TypeOf               = null_int
         real                                        :: Width                = null_real
         real                                        :: FlowCaptureFraction  = null_real
-        real                                        :: PotentialFlow        = null_real
-        real                                        :: EffectiveFlow        = null_real
+        real                                        :: FlowEnteringCell     = 0.0
+        real                                        :: PotentialFlow        = 0.0
+        real                                        :: EffectiveFlow        = 0.0
         integer                                     :: CellID               = null_int
         integer                                     :: nInletsInGridCell    = null_int
         character(Pathlength)                       :: RatingCurveFileName  = null_str
@@ -441,7 +442,12 @@ Module ModuleRunOff
         real, dimension(:), allocatable             :: RatingCurveFlow
         integer                                     :: RatingCurve_nValues  = null_int 
         real                                        :: RatingCurveBelowMin  = null_real 
-        real                                        :: RatingCurveAboveMax  = null_real 
+        real                                        :: RatingCurveAboveMax  = null_real
+        logical                                     :: OutputResults        = .false.
+        type (T_Time)                               :: NextOutPutTime 
+        real                                        :: OutputTimeStep       = null_real 
+        real                                        :: OutputTime           = null_real 
+        integer                                     :: OutputUnit           = null_int 
     end type T_SewerGEMSInlet
     
     type T_OutPutRunOff
@@ -492,6 +498,7 @@ Module ModuleRunOff
         real                                        :: FloodArrivalWaterColumnLimit   = null_real        
         real                                        :: TotalFloodedArea               = null_real
         real                                        :: MaxTotalFloodedArea            = null_real
+        real                                        :: TimeOfMaxTotalFloodedArea      = null_real
 
         logical                                     :: TimeSeries                     = .false.
         logical                                     :: TimeSerieDischON               = .false. 
@@ -1716,7 +1723,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             else
 
-                call ReadInletsFromFile(InletsFileName)
+                call ReadInletsFromFile(InletsFileName, RootSRT)
 
             endif
 
@@ -2644,16 +2651,20 @@ do2:    do
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadInletsFromFile(Filename)
+    subroutine ReadInletsFromFile(Filename, RootSRT)
     
         !Arguments-------------------------------------------------------------
 
-        character(len=PathLength)                   :: Filename
+        character(len=PathLength), intent(in)       :: Filename
+        character(len=PathLength), intent(in)       :: RootSRT
+
         !Local----------------------------------------------------------------
         integer                                     :: InletsObjEnterData, ClientNumber, STAT_CALL
         integer                                     :: iflag, n
         logical                                     :: BlockFound
         real                                        :: InletFlowBelowMinStage, InletFlowAboveMaxStage
+        character(len=PathLength)                   :: InletOutputFilename
+
         !Begin----------------------------------------------------------------    
         
         InletsObjEnterData  = 0
@@ -2738,6 +2749,53 @@ do2:    do
                              Default        = Weir_,                                            &
                              STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR40'
+
+                call GetData(Me%Inlets(n)%OutputResults,                                        &
+                             InletsObjEnterData, iflag,                                         &
+                             Keyword        = 'OUTPUT_RESULTS',                                 &
+                             SearchType     = FromBlock,                                        &
+                             ClientModule   ='ModuleRunoff',                                    &
+                             Default        = .false.,                                          &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR45'
+
+                if(Me%Inlets(n)%OutputResults)then
+                
+                    call GetData(Me%Inlets(n)%OutputTimeStep,                                   &
+                                 InletsObjEnterData, iflag,                                     &
+                                 Keyword        = 'DT_OUTPUT_TIME',                             &
+                                 SearchType     = FromBlock,                                    &
+                                 ClientModule   ='ModuleRunoff',                                &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR46'
+                
+                    if(iflag == 0)then
+                        write(*,*)"Missing DT_OUTPUT_TIME in inlet ", trim(adjustl(Me%Inlets(n)%Name))
+                        write(*,*)"in file ", trim(adjustl(Filename))
+                        stop 'ReadInletsFromFile - ModuleRunOff - ERR47'
+                    endif
+
+                    Me%Inlets(n)%OutputTime     = 0.0
+                    Me%Inlets(n)%NextOutputTime = Me%BeginTime
+                
+                    call UnitsManager(Me%Inlets(n)%OutputUnit, OPEN_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR48'
+
+                    InletOutputFilename = trim(adjustl(RootSRT))//trim(adjustl(Me%Inlets(n)%Name))//".sri"
+                
+                    open(Unit = Me%Inlets(n)%OutputUnit,                                        &
+                         File = trim(adjustl(InletOutputFilename)),                             &
+                         STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR49'
+
+                    call WriteDataLine(Me%Inlets(n)%OutputUnit, "NAME", Me%Inlets(n)%Name)
+                    call WriteDataLine(Me%Inlets(n)%OutputUnit, 'SERIE_INITIAL_DATA', Me%BeginTime)
+                    call WriteDataLine(Me%Inlets(n)%OutputUnit, 'TIME_UNITS', 'SECONDS')
+                    
+                    call WriteDataLine(Me%Inlets(n)%OutputUnit, 'time flow_entering_cell potential_flow effective_flow')
+                    call WriteDataLine(Me%Inlets(n)%OutputUnit, '<BeginTimeSerie>')
+
+                endif
                 
                 if(Me%Inlets(n)%TypeOf .eq. Weir_)then
 
@@ -2765,6 +2823,11 @@ do2:    do
                                  ClientModule   ='ModuleRunoff',                                    &
                                  STAT           = STAT_CALL)                                      
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR70'
+
+                    if(Me%Inlets(n)%FlowCaptureFraction < 0.0 .or. Me%Inlets(n)%FlowCaptureFraction > 1.0)then
+                        write(*,*)"Inlet FLOW_CAPTURE_FRACTION is not valid: ", trim(adjustl(Me%Inlets(n)%Name))
+                        stop 'ReadInletsFromFile - ModuleRunOff - ERR71'
+                    endif
 
                 elseif(Me%Inlets(n)%TypeOf .eq. DepthFlowRatingCurve_ .or. Me%Inlets(n)%TypeOf .eq. FlowFlowRatingCurve_)then
 
@@ -3717,20 +3780,33 @@ do2:        do
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadLevelTimeSerie - ModuleRunoff - ERR01'
 
+        if(iflag == 0)then
+            write(*,*)"Please set keyword FILENAMEto set the path to the"
+            write(*,*)"open boundary time/elevation curve" 
+            stop 'ReadLevelTimeSerie - ModuleRunoff - ERR02'
+        endif
+
+
         call GetData(TimeSerie%DataColumn,                              &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromBlock,                          &
                      keyword      = 'DATA_COLUMN',                      &
                      ClientModule = 'FillMatrix',                       &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadLevelTimeSerie - ModuleRunoff - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLevelTimeSerie - ModuleRunoff - ERR03'
+
+        if(iflag == 0)then
+            write(*,*)"Please set keyword DATA_COLUMN to set the time series column"
+            write(*,*)"from where to read the open boundary water elevation"
+            stop 'ReadLevelTimeSerie - ModuleRunoff - ERR04'
+        endif
 
         call StartTimeSerieInput(TimeSerie%ObjTimeSerie,                &
                                  TimeSerie%FileName,                    &
                                  Me%ObjTime,                            &
                                  CheckDates = .false.,                  &
                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadLevelTimeSerie - ModuleRunoff - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLevelTimeSerie - ModuleRunoff - ERR05'
 
     end subroutine ReadLevelTimeSerie
     
@@ -5080,11 +5156,12 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
             !iNode is inlet node index + 1
             !because MOHID nodes list starts with 1 and 
             !SWMM node list starts with 0
-            iNode                       = Me%Inlets(n)%NodeIndex+1 
-            Me%Inlets(n)%I              = Me%NodesI(iNode)
-            Me%Inlets(n)%J              = Me%NodesJ(iNode)
-            Me%Inlets(n)%CellID         = Me%NodesCellID(iNode)
-            Me%Inlets(n)%EffectiveFlow  = 0.0
+            iNode                           = Me%Inlets(n)%NodeIndex+1 
+            Me%Inlets(n)%I                  = Me%NodesI(iNode)
+            Me%Inlets(n)%J                  = Me%NodesJ(iNode)
+            Me%Inlets(n)%CellID             = Me%NodesCellID(iNode)
+            Me%Inlets(n)%EffectiveFlow      = 0.0
+            Me%Inlets(n)%FlowEnteringCell   = 0.0
         enddo
 
         !Check for more than one inlet per grid cell
@@ -6747,12 +6824,6 @@ doIter:         do while (iter <= Niter)
             !Gets ExternalVars
             call ReadLockExternalVar (StaticOnly = .false.)
 
-            if (Me%StormWaterModel) then
-                
-                call ComputeStormWaterModel
-                
-            endif
-                  
             if (Me%Use1D2DInteractionMapping) then
                 !it will use mapping for any model (DN or SWMM or other)
                 call OverLandChannelInteraction_6_NewMapping            
@@ -6783,6 +6854,11 @@ doIter:         do while (iter <= Niter)
                 endif
             endif
             
+            if (Me%StormWaterModel) then
+                
+                call ComputeStormWaterModel
+                
+            endif
 
 
             !Calculates flow from channels to land
@@ -9041,7 +9117,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Get SewerGEMS SWMM flow out of manhole
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Manholes(n)%NodeIndex, Me%Manholes(n)%Outflow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
             
@@ -9049,14 +9125,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Set 2D water column over manhole to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setPondedWaterColumn(Me%Manholes(n)%NodeIndex, WaterColumn)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR20'
         enddo
 
         do n = 1, Me%NumberOfInlets
 
             !Get SewerGEMS SWMM flow in or out of inlet
             STAT_CALL = SewerGEMSEngine_getInflowByNode(Me%Inlets(n)%NodeIndex, Me%Inlets(n)%EffectiveFlow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR03a'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
                 
@@ -9064,21 +9140,38 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Set 2D water column over inlet to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setPondedWaterColumn(Me%Inlets(n)%NodeIndex, WaterColumn)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR40'
             
             !Set SewerGEMS SWMM potential flow into inlet. 
             !SWMM will decide if it can accomodate this flow and if not 
             !it will return the effective flow into the inlet in the next iteration
             STAT_CALL = SewerGEMSEngine_setStormWaterPotentialInflow(Me%Inlets(n)%NodeIndex, Me%Inlets(n)%PotentialFlow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR50'
+
+            if(Me%Inlets(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Inlets(n)%NextOutputTime)then 
+
+                    write(Me%Inlets(n)%OutputUnit,500)Me%Inlets(n)%OutputTime,          &
+                                                      Me%Inlets(n)%FlowEnteringCell,    &
+                                                      Me%Inlets(n)%PotentialFlow,       &
+                                                      Me%Inlets(n)%EffectiveFlow*-1.0
+
+                    Me%Inlets(n)%NextOutputTime = Me%Inlets(n)%NextOutputTime + Me%Inlets(n)%OutputTimeStep
+                    Me%Inlets(n)%OutputTime     = Me%Inlets(n)%OutputTime     + Me%Inlets(n)%OutputTimeStep
+
+                end if
+            end if    
+
 
         enddo
+
+    500 format(1x, f13.2, 1x, 3(1x, e20.12e3))
 
         do n = 1, Me%NumberOfOutfalls
             
             !Get SewerGEMS SWMM flow in or out of outfall. 
             STAT_CALL = SewerGEMSEngine_getOutflowByNode(Me%Outfalls(n)%NodeIndex, Me%Outfalls(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
 
@@ -9086,7 +9179,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Set 2D water level over outfall node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setDownstreamWaterLevel(Me%Outfalls(n)%NodeIndex, WaterLevel)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR70'
                 
         enddo
 
@@ -9094,17 +9187,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Get SewerGEMS SWMM cross section node water level 
             STAT_CALL = SewerGEMSEngine_getLevelByNode(Me%CrossSections(n)%NodeIndex, Me%CrossSections(n)%WaterLevel)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR80'
 
             Me%NodeRiverLevel(Me%CrossSections(n)%I, Me%CrossSections(n)%J) = Me%CrossSections(n)%WaterLevel
 
             Me%CrossSections(n)%Flow = Me%iFlowToChannels(Me%CrossSections(n)%I, Me%CrossSections(n)%J)
 
-            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%CrossSections(n)%Flow * Me%ExtVar%DT
             
             !Set 2D flow to/from cross section node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%CrossSections(n)%NodeIndex, Me%CrossSections(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR90'
                 
         enddo
 
@@ -9113,11 +9206,11 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Get SewerGEMS SWMM cross section node water level 
 
             STAT_CALL = SewerGEMSEngine_getLevelByNode(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%WaterLevel)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR100'
 
             !Get SewerGEMS SWMM flow in or out of outfall. 
             STAT_CALL = SewerGEMSEngine_getOutflowByNode(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR110'
 
             if(Me%Ponds(n)%Flow > 0.0)then
                 
@@ -9176,7 +9269,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Ponds(n)%Flow * Me%ExtVar%DT
 
                 STAT_CALL = SewerGEMSEngine_setOpenXSectionInflow(Me%Ponds(n)%NodeIndex, Me%Ponds(n)%Flow)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
 
             endif
 
@@ -9184,7 +9277,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         !Get SewerGEMS SWMM current time step 
         STAT_CALL = SewerGEMSEngine_getdt(dt)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR130'
         
         !Store SewerGEMS SWMM current time step
         !Check subroutine ComputeNextTimeStep where 
@@ -9311,7 +9404,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 endif
 
-                Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)             
+                Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
+                Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)         
 
             else
                   
@@ -12274,7 +12368,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         Me%Output%TotalFloodedArea = Sum
 
         if(Me%Output%TotalFloodedArea > Me%Output%MaxTotalFloodedArea)then
-            Me%Output%MaxTotalFloodedArea = Me%Output%TotalFloodedArea
+            Me%Output%MaxTotalFloodedArea       = Me%Output%TotalFloodedArea
+            Me%Output%TimeOfMaxTotalFloodedArea = Me%ExtVar%Now - Me%BeginTime
         endif
 
     end subroutine OutputFloodArrivalTime
@@ -12858,6 +12953,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     write(RunOffLogFileID, *)"TOTAL_FLOODED_AREA_AT_END        : ", Me%Output%TotalFloodedArea
                     write(RunOffLogFileID, *)"MAXIMUM_TOTAL_FLOODED_AREA       : ", Me%Output%MaxTotalFloodedArea
+                    write(RunOffLogFileID, *)"MAXIMUM_TOTAL_FLOODED_AREA_TIME  : ", Me%Output%TimeOfMaxTotalFloodedArea
 
                 endif
 
@@ -12888,6 +12984,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     !Convert SewerGEMS SWMM outputs to HDF5 and time series format
                     call ConvertSewerGEMSEngine()
 #endif _CONVERT_SWMM_TO_HDF5_
+
+
+                    if(Me%NumberOfInlets > 0)then
+                        do n = 1, Me%NumberOfInlets
+                            if(Me%Inlets(n)%OutputResults)then
+                                call WriteDataLine(Me%Inlets(n)%OutputUnit, '<EndTimeSerie>')
+                                
+                                call UnitsManager(Me%Inlets(n)%OutputUnit, CLOSE_FILE, STAT = STAT_CALL) 
+                                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR083'
+                            endif
+                        enddo
+                    endif
 
                     if(Me%NumberOfCrossSections > 0)deallocate(Me%CrossSections)
                     if(Me%NumberOfInlets        > 0)deallocate(Me%Inlets       )

@@ -323,8 +323,16 @@ Module ModuleStatistic
                 
                 call SetDate(Time1=AuxTime, Year=Year, Month=Month, Day=Day,          &
                              Hour=0.0, Minute=0.0, Second=0.0)
+                !FLAVIO - When a property is declared as accumualtive (e.g. preciptitation), 
+                !the accumulated volume is attached to t+1, referring to the acumulated volume between t and  t+1
+                !The same must happen in HDFStatistics output
+                if (Me%Accumulated) then
+                    Me%Daily%NextOutputTime = AuxTime
+                    write(*,*) 'WARN: Accumulated values are attached to t+1, instead of t'
+                else
+                    Me%Daily%NextOutputTime = AuxTime + 24.*3600.
+                end if
                 
-                Me%Daily%NextOutputTime = AuxTime + 24.*3600.
             endif
     
             if (Me%Monthly%On) then
@@ -3235,7 +3243,7 @@ cd1:    if (DT>0) then
             Me%Daily%StandardDeviation2D = Value2D
 
             if (Me%Accumulated) Me%Daily%Accumulated2D = 0.0
-
+            
             if (Me%GeomMean) then !Geometric Average to calculate
                 Me%Daily%GeomAverage2D           = Value2D
                 Me%Daily%SquareGeomAverage2D     = Value2D

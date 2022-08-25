@@ -1374,8 +1374,11 @@ cd2 :           if (BlockFound) then
                      SearchType   = FromFile,                                       &
                      ClientModule = 'ExportToTimeSerie',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then                            
+        if (STAT_CALL /= SUCCESS_) then
             stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR01'
+        endif
+        
+        if (iflag == 0) then                            
             Me%ReadWaterPointsName = .false.
         else 
             Me%ReadWaterPointsName = .true.
