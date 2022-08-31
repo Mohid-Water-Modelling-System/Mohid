@@ -36616,8 +36616,10 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR20'
 
-        if (Me%Relaxation%Upscaling_Method == 3) then
-            call Upscaling_Momentum_Discharge
+        UpscalingDischarge = searchUpscalingMD()! search for momentum discharge from upscaling
+        
+        if ((Me%Relaxation%Upscaling_Method == 3) .or. (UpscalingDischarge)) then
+            call Upscaling_Momentum_Discharge(Online = UpscalingDischarge)
         endif
 
 do1:    do DischargeID = 1, DischargesNumber
@@ -36677,10 +36679,10 @@ do1:    do DischargeID = 1, DischargesNumber
                 WaterLevelByPass = FillValueReal
             endif
 
-            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber)
+            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargeID)
 
             if (UpscalingDischarge )then
-                !do nothing... this is not prepared for momentum discharge
+                !do nothing...
             else
 
                 call GetDischargeWaterFlow(Me%ObjDischarges,                    &
@@ -36965,9 +36967,11 @@ dn:             do n=1, nCells
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes the effect of a momentum discharge in horizontal transport
+    !>@param[in] Online 
     !---------------------------------------------------------------------
-    Subroutine Upscaling_Momentum_Discharge
+    Subroutine Upscaling_Momentum_Discharge(Online)
         !Arguments------------------------------------------------------------
+        logical, intent(in)      :: Online
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Horizontal_Transport
         real,    dimension(:,:,:), pointer :: DischargeVelocity
@@ -36977,21 +36981,22 @@ dn:             do n=1, nCells
         integer                            :: DischargesNumber, DischargeID
         integer                            :: i, j, k, STAT_CALL, iNorth, jEast, n, nCells
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
-        logical                            :: IgnoreOK, UpscalingDischarge, Active
+        logical                            :: IgnoreOK, UpscalingDischarge, Active_Offline
         !Begin----------------------------------------------------------------
 
         !Begin - Shorten variables name
         Horizontal_Transport => Me%Forces%Horizontal_Transport
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-
+        Active_Offline = .False.
         !End - Shorten variables name
         !Check if at least one upscaling by momentum discharge exists
-        Active = ActiveUpscalingMomentumDischarge(Me%ObjTwoWay, Me%Direction%XY)
-        
-        if (Active) then
+        Active_Offline = ActiveUpscalingMomentumDischarge(Me%ObjTwoWay, Me%Direction%XY)
+        if (Active_Offline .or. Online) then
             call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR10'
+        end if
         
+        if (Active_Offline) then
             if (Me%Direction%XY == DirectionX_) then
                 call GetUpscalingDischargeVelocity(Me%ObjTwoWay, VelocityU = DischargeVelocity, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR40'
@@ -37001,13 +37006,11 @@ dn:             do n=1, nCells
             endif
             
             do DischargeID = 1, DischargesNumber
-
-                UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber)
-            
+                UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargeID)
                 if (UpscalingDischarge) then
-                
                     call GetDischargeON(Me%ObjDischarges, DischargeID, IgnoreOK, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR20'
+                    
                     if (IgnoreOK) cycle
             
                     call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, VectorI = VectorI,  &
@@ -37015,23 +37018,18 @@ dn:             do n=1, nCells
                     if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR30'
                 
                     do n=1, nCells
-                    
                         i = VectorI(n)     ;    MomentumDischarge = 0.
                         j = VectorJ(n)     ;    iNorth = i + Me%Direction%di
                         k = VectorK(n)     ;    jEast =  j + Me%Direction%dj
                             
                         AuxFlowK = Me%WaterFluxes%Discharges(i, j, k)
+                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
+                        MomentumDischarge  = AuxFlowK * DischargeVelocity(i, j, k)
                         if (ComputeFaces3D_UV(i, j, k) == Covered) then
-                            ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
-                            MomentumDischarge  = AuxFlowK * DischargeVelocity(i, j, k)
                             Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = DischargeVelocity(i, j, k)
-
                             Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + MomentumDischarge
-
                         else if (ComputeFaces3D_UV(iNorth, jEast, k) == Covered) then
-                            MomentumDischarge  = AuxFlowK * DischargeVelocity(i, j, k)
                             Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity(i, j, k)
-
                             Horizontal_Transport(iNorth, jEast, k) = Horizontal_Transport(iNorth, jEast, k) + MomentumDischarge
                         endif
                     enddo 
@@ -37049,6 +37047,47 @@ dn:             do n=1, nCells
             enddo
             call UnGetUpscalingDischargeVelocity (Me%ObjTwoWay, DischargeVelocity, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR90'
+        
+        elseif (Online) then
+            do DischargeID = 1, DischargesNumber
+                UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargeID)
+                if (UpscalingDischarge) then
+                    call GetDischargeON(Me%ObjDischarges, DischargeID, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR20'
+                    
+                    if (IgnoreOK) cycle
+            
+                    call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, VectorI = VectorI,  &
+                                                      VectorJ = VectorJ, VectorK = VectorK, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR30'
+                
+                    do n=1, nCells
+                        i = VectorI(n)     ;    MomentumDischarge = 0.
+                        j = VectorJ(n)     ;    iNorth = i + Me%Direction%di
+                        k = VectorK(n)     ;    jEast =  j + Me%Direction%dj
+                            
+                        AuxFlowK = Me%WaterFluxes%Discharges(i, j, k)
+                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
+                        MomentumDischarge  = AuxFlowK * Me%WaterFluxes%DischargesVelUV(i, j, k)
+                        if (ComputeFaces3D_UV(i, j, k) == Covered) then
+                            Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = Me%WaterFluxes%DischargesVelUV(i, j, k)
+                            Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + MomentumDischarge
+                        else if (ComputeFaces3D_UV(iNorth, jEast, k) == Covered) then
+                            Horizontal_Transport(iNorth, jEast, k) = Horizontal_Transport(iNorth, jEast, k) + MomentumDischarge
+                        endif
+                    enddo 
+
+                    if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Upscaling_Momentum_Discharge")
+                
+                    call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR60'
+                    call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR70'
+                    call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Upscaling_Momentum_Discharge - ModuleHydrodynamic - ERR80'
+                endif
+                
+            enddo
         endif
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport, ComputeFaces3D_UV)
@@ -37056,6 +37095,29 @@ dn:             do n=1, nCells
     End Subroutine Upscaling_Momentum_Discharge
 
     !End -------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> checks if at least one upscaling discharge exists
+    !>@param[in] ID  
+    logical function searchUpscalingMD ()
+        !Arguments-------------------------------------------------------------
+        !Locals----------------------------------------------------------------
+        integer                            :: DischargesNumber, DischargeID, STAT_CALL
+        !Begin-----------------------------------------------------------------
+            
+        searchUpscalingMD = .false.
+        call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_)stop 'searchUpscalingMD - ModuleHydrodynamic - ERR10'
+            
+        do DischargeID = 1, DischargesNumber
+            searchUpscalingMD = IsUpscaling(Me%ObjDischarges, DischargeID)
+            if (searchUpscalingMD) return
+        end do
+                
+    end function searchUpscalingMD
+    
+    !End------------------------------------------------------------------------
 
     Subroutine ModifyMomentumDischargeVert
 
