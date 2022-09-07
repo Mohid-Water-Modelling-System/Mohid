@@ -289,7 +289,7 @@ Module ModuleWaterProperties
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
                                           GetVelocityModulus, GetPointDischargesState, CheckOfflineUpscalingDisch, &
-                                          GetUscalingMethod
+                                          GetUpscalingMethod
 
 
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
@@ -10735,7 +10735,7 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
                 
                 if (NumberOfFields_Upscaling > 0) then
                     Property%Evolution%Upscaling = .true.
-                    call GetUscalingMethod(Me%ObjHydrodynamic, Property%Evolution%UpscalingMethod, STAT = STAT_CALL)
+                    call GetUpscalingMethod(Me%ObjHydrodynamic, Property%Evolution%UpscalingMethod, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         call CloseAllAndStop ('CheckOfflineUpscaling - ModuleWaterProperties - ERR04.')
                 endif
@@ -19413,7 +19413,7 @@ do1 :   do while (associated(PropertyX))
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer, dimension(:,:  ), pointer      :: Connections
-        integer                                 :: STAT_CALL, UpscalingMethod
+        integer                                 :: STAT_CALL, UpscalingMethod_offline, UpscalingMethod_online
         logical                                 :: FirstTime
         type(T_Time)                            :: CurrentTime
         real, dimension(:,:,:), pointer         :: UpscaleDischConc
@@ -19471,10 +19471,13 @@ do1 :   do while (associated(PropertyX))
                         PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
                                                                 + PropertyFather%Concentration(:,:,:)
                     
-                    call GetUscalingMethod(FatherWaterPropertiesID, UpscalingMethod, STAT = STAT_CALL)
+                    call GetUpscalingMethod(FatherWaterPropertiesID, UpscalingMethod_offline, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR02.')
                     
-                    if (UpscalingMethod == 3) then
+                    call GetUpscalingMethod(SonWaterPropertiesID, UpscalingMethod_online, STAT = STAT_CALL, online = .true.)
+                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR03.')
+                    
+                    if ((UpscalingMethod_offline == 3) .or. (UpscalingMethod_online == 3)) then
                         if (.not. allocated(PropertyFather%UpscaleDischConc)) then
                             allocate(PropertyFather%UpscaleDischConc (  ObjFather%Size%ILB:ObjFather%Size%IUB, &
                                                                         ObjFather%Size%JLB:ObjFather%Size%JUB, &
@@ -19488,7 +19491,7 @@ do1 :   do while (associated(PropertyX))
                                             CallerID         = mWATERPROPERTIES_,                   &
                                             TD               = PropertyX%Submodel%TwoWayTimeDecay,  &
                                             STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR03.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
                     else
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                             FatherMatrix     = PropertyFather%Concentration,        &
@@ -19496,12 +19499,12 @@ do1 :   do while (associated(PropertyX))
                                             CallerID         = mWATERPROPERTIES_,                   &
                                             TD               = PropertyX%Submodel%TwoWayTimeDecay,  &
                                             STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR05.'
                     endif
                     if (ObjFather%Coupled%UpscalingDischarge%Yes) then
                         call GetConnections(Me%ObjHorizontalGrid, Connections_Z = Connections, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - Failed to get Connections matrix'
-                        if (UpscalingMethod == 3) then
+                        if ((UpscalingMethod_offline == 3) .or. (UpscalingMethod_online == 3)) then
                             call UpscaleDischarge_WP(FatherID = ObjFather%ObjDischarges, Connections_Z = Connections, &
                                         Prop = UpscaleDischConc, &
                                         PropVector = PropertyFather%DischConc, &
@@ -19540,7 +19543,7 @@ do1 :   do while (associated(PropertyX))
         nullify (PropertyX)
 
         call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR05.'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR06.'
 
         !if (ObjFather%Coupled%UpscalingDischarge%Yes) then
         !    call unGetHydrodynamic(ObjFather%ObjDischarges, FatherFlow, STAT = STAT_CALL)
@@ -20292,6 +20295,15 @@ dd:     do dis = 1, Me%Discharge%Number
                 AuxCell = AuxCell + nCells
 
                 Me%Discharge%Vert   (dis) = DischVertical
+                
+                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR170')
+
+                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR180')
+
+                call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR190')
                 cycle
             endif
 

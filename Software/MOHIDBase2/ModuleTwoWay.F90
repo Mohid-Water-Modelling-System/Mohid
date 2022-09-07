@@ -29,7 +29,7 @@ Module ModuleTwoWay
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, GetWaterPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
-    use ModuleDischarges,        only : GetDischargesNumber, GetDischargeFlowDistribuiton, IsUpscaling
+    use ModuleDischarges,        only : GetDischargesNumber, GetDischargeFlowDistribuiton, IsUpscaling, UnGetDischarges
     use ModuleTime
     
     implicit none
@@ -2760,10 +2760,10 @@ Module ModuleTwoWay
                                                 kmin = AuxKmin, kmax = AuxKmax, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get dischargeflowdistribution'
 
-            !using VectorI/J(1) because the value is the same for the entire vector (only the K value changes)
-            if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
-                !write(*,*) 'Discharge is associated : ', dis, VectorI(1), VectorJ(1)
-                if (IsUpscaling(FatherID, dis)) then
+            !write(*,*) 'Discharge is associated : ', dis, VectorI(1), VectorJ(1)
+            if (IsUpscaling(FatherID, dis)) then
+                !using VectorI/J(1) because the value is the same for the entire vector (only the K value changes)
+                if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
                     if (FirstTime)then
                         do i = 1, nCells
                             AuxCell = AuxCell + 1
@@ -2781,10 +2781,44 @@ Module ModuleTwoWay
                             PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
                         enddo
                     endif
-                else
-                    AuxCell = AuxCell + nCells
                 endif
-            endif
+            else
+                !skip the discharge - will be taken caro of in the main body of the code, outside the two-way
+                AuxCell = AuxCell + nCells
+            end if
+            
+            call UnGetDischarges(FatherID, VectorI, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to UnGetDischarges Vector I'
+
+            call UnGetDischarges(FatherID, VectorJ, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to UnGetDischarges Vector J'
+
+            call UnGetDischarges(FatherID, VectorK, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to UnGetDischarges Vector K'
+            !if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
+            !    !write(*,*) 'Discharge is associated : ', dis, VectorI(1), VectorJ(1)
+            !    if (IsUpscaling(FatherID, dis)) then
+            !        if (FirstTime)then
+            !            do i = 1, nCells
+            !                AuxCell = AuxCell + 1
+            !                dI        (AuxCell) = VectorI(i)
+            !                dJ        (AuxCell) = VectorJ(i)
+            !                dK        (AuxCell) = VectorK(i)
+            !                Kmin      (AuxCell) = AuxKmin
+            !                Kmax      (AuxCell) = AuxKmax
+            !                FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+            !                PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+            !            enddo
+            !        else
+            !            do i = 1, nCells
+            !                AuxCell = AuxCell + 1
+            !                PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+            !            enddo
+            !        endif
+            !    else
+            !        AuxCell = AuxCell + nCells
+            !    endif
+            !endif
         enddo
 
     end subroutine UpscaleDischarge_WP

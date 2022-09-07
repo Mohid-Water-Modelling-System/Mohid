@@ -510,7 +510,7 @@ Module ModuleHydrodynamic
     public  :: GetResidualHorizontalVelocity
     public  :: GetResidualVelocityPeriod
     public  :: CheckOfflineUpscalingDisch
-    public  :: GetUscalingMethod
+    public  :: GetUpscalingMethod
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -14079,10 +14079,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     !>@Brief
     !> Searches for Upscaling method used in hydrodynamics module
     !>@param[in] HydrodynamicID, Method, STAT
-    subroutine GetUscalingMethod(HydrodynamicID, Method, STAT)
+    subroutine GetUpscalingMethod(HydrodynamicID, Method, STAT, online)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                 :: HydrodynamicID
         integer, intent(OUT)                :: Method, STAT
+        logical, intent(in), optional       :: online
         !Local-----------------------------------------------------------------
         integer                             :: ready_
         !----------------------------------------------------------------------
@@ -14092,14 +14093,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            Method = Me%Relaxation%Upscaling_Method
+            if (present(online)) then
+                Method = Me%ComputeOptions%UpscalingMethod
+            else
+                Method = Me%Relaxation%Upscaling_Method
+            end if
             
             STAT = SUCCESS_
         else
             STAT = ready_
         endif
     
-    end subroutine GetUscalingMethod
+    end subroutine GetUpscalingMethod
 
     !--------------------------------------------------------------------------
 
