@@ -143,6 +143,7 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleTecnoceanAscii.F90"/>
         <File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleUpscaleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWOAFormat.F90"/>
+        <File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleUpscaleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWRFFormat.F90">
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
