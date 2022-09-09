@@ -2232,6 +2232,8 @@ cd3 :           if (STAT_CALL .EQ. SUCCESS_) then
                     STAT_ = SIZE_ERR_
                 end if cd3
 
+                if(isNan(value))value = null_real
+
             else
 cd6 :           if (present(Default)) then
                     value = Default
@@ -2781,6 +2783,8 @@ cd3 :           if (STAT_CALL .EQ. SUCCESS_) then
                 else
                     STAT_ = SIZE_ERR_
                 end if cd3
+
+                if(isNan(value))value = null_real
 
             else
 cd6 :           if (present(Default)) then
