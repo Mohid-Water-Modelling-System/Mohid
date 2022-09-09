@@ -14645,8 +14645,8 @@ D2:     do I=imax-1,2,-1
         
         if (StartIndex /= 0) then
             
-            if (di /=0) IJFather = IFather ! means we are searching the north/South direction
-            if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
+            if (di /=0) IJFather = IFather + di ! means we are searching the north/South direction
+            if (dj /=0) IJFather = JFather + dj! means we are searching the west/east direction
             Aux2 = Aux
             i = StartIndex
             !Check if current face needs to be considered for the discharge velocity
@@ -14658,7 +14658,7 @@ D2:     do I=imax-1,2,-1
 
                 if (SonWaterPoints(ISon, JSon) == 1)then
                     !Check if adjacent cell of son domain is inside Father dicharge cell
-                    if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
+                    if (link(ISonAdjacent, JSonAdjacent) == IJFather)then
                         if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
                             n = n + 1 ! Found a discharge face
                         endif
