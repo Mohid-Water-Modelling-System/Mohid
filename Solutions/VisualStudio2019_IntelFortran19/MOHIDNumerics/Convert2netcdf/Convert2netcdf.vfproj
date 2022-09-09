@@ -55,5 +55,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleNETCDF.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalGrid.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrawing.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
