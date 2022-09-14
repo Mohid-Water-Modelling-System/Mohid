@@ -7172,7 +7172,9 @@ Module ModuleHDF5
                     
             call h5gget_obj_info_idx_f(Me%FileID, adjustl(trim(FatherGroupName)), GroupPosition-1, &   
                                        GroupName, GroupType, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR02'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR02'
+            endif
             
             if (GroupType == H5G_DATASET_F) then
 

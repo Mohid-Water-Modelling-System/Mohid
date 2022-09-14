@@ -7261,7 +7261,47 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "Residual Transport Flux",                         &
                                      "m3/s", Array2D = Array2D,                         &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR155'                
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR155'              
+                
+                do j = WorkJLB, Me%WorkSize%JUB
+                do i = WorkILB, Me%WorkSize%IUB
+                    ! [m2/s] = [m3/s] / [m*m] ^ 0.5 
+                    Array2D(i, j) = Array2D(i, j) / sqrt(Me%ExternalVar%DUX(i,j) * Me%ExternalVar%DVY(i,j) )
+                enddo
+                enddo                
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux m2_s",    &
+                                     "Residual Transport Flux m2_s",                         &
+                                     "m2/s", Array2D = Array2D,                         &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR156'       
+                
+                
+                do j = WorkJLB, Me%WorkSize%JUB
+                do i = WorkILB, Me%WorkSize%IUB
+                    ! [m2/s] = [m3/s] / [m*m] ^ 0.5 
+                    Array2D(i, j) = Me%Residual%OutFluxX(i,j) / sqrt(Me%ExternalVar%DUX(i,j) * Me%ExternalVar%DVY(i,j) )
+                enddo
+                enddo
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux m2_s X",    &
+                                     "Residual Transport Flux m2_s X",                         &
+                                     "m2/s", Array2D = Array2D,                         &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR157'   
+                
+                do j = WorkJLB, Me%WorkSize%JUB
+                do i = WorkILB, Me%WorkSize%IUB
+                    ! [m2/s] = [m3/s] / [m*m] ^ 0.5 
+                    Array2D(i, j) = Me%Residual%OutFluxY(i,j) / sqrt(Me%ExternalVar%DUX(i,j) * Me%ExternalVar%DVY(i,j) )
+                enddo
+                enddo
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux m2_s Y",    &
+                                     "Residual Transport Flux m2_s Y",                         &
+                                     "m2/s", Array2D = Array2D,                         &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                                
                 
                 if (Me%HybridMorph%ON) then
                     
