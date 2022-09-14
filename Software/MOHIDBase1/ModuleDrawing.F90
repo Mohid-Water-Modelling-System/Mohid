@@ -44,6 +44,7 @@ Module ModuleDrawing
     public  ::    Add
     public  ::    SetLimits
     public  ::    IsVisible
+    public  ::    PointXYInsidePolySet    
     public  ::    IsPointInsidePolygon
     public  ::    Intersect2D_SegPoly
     public  ::    IsPointInsideCircle
@@ -1454,7 +1455,35 @@ d1:     do i=1, Count
     end function IsVisible
     !--------------------------------------------------------------------------
     
-    
+    logical function PointXYInsidePolySet(Polygon, XPoint, YPoint)
+
+        !Arguments ---------------------------------------------------------
+        type(T_Polygon), pointer             :: Polygon
+        real   ,                 intent(IN ) :: XPoint, YPoint
+
+        !Local -------------------------------------------------------------
+        type(T_PointF ),          pointer    :: Point
+        !Begin -------------------------------------------------------------
+
+        allocate(Point)
+
+        Point%X = XPoint
+        Point%Y = YPoint
+
+        if (IsVisible(Polygon, Point)) then
+
+            PointXYInsidePolySet = .true.
+
+        else
+
+            PointXYInsidePolySet = .false.
+
+        endif
+
+        deallocate(Point)
+        nullify   (Point)
+
+    end function PointXYInsidePolySet
     
     !--------------------------------------------------------------------------
     !Description    :   The first action performed is an acceleration test. if 

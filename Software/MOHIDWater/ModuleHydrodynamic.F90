@@ -10412,11 +10412,13 @@ ic1:    if (Me%CyclicBoundary%ON) then
 i1:     if (WaterDischarges) then
 
 i2:          if (DischargesID == 0) then
-                call Construct_Discharges(Me%ObjDischarges,                             &
-                                          Me%ObjTime,                                   &
-                                          STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR10'
 
+                call Construct_Discharges(DischargesID  = Me%ObjDischarges,             &
+                                          ObjTime       = Me%ObjTime,                   &
+                                          DDecompON     = Me%DDecomp%ON,                &
+                                          STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR10'
+                
                 DischargesID = Me%ObjDischarges
 
                 call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT  = STAT_CALL)
@@ -10437,6 +10439,8 @@ i2:          if (DischargesID == 0) then
                 stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
 
 d1:             do dn = 1, DischargesNumber
+    
+    
 
                     if (IsUpscaling(Me%ObjDischarges, dn))then
                         if (UpscalingDischargeType(Me%ObjDischarges, dn) == UpscalingDischargeByVolume)then

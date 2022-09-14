@@ -86,8 +86,10 @@ Module ModuleDischarges
     private ::    Search_Property
     public  :: GetDischargeSpatialEmission
     public  :: GetDischargeSpatialType
+    public  :: GetDischargeType    
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
+    public  :: GetDischargesDTOutput
     public  :: IsUpscaling
     public  :: UpscalingDischargeType
     public  :: GetDistributionCoefMass
@@ -342,6 +344,8 @@ Module ModuleDischarges
          real                                   :: SlowStart        = null_real
          type (T_Time)                          :: BeginTime
          type (T_Time)                          :: EndTime
+         real                                   :: DT_Output
+         logical                                :: DDecompON
     end type T_Discharges
 
     !Global Variables
@@ -360,12 +364,13 @@ Module ModuleDischarges
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine Construct_Discharges(DischargesID, ObjTime, DataFile, STAT)
+    subroutine Construct_Discharges(DischargesID, ObjTime, DataFile, DDecompON, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: DischargesID
         integer                                     :: ObjTime
         character(len=*), optional                  :: DataFile
+        logical, optional, intent(IN)               :: DDecompON
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -411,6 +416,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     stop 'Construct_Discharges - ModuleDischarges - ERR10'
                 endif
             endif
+            
+            if (present(DDecompON)) then
+                Me%DDecompON = DDecompON
+            else
+                Me%DDecompON = .false. 
+            endif
+            
 
             ! Construct one instance to use the moduleEnterData
             call ConstructEnterData(Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
@@ -464,11 +476,23 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
                          ClientModule   ='ModuleDischarges',                            &
                          STAT           = STAT_CALL)
 
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR80'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR70'
 
             if (Me%SlowStart > Me%EndTime - Me%BeginTime) then
                 stop 'Construct_Discharges - ModuleDischarges - ERR90'
             endif
+
+
+            call GetData(Me%DT_Output,                                                  &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         keyword        = 'DT_OUTPUT',                                  &
+                         default        = null_real,                                    &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleDischarges',                            &
+                         STAT           = STAT_CALL)
+
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR80'
 
 
             ! Constructs the discharge list
@@ -480,7 +504,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             call ConstructLog
 
             call KillEnterData  (Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR100'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR90'
 
             !Returns ID
             DischargesID    = Me%InstanceID
@@ -488,7 +512,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             STAT_ = SUCCESS_
         else
 
-            stop 'ModuleDischarges - Construct_Discharges - ERR60'
+            stop 'ModuleDischarges - Construct_Discharges - ERR100'
 
         end if cd0
 
@@ -631,7 +655,7 @@ cd2 :           if (BlockFound) then
         call Read_DataBaseFile                (NewDischarge)
 
         !Construct Discharge Flow values
-        call Construct_FlowValues             (NewDischarge, ClientNumber)
+        call Construct_FlowValues             (NewDischarge)
 
         !Construct Discharge Velocity values
         call Construct_VelocityValues         (NewDischarge)
@@ -1206,11 +1230,10 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_FlowValues(NewDischarge, ClientNumber)
+    subroutine Construct_FlowValues(NewDischarge)
 
         !Arguments--------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: NewDischarge
-        integer                                     :: ClientNumber
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag, STAT_CALL
@@ -1568,6 +1591,18 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
         if (NewDischarge%DischargeType == Valve .and. .not. NewDischarge%ByPass%ON) then
             write(*,*) 'In the case of a type "valve" discharge the discharge must also be "bypass"'
             stop 'Construct_FlowValues - ModuleDischarges - ERR145'
+        endif
+        
+        if (NewDischarge%ByPass%ON) then
+            if (Me%DDecompON) then
+                if (NewDischarge%DischargeType == Valve .or. NewDischarge%DischargeType == FlowOver) then
+                    write(*,*) 'MOHID can not simulate in domain decomposition parallelization mode'
+                    write(*,*) '- ByPass/Valve or ByPass/FlowOver discharges - '
+                    write(*,*) 'Need to apply to bypass/water_level the same methodology '
+                    write(*,*) 'applied to bypass/concentration - see ModuleWaterProperties'
+                    stop 'Construct_FlowValues - ModuleDischarges - ERR147'
+                endif                    
+            endif
         endif
 
 i3:     if (NewDischarge%ByPass%ON) then
@@ -2343,6 +2378,42 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         !----------------------------------------------------------------------
 
     end Subroutine GetDischargesNumber
+    !--------------------------------------------------------------------------
+
+    Subroutine GetDischargesDTOutput(DischargesID, DischargesDT_Output, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DischargesID
+        real,              intent(OUT)              :: DischargesDT_Output
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            DischargesDT_Output = Me%DT_Output
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischargesDTOutput    
 
     !--------------------------------------------------------------------------
 
@@ -3222,6 +3293,60 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    Subroutine GetDischargeType(DischargesID, DischargeIDNumber, DischargeType, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
+        integer,                        intent(OUT) :: DischargeType
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+
+cd3 :       if (STAT_CALL/=SUCCESS_) then
+                write(*,*) ' can not find discharge type ', DischargeX%DischargeType
+                stop       'Subroutine GetDischargeX%DischargeType - ModuleDischarges. ERR01.'
+            end if cd3
+
+            DischargeType = DischargeX%DischargeType
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                              &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischargeType
+
+    !--------------------------------------------------------------------------
+    
     !--------------------------------------------------------------------------
 
     Subroutine GetDischargeFlowDistribuiton(DischargesID, DischargeIDNumber,            &

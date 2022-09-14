@@ -106,33 +106,37 @@ Module ModuleStatistic
 
     type T_SimpleStatistic
         logical                                     :: On           = .false.
+                                                                                    
+        real,       dimension(:, :, :), pointer     :: Minimum                      => null() 
+        real,       dimension(:, :, :), pointer     :: Maximum                      => null() 
+        real,       dimension(:, :, :), pointer     :: Average                      => null() 
+        real,       dimension(:, :, :), pointer     :: SquareAverage                => null() 
+        real,       dimension(:, :, :), pointer     :: StandardDeviation            => null() 
+        real,       dimension(:, :, :), pointer     :: GeomAverage                  => null() 
+        real,       dimension(:, :, :), pointer     :: SquareGeomAverage            => null() 
+        real,       dimension(:, :, :), pointer     :: GeomStandardDeviation        => null() 
+        real,       dimension(:, :, :), pointer     :: Accumulated                  => null() 
+                                                                                                            
+        real,       dimension(:, :, :), pointer     :: PercentBelowCriticalValue    => null() 
         
-        real, dimension(:, :, :), pointer           :: Minimum      => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: Maximum      => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: Average      => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: SquareAverage  => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: StandardDeviation => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: GeomAverage       => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: SquareGeomAverage => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: GeomStandardDeviation  => null() !inicialization: Carina
-        real, dimension(:, :, :), pointer           :: Accumulated   => null() !inicialization: Carina
-        !guillaume juan
-        real, dimension(:, :, :), pointer           :: PercentBelowCriticalValue  => null() !inicialization: Carina
+        integer,    dimension(:, :, :), pointer     :: WaterPoints                  => null() 
+        integer,    dimension(:, :   ), pointer     :: WaterPoints2D                => null()  
+        real,       dimension(:, :, :), pointer     :: ValidPeriod                  => null() 
+        
+        real,       dimension(:, :   ), pointer     :: Minimum2D                    => null() 
+        real,       dimension(:, :   ), pointer     :: Maximum2D                    => null() 
+        real,       dimension(:, :   ), pointer     :: Average2D                    => null() 
+        real,       dimension(:, :   ), pointer     :: SquareAverage2D              => null() 
+        real,       dimension(:, :   ), pointer     :: StandardDeviation2D          => null() 
+        real,       dimension(:, :   ), pointer     :: GeomAverage2D                => null() 
+        real,       dimension(:, :   ), pointer     :: SquareGeomAverage2D          => null() 
+        real,       dimension(:, :   ), pointer     :: GeomStandardDeviation2D      => null() 
+        real,       dimension(:, :   ), pointer     :: Accumulated2D                => null() 
 
-        real, dimension(:, :   ), pointer           :: Minimum2D            => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: Maximum2D            => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: Average2D            => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: SquareAverage2D      => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: StandardDeviation2D  => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: GeomAverage2D        => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: SquareGeomAverage2D  => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: GeomStandardDeviation2D => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: Accumulated2D         => null() !inicialization: Carina
-        !guillaume juan
-        real, dimension(:, :   ), pointer           :: PercentBelowCriticalValue2D => null() !inicialization: Carina
+        real,       dimension(:, :   ), pointer     :: PercentBelowCriticalValue2D  => null()
         
-        real                                        :: RunPeriod    = null_real !inicialization: Carina
-        integer                                     :: OutputNumber = null_int !inicialization: Carina
+        real                                        :: RunPeriod    = null_real
+        integer                                     :: OutputNumber = null_int 
         type (T_Time)                               :: LastCalculation
         type (T_Time)                               :: NextOutputTime
     end type T_SimpleStatistic
@@ -749,7 +753,10 @@ cd1:    if (BlockFound) then
 
 
         if   (Me%Methodology == Value3DStat3D_) then
-      
+
+            allocate (Statistic%WaterPoints      (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Statistic%ValidPeriod      (ILB:IUB, JLB:JUB, KLB:KUB))
+            
             allocate (Statistic%Minimum          (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate (Statistic%Maximum          (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate (Statistic%Average          (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -759,7 +766,9 @@ cd1:    if (BlockFound) then
             allocate (Statistic%Minimum2D        (ILB:IUB, JLB:JUB))
             allocate (Statistic%Maximum2D        (ILB:IUB, JLB:JUB))
             
-
+            Statistic%WaterPoints           = 0
+            Statistic%ValidPeriod           = 0
+            
             Statistic%Minimum               = - FillValueReal
             Statistic%Maximum               = + FillValueReal
             Statistic%Average               = + FillValueReal
@@ -791,6 +800,9 @@ cd1:    if (BlockFound) then
             endif                
 
         else if   (Me%Methodology == Value3DStatLayers_) then
+            
+            allocate (Statistic%WaterPoints      (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))    
+            allocate (Statistic%ValidPeriod      (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))            
 
             allocate (Statistic%Minimum          (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
             allocate (Statistic%Maximum          (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
@@ -799,7 +811,10 @@ cd1:    if (BlockFound) then
             allocate (Statistic%StandardDeviation(ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
             
             allocate (Statistic%Minimum2D        (ILB:IUB, JLB:JUB))
-            allocate (Statistic%Maximum2D        (ILB:IUB, JLB:JUB))            
+            allocate (Statistic%Maximum2D        (ILB:IUB, JLB:JUB)) 
+            
+            Statistic%WaterPoints       = 0
+            Statistic%ValidPeriod       = 0
 
             Statistic%Minimum           = - FillValueReal
             Statistic%Maximum           = + FillValueReal
@@ -809,6 +824,7 @@ cd1:    if (BlockFound) then
 
             Statistic%Minimum2D         = - FillValueReal
             Statistic%Maximum2D         = + FillValueReal            
+       
 
             if (Me%Accumulated) then           
                 allocate (Statistic%Accumulated (ILB:IUB, JLB:JUB, 1:Me%Layers%Number)) 
@@ -832,13 +848,14 @@ cd1:    if (BlockFound) then
             endif      
 
         else if   (Me%Methodology == Value2DStat2D_) then
+            
 
             allocate (Statistic%Minimum2D          (ILB:IUB, JLB:JUB))
             allocate (Statistic%Maximum2D          (ILB:IUB, JLB:JUB))
             allocate (Statistic%Average2D          (ILB:IUB, JLB:JUB))
             allocate (Statistic%SquareAverage2D    (ILB:IUB, JLB:JUB))
             allocate (Statistic%StandardDeviation2D(ILB:IUB, JLB:JUB))
-
+            
             Statistic%Minimum2D           = - FillValueReal
             Statistic%Maximum2D           = + FillValueReal
             Statistic%Average2D           = + FillValueReal
@@ -1356,46 +1373,65 @@ cd2 :            if (BlockFound) then
 
             do k = KUB, KLB, -1
 
-            DepthMin = Me%Layers%UpperDepth(i, j, LayerNumber)
-            DepthMax = Me%Layers%LowerDepth(i, j, LayerNumber)
+                DepthMin = Me%Layers%UpperDepth(i, j, LayerNumber)
+                DepthMax = Me%Layers%LowerDepth(i, j, LayerNumber)
 
+                if (WaterPoints3D(i,j,k) == WaterPoint) then
 
-            if (WaterPoints3D(i,j,k) == WaterPoint) then
+                    DepthTopLayer    = DepthBottomLayer
+                    DepthBottomLayer = DepthBottomLayer + DZ3D(i, j, k)
 
-                DepthTopLayer    = DepthBottomLayer
-                DepthBottomLayer = DepthBottomLayer + DZ3D(i, j, k)
+                    !If the layer intercept the vertical interval predefined than an average value can be compute
+                    if (DepthTopLayer <= DepthMax .and. DepthBottomLayer >= DepthMin) then
 
-                !If the layer intercept the vertical interval predefined than an average value can be compute
-                if (DepthTopLayer <= DepthMax .and. DepthBottomLayer >= DepthMin) then
+                        Me%Layers%WaterPoints(i, j, LayerNumber) = 1
 
-                    Me%Layers%WaterPoints(i, j, LayerNumber) = 1
+                        !Model layer inside analysis layer 
+                        if (DepthTopLayer >= DepthMin .and. DepthBottomLayer <= DepthMax) then
+                            
+                            DZ = DZ3D(i, j, k)
 
-                    if (DepthTopLayer >= DepthMin .and. DepthBottomLayer <= DepthMax) DZ = DZ3D(i, j, k)
+                        !Model layer inside analysis layer 
+                        elseif (DepthTopLayer <  DepthMin .and. DepthBottomLayer < DepthMax) then
+                            
+                            DZ = DepthBottomLayer - DepthMin
+                            
+                        elseif (DepthTopLayer >  DepthMin .and. DepthBottomLayer > DepthMax) then
+                            
+                            DZ = DepthMax - DepthTopLayer
+                            
+                        elseif (DepthTopLayer <= DepthMin .and. DepthBottomLayer >=  DepthMax) then
+                            
+                            DZ = DepthMax - DepthMin
+                        
+                        endif
 
-                    if (DepthTopLayer <  DepthMin .and. DepthBottomLayer <= DepthMax) DZ = DepthBottomLayer - DepthMin
+                        if ((DZ_Total + DZ)>0 ) then
+                            
+                            Me%Layers%Value(i, j, LayerNumber) =                        &
+                                    (Me%Layers%Value(i, j, LayerNumber) * DZ_Total +    &
+                                             Value3D(i, j, k) * DZ) / (DZ_Total + DZ)
 
-                    if (DepthTopLayer >= DepthMin .and. DepthBottomLayer >  DepthMax) DZ = DepthMax - DepthTopLayer
+                        else
 
-                    if ((DZ_Total + DZ)>0 ) then
+                            Me%Layers%Value(i, j, LayerNumber) = Value3D(i, j, k)
 
-                            Me%Layers%Value(i, j, LayerNumber) =                   &
-                        (Me%Layers%Value(i, j, LayerNumber) * DZ_Total +        &
-                            Value3D(i, j, k) * DZ) / (DZ_Total + DZ)
-
-                    else
-
-                        Me%Layers%Value(i, j, LayerNumber) = Value3D(i, j, k)
+                        endif
+                        
+                        DZ_Total = DZ_Total + DZ
 
                     endif
-
+                
                 endif
 
                 
-                DZ_Total = DZ_Total + DZ
-
-            endif
-
+                if (KLB == k .and. DZ_Total < (DepthMax - DepthMin) *.999) then
+                    Me%Layers%WaterPoints(i, j, LayerNumber) = 0
+                endif                
+                
             enddo
+            
+
 
         enddo
         enddo            
@@ -1652,6 +1688,9 @@ cd1:    if (DT>0) then
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, k) == WaterPoint) then
+                
+                Me%Global%WaterPoints(i, j, k) = 1
+                Me%Global%ValidPeriod(i, j, k) = Me%Global%ValidPeriod(i, j, k) + DT
 
                 !Minimum Value
                 if (Value (i, j, k) < Me%Global%Minimum (i, j, k))          &
@@ -1911,6 +1950,9 @@ cd1:    if (DT>0) then
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, k) == WaterPoint) then
+                
+                Me%Daily%WaterPoints(i, j, k) = 1
+                Me%Daily%ValidPeriod(i, j, k) = Me%Daily%ValidPeriod(i, j, k) + DT                
 
                 !Minimum Value
                 if (Value (i, j, k) < Me%Daily%Minimum (i, j, k))           &
@@ -2002,8 +2044,17 @@ cd1:    if (DT>0) then
         !Verifies if the present time is a new output
         call ExtractDate (Time1=Me%ExternalVar%Now,       Day = PresentDay)
         call ExtractDate (Time1=Me%Daily%LastCalculation, Day = OldDay)
+        
+        Me%Daily%RunPeriod  = Me%Daily%RunPeriod + DT
+        
         if (int(PresentDay) /= int(OldDay)) then
+            
+            call RemoveWaterPointsWithBadData(Me%Daily%WaterPoints,  Me%Daily%ValidPeriod, Me%Daily%RunPeriod, KLB, KUB)
+            
             call WriteValuesToFileHDF5 (.false., .true., .false., .false., .false.)
+            
+            Me%Daily%WaterPoints       = 0
+            Me%Daily%ValidPeriod       = 0
             Me%Daily%Minimum           = Value
             Me%Daily%Maximum           = Value
             Me%Daily%Average           = Value
@@ -2036,8 +2087,7 @@ cd1:    if (DT>0) then
             endif
 
             Me%Daily%RunPeriod  = 0.
-        else
-            Me%Daily%RunPeriod  = Me%Daily%RunPeriod + DT
+
         endif
 
         !Updates Time
@@ -2048,6 +2098,44 @@ cd1:    if (DT>0) then
 
 
     end subroutine ModifyDailyStatistic
+    
+    !-------------------------------------------------------------------------------
+    subroutine RemoveWaterPointsWithBadData (WaterPoints3D, ValidPeriod, RunPeriod, KLB, KUB)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, :, :), pointer        :: ValidPeriod
+        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+        real                                        :: RunPeriod
+        integer                                     :: KLB, KUB
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ILB, IUB, i
+        integer                                     :: JLB, JUB, j
+        integer                                     :: k
+        !Begin-----------------------------------------------------------------        
+
+        !Shorten
+        ILB = Me%ExternalVar%WorkSize%ILB
+        IUB = Me%ExternalVar%WorkSize%IUB
+        JLB = Me%ExternalVar%WorkSize%JLB
+        JUB = Me%ExternalVar%WorkSize%JUB        
+
+        !Loops
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB    
+            
+            if (WaterPoints3D(i, j, k) == 1) then
+                if (ValidPeriod(i, j, k) /= RunPeriod) then
+                    WaterPoints3D(i, j, k) = 0
+                endif
+            endif
+            
+        enddo
+        enddo
+        enddo
+        
+    end subroutine RemoveWaterPointsWithBadData
 
     !--------------------------------------------------------------------------
 !    subroutine ModifyDailyStatistic_R4 (Value_R4, WaterPoints3D, KLB, KUB)
@@ -2253,6 +2341,9 @@ cd1:    if (DT>0) then
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, k) == WaterPoint) then
+                
+                Me%Monthly%WaterPoints(i, j, k) = 1
+                Me%Monthly%ValidPeriod(i, j, k) = Me%Monthly%ValidPeriod(i, j, k) + DT                
 
                 !Minimum Value
                 if (Value (i, j, k) < Me%Monthly%Minimum (i, j, k))         &
@@ -2343,12 +2434,20 @@ cd1:    if (DT>0) then
         enddo
         enddo
         enddo
+        
+        Me%Monthly%RunPeriod  = Me%Monthly%RunPeriod + DT
 
         !Verifies if the present time is a new output
         call ExtractDate (Time1=Me%ExternalVar%Now,         Month = PresentMonth)
         call ExtractDate (Time1=Me%Monthly%LastCalculation, Month = OldMonth)
         if (int(PresentMonth) /= int(OldMonth)) then
+            
+            call RemoveWaterPointsWithBadData(Me%Monthly%WaterPoints,  Me%Monthly%ValidPeriod, Me%Monthly%RunPeriod, KLB, KUB)
+            
             call WriteValuesToFileHDF5 (.false., .false., .true., .false., .false.)
+            
+            Me%Monthly%WaterPoints       = 0
+            Me%Monthly%ValidPeriod       = 0
             Me%Monthly%Minimum           = Value
             Me%Monthly%Maximum           = Value
             Me%Monthly%Average           = Value
@@ -2381,8 +2480,6 @@ cd1:    if (DT>0) then
             endif
 
             Me%Monthly%RunPeriod  = 0.
-        else
-            Me%Monthly%RunPeriod  = Me%Monthly%RunPeriod + DT
         endif
 
         !Updates Time
@@ -2602,6 +2699,9 @@ cd1:        if (DT>0) then
             do j = JLB, JUB
             do i = ILB, IUB
                 if (WaterPoints3D(i, j, k) == WaterPoint) then
+                    
+                    Me%SpecificHour%WaterPoints(i,  j,  k) = 1
+                    Me%SpecificHour%ValidPeriod(i,  j,  k) = Me%SpecificHour%ValidPeriod(i,  j,  k) + DT
 
                     !Minimum Value
                     if (Value (i, j, k) < Me%SpecificHour%Minimum (i, j, k))         &
@@ -3397,7 +3497,8 @@ cd1:    if (DT>0) then
             endif
         enddo
         enddo
-
+        
+        Me%Monthly%RunPeriod  = Me%Monthly%RunPeriod + DT        
 
         !Verifies if the present time is a new output
         call ExtractDate (Time1=Me%ExternalVar%Now,         Month = PresentMonth)
@@ -3434,8 +3535,6 @@ cd1:    if (DT>0) then
             endif
 
             Me%Monthly%RunPeriod  = 0.
-        else
-            Me%Monthly%RunPeriod  = Me%Monthly%RunPeriod + DT
         endif
 
         !Updates Time
@@ -3877,10 +3976,12 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             endif
 
             if (Me%Methodology==Value3DStatLayers_) then
+                
+                call RemoveWaterPointsWithBadData(Me%Global%WaterPoints,  Me%Global%ValidPeriod, Me%Global%RunPeriod, KLB, KUB)
     
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/OpenPoints",& 
                                       "OpenPoints",                                                    &
-                                      "-", Array3D = Me%Layers%WaterPoints,                            &
+                                      "-", Array3D = Me%Global%WaterPoints,                            &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR210'
 
@@ -4076,7 +4177,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
     
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/OpenPoints",& 
                                       "OpenPoints",                                                    &
-                                      "-", Array3D = Me%Layers%WaterPoints,                            &
+                                      "-", Array3D = Me%Daily%WaterPoints,                            &
                                       OutputNumber = Me%Daily%OutputNumber,                            &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR380'
@@ -4293,7 +4394,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
     
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/OpenPoints",& 
                                       "OpenPoints",                                                    &
-                                      "-", Array3D = Me%Layers%WaterPoints,                            &
+                                      "-", Array3D = Me%Monthly%WaterPoints,                            &
                                       OutputNumber = Me%Daily%OutputNumber,                            &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR570'
@@ -4835,7 +4936,7 @@ doClass2:           do iClass = 1, nc
     
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/OpenPoints",& 
                                       "OpenPoints",                                                    &
-                                      "-", Array3D = Me%Layers%WaterPoints,                            &
+                                      "-", Array3D = Me%SpecificHour%WaterPoints,                            &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR780'
 
@@ -5155,8 +5256,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
                 
                 if (Me%WriteFinalOutput) then
-                !Writes the final values to the HDF file
-                call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)    
+                    !Writes the final values to the HDF file
+                    call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)    
                 endif
 
                 !Associates External Instances
@@ -5265,6 +5366,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (Me%Methodology==Value3DStat3D_ .or.                                &
             Me%Methodology==Value3DStatLayers_) then
 
+            deallocate (Statistic%WaterPoints)
+            
             deallocate (Statistic%Minimum)
             deallocate (Statistic%Maximum)    
             deallocate (Statistic%Average)    
@@ -5288,28 +5391,30 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (Me%Critical) then
                 deallocate (Statistic%PercentBelowCriticalValue) 
             endif        
-
+            
         else if (Me%Methodology==Value2DStat2D_) then
+                
+            if (associated(Statistic%WaterPoints)) deallocate (Statistic%WaterPoints)                
 
-            deallocate (Statistic%Minimum2D)
-            deallocate (Statistic%Maximum2D)    
-            deallocate (Statistic%Average2D)    
-            deallocate (Statistic%SquareAverage2D) 
-            deallocate (Statistic%StandardDeviation2D) 
+            if (associated(Statistic%Minimum2D)              ) deallocate (Statistic%Minimum2D)
+            if (associated(Statistic%Maximum2D)              ) deallocate (Statistic%Maximum2D)    
+            if (associated(Statistic%Average2D)              ) deallocate (Statistic%Average2D)    
+            if (associated(Statistic%SquareAverage2D)        ) deallocate (Statistic%SquareAverage2D) 
+            if (associated(Statistic%StandardDeviation2D)    ) deallocate (Statistic%StandardDeviation2D) 
 
             if (Me%Accumulated) then           
-                deallocate (Statistic%Accumulated2D)  
+                if (associated(Statistic%Accumulated2D)) deallocate (Statistic%Accumulated2D)  
             endif
 
             if (Me%GeomMean) then !Geometric Average is to be calculated
-                deallocate (Statistic%GeomAverage2D)
-                deallocate (Statistic%SquareGeomAverage2D)
-                deallocate (Statistic%GeomStandardDeviation2D)
+                if (associated(Statistic%GeomAverage2D          )) deallocate (Statistic%GeomAverage2D)
+                if (associated(Statistic%SquareGeomAverage2D    )) deallocate (Statistic%SquareGeomAverage2D)
+                if (associated(Statistic%GeomStandardDeviation2D)) deallocate (Statistic%GeomStandardDeviation2D)
             endif
 
             !guillaume juan
             if (Me%Critical) then
-                deallocate (Statistic%PercentBelowCriticalValue2D) 
+                if (associated(Statistic%PercentBelowCriticalValue2D)) deallocate (Statistic%PercentBelowCriticalValue2D) 
             endif
 
         endif

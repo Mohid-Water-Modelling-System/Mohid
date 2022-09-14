@@ -5285,17 +5285,19 @@ end function
     
     !--------------------------------------------------------------------------
     !returns the boundary vertixes of curvilinear grid taking in consideration ghost vertixes = FillValueReal
-    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, Nvert)
+    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, I1D, J1D, Nvert)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:,:), pointer, intent(IN)   :: XX2D, YY2D
         integer,                             intent(IN)   :: ILB, IUB, JLB, JUB
         real,       dimension(:  ), pointer, intent(OUT)  :: XX1D, YY1D
+        integer,    dimension(:  ), pointer, intent(OUT)  :: I1D, J1D        
         integer                                           :: Nvert
 
         !Local-----------------------------------------------------------------
         real,       dimension(:,:), pointer               :: Aux_XX2D, Aux_YY2D
         real,       dimension(:  ), pointer               :: Aux_XX1D, Aux_YY1D, Aux_ZZ1D
+        integer,    dimension(:  ), pointer               :: Aux_I1D, Aux_J1D        
         logical                                           :: StopCycle
         integer                                           :: MaxVert, c1, c2, auxINT, MAXINT, icount
         integer                                           :: ip1, ip2, ip3, ip4
@@ -5305,9 +5307,13 @@ end function
         
         MaxVert =  (JUB - JLB) * (IUB-ILB)
         allocate(Aux_XX1D(MaxVert), Aux_YY1D(MaxVert), Aux_ZZ1D(MaxVert))
-        allocate(Aux_XX2D(ILB-1:IUB+1, JLB-1:JUB+1))
-        allocate(Aux_YY2D(ILB-1:IUB+1, JLB-1:JUB+1))
-
+        allocate(Aux_I1D(MaxVert), Aux_J1D(MaxVert))
+        allocate(Aux_XX2D(ILB-2:IUB+1, JLB-2:JUB+1))
+        allocate(Aux_YY2D(ILB-2:IUB+1, JLB-2:JUB+1))
+        
+        Aux_XX2D(:,:) = FillValueReal
+        Aux_YY2D(:,:) = FillValueReal
+        
         Aux_XX2D(ILB:IUB, JLB:JUB) = XX2D(ILB:IUB, JLB:JUB)
         Aux_YY2D(ILB:IUB, JLB:JUB) = YY2D(ILB:IUB, JLB:JUB)
         
@@ -5397,6 +5403,8 @@ end function
         Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
         Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
         Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
+        Aux_I1D (AuxInt) = c1
+        Aux_J1D (AuxInt) = c2
 
         StopCycle = .false.
         MAXINT    = - FillValueInt
@@ -5410,40 +5418,50 @@ end function
             ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
             
             if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip1
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c2 = c2 + 1
-                 icount = icount + 1
+                                
+                AuxInt = AuxInt + 1
+                Aux_ZZ1D(AuxInt) = ip1
+                Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
+                Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
+                Aux_I1D (AuxInt) = c1
+                Aux_J1D (AuxInt) = c2+1
+                 
+                Aux_XX2D(c1, c2) = MAXINT
+                c2 = c2 + 1
+                icount = icount + 1
 
             elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip2
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c1 = c1 + 1
-                 icount = icount + 1            
+                AuxInt = AuxInt + 1
+                Aux_ZZ1D(AuxInt) = ip2
+                Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
+                Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
+                Aux_I1D (AuxInt) = c1+1
+                Aux_J1D (AuxInt) = c2                
+                Aux_XX2D(c1, c2) = MAXINT
+                c1 = c1 + 1
+                icount = icount + 1            
 
             elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip3
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c2 = c2 - 1
-                 icount = icount + 1
+                AuxInt = AuxInt + 1
+                Aux_ZZ1D(AuxInt) = ip3
+                Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
+                Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
+                Aux_I1D (AuxInt) = c1
+                Aux_J1D (AuxInt) = c2-1                
+                Aux_XX2D(c1, c2) = MAXINT
+                c2 = c2 - 1
+                icount = icount + 1
 
             elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip4
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c1 = c1 - 1
-                 icount = icount + 1                             
+                AuxInt = AuxInt + 1
+                Aux_ZZ1D(AuxInt) = ip4
+                Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
+                Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
+                Aux_I1D (AuxInt) = c1-1
+                Aux_J1D (AuxInt) = c2                
+                Aux_XX2D(c1, c2) = MAXINT
+                c1 = c1 - 1
+                icount = icount + 1                             
             else
                 Aux_XX2D(c1, c2) = MAXINT            
                 icount = icount + 1
@@ -5451,22 +5469,32 @@ end function
             endif
         enddo
 
-        allocate(XX1D(1:icount), YY1D(1:icount))        
+        allocate(XX1D(1:icount+1), YY1D(1:icount+1))        
+        allocate(I1D (1:icount+1), J1D (1:icount+1))        
 
         XX1D(1:icount) = Aux_XX1D(1:icount)
         YY1D(1:icount) = Aux_YY1D(1:icount)
+        
+        I1D(1:icount) = Aux_I1D(1:icount)
+        J1D(1:icount) = Aux_J1D(1:icount)        
 
         !Last verttix equal to the first
         XX1D(icount+1) = XX1D(1)
         YY1D(icount+1) = YY1D(1)
+        
+        I1D(icount+1) = I1D(1)
+        J1D(icount+1) = J1D(1)
+        
 
         NVert = icount + 1
         
-        !do i =1, icount
-        !    write(*,*)  XX1D(i), YY1D(i), Aux_ZZ1D(i)
+        !write(*,*) 'XX1D(i), YY1D(i), J1D(i), I1D(i)'
+        !do i =1, NVert
+        !    write(*,*)  XX1D(i), YY1D(i), J1D(i), I1D(i)
         !enddo
-
+        
         deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
+        deallocate(Aux_I1D,  Aux_J1D)
         deallocate(Aux_XX2D, Aux_YY2D)
         
     end subroutine PolygonBoundGridCurv
@@ -14525,7 +14553,10 @@ D2:     do I=imax-1,2,-1
                  sigmaX = 0.09;
              endif
 
-             SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             SS = 0.3125*Hs**2*wp**4;
+             SS = SS / f(x)**5;
+             SS = SS * exp(-1.25/(f(x)/wp)**4);
              SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
 
              !Jonsoap

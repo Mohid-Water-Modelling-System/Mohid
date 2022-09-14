@@ -73,7 +73,7 @@ Module ModuleGeometry
                                       GetDDecompWorkSize2D, GetDDecompParameters
 
 #ifdef _USE_MPI
-    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI, GetKfloorZminMPI
+    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI, ReceiveSendIntMinMPI
 #endif _USE_MPI
 
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
@@ -2907,10 +2907,10 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
         KminAux = Kmin        
         
 #ifdef _USE_MPI
-        call GetKfloorZminMPI(HorizontalGridID = Me%ObjHorizontalGrid,                  &
-                              KminZin          = KminAux,                               &
-                              KminZout         = Kmin,                                  &
-                              STAT             = STATUS)
+        call ReceiveSendIntMinMPI(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  IntMinin         = KminAux,                           &
+                                  IntMinout        = Kmin,                              &
+                                  STAT             = STATUS)
         if (STATUS /= SUCCESS_) stop 'RemoveLandBottomLayers - Geometry - ERR10'    
 #endif
 

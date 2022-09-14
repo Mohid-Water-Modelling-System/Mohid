@@ -138,7 +138,7 @@ Module ModuleHorizontalGrid
     public  :: GetGridOutBorderCartLimits
 
     public  :: GetXYInsideDomain
-    private ::      InsideDomainPolygon
+    public  :: GetXY_Coord_InsideInnerDomain    
 
     public  :: GetGridBorderType
     public  :: GetDDecompOpenBorders
@@ -148,6 +148,8 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompWorkSize2D
     public  :: GetDDecompMapping2D
     public  :: GetDDecompMPI_ID
+    public  :: GetDDecompMPI_ID_Master
+    public  :: GetDDecompMPI_ID_XY
     public  :: GetDDecompON
     public  :: GetGhostCorners
 
@@ -335,11 +337,10 @@ Module ModuleHorizontalGrid
     endinterface
 
     public :: ReceiveSendLogicalMPI
-    interface ReceiveSendLogicalMPI
-        module procedure AtLeastOneDomainIsTrue
-    endinterface
     
-    public :: GetKfloorZminMPI
+    public :: ReceiveSendIntMinMPI
+    
+    public :: IntMaster2Slaves
 
 #endif _USE_MPI
 
@@ -517,6 +518,11 @@ Module ModuleHorizontalGrid
         type (T_Coef2D)                         :: Coef2D
         type (T_Coef3D)                         :: Coef3D
         logical                                 :: AutomaticLines = .false.
+        real, dimension(:, :), pointer          :: XX_IE_Global   => null()
+        real, dimension(:, :), pointer          :: YY_IE_Global   => null()
+        type (T_Border), dimension(:),  pointer :: Slaves_Mapping_Bound  => null()        
+        type (T_Border),                pointer :: Mapping_Bound         => null()          
+
     end type T_DDecomp
 
 
@@ -705,7 +711,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (present(MasterID)) then
                 Me%DDecomp%Master_MPI_ID = MasterID
-                if (MasterID == MPI_ID) then
+                if (MasterID == MPI_ID .and. MasterID > null_int) then
                     Me%DDecomp%Master = .true.
                 endif
             endif
@@ -1098,6 +1104,8 @@ iE:         if  (Exist) then
                 allocate(Me%DDecomp%Slaves_Size   (Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_Mapping(Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_HaloMap(Me%DDecomp%Nslaves))
+
+                allocate(Me%DDecomp%Slaves_Mapping_Bound(Me%DDecomp%Nslaves))
 
             endif
 
@@ -3376,9 +3384,22 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         !Allocates XX and YY
         allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
         allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
-
+    
         allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        if (Me%DDecomp%Master) then
+
+            allocate(Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB-1: Me%GlobalWorkSize%IUB+1, &
+                                             Me%GlobalWorkSize%JLB-1: Me%GlobalWorkSize%JUB+1))
+
+            allocate(Me%DDecomp%YY_IE_Global(Me%GlobalWorkSize%ILB-1: Me%GlobalWorkSize%IUB+1, &
+                                             Me%GlobalWorkSize%JLB-1: Me%GlobalWorkSize%JUB+1))
+            
+            Me%DDecomp%XX_IE_Global(:,:) = FillValueReal
+            Me%DDecomp%YY_IE_Global(:,:) = FillValueReal 
+            
+        endif        
 
         allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
@@ -3434,10 +3455,17 @@ BF:     if (BlockFound) then
                 end if
 
                 !Reads XX_IE , YY_IE
-                call GetData(AuxReal, Me%ObjEnterData, flag,                                &
-                             Buffer_Line  = Line,                                        &
+                call GetData(AuxReal, Me%ObjEnterData, flag,                            &
+                             Buffer_Line  = Line,                                       &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR230'
+
+                if (Me%DDecomp%Master) then
+
+                    Me%DDecomp%XX_IE_Global(i, j) = AuxReal(1)
+                    Me%DDecomp%YY_IE_Global(i, j) = AuxReal(2)                
+
+                endif
 
                 if (Me%DDecomp%MasterOrSlave) then
                     if (i>= Me%DDecomp%HaloMap%ILB .and. &
@@ -3668,6 +3696,12 @@ iconY:      if (ConstantSpacingY) Then
 
                     XY_Aux   = XY_Aux + DY
 
+                    if (Me%DDecomp%Master) then
+
+                        Me%DDecomp%YY_IE_Global(i, Me%GlobalWorkSize%JLB) = XY_Aux
+
+                    endif                            
+
                     if (Me%DDecomp%MasterOrSlave) then
                         if (i>= Me%DDecomp%HaloMap%ILB .and.                &
                             i<= Me%DDecomp%HaloMap%IUB+1) then
@@ -3712,6 +3746,12 @@ iconY:      if (ConstantSpacingY) Then
                                      Buffer_Line  = Line,                               &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR300'
+
+                        if (Me%DDecomp%Master) then
+
+                            Me%DDecomp%YY_IE_Global(i, Me%GlobalWorkSize%JLB) = Aux
+
+                        endif                               
 
                         if (Me%DDecomp%MasterOrSlave) then
                             if (i>= Me%DDecomp%HaloMap%ILB .and. &
@@ -3764,6 +3804,13 @@ iconX:      if (ConstantSpacingX) Then
 
                     XY_Aux = XY_Aux + DX
 
+
+                    if (Me%DDecomp%Master) then
+
+                        Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB, j) = XY_Aux
+
+                    endif                    
+
                     if (Me%DDecomp%MasterOrSlave) then
                         if (j>= Me%DDecomp%HaloMap%JLB .and. &
                             j<= Me%DDecomp%HaloMap%JUB+1) then
@@ -3812,6 +3859,13 @@ iconX:      if (ConstantSpacingX) Then
                                      Buffer_Line  = Line,                               &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR370'
+
+
+                        if (Me%DDecomp%Master) then
+
+                            Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB, j) = Aux
+
+                        endif                    
 
 
                         if (Me%DDecomp%MasterOrSlave) then
@@ -3892,6 +3946,8 @@ BF1:    if (Me%ReadCartCorners) then
                              Buffer_Line  = Line,                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR430'
+                
+                            
 
                 if (Me%DDecomp%MasterOrSlave) then
                     if (i>= Me%DDecomp%HaloMap%ILB .and. &
@@ -4456,6 +4512,7 @@ dii:        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB + 1
         real(8), dimension(:), pointer      :: DLZONE
         integer, dimension(:), pointer      :: IZONE1
         integer                             :: ILB, IUB, JLB, JUB
+        integer                             :: ILB_G, IUB_G, JLB_G, JUB_G        
         integer                             :: i, j, STATUS, k
         integer, dimension(2)               :: GridUTMmax, GridUTMmin, GridUTM
 
@@ -4515,6 +4572,33 @@ do4 :           do i = ILB, IUB + 1
                                 Me%Grid_Angle, XX_IE(i, j), YY_IE(i, j))
                 end do do4
                 end do do3
+
+ifM:            if (Me%DDecomp%Master) then
+                        
+                    ILB_G = Me%GlobalWorkSize%ILB
+                    IUB_G = Me%GlobalWorkSize%IUB
+
+                    JLB_G = Me%GlobalWorkSize%JLB
+                    JUB_G = Me%GlobalWorkSize%JUB
+
+do1g :              do j = JLB_G, JUB_G + 1
+do2g :              do i = ILB_G, IUB_G + 1
+                        Me%DDecomp%XX_IE_Global(i, j) =  Me%DDecomp%XX_IE_Global(ILB_G, j    )
+                        Me%DDecomp%YY_IE_Global(i, j) =  Me%DDecomp%YY_IE_Global(i,     JLB_G)
+                    end do do2g
+                    end do do1g                    
+
+                    !Rotation of the points
+do3g :              do j = JLB_G, JUB_G + 1
+do4g :              do i = ILB_G, IUB_G + 1
+                        call RODAXY(Me%Xorig, Me%Yorig, Me%Grid_Angle,                  &
+                                    Me%DDecomp%XX_IE_Global(i, j),                      &
+                                    Me%DDecomp%YY_IE_Global(i, j))
+                    end do do4g
+                    end do do3g
+
+                endif ifM
+
 
             endif Inp
 
@@ -5274,6 +5358,9 @@ Inp:    if (Me%CornersXYInput) then
 
         !Local-----------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
+        character(len=PathLength)                   :: RootPath, File  
+        integer                                     :: STAT_CALL, i         
+        type (T_Border), pointer                    :: Mapping_Bound
 
         !Begin-----------------------------------------------------------------
 
@@ -5291,8 +5378,91 @@ Inp:    if (Me%CornersXYInput) then
         endif
 
         call DefinesBorderPoly(XX2D, YY2D, Me%GridBorderCoord)
-
+        
         call DefinesBorderPoly(XX2D, YY2D, Me%GridOutBorderCoord, Outer = .true.)
+        
+        
+        if (Me%DDecomp%ON) then        
+        
+            if (Me%DDecomp%Master) then
+      
+
+                do i=1, Me%DDecomp%Nslaves
+
+
+                    allocate(Mapping_Bound)            
+
+                    Mapping_Bound%Type_  = Me%GridOutBorderCoord%Type_  
+                
+                    call DefinesBorderPoly(XX2D         = Me%DDecomp%XX_IE_Global,              &
+                                           YY2D         = Me%DDecomp%YY_IE_Global,              &
+                                           GridBorder   = Mapping_Bound,                        &
+                                           Outer        = .true.,                               &                          
+                                           ILB_W        = Me%DDecomp%Slaves_Mapping  (i)%ILB,   &
+                                           IUB_W        = Me%DDecomp%Slaves_Mapping  (i)%IUB,   &
+                                           JLB_W        = Me%DDecomp%Slaves_Mapping  (i)%JLB,   &
+                                           JUB_W        = Me%DDecomp%Slaves_Mapping  (i)%JUB)
+
+                    Me%DDecomp%Slaves_Mapping_Bound(i) = Mapping_Bound             
+                
+                enddo
+            
+
+
+                allocate(Mapping_Bound)            
+
+                Mapping_Bound%Type_  = Me%GridOutBorderCoord%Type_              
+            
+
+                call DefinesBorderPoly(XX2D         = Me%DDecomp%XX_IE_Global,          &
+                                       YY2D         = Me%DDecomp%YY_IE_Global,          &
+                                       GridBorder   = Mapping_Bound,                    &
+                                       Outer        = .true.,                           &
+                                       ILB_W        = Me%DDecomp%Mapping%ILB,           &   
+                                       IUB_W        = Me%DDecomp%Mapping%IUB,           &   
+                                       JLB_W        = Me%DDecomp%Mapping%JLB,           &   
+                                       JUB_W        = Me%DDecomp%Mapping%JUB)                
+                           
+
+                 Me%DDecomp%Mapping_Bound =>  Mapping_Bound   
+            else
+                
+                allocate(Mapping_Bound)            
+
+                Mapping_Bound%Type_  = Me%GridOutBorderCoord%Type_              
+            
+
+                call DefinesBorderPoly(XX2D         = XX2D,                             &
+                                       YY2D         = YY2D,                             &
+                                       GridBorder   = Mapping_Bound,                    &
+                                       Outer        = .true.,                           &
+                                       ILB_W        = Me%DDecomp%Inner%ILB,             &   
+                                       IUB_W        = Me%DDecomp%Inner%IUB,             &   
+                                       JLB_W        = Me%DDecomp%Inner%JLB,             &   
+                                       JUB_W        = Me%DDecomp%Inner%JUB)                
+                           
+                 Me%DDecomp%Mapping_Bound =>  Mapping_Bound                   
+                
+            endif
+    
+        endif
+
+        !if (Me%GhostCorners) then
+
+        if (Me%DDecomp%ON) then
+
+            call ReadFileName("ROOT", RootPath, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DefineBorderPolygons - ModuleHorizontalGrid - ERR10'
+
+            File = trim(RootPath)//"ModelDomain.xy"
+        
+            call Add_MPI_ID_Private_Filename(File)  
+
+            call WriteItem(Me%GridOutBorderCoord%Polygon_, trim(File))   
+
+        endif
+
+         !endif
 
         nullify(XX2D, YY2D)
 
@@ -5307,25 +5477,43 @@ Inp:    if (Me%CornersXYInput) then
     !This subroutine defines the border polygon
 
 
-    subroutine DefinesBorderPoly(XX2D, YY2D, GridBorder, Outer)
+    subroutine DefinesBorderPoly(XX2D, YY2D, GridBorder, Outer, ILB_W, IUB_W, JLB_W, JUB_W)
 
         !Arguments-------------------------------------------------------------
         type (T_Border),  pointer                   :: GridBorder
         real,   dimension(:,:), pointer             :: XX2D, YY2D
         logical, optional, intent(IN)               :: Outer
-
+        integer, optional, intent(IN)               :: ILB_W, IUB_W, JLB_W, JUB_W
         !Local-----------------------------------------------------------------
-        real,   dimension(:), pointer               :: XX1D, YY1D
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: Nvert, i, j, di
         logical                                     :: Outer_
 
         !Begin-----------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
+        if (present(ILB_W)) then
+            ILB = ILB_W
+        else
+            ILB = Me%WorkSize%ILB
+        endif
+
+        if (present(IUB_W)) then
+            IUB = IUB_W
+        else
+            IUB = Me%WorkSize%IUB
+        endif        
+
+        if (present(JLB_W)) then
+            JLB = JLB_W
+        else
+            JLB = Me%WorkSize%JLB
+        endif
+
+        if (present(JUB_W)) then
+            JUB = JUB_W
+        else
+            JUB = Me%WorkSize%JUB
+        endif   
 
         if (present(Outer)) then
             Outer_ = Outer
@@ -5358,28 +5546,22 @@ Inp:    if (Me%CornersXYInput) then
 
         !The last vertix equal to the first
         Nvert = Nvert + 1
-
-        if (Me%GhostCorners) then
-            call PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, Nvert)
-        endif
-
-        allocate(GridBorder%Polygon_)
-        allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
         
 
         if (Outer_) then
             di = 0
         else
             di = 1
-        endif
+        endif        
 
-        if (Me%GhostCorners) then 
-
-            GridBorder%Polygon_%Count = Nvert
-            GridBorder%Polygon_%VerticesF(1:Nvert)%X = XX1D(1:Nvert)
-            GridBorder%Polygon_%VerticesF(1:Nvert)%Y = YY1D(1:Nvert)
+        if (Me%GhostCorners) then
+            
+            call PolygonBoundGridCurvSet (XX2D, YY2D, GridBorder, ILB, IUB, JLB, JUB)
 
         else
+            
+            allocate(GridBorder%Polygon_)
+            allocate(GridBorder%Polygon_%VerticesF(1:Nvert))            
 
             if      (GridBorder%Type_ == ComplexPolygon_) then
 
@@ -5447,6 +5629,81 @@ Inp:    if (Me%CornersXYInput) then
     end subroutine DefinesBorderPoly
 
     !--------------------------------------------------------------------------
+    
+    subroutine PolygonBoundGridCurvSet(XX2D, YY2D, GridBorder, ILB, IUB, JLB, JUB) 
+    
+        !Arguments-------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: XX2D, YY2D
+        type (T_Border),  pointer                   :: GridBorder
+        integer                                     :: ILB, IUB, JLB, JUB
+        !Local-----------------------------------------------------------------
+        real,      dimension(:,:), pointer          :: Aux_XX2D, Aux_YY2D
+        real,      dimension(:  ), pointer          :: XX1D, YY1D 
+        integer,   dimension(:  ), pointer          :: I1D, J1D
+        integer                                     :: Nvert, i, j, NP
+        type (T_PointF),    pointer                 :: Point                      
+        !Begin-----------------------------------------------------------------    
+
+        
+    !   ILB = Me%WorkSize%ILB
+    !   IUB = Me%WorkSize%IUB
+    !   JLB = Me%WorkSize%JLB
+    !   JUB = Me%WorkSize%JUB
+
+        allocate(Point) 
+        
+        allocate (Aux_XX2D(ILB-1:IUB+1,JLB-1:JUB+1), Aux_YY2D(ILB-1:IUB+1,JLB-1:JUB+1))
+        
+        Nvert = 4
+        
+        Aux_XX2D(ILB:IUB+1,JLB:JUB+1) = XX2D(ILB:IUB+1,JLB:JUB+1)
+        Aux_YY2D(ILB:IUB+1,JLB:JUB+1) = YY2D(ILB:IUB+1,JLB:JUB+1)
+        
+        NP = 0
+    
+        do while (Nvert >= 4) 
+    
+            call PolygonBoundGridCurv (Aux_XX2D, Aux_YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, I1D, J1D, Nvert)
+                                           
+            if (Nvert>= 4) then
+                
+                call new(GridBorder%Polygon_, XX1D, YY1D)
+                
+                do i=1, Nvert 
+                    Aux_XX2D(I1D(i), J1D(i)) = FillValueReal
+                    Aux_YY2D(I1D(i), J1D(i)) = FillValueReal                    
+                enddo
+                
+                do i = ILB, IUB+1
+                do j=  JLB, JUB+1
+                    
+                    if (Aux_XX2D(i,j) > HalfFillValueReal) then
+
+                        Point%X = Aux_XX2D(i,j)
+                        Point%Y = Aux_YY2D(i,j)
+                    
+                        if (IsVisible(GridBorder%Polygon_, Point)) then
+                            Aux_XX2D(i,j) = FillValueReal
+                            Aux_YY2D(i,j) = FillValueReal
+                        endif
+                        
+                    endif  
+                enddo
+                enddo
+                
+                NP = NP + 1
+            endif
+            
+        enddo
+        
+        deallocate(Point) 
+                        
+        
+        deallocate (Aux_XX2D, Aux_YY2D)        
+            
+    end subroutine PolygonBoundGridCurvSet            
+        
+    !--------------------------------------------------------------------------        
 
     !***********************************************************************
     !                                                                      *
@@ -8668,7 +8925,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine AtLeastOneDomainIsTrue(HorizontalGridID, LogicalIn, LogicalOut, STAT)
+    subroutine ReceiveSendLogicalMPI(HorizontalGridID, LogicalIn, LogicalOut, STAT)
 
         !Arguments------------------------------------------------------------
         integer            , intent(IN)    :: HorizontalGridID
@@ -8711,7 +8968,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                     !Receive logical from slaves
                     call MPI_Recv (LogicalAux, iSize, Precision, Source, 999003, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR10'
 
                     if (LogicalAux) LogicalOut = .true.
 
@@ -8724,7 +8981,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                     !Send logical to slaves
                     call MPI_Send (LogicalOut, iSize, Precision, Destination, 999004, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR20'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR20'
 
                 enddo
 
@@ -8738,13 +8995,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                 !Send logical to master
                 call MPI_Send (LogicalIn, iSize, Precision, Destination, 999003, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR30'
 
                 Source      = Me%DDecomp%Master_MPI_ID
 
                 !Receive logical from master
                 call MPI_Recv (LogicalOut, iSize, Precision, Source, 999004, MPI_COMM_WORLD, status, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR40'
+                if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR40'
 
             endif
 
@@ -8756,20 +9013,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine AtLeastOneDomainIsTrue
+    end subroutine ReceiveSendLogicalMPI
     
     !------------------------------------------------------------------------------
 
-    subroutine GetKfloorZminMPI(HorizontalGridID, KminZin, KminZout, STAT)
+    subroutine ReceiveSendIntMinMPI(HorizontalGridID, IntMinin, IntMinout, STAT)
     
         !Arguments------------------------------------------------------------
         integer            , intent(IN)    :: HorizontalGridID
-        integer            , intent(IN)    :: KminZin        
-        integer            , intent(OUT)   :: KminZout
+        integer            , intent(IN)    :: IntMinin        
+        integer            , intent(OUT)   :: IntMinout
         integer            , optional      :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, i
-        integer                            :: KminZAux
+        integer                            :: IntMinAux
         integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
@@ -8785,7 +9042,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
     
-            KminZout = KminZin
+            IntMinout = IntMinin
             
             if (Me%DDecomp%ON) then
 
@@ -8801,10 +9058,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         Source    =  Me%DDecomp%Slaves_MPI_ID(i)
 
                         !Receive logical from slaves
-                        call MPI_Recv (KminZAux, iSize, Precision, Source, 999903, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR10'
+                        call MPI_Recv (IntMinAux, iSize, Precision, Source, 999903, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR10'
 
-                        if (KminZAux < KminZout) KminZout = KminZAux
+                        if (IntMinAux < IntMinout) IntMinout = IntMinAux
 
                     enddo
 
@@ -8814,8 +9071,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
 
                         !Send logical to slaves
-                        call MPI_Send (KminZout, iSize, Precision, Destination, 999904, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR20'
+                        call MPI_Send (IntMinout, iSize, Precision, Destination, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR20'
 
                     enddo
 
@@ -8828,14 +9085,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Destination = Me%DDecomp%Master_MPI_ID
 
                     !Send integer to master
-                    call MPI_Send (KminZin, iSize, Precision, Destination, 999903, MPI_COMM_WORLD, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR30'
+                    call MPI_Send (IntMinin, iSize, Precision, Destination, 999903, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR30'
 
                     Source      = Me%DDecomp%Master_MPI_ID
 
                     !Receive logical from master
-                    call MPI_Recv (KminZout, iSize, Precision, Source, 999904, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR40'
+                    call MPI_Recv (IntMinout, iSize, Precision, Source, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR40'
 
                 endif
                 
@@ -8848,7 +9105,78 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetKfloorZminMPI
+    end subroutine ReceiveSendIntMinMPI
+    !------------------------------------------------------------------------------
+
+    subroutine IntMaster2Slaves(HorizontalGridID, IntInOut, STAT)
+    
+        !Arguments------------------------------------------------------------
+        integer            , intent(IN)    :: HorizontalGridID
+        integer            , intent(INOUT) :: IntInOut
+        integer            , optional      :: STAT
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL, i
+        integer                            :: Source, Destination
+        integer                            :: iSize
+        integer, save                      :: Precision
+        integer                            :: status(MPI_STATUS_SIZE)
+        integer                            :: STAT_, ready_
+
+        !Begin---------------------------------------------------------------    
+
+       STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+            if (Me%DDecomp%ON) then
+
+                if (Me%DDecomp%Master) then
+
+                    iSize     = 1
+
+                    Precision = MPI_INTEGER
+                
+                    !send to slaves
+                    do i=1, Me%DDecomp%Nslaves
+
+                        Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                        !Send integer to slaves
+                        call MPI_Send (IntInOut, iSize, Precision, Destination, 999905, MPI_COMM_WORLD, STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) stop 'IntMaster2Slaves - ModuleHorizontalGrid - ERR10'
+
+                    enddo
+
+                else
+
+                    iSize       = 1
+
+                    Precision   = MPI_INTEGER
+
+
+                    Source      = Me%DDecomp%Master_MPI_ID
+
+                    !Receive integer from master
+                    call MPI_Recv (IntInOut, iSize, Precision, Source, 999905, MPI_COMM_WORLD, status, STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) stop 'IntMaster2Slaves - ModuleHorizontalGrid - ERR20'
+
+                endif
+                
+            endif                
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine IntMaster2Slaves
     !------------------------------------------------------------------------------
     
 
@@ -8856,7 +9184,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
-    ! This subroutine add the MPI ID to a Filename                                         !
+    ! This public subroutine add the MPI ID to a Filename                                       !
     !                                                                                      !
     ! Input : Filename                                                                     !
     ! OutPut: MPI_X_Filename                                                               !
@@ -8871,8 +9199,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         character(len=*)   , intent(INOUT) :: FileName
         integer            , optional      :: STAT
         !Local---------------------------------------------------------------
-        integer                            :: I, ipath, iFN
-        character(LEN = StringLength)      :: AuxChar
         integer                            :: STAT_, ready_
 
         !Begin---------------------------------------------------------------
@@ -8886,21 +9212,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             if (Me%DDecomp%ON) then
                 if (STAT_ == SUCCESS_) then
-                    if (Me%DDecomp%MPI_ID > null_int) then
-                        write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
-                        Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
-                        iFN = len_trim(Filename)
-                        ipath = 0
-                        do i = iFN, 1, -1
-                            if (Filename(i:i) == '/' .or. Filename(i:i) == backslash) then
-                                ipath = i
-                                exit
-                            endif
-                        enddo
-                        if (ipath > 0) then
-                            Filename = Filename(1:ipath)//trim(Auxchar)//Filename(ipath+1:iFN)
-                        endif
-                    endif
+                    call Add_MPI_ID_Private_Filename(Filename)
                 endif
             endif
 
@@ -8915,6 +9227,56 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine Add_MPI_ID_2_Filename
 
    !--------------------------------------------------------------------------
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This private subroutine add the MPI ID to a Filename                                 !
+    !                                                                                      !
+    ! Input : Filename                                                                     !
+    ! OutPut: MPI_X_Filename                                                               !
+    ! Author: Paulo Chambel (2022/06)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine Add_MPI_ID_Private_Filename(FileName, MPI_ID)
+
+                                            
+        !Arguments------------------------------------------------------------
+        character(len=*)  , intent(INOUT)   :: FileName
+        integer,  optional, intent(INOUT)   :: MPI_ID
+        !Local---------------------------------------------------------------
+        integer                             :: i, ipath, iFN, MPI_ID_
+        character(LEN = StringLength)       :: AuxChar
+
+
+        !Begin---------------------------------------------------------------    
+        
+        if (present(MPI_ID)) then
+            MPI_ID_ = MPI_ID
+        else
+            MPI_ID_ = Me%DDecomp%MPI_ID
+        endif
+    
+        if (MPI_ID_ > null_int) then
+            write(AuxChar,fmt='(i5)') MPI_ID_
+            Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
+            iFN = len_trim(Filename)
+            ipath = 0
+            do i = iFN, 1, -1
+                if (Filename(i:i) == '/' .or. Filename(i:i) == backslash) then
+                    ipath = i
+                    exit
+                endif
+            enddo
+            if (ipath > 0) then
+                Filename = Filename(1:ipath)//trim(Auxchar)//Filename(ipath+1:iFN)
+            endif
+        endif    
+        
+    end subroutine Add_MPI_ID_Private_Filename
+    
+   !--------------------------------------------------------------------------
+    
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -10729,6 +11091,48 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
     !--------------------------------------------------------------------------
 
+    logical function GetXY_Coord_InsideInnerDomain(HorizontalGridID, XPoint, YPoint,STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        real,               intent(IN)              :: XPoint, YPoint
+        integer, optional,  intent(OUT)             :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
+            (ready_ == READ_LOCK_ERR_)) then
+
+            if (Me%DDecomp%ON) then
+
+                GetXY_Coord_InsideInnerDomain = PointXYInsidePolySet(Me%DDecomp%Mapping_Bound%Polygon_, XPoint, YPoint)
+
+            else
+
+                GetXY_Coord_InsideInnerDomain = PointXYInsidePolySet(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+                
+            endif
+
+
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end function GetXY_Coord_InsideInnerDomain
+
+    !--------------------------------------------------------------------------
+
     !--------------------------------------------------------------------------
 
     logical function GetXYInsideDomain(HorizontalGridID, XPoint, YPoint, Referential, STAT)
@@ -10797,7 +11201,7 @@ iR:         if (Referential_ == GridCoord_) then
 !                    if (Me%GhostCorners) then
 !                        GetXYInsideDomain = .false. 
 !                    else
-                        GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
+                        GetXYInsideDomain = PointXYInsidePolySet(Me%GridBorderCoord%Polygon_, XPoint, YPoint)
 !                    endif
                 endif
 
@@ -10814,7 +11218,7 @@ iR:         if (Referential_ == GridCoord_) then
 
                 else
 
-                    GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderCart%Polygon_, XPoint, YPoint)
+                    GetXYInsideDomain = PointXYInsidePolySet(Me%GridBorderCart%Polygon_, XPoint, YPoint)
                 endif
 
             else if (Referential_ == AlongGrid_) then  iR
@@ -10829,7 +11233,7 @@ iR:         if (Referential_ == GridCoord_) then
 
                 else
 
-                    GetXYInsideDomain = InsideDomainPolygon(Me%GridBorderAlongGrid%Polygon_, XPoint, YPoint)
+                    GetXYInsideDomain = PointXYInsidePolySet(Me%GridBorderAlongGrid%Polygon_, XPoint, YPoint)
                 endif
 
             endif iR
@@ -11915,6 +12319,129 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompMPI_ID
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    integer function GetDDecompMPI_ID_Master(HorizontalGridID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetDDecompMPI_ID_Master = null_int
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            GetDDecompMPI_ID_Master  = Me%DDecomp%Master_MPI_ID
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetDDecompMPI_ID_Master
+
+    !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+
+    integer function GetDDecompMPI_ID_XY(HorizontalGridID, XCoord, YCoord, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        real,                        intent(IN )    :: XCoord, YCoord
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer                                     :: ready_
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, MPI_ID, i, j
+        type (T_Border),                pointer     :: Mapping_Bound          
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetDDecompMPI_ID_XY = null_int
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%DDecomp%Master) then
+                
+                MPI_ID  = -99
+
+                if (PointXYInsidePolySet(Me%DDecomp%Mapping_Bound%Polygon_, XCoord, YCoord)) then
+
+                    MPI_ID = Me%DDecomp%Master_MPI_ID
+
+                else
+
+                    allocate(Mapping_Bound)
+
+                    do i=1, Me%DDecomp%Nslaves
+
+                        Mapping_Bound = Me%DDecomp%Slaves_Mapping_Bound(i)
+
+                        if (PointXYInsidePolySet(Mapping_Bound%Polygon_, XCoord, YCoord)) then
+                             MPI_ID = Me%DDecomp%Slaves_MPI_ID(i)
+                             exit
+                        endif
+
+                    enddo
+
+                    deallocate(Mapping_Bound)
+
+
+                endif
+                
+                GetDDecompMPI_ID_XY = MPI_ID
+
+                STAT_ = SUCCESS_
+            else
+                write(*,*) 'Only a Master domain can know the domain MPI ID slave domains'
+                write(*,*) 'GetDDecompMPI_ID_XY - ModuleHorizontalGrid - ERR010'
+
+            endif
+
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetDDecompMPI_ID_XY
+
+    !--------------------------------------------------------------------------
+
 
     logical function GetDDecompON(HorizontalGridID, STAT)
 
@@ -12374,7 +12901,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 Compute_ = ComputeZ_
             endif
 
-            InsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XInput, YInput)
+            InsideDomain = PointXYInsidePolySet(Me%GridBorderCoord%Polygon_, XInput, YInput)
 
 id:         if (InsideDomain) then
 
@@ -16342,6 +16869,25 @@ do1 :   do while(associated(FatherGrid))
             deallocate(Me%DDecomp%Interfaces)
             nullify   (Me%DDecomp%Interfaces)
         endif
+        
+        if (associated(Me%DDecomp%Slaves_Mapping_Bound)) then
+            deallocate(Me%DDecomp%Slaves_Mapping_Bound)
+            nullify   (Me%DDecomp%Slaves_Mapping_Bound)
+        endif
+        
+        if (Me%DDecomp%Master) then
+
+            if (associated(Me%DDecomp%XX_IE_Global)) then
+                deallocate(Me%DDecomp%XX_IE_Global)
+                nullify   (Me%DDecomp%XX_IE_Global)
+            endif
+            
+            if (associated(Me%DDecomp%YY_IE_Global)) then
+                deallocate(Me%DDecomp%YY_IE_Global)
+                nullify   (Me%DDecomp%YY_IE_Global)
+            endif            
+
+        endif           
 
         if (Me%DDecomp%FilesListOpen) then
 
@@ -18889,45 +19435,6 @@ f4:         if(SearchCell)then
 
 
    !------------------------------------------------------------------------
-
-    logical function InsideDomainPolygon(DomainPolygon, XPoint, YPoint)
-
-        !Arguments ---------------------------------------------------------
-        type(T_Polygon), pointer             :: DomainPolygon
-        real   ,                 intent(IN ) :: XPoint, YPoint
-
-        !Local -------------------------------------------------------------
-        type(T_PointF ),          pointer    :: Point
-        !Begin -------------------------------------------------------------
-
-
-
-        allocate(Point)
-
-
-
-        Point%X = XPoint
-        Point%Y = YPoint
-
-        if (IsPointInsidePolygon(Point, DomainPolygon)) then
-
-            InsideDomainPolygon = .true.
-
-        else
-
-            InsideDomainPolygon = .false.
-
-        endif
-
-
-        deallocate(Point)
-        nullify   (Point)
-
-
-    end function InsideDomainPolygon
-    
-    
-
 
 
 #ifdef _OPENMI_
