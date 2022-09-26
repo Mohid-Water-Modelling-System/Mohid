@@ -696,7 +696,7 @@ Module ModuleHDF5
         integer(HID_T)                              :: attr_id
         integer(HID_T)                              :: STAT_CALL
         integer(HSIZE_T), dimension(7)              :: dims
-        real                                        :: OldValue = 0
+        real(4)                                     :: OldValue = 0
 
         !Opens Minimum attribute
         call h5aopen_name_f (ID, "Minimum", attr_id, STAT_CALL)
