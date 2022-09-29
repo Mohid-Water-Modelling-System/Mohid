@@ -141,7 +141,6 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleReadSWANNonStationary.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleSWAN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleTecnoceanAscii.F90"/>
-        <File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleUpscaleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWOAFormat.F90"/>
         <File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleUpscaleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWRFFormat.F90">
@@ -149,6 +148,5 @@
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
-        <File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleUpscaleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ncdflib.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
