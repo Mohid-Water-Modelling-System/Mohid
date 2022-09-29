@@ -10862,7 +10862,7 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
         if (Me%Relaxation%Upscaling) then
             call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
             if (Me%ComputeOptions%UpscalingDischarge .and. NFieldsUV3D_Upscaling > 0) then
-            call Build_Upscaling_Discharge
+                call Build_Upscaling_Discharge
             endif
         endif
 
