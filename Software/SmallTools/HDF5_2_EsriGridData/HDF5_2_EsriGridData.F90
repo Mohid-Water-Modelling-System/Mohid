@@ -1337,10 +1337,10 @@ do2:    do l  = 1, Me%PropNumber
         
         do i = ILB, IUB
             do j = JLB, JUB
-                if (Aux3D(i,j,k) > FillValueReal .and. Aux3D(i,j,k) /= Me%FillValue) then
-                !    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
-                !else
-                write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
+                if (Aux3D(i,j,k) <= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue) then
+                    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
+                else
+                    write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
                 endif
             enddo
         enddo

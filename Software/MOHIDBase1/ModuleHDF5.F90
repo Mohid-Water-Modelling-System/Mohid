@@ -322,6 +322,7 @@ Module ModuleHDF5
                 
             elseif  (Access == HDF5_READ_) then
                 
+                !write(*,*)'HDF5 file :'//trim(FileName)
                 inquire(FILE = trim(FileName), EXIST = Exist)
                 if (.not. Exist) then
                     write(*,*)'HDF5 file does not exist:'//trim(FileName)

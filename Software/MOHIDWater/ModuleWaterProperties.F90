@@ -4262,7 +4262,7 @@ i1:     if (OutputOk) then
             nProperties = nProperties + 2
         endif
 
-        if (nProperties > 0) then
+np:     if (nProperties > 0) then
 
             !Allocates PropertyList
             allocate(PropertyList(nProperties), STAT = STAT_CALL)
@@ -4418,14 +4418,17 @@ i1:     if (OutputOk) then
                     end do 
                 endif
             enddo
+            
             if(Me%Coupled%Bivalve%Yes)then
+            
                 call SetBivalveTimeSeries(Me%ObjBivalve,                    &
                                             Me%Output%BivalveTimeSeriesIndex, &
                                             Me%Output%BivalveTimeSeriesNames, &
                                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
-            end if
-        endif
+                
+            endif
+        endif np
 
     end subroutine Construct_Time_Serie
 

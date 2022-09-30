@@ -1659,7 +1659,7 @@ Module ModuleHydrodynamic
 
         logical                         :: AssimilaOneField         = .false.
         logical                         :: MatrixesOutputOpt        = .false.
-        logical							:: OperationalDefault       = .false. 
+        logical							:: OperationalDefault       = .false.
 
     end type T_HydroOptions
 

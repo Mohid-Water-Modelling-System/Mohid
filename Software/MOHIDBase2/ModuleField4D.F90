@@ -2678,6 +2678,8 @@ flo:            if (Me%File%FileListON) then
 
                             if (k > 1) then
                                 if (Me%File%InstantsDates(k) < Me%File%InstantsDates(k-1)) then
+                                    write(*,*) 'ERROR - ',trim(Me%File%FilenameList(n))
+                                    write(*,*) 'ERROR - instant - ', j 
                                     stop  'ConstructFile - ModuleField4D - ERR70'
                                 endif
                             endif
