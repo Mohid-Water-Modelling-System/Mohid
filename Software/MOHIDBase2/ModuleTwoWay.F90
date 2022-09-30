@@ -1624,7 +1624,8 @@ Module ModuleTwoWay
         integer                                                     :: FatherI_min, FatherJ_min, FatherK_min
         integer                                                     :: Number_Cells, ifather, jfather
         integer                                                     :: CellFaceOpen, belongs
-        integer                                                     :: jfather_Water, ifather_Water,Enter_Flag
+        integer                                                     :: jfather_Water, ifather_Water
+        !integer                                                     :: Enter_Flag
         real, dimension(:, :, :), pointer                           :: SonArea_U, SonArea_V, Velocity
         logical                                                     :: FoundFirstColumn, FoundFirstLine
         integer, dimension(:, :, :), pointer                        :: SonMask, FatherMask, KLink
@@ -1726,27 +1727,28 @@ Module ModuleTwoWay
                             CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
                             if (belongs == 1 .and. CellFaceOpen == 2) then
                                 FoundFirstColumn = .true.
-                               !do kson = KLBSon, KUBSon
-                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                               !    !because Klink of a land cell is FillValueReal
-                               !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                               !         Number_Cells = Number_Cells + 1
-                               !         !m3/s
-                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                               !                               - SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
-                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
-                               !    endif
-                               !enddo
+                                do kson = KLBSon, KUBSon
+                                    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                    !because Klink of a land cell is FillValueReal
+                                    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                                - SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
+                                        Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                                    endif
+                                enddo
                                 !Check if CD cell in vertical belongs to PD cell (using left PD cell
                                 !because Klink of a land cell is FillValueReal
-                                Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json+1, k)+FatherMask(i, j, k)
-                                if (Enter_Flag == 3) then
-                                    Number_Cells = Number_Cells + 1
-                                    !m3/s
-                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                                                            - SonMatrix(ison,json+1,k) * SonArea_U(ison,json+1,k)
-                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json+1,k)
-                                endif
+                                !This code below considers that both PD and CD use the same geometry implementation.
+                                !Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json, k)+FatherMask(i, j, k)
+                                !if (Enter_Flag == 3) then
+                                !    Number_Cells = Number_Cells + 1
+                                !    !m3/s
+                                !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                !                            - SonMatrix(ison,json+1,k) * SonArea_U(ison,json+1,k)
+                                !    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json+1,k)
+                                !endif
                             endif
                         enddo
                         enddo do1
@@ -1770,25 +1772,25 @@ Module ModuleTwoWay
                             CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
                             if (belongs == 1 .and. CellFaceOpen == 2) then
                                 FoundFirstColumn = .true.
-                               !do kson = KLBSon, KUBSon
-                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                               !    !because Klink of a land cell is FillValueReal
-                               !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                               !         Number_Cells = Number_Cells + 1
-                               !         !m3/s
-                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                               !                               + SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
-                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
-                               !    endif
-                               !enddo
-                                Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json+1, k)+FatherMask(i, j, k)
-                                if (Enter_Flag == 3) then
-                                    Number_Cells = Number_Cells + 1
-                                    !m3/s
-                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                                                            + SonMatrix(ison,json-1,k) * SonArea_U(ison,json-1,k)
-                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json-1,k)
-                                endif
+                                do kson = KLBSon, KUBSon
+                                    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                    !because Klink of a land cell is FillValueReal
+                                    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                                + SonMatrix(ison,json,kson) * SonArea_U(ison,json,kson)
+                                        Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                                    endif
+                                enddo
+                                !Enter_Flag=SonMask(ison, json-1, k)+SonMask(ison, json+1, k)+FatherMask(i, j, k)
+                                !if (Enter_Flag == 3) then
+                                !    Number_Cells = Number_Cells + 1
+                                !    !m3/s
+                                !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                !                            + SonMatrix(ison,json-1,k) * SonArea_U(ison,json-1,k)
+                                !    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json-1,k)
+                                !endif
                             endif
                         enddo
                         enddo do2
@@ -1798,13 +1800,12 @@ Module ModuleTwoWay
                 enddo
                 enddo
             elseif (VelocityID == VelocityV_) then
-                
                 do k = FatherK_min, Me%Father%WorkSize%KUB
                 do j = FatherJ_min, FatherJ_max
                 do i = FatherI_min, FatherI_max
                     Number_Cells = 0
                     if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
-                        FoundFirstColumn = .false.
+                        FoundFirstLine = .false.
                         !land to the North
                 do3:    do ison = ILBSon, IUBSon
                             if (FoundFirstLine) then
@@ -1820,31 +1821,31 @@ Module ModuleTwoWay
                             CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
                             if (belongs == 1 .and. CellFaceOpen == 2) then
                                 FoundFirstLine = .true.
-                               !do kson = KLBSon, KUBSon
-                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                               !    !because Klink of a land cell is FillValueReal
-                               !    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                               !         Number_Cells = Number_Cells + 1
-                               !         !m3/s
-                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                               !                               - SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
-                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
-                               !    endif
-                               !enddo
-                                Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
-                                if (Enter_Flag == 3) then
-                                    Number_Cells = Number_Cells + 1
-                                    !m3/s
-                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                                                        - SonMatrix(ison+1,json,k) * SonArea_V(ison+1,json,k)
-                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison+1,json,k)
-                                endif
+                                do kson = KLBSon, KUBSon
+                                    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                    !because Klink of a land cell is FillValueReal
+                                    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                                - SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
+                                        Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                                    endif
+                                enddo
+                                !Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
+                                !if (Enter_Flag == 3) then
+                                !    Number_Cells = Number_Cells + 1
+                                !    !m3/s
+                                !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                !                        - SonMatrix(ison+1,json,k) * SonArea_V(ison+1,json,k)
+                                !    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison+1,json,k)
+                                !endif
                             endif
                         enddo
                         enddo do3
                     end if    
                     if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
-                        FoundFirstColumn = .false.
+                        FoundFirstLine = .false.
                         !land to the South
                 do4:    do ison = ILBSon, IUBSon
                             if (FoundFirstLine) then
@@ -1862,25 +1863,25 @@ Module ModuleTwoWay
                             CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
                             if (belongs == 1 .and. CellFaceOpen == 2) then
                                 FoundFirstLine = .true.
-                               !do kson = KLBSon, KUBSon
-                               !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                               !    !because Klink of a land cell is FillValueReal
-                               !    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                               !         Number_Cells = Number_Cells + 1
-                               !         !m3/s
-                               !         FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                               !                               + SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
-                               !         Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
-                               !    endif
-                               !enddo
-                                Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
-                                if (Enter_Flag == 3) then
-                                    Number_Cells = Number_Cells + 1
-                                    !m3/s
-                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
-                                                            + SonMatrix(ison-1,json,k) * SonArea_V(ison-1,json,k)
-                                    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison-1,json,k)
-                                endif
+                                do kson = KLBSon, KUBSon
+                                    !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                    !because Klink of a land cell is FillValueReal
+                                    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                        Number_Cells = Number_Cells + 1
+                                        !m3/s
+                                        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                                                + SonMatrix(ison,json,kson) * SonArea_V(ison,json,kson)
+                                        Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison,json,kson)
+                                    endif
+                                enddo
+                                !Enter_Flag=SonMask(ison-1, json, k)+SonMask(ison+1, json, k)+FatherMask(i, j, k)
+                                !if (Enter_Flag == 3) then
+                                !    Number_Cells = Number_Cells + 1
+                                !    !m3/s
+                                !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) &
+                                !                            + SonMatrix(ison-1,json,k) * SonArea_V(ison-1,json,k)
+                                !    Velocity(i, j, k) = Velocity(i, j, k) + SonMatrix(ison-1,json,k)
+                                !endif
                             endif
                         enddo
                         enddo do4
@@ -2046,20 +2047,21 @@ Module ModuleTwoWay
                         CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json - 1, KUBSon)
                         if (belongs == 1 .and. CellFaceOpen == 2) then
                             FoundFirstColumn = .true.
-                            !do kson = KLBSon, KUBSon
-                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                            !    !because Klink of a land cell is FillValueReal
-                            !    if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                            !        Number_Cells = Number_Cells + 1
-                            !        !m3/s
-                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                            !    endif
-                            !enddo
-                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json-1, k) == 1 .and. FatherMask(i, j, k) == 1) then
-                                Number_Cells = Number_Cells + 1
-                                !m3/s
-                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
-                            endif
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison,json-1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                            !This code below is only for when both PD and CD have the same geometry implementation
+                            !if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json-1, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                            !    Number_Cells = Number_Cells + 1
+                            !    !m3/s
+                            !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            !endif
                         endif
                     enddo
                     enddo do1
@@ -2084,26 +2086,25 @@ Module ModuleTwoWay
                         CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison, json + 1, KUBSon)
                         if (belongs == 1 .and. CellFaceOpen == 2) then
                             FoundFirstColumn = .true.
-                            !do kson = KLBSon, KUBSon
-                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                            !    !because Klink of a land cell is FillValueReal
-                            !    if (KLink(ison,json+1,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                            !        Number_Cells = Number_Cells + 1
-                            !        !m3/s
-                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                            !    endif
-                            !enddo
-                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json+1, k) == 1 .and. FatherMask(i, j, k) == 1) then
-                                Number_Cells = Number_Cells + 1
-                                !m3/s
-                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
-                            endif
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison,json+1,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                            !if (SonMask(ison, json, k) == 1 .and. SonMask(ison, json+1, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                            !    Number_Cells = Number_Cells + 1
+                            !    !m3/s
+                            !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            !endif
                         endif
                     enddo
                 enddo do2
                 end if
                 if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i + 1, j, FatherK_max) == 0) then
-                    FoundFirstColumn = .false.
                     FoundFirstLine = .false.
                     !land to the North
             do3:    do ison = ILBSon, IUBSon
@@ -2120,26 +2121,25 @@ Module ModuleTwoWay
                         CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison - 1, json, KUBSon)
                         if (belongs == 1 .and. CellFaceOpen == 2) then
                             FoundFirstLine = .true.
-                            !do kson = KLBSon, KUBSon
-                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                            !    !because Klink of a land cell is FillValueReal
-                            !    if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                            !        Number_Cells = Number_Cells + 1
-                            !        !m3/s
-                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                            !    endif
-                            !enddo
-                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison-1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
-                                Number_Cells = Number_Cells + 1
-                                !m3/s
-                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
-                            endif
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison - 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                            !if (SonMask(ison, json, k) == 1 .and. SonMask(ison-1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                            !    Number_Cells = Number_Cells + 1
+                            !    !m3/s
+                            !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            !endif
                         endif
                     enddo
                     enddo do3
                 end if
                 if (FatherMask(i, j, FatherK_max) == 1 .and. FatherMask(i - 1, j, FatherK_max) == 0) then
-                    FoundFirstColumn = .false.
                     FoundFirstLine = .false.
                     !land to the South
             do4:    do ison = ILBSon, IUBSon
@@ -2158,20 +2158,20 @@ Module ModuleTwoWay
                         CellFaceOpen = SonMask(ison, json, KUBSon) + SonMask(ison + 1, json, KUBSon)
                         if (belongs == 1 .and. CellFaceOpen == 2) then
                             FoundFirstLine = .true.
-                            !do kson = KLBSon, KUBSon
-                            !    !Check if CD cell in vertical belongs to PD cell (using left PD cell
-                            !    !because Klink of a land cell is FillValueReal
-                            !    if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
-                            !        Number_Cells = Number_Cells + 1
-                            !        !m3/s
-                            !        FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
-                            !    endif
-                            !enddo
-                            if (SonMask(ison, json, k) == 1 .and. SonMask(ison+1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
-                                Number_Cells = Number_Cells + 1
-                                !m3/s
-                                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
-                            endif
+                            do kson = KLBSon, KUBSon
+                                !Check if CD cell in vertical belongs to PD cell (using left PD cell
+                                !because Klink of a land cell is FillValueReal
+                                if (KLink(ison + 1,json,kson) == k .and. SonMask(ison, json, kson) == 1) then
+                                    Number_Cells = Number_Cells + 1
+                                    !m3/s
+                                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,kson)
+                                endif
+                            enddo
+                            !if (SonMask(ison, json, k) == 1 .and. SonMask(ison+1, json, k) == 1 .and. FatherMask(i, j, k) == 1) then
+                            !    Number_Cells = Number_Cells + 1
+                            !    !m3/s
+                            !    FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + SonMatrix(ison,json,k)
+                            !endif
                         endif
                     enddo
                     enddo do4
