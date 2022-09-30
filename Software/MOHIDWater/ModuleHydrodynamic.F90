@@ -13466,7 +13466,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
             
             if (Me%Relaxation%Upscaling_Method /= Nudging_Vol_ .and. &
                 Me%Relaxation%Upscaling_Method /= Discharge_) then
-                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 2')
+                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 3')
             endif 
                 
             if (Me%Relaxation%Upscaling_Method == Nudging_Vol_) then
