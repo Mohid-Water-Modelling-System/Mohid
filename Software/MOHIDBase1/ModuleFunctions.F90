@@ -12739,7 +12739,8 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
             write(*,*)'Concentration (g/l)          = ', Concentration
             write(*,*)'KL1 * (Concentration - CHS)  = ', Aux
             write(*,*)'Cell(i, j, k)                = ', i, j, k
-            stop 'Error computing the settling velocity - SettlingVelocity - ModuleFreeVerticalMovement'
+            SettlingVelocity                        = 0.
+            !stop 'Error computing the settling velocity - SettlingVelocity - ModuleFreeVerticalMovement'
 
         endif
 

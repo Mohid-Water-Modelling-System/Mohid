@@ -20562,15 +20562,6 @@ dd:     do dis = 1, Me%Discharge%Number
                 AuxCell = AuxCell + nCells
 
                 Me%Discharge%Vert   (dis) = DischVertical
-                
-                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
-                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - failed ungetDischarges VectorI')
-
-                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
-                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - failed ungetDischarges VectorJ')
-
-                call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
-                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - failed ungetDischarges VectorK')
                 cycle
             endif
 
