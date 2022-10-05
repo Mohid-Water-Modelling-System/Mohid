@@ -153,6 +153,14 @@ Module ModuleRunOff
             real(c_double) :: level
         end function SewerGEMSEngine_getNodeWaterLevel
 
+        integer(c_int) function SewerGEMSEngine_setNodeSurfaceDepth(id, level) bind(C, name='swmm_setNodeSurfaceDepth')
+            use iso_c_binding
+            integer(c_int) :: id
+            real(c_double) :: level
+        end function SewerGEMSEngine_setNodeSurfaceDepth
+
+
+
         integer(c_int) function SewerGEMSEngine_setSurfaceLinkFlow(id, inflow) bind(C, name='swmm_setSurfaceLinkFlow')
             use iso_c_binding
             integer(c_int) :: id
@@ -463,7 +471,6 @@ Module ModuleRunOff
         real                                        :: PotentialFlow        = 0.0
         real                                        :: EffectiveFlow        = 0.0
         real                                        :: WaterLevel           = 0.0
-        logical                                     :: NearFull             = .false.
         integer                                     :: CellID               = null_int
         integer                                     :: nInletsInGridCell    = null_int
         character(Pathlength)                       :: RatingCurveFileName  = null_str
@@ -2789,7 +2796,7 @@ do2:    do
                         write(*,*)"NAME   = ", trim(adjustl(Me%OpenChannelLinks(n)%LinkNodeName))
                         write(*,*)"GRID_I = ", Me%OpenChannelLinks(n)%I
                         write(*,*)"GRID_J = ", Me%OpenChannelLinks(n)%J
-                        stop 'ReadOpenChannelLinksFromFile - ModuleRunOff - ERR151'
+                        stop 'ReadOpenChannelLinksFromFile - ModuleRunOff - ERR152'
                     endif
 
                 endif
@@ -6917,7 +6924,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             !Time Stuff
             call GetComputeCurrentTime  (Me%ObjTime, Me%ExtVar%Now, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyRunOff - ModuleRunOff - ERR010'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyRunOff - ModuleRunOff - ERR10'
+
+            call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyRunOff - ModuleRunOff - ERR11'
+
             
             !Stores initial values = from basin
             call SetMatrixValue(Me%myWaterColumnOld, Me%Size, Me%myWaterColumn)
@@ -6933,6 +6944,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             Restart = .true.
             n_restart = 0
+
+
             
             if (Me%CV%NextNiteration > 1 .and. Me%ExtVar%DT < (Me%CV%CurrentDT * Me%CV%NextNiteration)) then
                 Me%CV%NextNiteration = max(aint(Me%ExtVar%DT / Me%CV%CurrentDT), 1.0)
@@ -9297,9 +9310,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 #ifdef _SEWERGEMSENGINECOUPLER_
    
         !--------------------------------------------------------------------------
-        real(c_double)              :: dt, elapsedTime, WaterLevel
+        real(c_double)              :: dt, elapsedTime
         integer                     :: STAT_CALL, n, i, j, xn
-        real                        :: Flow
+        real                        :: Flow, Overflow
         real                        :: SecondLinkWaterLevel, dh, Area, WaterLevelSWMM, sign
         !--------------------------------------------------------------------------
 
@@ -9318,16 +9331,32 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setInletPotentialFlow(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%PotentialFlow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
 
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR20'
+
         enddo
+
+        do n = 1, Me%NumberOfManholes
+
+            i = Me%Manholes(n)%I
+            j = Me%Manholes(n)%J
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
+        enddo
+
 
         do n = 1, Me%NumberOfOutfalls
             
             !I and J of the outfall node location - if outfall is connected to a cross-section 
             !the outfall may intercept multiple cells, but all have same terrain elevation and water elevation
-            WaterLevel =  Me%myWaterLevel(Me%Outfalls(n)%I, Me%Outfalls(n)%J)
+            i = Me%Outfalls(n)%I
+            j = Me%Outfalls(n)%J
+
             
             !Set 2D water level over outfall node to SewerGEMS SWMM 
-            STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, WaterLevel)
+            STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, Me%myWaterLevel(i,j))
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR70'
             
         enddo
@@ -9368,17 +9397,19 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             j = Me%Inlets(n)%J
 
             !Get SewerGEMS SWMM flow in or out of inlet
-            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%EffectiveFlow)
+            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Inlets(n)%SWMM_ID, Overflow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
 
-            if(Me%Inlets(n)%EffectiveFlow > 0)then
+            STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%WaterLevel)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR31'
+
+            if(Overflow > 0.0)then
                 if(Me%Inlets(n)%PotentialFlow > 0)then
-                    Me%Inlets(n)%EffectiveFlow = Me%Inlets(n)%EffectiveFlow - Me%Inlets(n)%PotentialFlow
+                    Me%Inlets(n)%EffectiveFlow = Overflow - Me%Inlets(n)%PotentialFlow 
                 else
-                    Me%Inlets(n)%EffectiveFlow = Me%Inlets(n)%EffectiveFlow
+                    Me%Inlets(n)%EffectiveFlow = Overflow
                 endif
-            
-            else 
+            else
                 Me%Inlets(n)%EffectiveFlow = Me%Inlets(n)%PotentialFlow * -1.0
             endif
 
@@ -9591,8 +9622,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: InletInflow, FlowEnteringCell
         real                                        :: AverageCellLength, y0, dH1, dH2
-        integer                                     :: n, iStage, STAT_CALL, isNodeSurcharged
-        real                                        :: dH, transitionDepth, transitionCoef
+        integer                                     :: n, iStage
+
 
         !Local-----------------------------------------------------------------
         
@@ -9702,53 +9733,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
                 Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
-
-                STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%WaterLevel)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeInletsPotentialFlow - ModuleRunOff - ERR01'
-
-                dH = Me%ExtVar%Topography(i,j) - Me%Inlets(n)%WaterLevel
-
-                Me%Inlets(n)%NearFull = .false.
-                if(dh > 0.0)then
-                    if(dh <= 0.01)then
-                        Me%Inlets(n)%NearFull  = .true.
-                    else
-                        Me%Inlets(n)%NearFull  = .false.
-                    endif
-                else
-                    Me%Inlets(n)%NearFull  = .true.
-                    write(*,*)"Inlet water level cannot go above terrain elevation"
-                    write(*,*)"Inlet name = ", Me%Inlets(n)%Name
-                    write(*,*)"DH         = ", dh
-                    !stop 'ComputeInletsPotentialFlow - ModuleRunOff - ERR01'
-                endif
-
-                if(Me%Inlets(n)%NearFull)then
-                    Me%Inlets(n)%PotentialFlow = 0.0
-                endif
-
-
-                transitionCoef = 1.0 
-                transitionDepth = 0.5 !Me%myWaterColumn(i, j)*0.1; !10% of the water column above
-
-                !if(dH > 0.0)then
-                !    if(dH <= transitionDepth)then
-                !        transitionCoef = dH/transitiondepth
-                !        !transitionCoef = 1.0 - ((transitiondepth - dH)/transitiondepth)**2.0
-                !    endif
-                !endif
-
-                STAT_CALL = SewerGEMSEngine_getIsNodeSurcharged(Me%Inlets(n)%SWMM_ID, isNodeSurcharged)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeInletsPotentialFlow - ModuleRunOff - ERR01'
-
-                if(isNodeSurcharged > 0)then
-                    Me%Inlets(n)%PotentialFlow = 0.0
-                endif
-
-                !Me%Inlets(n)%PotentialFlow = min(0.1, Me%Inlets(n)%PotentialFlow)
-
-                Me%Inlets(n)%PotentialFlow =  Me%Inlets(n)%PotentialFlow * transitionCoef
-                        
 
             else
                   
