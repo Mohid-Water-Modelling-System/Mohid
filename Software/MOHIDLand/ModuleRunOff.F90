@@ -214,6 +214,14 @@ Module ModuleRunOff
             real(c_double) :: flow
         end function SewerGEMSEngine_getNodeOverflow
 
+        integer(c_int) function SewerGEMSEngine_setNodeSurchargeDepth(id, level) bind(C, name='swmm_setNodeSurchargeDepth')
+            use iso_c_binding
+            integer(c_int) :: id
+            real(c_double) :: level
+        end function SewerGEMSEngine_setNodeSurchargeDepth
+
+
+
         
     end interface
 
@@ -466,7 +474,7 @@ Module ModuleRunOff
         integer                                     :: J                    = null_int
         integer                                     :: TypeOf               = null_int
         real                                        :: Width                = null_real
-        real                                        :: FlowCaptureFraction  = null_real
+        real                                        :: CaptureFraction      = null_real
         real                                        :: FlowEnteringCell     = 0.0
         real                                        :: PotentialFlow        = 0.0
         real                                        :: EffectiveFlow        = 0.0
@@ -944,6 +952,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call InitializeVariables
 
             call ConstructOverLandCoefficient
+
+            call ModifyGeometryAndMapping
 
             !Checks if River Network is consistent with the one previously constructed
             if (DrainageNetworkID /= 0) then
@@ -2985,7 +2995,7 @@ do2:    do
                     
                 elseif(Me%Inlets(n)%TypeOf .eq. FlowCapture_)then
                     
-                    call GetData(Me%Inlets(n)%FlowCaptureFraction,                                  &
+                    call GetData(Me%Inlets(n)%CaptureFraction,                                      &
                                  InletsObjEnterData, iflag,                                         &
                                  Keyword        = 'FLOW_CAPTURE_FRACTION',                          &
                                  SearchType     = FromBlock,                                        &
@@ -2994,7 +3004,7 @@ do2:    do
                                  STAT           = STAT_CALL)                                      
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR70'
 
-                    if(Me%Inlets(n)%FlowCaptureFraction < 0.0 .or. Me%Inlets(n)%FlowCaptureFraction > 1.0)then
+                    if(Me%Inlets(n)%CaptureFraction < 0.0 .or. Me%Inlets(n)%CaptureFraction > 1.0)then
                         write(*,*)"Inlet FLOW_CAPTURE_FRACTION is not valid: ", trim(adjustl(Me%Inlets(n)%Name))
                         stop 'ReadInletsFromFile - ModuleRunOff - ERR71'
                     endif
@@ -9331,7 +9341,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setInletPotentialFlow(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%PotentialFlow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
 
-            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR20'
 
         enddo
@@ -9341,7 +9351,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             i = Me%Manholes(n)%I
             j = Me%Manholes(n)%J
 
-            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
 
         enddo
@@ -9389,6 +9399,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
             Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
         enddo
 
         do n = 1, Me%NumberOfInlets
@@ -9438,6 +9452,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
             Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
 
         enddo
 
@@ -9607,6 +9625,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Store SewerGEMS SWMM current time step
         !Check subroutine ComputeNextTimeStep where 
         Me%StormWaterModelDT = dt
+!999 format(a20,1x,3f20.6)
+!        write(99,999) TimeToString(Me%ExtVar%Now), elapsedTime *86400.0, Me%ExtVar%DT, Me%StormWaterModelDT
+
 #endif _SEWERGEMSENGINECOUPLER_
  
     end subroutine ComputeStormWaterModel
@@ -9646,100 +9667,92 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if(Me%iFlowY(i,j)   > 0.0) FlowEnteringCell = FlowEnteringCell + Me%iFlowY(i,  j  )
             if(Me%iFlowY(i+1,j) < 0.0) FlowEnteringCell = FlowEnteringCell - Me%iFlowY(i+1,j  )
 
-            if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
                     
-                if(Me%Inlets(n)%TypeOf == Weir_)then
+            if(Me%Inlets(n)%TypeOf == Weir_)then
                     
-                    AverageCellLength  = (Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j)) / 2.0
+                AverageCellLength  = (Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j)) / 2.0
                     
-                    !Considering an average side slope of 5% (1/0.05 = 20) of the street
-                    y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
+                !Considering an average side slope of 5% (1/0.05 = 20) of the street
+                y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
                     
-                    !When triangle of street is full, consider new head 
-                    if (y0 * 20.0 > AverageCellLength) then
-                        y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
-                    endif
+                !When triangle of street is full, consider new head 
+                if (y0 * 20.0 > AverageCellLength) then
+                    y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
+                endif
 
-                    !Q  = L * K * y0^(3/2) * sqrt(g)
-                    !L  = inlet width = 0.5
-                    !K  = Coef = 0.2
-                    !y0 = downstream level
-                    InletInflow = Me%Inlets(n)%Width * 0.2 * y0**1.5 * sqrt(Gravity)       
+                !Q  = L * K * y0^(3/2) * sqrt(g)
+                !L  = inlet width = 0.5
+                !K  = Coef = 0.2
+                !y0 = downstream level
+                InletInflow = Me%Inlets(n)%Width * 0.2 * y0**1.5 * sqrt(Gravity)       
                     
-                elseif(Me%Inlets(n)%TypeOf == FlowCapture_)then
+            elseif(Me%Inlets(n)%TypeOf == FlowCapture_)then
                     
-                    if(FlowEnteringCell > 0.0)then
-                        InletInflow = FlowEnteringCell * Me%Inlets(n)%FlowCaptureFraction
-                    else
-                        InletInflow = 0.0
-                    end if
+                if(FlowEnteringCell > 0.0)then
+                    InletInflow = FlowEnteringCell * Me%Inlets(n)%CaptureFraction
+                else
+                    InletInflow = 0.0
+                end if
                 
-                elseif(Me%Inlets(n)%TypeOf == DepthFlowRatingCurve_)then
+            elseif(Me%Inlets(n)%TypeOf == DepthFlowRatingCurve_)then
 
-                    if    (Me%myWaterColumn(i, j) < Me%Inlets(n)%RatingCurveStage(1))then
-                        !if lower than minimum stage then set to minimum flow
-                        InletInflow = Me%Inlets(n)%RatingCurveBelowMin
-                    elseif(Me%myWaterColumn(i, j) > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
-                        !if higher than maximum stage then set to maximum flow
-                        InletInflow = Me%Inlets(n)%RatingCurveAboveMax
-                    else
-                        !if within stage levels average the flow
-                        iStage = 2 !start at second stage level
-                        do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
-                            if(Me%myWaterColumn(i, j) .le. Me%Inlets(n)%RatingCurveStage(iStage))then
-                                exit
-                            endif
-                        enddo
+                if    (Me%myWaterColumn(i, j) < Me%Inlets(n)%RatingCurveStage(1))then
+                    !if lower than minimum stage then set to minimum flow
+                    InletInflow = Me%Inlets(n)%RatingCurveBelowMin
+                elseif(Me%myWaterColumn(i, j) > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
+                    !if higher than maximum stage then set to maximum flow
+                    InletInflow = Me%Inlets(n)%RatingCurveAboveMax
+                else
+                    !if within stage levels average the flow
+                    iStage = 2 !start at second stage level
+                    do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
+                        if(Me%myWaterColumn(i, j) .le. Me%Inlets(n)%RatingCurveStage(iStage))then
+                            exit
+                        endif
+                    enddo
 
-                        dH1 = Me%myWaterColumn(i, j) - Me%Inlets(n)%RatingCurveStage(iStage-1) 
-                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - Me%myWaterColumn(i, j)
+                    dH1 = Me%myWaterColumn(i, j) - Me%Inlets(n)%RatingCurveStage(iStage-1) 
+                    dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - Me%myWaterColumn(i, j)
 
-                        InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
-                                       dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
-                                      (Me%Inlets(n)%RatingCurveStage(iStage )        - &
-                                       Me%Inlets(n)%RatingCurveStage(iStage-1))
-
-                    endif
-
-                elseif(Me%Inlets(n)%TypeOf == FlowFlowRatingCurve_)then
-
-                    if    (FlowEnteringCell < Me%Inlets(n)%RatingCurveStage(1))then
-                        !if lower than minimum stage then set to minimum flow
-                        InletInflow = Me%Inlets(n)%RatingCurveBelowMin
-                    elseif(FlowEnteringCell > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
-                        !if higher than maximum stage then set to maximum flow
-                        InletInflow = Me%Inlets(n)%RatingCurveAboveMax
-                    else
-                        !if within stage levels average the flow
-                        iStage = 2 !start at second stage level
-                        do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
-                            if(FlowEnteringCell .le. Me%Inlets(n)%RatingCurveStage(iStage))then
-                                exit
-                            endif
-                        enddo
-
-                        dH1 = FlowEnteringCell - Me%Inlets(n)%RatingCurveStage(iStage-1) 
-                        dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - FlowEnteringCell
-
-                        InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
-                                       dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
-                                      (Me%Inlets(n)%RatingCurveStage(iStage )        - &
-                                       Me%Inlets(n)%RatingCurveStage(iStage-1))
-
-                    endif
-
+                    InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
+                                    dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
+                                    (Me%Inlets(n)%RatingCurveStage(iStage )        - &
+                                    Me%Inlets(n)%RatingCurveStage(iStage-1))
 
                 endif
 
-                Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
-                Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+            elseif(Me%Inlets(n)%TypeOf == FlowFlowRatingCurve_)then
 
-            else
-                  
-                Me%Inlets(n)%PotentialFlow = 0.0            
-    
-            endif
+                if    (FlowEnteringCell < Me%Inlets(n)%RatingCurveStage(1))then
+                    !if lower than minimum stage then set to minimum flow
+                    InletInflow = Me%Inlets(n)%RatingCurveBelowMin
+                elseif(FlowEnteringCell > Me%Inlets(n)%RatingCurveStage(Me%Inlets(n)%RatingCurve_nValues))then
+                    !if higher than maximum stage then set to maximum flow
+                    InletInflow = Me%Inlets(n)%RatingCurveAboveMax
+                else
+                    !if within stage levels average the flow
+                    iStage = 2 !start at second stage level
+                    do iStage = 2, Me%Inlets(n)%RatingCurve_nValues
+                        if(FlowEnteringCell .le. Me%Inlets(n)%RatingCurveStage(iStage))then
+                            exit
+                        endif
+                    enddo
+
+                    dH1 = FlowEnteringCell - Me%Inlets(n)%RatingCurveStage(iStage-1) 
+                    dH2 = Me%Inlets(n)%RatingCurveStage(iStage) - FlowEnteringCell
+
+                    InletInflow = (dH1 * Me%Inlets(n)%RatingCurveFlow(iStage  )  + &
+                                    dH2 * Me%Inlets(n)%RatingCurveFlow(iStage-1)) / &
+                                    (Me%Inlets(n)%RatingCurveStage(iStage )        - &
+                                    Me%Inlets(n)%RatingCurveStage(iStage-1))
+
+                endif
                 
+            endif
+
+            Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
+            Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+
         enddo
             
 
