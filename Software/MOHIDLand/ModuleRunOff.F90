@@ -9326,6 +9326,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real                        :: SecondLinkWaterLevel, dh, Area, WaterLevelSWMM, sign
         !--------------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
         !Compute inlet potential flow
         call ComputeInletsPotentialFlow
 
@@ -9527,7 +9529,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR71'
 
                     !Interpolate between the 2 link nodes
-                    Me%OpenChannelLinks(n)%WaterLevel = Me%OpenChannelLinks(n)%WaterLevel  - & 
+                    Me%OpenChannelLinks(n)%WaterLevel = SecondLinkWaterLevel               + & 
                                                         (Me%OpenChannelLinks(n)%WaterLevel - & 
                                                          SecondLinkWaterLevel)             * &
                                                         Me%OpenChannelLinks(n)%Weight
@@ -9627,6 +9629,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         Me%StormWaterModelDT = dt
 !999 format(a20,1x,3f20.6)
 !        write(99,999) TimeToString(Me%ExtVar%Now), elapsedTime *86400.0, Me%ExtVar%DT, Me%StormWaterModelDT
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
 
 #endif _SEWERGEMSENGINECOUPLER_
  
