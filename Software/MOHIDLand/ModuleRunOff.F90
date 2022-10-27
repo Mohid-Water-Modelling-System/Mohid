@@ -9630,6 +9630,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 !999 format(a20,1x,3f20.6)
 !        write(99,999) TimeToString(Me%ExtVar%Now), elapsedTime *86400.0, Me%ExtVar%DT, Me%StormWaterModelDT
 
+        if(Me%ExtVar%Now .ge. Me%EndTime)then
+            if(Me%StormWaterModelDT > 0.0)then
+                !Run SewerGEMS SWMM engine just to make sure last output is written in case of time step rounding error
+                STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%StormWaterModelDT)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR140'
+            endif
+        endif
+
         if (MonitorPerformance) call StopWatch ("ModuleRunOff", "ComputeStormWaterModel")
 
 
