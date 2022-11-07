@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 #==============================================================================
 #title           : compile_mohid.sh
 #description     : This script is an attempt to compile MOHID in a linux
@@ -20,15 +20,15 @@ IS_DEBUG=false                   # default : false
 
 #### libraries path ####
 DIR_REQ=$HOME/apps_intel
-ZLIB=$DIR_REQ/zlib-1.2.11
+ZLIB=$DIR_REQ/zlib-1.2.12
 HDF5=$DIR_REQ/hdf5-1.8.17
-NETCDF=$DIR_REQ/netcdf-4.4.1.1
-MPI=$DIR_REQ/mpich-4.0a2
-#MPI=/opt/intel/compilers_and_libraries/linux/mpi/intel64
+NETCDF=$DIR_REQ/netcdf-c-4.8.1
+#MPI=$DIR_REQ/mpich-4.0a2
+MPI=/opt/intel/oneapi/mpi/2021.5.1
 PROJ4=$DIR_REQ/proj-4.9.3
 PROJ4F=$DIR_REQ/proj4-fortran
-IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
-PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
+#IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
+#PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
 
 #### Activate modules ####
 USE_OPENMP=false                  # default : true
@@ -36,7 +36,7 @@ USE_MPI=true                    # default : false
 
 USE_HDF=true                     # default : true
 USE_NETCDF=true                  # default : true
-USE_PROJ4=true                   # default : true
+USE_PROJ4=false                  # default : true
 USE_IEEE_ARITHMETIC=true         # default : true
 USE_CUDA=false                   # default : false
 USE_PHREEQC=false                # default : false
@@ -214,7 +214,7 @@ elif [[ $FC == *"ifort"* ]]; then
     
     ## -fp-model source: Control the tradeoffs between accuracy, reproducibility and performance and
     ## improve the consistency and reproducibility of floating-point results while limiting the impact on performance.
-    OPT_FLAGS="-O1 -convert little_endian -fPIC -heap-arrays 64 -fp-model source" #-mcmodel=large
+    OPT_FLAGS="-O3 -convert little_endian -fPIC -heap-arrays 64 -fp-model source" #-mcmodel=large
   
     OTH_FLAGS=" -xHost -ip -fpe0  -fpp "
     
@@ -685,15 +685,15 @@ MOHID_TOOLS(){
       exit 1
   fi
   modules_Mohid_Tools=( \
-    Convert2netcdf \
+    #Convert2netcdf \
     MohidDDC \
-    BasinDelimiter \
-    ConvertGridDataToHDF5 \
-    ConvertHDF5ToGridData \
+    #BasinDelimiter \
+    #ConvertGridDataToHDF5 \
+    #ConvertHDF5ToGridData \
     ConvertToHDF5 \
-    ConvertToXYZ \
-    DigitalTerrainCreator \
-    FillMatrix \
+    #ConvertToXYZ \
+    #DigitalTerrainCreator \
+    #FillMatrix \
     HDF5Exporter \
     HDF5Extractor \
     HDF5Statistics \
@@ -743,8 +743,9 @@ MOHID_TOOLS(){
         ModulePatchHDF5Files \
         ModuleSWAN \
         ModuleTecnoceanAscii \
-        ModuleWRFFormat \
-        ModuleCALMETFormat)
+       # ModuleWRFFormat \
+       # ModuleCALMETFormat
+         )
         COMPILE_MOHID_TOOLS modules_ConvertToHDF5 "$tool"
 
     elif [ $tool = 'ConvertToXYZ' ]; then
