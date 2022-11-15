@@ -814,6 +814,11 @@ Module ModuleRunOff
         real(8)                                     :: TotalStoredVolume         = 0.0
         real                                        :: InitialTotalVolume        = 0.0
         real                                        :: TotalStormWaterVolume     = 0.0
+        real                                        :: TotalInletsVolume         = 0.0
+        real                                        :: TotalManholesVolume       = 0.0
+        real                                        :: TotalPondsVolume          = 0.0
+        real                                        :: TotalOpenChannelVolume    = 0.0
+        real                                        :: TotalOutfallsVolume       = 0.0
         real(8)                                     :: AvrgAccInfiltrationDepth  = 0.0   
         real(8)                                     :: AvrgAccInfiltrationVolume = 0.0   
    
@@ -4934,7 +4939,12 @@ do2:        do
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        Me%TotalStormWaterVolume = 0.0
+        Me%TotalStormWaterVolume    = 0.0
+        Me%TotalInletsVolume        = 0.0
+        Me%TotalManholesVolume      = 0.0
+        Me%TotalPondsVolume         = 0.0
+        Me%TotalOpenChannelVolume   = 0.0
+        Me%TotalOutfallsVolume      = 0.0
 
         if (Me%StormWaterModel .and. Me%ObjDrainageNetwork /= 0) then
             write(*,*)'It is not possible to activate 1D Drainage Network and SWMM at the same time'
@@ -9391,6 +9401,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
+            Me%TotalManholesVolume   = Me%TotalManholesVolume   + Me%Manholes(n)%Outflow * Me%ExtVar%DT
             
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
 
@@ -9430,6 +9441,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
+            Me%TotalInletsVolume     = Me%TotalInletsVolume     + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
                 
             if(Me%Inlets(n)%OutputResults)then
                 if(Me%ExtVar%Now >= Me%Inlets(n)%NextOutputTime)then 
@@ -9470,6 +9482,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
         
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalOutfallsVolume   = Me%TotalOutfallsVolume   + Me%Outfalls(n)%Flow * Me%ExtVar%DT
         
         enddo
 
@@ -9603,7 +9616,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         do n = 1, Me%NumberOfCrossSections
             
-            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume  - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            Me%TotalOpenChannelVolume= Me%TotalOpenChannelVolume - Me%CrossSections(n)%Flow * Me%ExtVar%DT
             
             !Set 2D flow to/from cross section node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%CrossSections(n)%SWMM_ID, Me%CrossSections(n)%Flow)
@@ -9614,6 +9628,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         do n = 1, Me%NumberOfPonds
                 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
+            Me%TotalPondsVolume      = Me%TotalPondsVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
 
             STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%Ponds(n)%SWMM_ID, Me%Ponds(n)%Flow)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
@@ -12208,6 +12223,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
                 write(RunOffLogFileID, *)
 
+                write(RunOffLogFileID, *)"VERSION                        : 3"
                 write(RunOffLogFileID, *)"INITIAL_TOTAL_VOLUME           : ", Me%InitialTotalVolume
                 write(RunOffLogFileID, *)"FINAL_TOTAL_VOLUME             : ", Me%TotalStoredVolume
                 write(RunOffLogFileID, *)"TOTAL_INFLOW_VOLUME            : ", Me%TotalDischargeFlowVolume
@@ -12227,6 +12243,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                                                         Me%AvrgAccInfiltrationDepth
                 write(RunOffLogFileID, *)"AVERAGE_CUMULATIVE_INFILTRATION_VOLUME_IN_M3         : ",         &
                                                                         Me%AvrgAccInfiltrationVolume
+
+                write(RunOffLogFileID, *)"TOTAL_MANHOLES_VOLUME          : ", Me%TotalManholesVolume
+                write(RunOffLogFileID, *)"TOTAL_INLETS_VOLUME            : ", Me%TotalInletsVolume
+                write(RunOffLogFileID, *)"TOTAL_OUTFALLS_VOLUME          : ", Me%TotalOutfallsVolume
+                write(RunOffLogFileID, *)"TOTAL_PONDS_VOLUME             : ", Me%TotalPondsVolume
+                write(RunOffLogFileID, *)"TOTAL_OPENCHANNELS_VOLUME      : ", Me%TotalOpenChannelVolume
                 
                 call WriteGridData  (Me%Files%MassErrorFile,                   &
                      COMENT1          = "MassErrorFile",                       &
