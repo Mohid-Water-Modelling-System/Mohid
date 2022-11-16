@@ -568,6 +568,7 @@ Module ModuleRunOff
         character(PathLength)                       :: SWMMinp              = null_str    
         character(PathLength)                       :: SWMMrpt              = null_str
         character(PathLength)                       :: SWMMout              = null_str
+        character(PathLength)                       :: SWMMUncoupledElements= null_str
         character(PathLength)                       :: SWMMHDF              = null_str
         character(PathLength)                       :: SWMMTimeSeries       = null_str
         character(PathLength)                       :: SWMMTimeSeriesDir    = null_str
@@ -4977,6 +4978,7 @@ do2:        do
         integer(c_int)                                  :: isOpenChannel
         integer                                         :: nInlets, iNode, nManholes, nOutfalls, nCrossSections, nPonds
         logical                                         :: Exists
+        integer                                         :: UncoupledElementsFileID
         !--------------------------------------------------------------------------
         
         write(*,*)
@@ -4991,6 +4993,15 @@ do2:        do
 
         call ReadFileName('ROOT_SRT', Me%Files%SWMMTimeSeriesDir, Message = "SWMM Time Series folder", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR20'
+
+        Me%Files%SWMMUncoupledElements = trim(adjustl(Me%Files%SWMMTimeSeriesDir))//"UncoupledElements.dat"
+
+        call UnitsManager(UncoupledElementsFileID, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR21'
+
+        open(UNIT = UncoupledElementsFileID, FILE = trim(Me%Files%SWMMUncoupledElements), STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR22'
+
 
         dpos = scan(trim(Me%Files%SWMMHDF),".", BACK= .true.)
     
@@ -5151,8 +5162,16 @@ do2:        do
             Me%NodesNames(n) = nodeName
 
             if(IgnoreSWMMNode(Me%NodesNames(n))) then
+
+                Me%NodesType(n)     = NotCoupled_
+
                 Me%InactiveNodes = Me%InactiveNodes + 1 !add to list of inactive nodes
-                cycle                                   !go directly to next node
+
+                write(UncoupledElementsFileID, *) Me%NodesID(n)
+
+                call SetError(WARNING_, INTERNAL_, Me%NodesNames(n), OFF)
+
+                cycle !go directly to next node
             endif 
 
             !Check the type of node (0 = junction; 1 = outfall; 2 = storage)
@@ -5248,6 +5267,10 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                             Me%NodesType(n)     = NotCoupled_
                             Me%NodesCellID(n)   = null_int
                             Me%InactiveNodes    = Me%InactiveNodes + 1
+
+                            write(UncoupledElementsFileID, *) Me%NodesID(n)
+                            call SetError(WARNING_, INTERNAL_, Me%NodesNames(n), OFF)
+
                         endif
 
                     else
@@ -5255,6 +5278,10 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                         Me%NodesType(n)     = NotCoupled_
                         Me%NodesCellID(n)   = null_int
                         Me%InactiveNodes    = Me%InactiveNodes + 1
+
+                        write(UncoupledElementsFileID, *) Me%NodesID(n)
+                        call SetError(WARNING_, INTERNAL_, Me%NodesNames(n), OFF)
+
                     endif
 
                 endif ifactivepoint
@@ -5266,9 +5293,17 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                 Me%NodesType(n)     = NotCoupled_
                 Me%NodesCellID(n)   = null_int
                 Me%InactiveNodes    = Me%InactiveNodes + 1
+
+                write(UncoupledElementsFileID, *) Me%NodesID(n)
+                call SetError(WARNING_, INTERNAL_, Me%NodesNames(n), OFF)
+
             endif insidegrid
 
         enddo
+
+        call UnitsManager(UncoupledElementsFileID, CLOSE_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR211'
+
 
         !Double check inlets
         if(nInlets .ne. Me%NumberOfInlets)then
