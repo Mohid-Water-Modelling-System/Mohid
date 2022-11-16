@@ -89,6 +89,7 @@ Program HDF5_2_EsriGridData
         logical                                             :: ExportXY_Vector
         logical                                             :: VectorON
         character(len=StringLength)                         :: Vector_X, Vector_Y
+        logical                                             :: ExportGridData
         
         type(T_Time)                                        :: StartTime, EndTime
         integer                                             :: ComputeOption
@@ -481,6 +482,15 @@ d2:     do l= 1, Me%FieldNumber
                      ClientModule = 'HDF5_2_EsriGridData',                              &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR240'
+        
+        call GetData(Me%ExportGridData,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'EXPORT_GRID_DATA',                                 &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR250'        
         
     end subroutine ReadGlobalOptions
 
@@ -948,13 +958,16 @@ d11:    do l = 1, Me%FieldNumber
                 endif
                
             endif
+
+                if (Me%ExportGridData) then
                 
-            call WriteHDF5_To_GridData(Aux2DOut, Me%OutputESRI(l))            
+                    call WriteHDF5_To_GridData(Aux2DOut, Me%OutputESRI(l))            
                 
+                endif    
                 
                 if (Me%ExportXYZ) then
                 
-                call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
+                    call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
                 
                 endif 
                 

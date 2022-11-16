@@ -597,6 +597,11 @@ Module ModuleStatistic
         nullify (Me%Classification%Frequency2D)
 
 
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR130')
+
 
         !Classification
         !The infinit loop is necessary to scan the file again. When
@@ -604,15 +609,15 @@ Module ModuleStatistic
         !all the variables are initialize and the Object EnterData is read to be scan again
         !(ex: scan the block "<beginlayer>, <endlayer>).
 do1 :   do
-        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                   &
-                                    "<BeginClass>", "<EndClass>",                    &
-                                    BlockFound,                                      &
-                                    FirstLine = FirstLine,                           &
-                                    LastLine  = LastLine,                            &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    "<BeginClass>", "<EndClass>",                       &
+                                    BlockFound,                                         &
+                                    FirstLine = FirstLine,                              &
+                                    LastLine  = LastLine,                               &
                                     STAT      = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR07')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR140')
 
 
         !Reads Classification Data
@@ -624,19 +629,19 @@ cd1:    if (BlockFound) then
             nClasses = 0
             do iLine = FirstLine+1, LastLine-1
                 nClasses = nClasses + 1
-                call GetData(Me%Classification%Classes(nClasses, :),                 &
-                             Me%ObjEnterData, iflag,                                 &
-                             Buffer_Line  = iLine,                                   & 
+                call GetData(Me%Classification%Classes(nClasses, :),                    &
+                             Me%ObjEnterData, iflag,                                    &
+                             Buffer_Line  = iLine,                                      & 
                              STAT         = STAT_CALL)
-                if (iflag     /=        2) stop 'ModuleStatistic - ReadDataFile - ERR08'
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleStatistic - ReadDataFile - ERR09'
+                if (iflag     /=        2) stop 'ModuleStatistic - ReadDataFile - ERR150'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleStatistic - ReadDataFile - ERR160'
             enddo
 
         else  cd1
             
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_)                                               &
-                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR10')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR170')
 
             exit do1    !No more blocks
             
@@ -647,16 +652,16 @@ cd1:    if (BlockFound) then
         if (Me%Classification%On) then
 
             !Percentil
-            call GetData(Me%Classification%Percentil,                                    &
-                         Me%ObjEnterData,                                                &
-                         iflag,                                                          &
-                         SearchType   = FromFile,                                        &
-                         keyword      = 'PERCENTILE',                                    &
-                         default      = 90.,                                             &
-                         ClientModule = 'ModuleStatistic',                               &
+            call GetData(Me%Classification%Percentil,                                   &
+                         Me%ObjEnterData,                                               &
+                         iflag,                                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'PERCENTILE',                                   &
+                         default      = 90.,                                            &
+                         ClientModule = 'ModuleStatistic',                              &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR11')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR180')
 
         endif
 
@@ -669,8 +674,8 @@ cd1:    if (BlockFound) then
                         default      = .true.,                                          &
                         ClientModule = 'ModuleStatistic',                               &
                         STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR12')        
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR190')        
 
 
         if (Me%Methodology == Value3DStatLayers_)                                        &
@@ -678,7 +683,7 @@ cd1:    if (BlockFound) then
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR13')
+            call SetError (FATAL_, KEYWORD_, 'ModuleStatistic - ReadDataFile - ERR200')
 
 
     
@@ -930,13 +935,13 @@ cd1:    if (BlockFound) then
 
         endif
 
-        if   (Me%Methodology == Value2DStat2D_ .or. Me%Methodology == Value3DStat3D_) then
+        !if   (Me%Methodology == Value2DStat2D_ .or. Me%Methodology == Value3DStat3D_) then
 
                 allocate (Me%Classification%Frequency2D(ILB:IUB, JLB:JUB, 1:nClasses))
                                                                  
             Me%Classification%Frequency2D(:,:,:) = 0.
 
-        endif
+        !endif
 
     end subroutine AllocateFrequencyMatrixes
 
@@ -1423,7 +1428,6 @@ cd2 :            if (BlockFound) then
                     endif
                 
                 endif
-
                 
                 if (KLB == k .and. DZ_Total < (DepthMax - DepthMin) *.999) then
                     Me%Layers%WaterPoints(i, j, LayerNumber) = 0
@@ -4440,11 +4444,9 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 if (Me%Methodology==Value3DStat3D_ .or.  &
                     Me%Methodology==Value3DStatLayers_) then
 
+
                     !Allocates auxiliar matrix 3D
-                    allocate (AuxMatrix3D(                               &
-                        Me%ExternalVar%Size%ILB:Me%ExternalVar%Size%IUB, &
-                        Me%ExternalVar%Size%JLB:Me%ExternalVar%Size%JUB, &
-                        Me%ExternalVar%Size%KLB:Me%ExternalVar%Size%KUB))
+                    allocate (AuxMatrix3D(ILB-1:IUB+1, JLB-1:JUB+1, KLB-1:KUB+1))
 
                     do k = KLB, KUB
                     do j = JLB, JUB
