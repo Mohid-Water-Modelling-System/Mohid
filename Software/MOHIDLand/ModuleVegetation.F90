@@ -375,6 +375,7 @@ Module ModuleVegetation
     private ::      ModifyModelledProperties
     private ::          UpdateGlobalPlantProperties
     private ::          UpdateRootProperties
+    private ::          UpdateCropCoefficient       !Added by Ana Oliveira to compute Kc according to FAO56
     private ::          UpdateStemProperties
     private ::          UpdateLeafProperties
                     !Read property evolution
@@ -473,6 +474,7 @@ Module ModuleVegetation
         integer                                         :: JulianDay_Old        = null_int
         logical                                         :: ComputeSoilField     = .false.
         logical                                         :: CoupledAtmosphere    = .false.
+        logical                                         :: KcThresholds         = .false.
         real, dimension(:,:,:), pointer                 :: DWZ                  => null()
         real, dimension(:,:,:), pointer                 :: SZZ                  => null()
         integer, dimension(:,:), pointer                :: KFloor               => null()
@@ -593,6 +595,9 @@ Module ModuleVegetation
         real                                            :: TreeMaximumBiomass   = null_real
         real                                            :: BiomassFracRemovedInDormancy = null_real
         real                                            :: LAIMinDormant        = null_real
+        real                                            :: Kc_ini               = null_real
+        real                                            :: Kc_mid               = null_real
+        real                                            :: Kc_end               = null_real
     end type T_GrowthDatabase
 
     type T_GrazingDatabase
@@ -1047,6 +1052,8 @@ Module ModuleVegetation
         real                                                    :: ValueInsteadNegativeLAI = null_real
         
         logical                                                 :: TestForHUAcc = .false.
+        
+        logical                                                 :: KcEvolutionAccordingFAO56 = .false.
 
     end type  T_Vegetation
 
@@ -1079,6 +1086,7 @@ Module ModuleVegetation
                                    GeometryID,                      &
                                    BasinGeometryID,                 &
                                    CoupledAtmosphere,               &
+                                   KcThresholds,                    &       !Added by Ana Oliveira
                                    UsePotLAI,                       &
                                    STAT)
 
@@ -1094,6 +1102,7 @@ Module ModuleVegetation
         integer                                         :: GeometryID
         integer                                         :: BasinGeometryID
         logical                                         :: CoupledAtmosphere
+        logical                                         :: KcThresholds
         logical,           intent(OUT)                  :: UsePotLAI
         integer, optional, intent(OUT)                  :: STAT     
 
@@ -3062,16 +3071,23 @@ doV:    do while (associated(VegetationInList))
 
         call SearchProperty(EVTPCropCoefficient, EVTPCropCoefficient_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
-            if(EVTPCropCoefficient%Evolution /= ReadValue) then
-                write(*,*    )
-                write(*,*    ) 'crop coefficient can not yet be modeled'
-                write(*,*    ) 'Check property EVOLUTION keyword'
-                stop 'CheckOptionsConsistence - ModuleVegetation - ERR023'
-            endif                                                      
+            if (EVTPCropCoefficient%Evolution == SWAT) then
+                
+                if (Me%ExternalVar%KcThresholds) then
+                    write(*,*    )
+                    write(*,*    ) 'WARNNING: KC_THRESHOLDS keyword is activated on Basin module.'
+                    write(*,*    ) 'Evolution of crop coefficient is activated on Vegetation module.'
+                    write(*,*    ) 'Evolution of crop coefficient will be estimated according'
+                    write(*,*    ) 'to FAO56.'
+                endif
+            
+                Me%KcEvolutionAccordingFAO56 = .true.
+            endif
+            
         elseif (STAT_CALL /= SUCCESS_)  then
             write(*,*    )
-            write(*,*    ) 'crop coefficent is a mandatory Property for'
-            write(*,*    ) 'vegetation. Needed in basin processes'
+            write(*,*    ) 'Crop coefficent is a mandatory property for'
+            write(*,*    ) 'vegetation. Add property block.'
             stop 'CheckOptionsConsistence - ModuleVegetation - ERR024'
         endif
 
@@ -3702,8 +3718,13 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         KUB = Me%Size%KUB
                
         if (Me%ComputeOptions%Evolution%ModelSWAT) then                        
-            call JulianDay(Me%ExternalVar%Now, JulDay)
-            Me%ExternalVar%JulianDay_Old = JulDay
+            if (.not. Me%ComputeOptions%Continuous) then
+                call JulianDay(Me%ExternalVar%Now, JulDay)
+                Me%ExternalVar%JulianDay_Old = JulDay
+            else
+                call JulianDay(Me%ExternalVar%Now - Me%ComputeOptions%VegetationDT, JulDay)
+                Me%ExternalVar%JulianDay_Old = JulDay
+            endif
             
             allocate(Me%PlantingOccurred (ILB:IUB,JLB:JUB))
             Me%PlantingOccurred = .false.            
@@ -6098,6 +6119,31 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         endif
                     endif
                     
+                    !if Kc is estimated according FAO56
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Kc_ini, GrowthObjEnterData,  iflag, &
+                             SearchType     = FromBlock,                                                    &
+                             keyword        = 'KC_INI',                                                     &
+                             default        = 0.90,                                                         & !grass
+                             ClientModule   = 'ModuleVegetation',                                           &
+                             STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR310'
+                    
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Kc_mid, GrowthObjEnterData,  iflag, &
+                             SearchType     = FromBlock,                                                    &
+                             keyword        = 'KC_MID',                                                     &
+                             default        = 1.00,                                                         & !grass
+                             ClientModule   = 'ModuleVegetation',                                           &
+                             STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR320'
+                    
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%Kc_end, GrowthObjEnterData,  iflag, &
+                             SearchType     = FromBlock,                                                    &
+                             keyword        = 'KC_END',                                                     &
+                             default        = 1.00,                                                         & !grass
+                             ClientModule   = 'ModuleVegetation',                                           &
+                             STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR330'
+                    
                     !Compute parameters that do not need to be computed every cell and time step
                     gdb => Me%VegetationTypes(ivt)%GrowthDatabase
                 
@@ -7338,6 +7384,7 @@ cd0:    if (Exist) then
 
                 ConvertType = "IntegerToLogical"
                 call ConvertLogicalInteger (Me%IsPlantGrowing, PlantGrowingInteger, ConvertType)
+                write(*,*) 'IsPlantGrowing', Me%IsPlantGrowing(60,80)
                 
                 deallocate (PlantGrowingInteger)            
             
@@ -7348,6 +7395,7 @@ cd0:    if (Exist) then
                 if (STAT_CALL /= SUCCESS_)                                                   &
                     stop 'ReadInitialHDF - ModuleVegetation - ERR03'
 
+                write(*,*) 'PlantHUAccumulated', Me%HeatUnits%PlantHUAccumulated(60,80)
                 !old value = read value
                 call SetMatrixValue (Me%HeatUnits%PlantHUAccumulated_Old,                    &
                                      Me%Size2D,                                              &
@@ -7485,6 +7533,15 @@ cd0:    if (Exist) then
                             stop 'ReadInitialHDF - ModuleVegetation - ERR05.5'
                     endif
                 endif
+                
+                !Read fluxes because when continuous calculation is used the first instant
+                !of the simulation is not calculated to avoid double counting of HU - Added by Ana Oliveira
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"LAI before senescense",         &
+                                     "LAI before senescense",                               &
+                                     Array2D = Me%LAIBeforeSenescence,                      &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR05.6'   
 
             endif
 
@@ -8890,67 +8947,70 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             endif
 
             !Time when vegetation processes are called
-            if (Me%ExternalVar%Now >= Me%NextCompute) then     
+            if (Me%ExternalVar%Now >= Me%NextCompute) then
+                !Added by Ana Oliveira because of continuous calculation
+                if (Me%ExternalVar%Now /= Me%EndTime) then
                 
-
-                call ReadLockExternalVar(ReadAtmosphere = .false.)
+                    call ReadLockExternalVar(ReadAtmosphere = .false.)
 
             
-                if (Me%ComputeOptions%Evolution%ReadNeeded) then
+                    if (Me%ComputeOptions%Evolution%ReadNeeded) then
                 
-                    call ModifyReadedProperties
+                        call ModifyReadedProperties
 
-                endif            
+                    endif            
             
-                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+                    if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
                 
-                    call NullifyFluxes
+                        call NullifyFluxes
                     
-                    !Check growing, dormancy, grazing, counters...
-                    call CheckPlantState
+                        !Check growing, dormancy, grazing, counters...
+                        call CheckPlantState
 
-                    !Compute fluxes needed to update properties
-                    call ModifyFluxes
+                        !Compute fluxes needed to update properties
+                        call ModifyFluxes
 
-                    !Compute new property values
-                    call ModifyModelledProperties
+                        !Compute new property values
+                        call ModifyModelledProperties
                 
-                else 
+                    else 
                     
-                    !Do not use vegetation growth model. Only water uptake is modeled for now
-                    !Use readed vegetation properties (LAI, root depth) to uptake water
-                    if (Me%ComputeOptions%ModelWater) then
-                        call WaterUptake
+                        !Do not use vegetation growth model. Only water uptake is modeled for now
+                        !Use readed vegetation properties (LAI, root depth) to uptake water
+                        if (Me%ComputeOptions%ModelWater) then
+                            call WaterUptake
+                        endif
+                    
+                        !Uptake nitrogen - soil nitrogen concentration with water uptake volume
+                        if (Me%ComputeOptions%ModelNitrogen) then
+                            call NitrogenUptake_TranspConc
+                        endif
+                    
+                        !!Uptake phosphorus - soil phosphorus concentration with water uptake volume
+                        if (Me%ComputeOptions%ModelPhosphorus) then
+                            call PhosphorusUptake_TranspConc
+                        endif
+                    
                     endif
-                    
-                    !Uptake nitrogen - soil nitrogen concentration with water uptake volume
-                    if (Me%ComputeOptions%ModelNitrogen) then
-                        call NitrogenUptake_TranspConc
-                    endif
-                    
-                    !!Uptake phosphorus - soil phosphorus concentration with water uptake volume
-                    if (Me%ComputeOptions%ModelPhosphorus) then
-                        call PhosphorusUptake_TranspConc
-                    endif
-                    
+            
+
+
+                    !Get julian day from iteration to keep to next
+                    call JulianDay(Me%ExternalVar%Now, JulDay)
+                    Me%ExternalVar%JulianDay_Old = JulDay               
+                
+                    call ReadUnLockExternalVar(ReadAtmosphere = .false.)
+
+                
                 endif
-            
-
+                
+                !Moved here by Ana Oliveira because of continuous calculation
                 !Output
                 if (Me%OutPut%HDF_ON)           call Modify_OutputHDF                        
                 if (Me%OutPut%TimeSerie_ON)     call Modify_OutPutTimeSeries
-
-
-                !Get julian day from iteration to keep to next
-                call JulianDay(Me%ExternalVar%Now, JulDay)
-                Me%ExternalVar%JulianDay_Old = JulDay
-
-                nullify (Me%ExternalVar%MappingPoints)                
                 
-                call ReadUnLockExternalVar(ReadAtmosphere = .false.)
-
                 Me%NextCompute      = Me%NextCompute + Me%ComputeOptions%VegetationDT
-            
+
             endif
 
             !Outgoing Variables
@@ -8963,7 +9023,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     call Write_FinalVegetation_HDF(IsFinalFile)
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
-            endif           
+            endif     
+            
+            !Moved here by Ana Oliveira to be according to the allocation of MappingPoints
+            nullify (Me%ExternalVar%MappingPoints) 
            
             STAT_ = SUCCESS_
         else               
@@ -9519,7 +9582,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 
         call UpdateLeafProperties
-
+        
+        if (Me%KcEvolutionAccordingFAO56) then
+            call UpdateCropCoefficient
+        endif
         
         if (Me%ComputeOptions%ModelCanopyHeight) then
             
@@ -14181,6 +14247,76 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine UpdateLeafProperties
 
     !--------------------------------------------------------------------------
+    
+    subroutine UpdateCropCoefficient
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local----------------------------------------------------------        
+        integer                                         :: i, j
+        real                                            :: HUAcc
+        real                                            :: KcIni
+        real                                            :: KcMid
+        real                                            :: KcEnd        
+        real                                            :: FrGrow1, FrGrow2, FrGrowLAIDecline    
+        integer                                         :: vegID
+        type(T_VegetationType)                          :: veg
+        
+        !Begin----------------------------------------------------------
+    
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+            if (Me%ExternalVar%MappingPoints(i,j) == VegetationPoint) then
+                
+				if (Me%StateVariables%LeafAreaIndex(i,j) == 0.0) then
+                    !Plant type 0 is NO PLANT, so no operations should happen
+                    Me%StateVariables%EVTPCropCoefficient(i,j) = 0.15
+                
+                else
+                    vegID = Me%VegetationID(i,j)
+                    veg   = Me%VegetationTypes(vegID)
+                
+                    KcIni = veg%GrowthDatabase%Kc_ini
+                    KcMid = veg%GrowthDatabase%Kc_mid
+                    KcEnd = veg%GrowthDatabase%Kc_end
+
+                    HUAcc = Me%HeatUnits%PlantHUAccumulated(i,j)
+                    FrGrow1 = veg%GrowthDatabase%FrGrow1
+                    Frgrow2 = veg%GrowthDatabase%FrGrow2
+                    FrGrowLAIDecline = veg%GrowthDatabase%FrGrowLAIDecline
+					
+
+                    if (HUAcc <= FrGrow1) then
+                        Me%StateVariables%EVTPCropCoefficient(i,j) = KcIni
+                        
+                    else if (HUAcc <= Frgrow2) then
+                        Me%StateVariables%EVTPCropCoefficient(i,j) = LinearInterpolation(Frgrow1, KcIni, &
+                                                                     Frgrow2, KcMid, &
+                                                                     HUAcc)
+                        
+                    else if (HUAcc <= FrGrowLAIDecline) then
+                        Me%StateVariables%EVTPCropCoefficient(i,j) = KcMid
+                        
+                    else if (HUAcc < 1) then
+                        Me%StateVariables%EVTPCropCoefficient(i,j) = LinearInterpolation(FrGrowLAIDecline, KcMid, &
+                                                                     1.0, KcEnd, &
+                                                                     HUAcc)
+                        
+                    else
+                        Me%StateVariables%EVTPCropCoefficient(i,j) = KcEnd
+                    endif
+
+                endif
+            endif
+
+        enddo do2
+        enddo do1
+
+
+    end subroutine UpdateCropCoefficient
+    
+    !--------------------------------------------------------------------------
 
     subroutine UpdateStemProperties
 
@@ -15745,6 +15881,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR198'
                 endif
             
+            endif
+            
+            !Added by Ana Oliveira because of continuous calculation
+            if (IsFinalFile) then
+                
+                call HDF5WriteData  (ObjHDF5, "/Results/"//"LAI before senescense",         &
+                                     "LAI before senescense",                               &
+                                     "-",                                                   &
+                                     Array2D = Me%LAIBeforeSenescence,                      &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR199'
             endif
 
         endif
