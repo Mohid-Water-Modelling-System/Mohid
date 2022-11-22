@@ -159,8 +159,6 @@ Module ModuleRunOff
             real(c_double) :: level
         end function SewerGEMSEngine_setNodeSurfaceDepth
 
-
-
         integer(c_int) function SewerGEMSEngine_setSurfaceLinkFlow(id, inflow) bind(C, name='swmm_setSurfaceLinkFlow')
             use iso_c_binding
             integer(c_int) :: id
@@ -220,8 +218,10 @@ Module ModuleRunOff
             real(c_double) :: level
         end function SewerGEMSEngine_setNodeSurchargeDepth
 
-
-
+        integer(c_int) function SewerGEMSEngine_getTotalVolume(totalVolume) bind(C, name='swmm_getTotalVolume')
+            use iso_c_binding
+            real(c_double) :: totalVolume
+        end function SewerGEMSEngine_getTotalVolume
         
     end interface
 
@@ -820,6 +820,15 @@ Module ModuleRunOff
         real                                        :: TotalPondsVolume          = 0.0
         real                                        :: TotalOpenChannelVolume    = 0.0
         real                                        :: TotalOutfallsVolume       = 0.0
+        real                                        :: Total1DVolume             = 0.0
+        real                                        :: Total1D2DVolume           = 0.0
+        real                                        :: MaxTotal1DVolume          = 0.0
+        real                                        :: MaxTotal2DVolume          = 0.0
+        real                                        :: MaxTotal1D2DVolume        = 0.0
+        real                                        :: TimeOfMaxTotal1DVolume    = 0.0
+        real                                        :: TimeOfMaxTotal2DVolume    = 0.0
+        real                                        :: TimeOfMaxTotal1D2DVolume  = 0.0
+
         real(8)                                     :: AvrgAccInfiltrationDepth  = 0.0   
         real(8)                                     :: AvrgAccInfiltrationVolume = 0.0   
    
@@ -4946,6 +4955,14 @@ do2:        do
         Me%TotalPondsVolume         = 0.0
         Me%TotalOpenChannelVolume   = 0.0
         Me%TotalOutfallsVolume      = 0.0
+        Me%Total1DVolume            = 0.0
+        Me%Total1D2DVolume          = 0.0
+        Me%MaxTotal1DVolume         = 0.0
+        Me%MaxTotal2DVolume         = 0.0
+        Me%MaxTotal1D2DVolume       = 0.0
+        Me%TimeOfMaxTotal1DVolume   = 0.0
+        Me%TimeOfMaxTotal2DVolume   = 0.0
+        Me%TimeOfMaxTotal1D2DVolume = 0.0
 
         if (Me%StormWaterModel .and. Me%ObjDrainageNetwork /= 0) then
             write(*,*)'It is not possible to activate 1D Drainage Network and SWMM at the same time'
@@ -5516,6 +5533,11 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
 
         enddo
 
+        !Get SewerGEMS SWMM current time step 
+        STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR289'
+
+        Me%MaxTotal1DVolume = Me%Total1DVolume
 
         STAT_CALL = SewerGEMSEngine_getdt(Me%StormWaterModelDT)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR290'
@@ -9669,6 +9691,15 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
 
         enddo
+        
+        !Get SewerGEMS SWMM current total volume
+        STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR129'
+
+        if(Me%Total1DVolume > Me%MaxTotal1DVolume)then
+            Me%MaxTotal1DVolume         = Me%Total1DVolume
+            Me%TimeOfMaxTotal1DVolume   = Me%ExtVar%Now - Me%BeginTime            
+        endif
 
         !Get SewerGEMS SWMM current time step 
         STAT_CALL = SewerGEMSEngine_getdt(dt)
@@ -12005,6 +12036,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, CHUNK
         real(8)                                     :: Sum
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = ChunkJ
@@ -12029,6 +12061,22 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
         Me%TotalStoredVolume        = Sum
         Me%VolumeStoredInSurface    = Sum
+
+        if(Me%TotalStoredVolume > Me%MaxTotal2DVolume)then
+            Me%MaxTotal2DVolume       = Me%TotalStoredVolume
+            Me%TimeOfMaxTotal2DVolume = Me%ExtVar%Now - Me%BeginTime
+        endif
+
+        if(Me%StormWaterModel)then
+            Me%Total1D2DVolume = Me%TotalStoredVolume + Me%Total1DVolume
+        else
+            Me%Total1D2DVolume = Me%TotalStoredVolume
+        endif
+
+        if(Me%Total1D2DVolume > Me%MaxTotal1D2DVolume)then
+            Me%MaxTotal1D2DVolume       = Me%Total1D2DVolume
+            Me%TimeOfMaxTotal1D2DVolume = Me%ExtVar%Now - Me%BeginTime
+        endif
 
     end subroutine CalculateTotalStoredVolume
 
@@ -12258,7 +12306,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
                 write(RunOffLogFileID, *)
 
-                write(RunOffLogFileID, *)"VERSION                        : 3"
+                write(RunOffLogFileID, *)"VERSION                        : 4"
                 write(RunOffLogFileID, *)"INITIAL_TOTAL_VOLUME           : ", Me%InitialTotalVolume
                 write(RunOffLogFileID, *)"FINAL_TOTAL_VOLUME             : ", Me%TotalStoredVolume
                 write(RunOffLogFileID, *)"TOTAL_INFLOW_VOLUME            : ", Me%TotalDischargeFlowVolume
@@ -12285,6 +12333,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 write(RunOffLogFileID, *)"TOTAL_PONDS_VOLUME             : ", Me%TotalPondsVolume
                 write(RunOffLogFileID, *)"TOTAL_OPENCHANNELS_VOLUME      : ", Me%TotalOpenChannelVolume
                 
+                write(RunOffLogFileID, *)"MAX_1D_VOLUME                  : ", Me%MaxTotal1DVolume
+                write(RunOffLogFileID, *)"MAX_2D_VOLUME                  : ", Me%MaxTotal2DVolume
+                write(RunOffLogFileID, *)"MAX_1D2D_VOLUME                : ", Me%MaxTotal1D2DVolume
+                
+                write(RunOffLogFileID, *)"TIME_OF_MAX_1D_VOLUME          : ", Me%TimeOfMaxTotal1DVolume
+                write(RunOffLogFileID, *)"TIME_OF_MAX_2D_VOLUME          : ", Me%TimeOfMaxTotal2DVolume
+                write(RunOffLogFileID, *)"TIME_OF_MAX_1D2D_VOLUME        : ", Me%TimeOfMaxTotal1D2DVolume
+
+
                 call WriteGridData  (Me%Files%MassErrorFile,                   &
                      COMENT1          = "MassErrorFile",                       &
                      COMENT2          = "MassErrorFile",                       &
