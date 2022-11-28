@@ -12203,7 +12203,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'SIMPLE_WINDOW_OUTPUT',                             &
-                     Default      = .false.,                                             &
+                     Default      = .true.,                                             &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -12214,7 +12214,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'SIMPLE_OUTPUT',                                    &
-                     Default      = .false.,                                            &
+                     Default      = .true.,                                             &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -23371,7 +23371,9 @@ sp3:                if (.not. SimpleOutPut) then
                         call OutPutHDF_AditionalFields (OutPutNumber, iW)
                     endif sp3
                 else
-                    call OutPutHDF_AditionalFields (OutPutNumber)
+                    if (.not. SimpleOutPut) then
+                        call OutPutHDF_AditionalFields (OutPutNumber)
+                    endif
                 endif
             endif
 
