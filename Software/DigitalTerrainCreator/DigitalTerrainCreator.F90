@@ -298,6 +298,8 @@ program DigitalTerrainCreator
         integer                                     :: MarginPointsToAdd
         logical                                     :: ExportXYZ
         logical                                     :: Convert2Xbeach
+        
+        real                                        :: TriangScale = 1000.
 
         type(T_ExternalVar)                         :: ExtVar
         type(T_Triang     )                         :: Triang
@@ -1585,6 +1587,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         if (Me%Filter) then
             call DoFilterDepths
         endif
+        
+        if (Triangulation) then
+            call FillingLand
+        endif
 
         if (Me%WindowOutPut) then
             call WriteWindow
@@ -2105,7 +2111,7 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                         
         if (Me%Convert2Xbeach) then
                 
-            call Convert_2_Xbeach(Me%Depth, Me%LandPoint, Me%BatimFilePathOut)
+            call Convert_2_Xbeach(Me%Depth, Me%BatimFilePathOut)
                 
         endif         
                         
@@ -2169,11 +2175,10 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
     !--------------------------------------------------------------------------
     
     !--------------------------------------------------------------------------
-    subroutine Convert_2_Xbeach(Depth, LandPoint, Filename)
+    subroutine Convert_2_Xbeach(Depth, Filename)
 
         !Arguments---------------------------------------------------------------
         real, dimension(:,:), pointer                   :: Depth
-        real                                            :: LandPoint
         character(len=*)                                :: Filename        
         !Local-------------------------------------------------------------------
         real,  dimension(:,:), pointer                  :: CoordX, CoordY
@@ -2923,6 +2928,43 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
     !--------------------------------------------------------------------------
     
     
+    subroutine FillingLand
+    
+        !Local-----------------------------------------------------------------
+        type (T_PointF),   pointer          :: GridPoint
+        integer                             :: i, j
+
+        !Begin-----------------------------------------------------------------    
+    
+        write(*,*)"Filling Land ..."
+        
+        do i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
+        do j = Me%ExtVar%WorkSize%JLB , Me%ExtVar%WorkSize%JUB
+                       
+idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1) then
+
+                GridPoint => Me%GridPoint(i, j)
+                
+                if(IsVisible(Me%LandArea, GridPoint))then
+
+                    Me%Depth(i,j) = Me%LandPoint
+                
+                endif
+
+            else idef
+
+                Me%Depth(i, j) = Me%LandPoint
+
+            endif idef     
+
+            nullify(GridPoint)
+        end do
+        end do
+
+    end subroutine FillingLand
+
+    !--------------------------------------------------------------------------
+    
     subroutine FillingRegularGrid
 
         !Local-----------------------------------------------------------------
@@ -3031,7 +3073,6 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1 .and. Me%Depth(i, j) == Me%NoD
         deallocate(SumOfDepths  )
         deallocate(nPointsInside)
         deallocate(MinimumDepth )
-
 
         do j = JLB, JUB
         do i = ILB, IUB
@@ -3622,6 +3663,9 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         NodeX =>  Me%PointsWithData(:,1)
         NodeY =>  Me%PointsWithData(:,2)
         NodeZ =>  Me%PointsWithData(:,3)
+        
+        NodeX = NodeX * Me%TriangScale 
+        NodeY = NodeY * Me%TriangScale
 
         !Constructs Triangulation
         call ConstructTriangulation (Me%ObjTriangulation, Me%TotalWithData, NodeX, NodeY, NodeZ,   &
@@ -3645,6 +3689,9 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
                     call CanonicVersusCartesian (Point = Aux2, ToCanonic = .true.)
 
                 endif
+                
+                Aux2(1) = Aux2(1) * Me%TriangScale
+                Aux2(2) = Aux2(2) * Me%TriangScale
 
                 Me%Depth(i, j) = InterPolation(Me%ObjTriangulation,         &
                                                Aux2(1), Aux2(2),            &
@@ -3693,6 +3740,9 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
             call GetNodesList   (Me%ObjTriangulation, XT, YT, ZT, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunTriangulation - ERR14b'   
+            
+            XT = XT / Me%TriangScale
+            YT = YT / Me%TriangScale
 
 
             call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
