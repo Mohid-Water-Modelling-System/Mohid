@@ -313,6 +313,9 @@ Module ModuleField4D
         real                                        :: DX                   = null_real 
         real                                        :: DY                   = null_real 
         
+        !Null bathymetry 
+        logical                                     :: NullBathymetry       = .false.             
+        
         !2D/3D
         integer                                     :: SpaceDim             = null_int
         !Z/U/V
@@ -338,6 +341,8 @@ Module ModuleField4D
 
         logical                                     :: DynamicMappingOn     = .false. 
         integer, dimension(:,:), pointer            :: DynamicMapping       => null()
+        real                                        :: MappingLimit         = null_real
+        logical                                     :: MappingLimitOn       = .false.        
         
         
         real                                        :: MinForDTDecrease     = AllmostZero
@@ -1141,6 +1146,7 @@ wwd1:       if (Me%WindowWithData) then
                                 Name    = trim(Me%File%BathymName),             &
                                 ILB  = ILB, IUB = IUB,                          &
                                 JLB  = JLB, JUB = JUB,                          &
+                                DefaultValue = 0.,                              &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadBathymFromFile - ModuleField4D - ERR20'
 #endif
@@ -1266,6 +1272,7 @@ wwd1:       if (Me%WindowWithData) then
                                     JUB             = JUB,                                  &
                                     KLB             = 1,                                    &
                                     KUB             = Kmax,                                 &
+                                    DefaultValue    = 1,                                    &
                                     STAT            = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR50'
 #endif
@@ -1317,6 +1324,7 @@ wwd1:       if (Me%WindowWithData) then
                                     IUB             = IUB,                                  &
                                     JLB             = JLB,                                  &
                                     JUB             = JUB,                                  &
+                                    DefaultValue    = 1,                                    &
                                     STAT            = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR90'
 #endif
@@ -1497,8 +1505,18 @@ wwd1:       if (Me%WindowWithData) then
                                 JUB             = JUB,                                  &
                                 KLB             = KLB,                                  &
                                 KUB             = KUB,                                  &
+                                ReadVerticalZ   = Me%File%ReadSZZ,                      &
                                 STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR50'
+
+            if (.not. Me%File%ReadSZZ) then
+                if (KUB==1) then
+                    SZZ(:,:,0) = 1.
+                    SZZ(:,:,1) = 0.
+                else
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR55'
+                endif
+            endif            
 #endif
         endif
 
@@ -1566,6 +1584,7 @@ wwd1:       if (Me%WindowWithData) then
                                     JUB             = JUB,                              &
                                     KLB             = KLB,                              &
                                     KUB             = KUB,                              &
+                                    DefaultValue    = 1,                                & 
                                     STAT            = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR110'
 #endif
@@ -1969,36 +1988,39 @@ wwd1:       if (Me%WindowWithData) then
             endif
 
         endif
-
-        if (LastGroupEqualField) then
-            PropField%VGroupPath_2 = PropField%VGroupPath
-            PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
-            PropField%VGroupPath_2=trim(PropField%VGroupPath_2)//"/"//trim(PropField%FieldName_2)
-        endif
         
-        call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
-                                GroupName   = trim(PropField%VGroupPath),           &
-                                Exist       = FieldNameExist,                       &
-                                STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-a'
-                
-        if (.not. FieldNameExist) then
-            write(*,*)'Could not find field name in HDF', PropField%VGroupPath
-            !Model will stop, so now it will try with second Field name provided by user
-            PropField%VGroupPath = PropField%VGroupPath_2
-            PropField%FieldName  = PropField%FieldName_2
-            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
-                                    GroupName   = trim(PropField%VGroupPath),       &
-                                    Exist       = FieldNameExist,                   &
-                                    STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-b'
-            if ( .not. FieldNameExist) then
-                write(*,*)'Could not find field name in HDF', PropField%VGroupPath
-                stop 'ReadOptions - ModuleField4D - ERR198-c'
+        if (Me%File%Form == HDF5_) then
+
+            if (LastGroupEqualField) then
+                PropField%VGroupPath_2 = PropField%VGroupPath
+                PropField%VGroupPath=trim(PropField%VGroupPath)//"/"//trim(PropField%FieldName)
+                PropField%VGroupPath_2=trim(PropField%VGroupPath_2)//"/"//trim(PropField%FieldName_2)
             endif
+        
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                    GroupName   = trim(PropField%VGroupPath),           &
+                                    Exist       = FieldNameExist,                       &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-a'
+                
+            if (.not. FieldNameExist) then
+                write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+                !Model will stop, so now it will try with second Field name provided by user
+                PropField%VGroupPath = PropField%VGroupPath_2
+                PropField%FieldName  = PropField%FieldName_2
+                call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
+                                        GroupName   = trim(PropField%VGroupPath),       &
+                                        Exist       = FieldNameExist,                   &
+                                        STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR198-b'
+                if ( .not. FieldNameExist) then
+                    write(*,*)'Could not find field name in HDF', PropField%VGroupPath
+                    stop 'ReadOptions - ModuleField4D - ERR198-c'
+                endif
+            endif
+        
         endif
         
-
         call GetData(PropField%SpaceDim,                                                &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -2223,6 +2245,19 @@ wwd1:       if (Me%WindowWithData) then
         endif
 
 
+        call GetData(PropField%MappingLimit,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'MAPPING_LIMIT',                                    &
+                     default      = FillValueReal,                                      &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR350'   
+        if (iflag == 1) then
+            PropField%MappingLimitOn = .true.
+        else
+            PropField%MappingLimitOn = .false.
+        endif
 
 
     end subroutine ReadOptions
@@ -3238,8 +3273,12 @@ it:     if (NewPropField%ChangeInTime) then
             if (NewPropField%DynamicMappingOn) then
                 call ReadDynamicMap(NewPropField, Previous = .true. )
                 call ReadDynamicMap(NewPropField, Previous = .false.)
-            endif                
-
+            endif
+            
+            if (NewPropField%MappingLimitOn) then
+                call DynamicMappingLimit(NewPropField)
+            endif
+            
         endif it
 
     end subroutine ConstructPropertyField
@@ -3651,6 +3690,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 IUB             = IUB,                                  &
                                 JLB             = JLB,                                  &
                                 JUB             = JUB,                                  &
+                                DefaultValue    = 0.,                                   &
                                 STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR50'
 #endif
@@ -3926,20 +3966,20 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             
             if  (Me%File%Form == HDF5_  ) then
 
-                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
-                                                           JLB = JLB, JUB = JUB,            &
-                                                           KLB = KLB, KUB = KUB,          &
+                call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
+                                                           JLB = JLB, JUB = JUB,        &
+                                                           KLB = KLB, KUB = KUB,        &
                                      STAT   = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR150'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR150'
 
                 call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/OpenPoints/OpenPoints_00001",&
                                           Exist  = Exist, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR160'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR160'
 
                 if (Exist) then
                     !Get openpoints pointer to update
                     call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = OpenPoints, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR170'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR170'
                     
                     !Update OpenPoints3D
                     !call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
@@ -3956,14 +3996,14 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                         STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)then
                         write(*,*) "Can not read OpenPoints, instant number = iaux for current upscaling field"
-                        stop 'ReadMap3DFromFile - ModuleField4D - ERR185'
+                        stop 'ReadValues3D - ModuleField4D - ERR185'
                     endif
                     call UnGetMap(Me%ObjMap, OpenPoints, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadMap3DFromFile - ModuleField4D - ERR190'
                     
                 else
                     write (*,*) 'OpenPoints not found, and Upscaling needs OpenPoints3D from the HDF'
-                    stop 'ReadMap3DFromFile - ModuleField4D - ERR200'
+                    stop 'ReadValues3D - ModuleField4D - ERR200'
                 endif
             else
                 write (*,*) 'Upscaling not yet ready to recieve Netcdf files'
@@ -4165,6 +4205,126 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    
+    subroutine DynamicMappingLimit(NewPropField)
+
+        !Arguments-------------------------------------------------------------
+        type (T_PropField), pointer             :: NewPropField                
+       
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:,:), pointer      :: Aux3D
+        integer                                 :: i, j, STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        logical                                 :: FirstTimeTrue
+        
+
+        !Begin-----------------------------------------------------------------
+        
+        FirstTimeTrue =.false. 
+        
+        if (NewPropField%SpaceDim == Dim3D) then
+            
+            if (.not. associated(NewPropField%DynamicMapping)) then
+                allocate(NewPropField%DynamicMapping(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB))
+                FirstTimeTrue =.true. 
+            endif            
+        
+            ILB = Me%WorkSize3D%ILB; JLB = Me%WorkSize3D%JLB
+            IUB = Me%WorkSize3D%IUB; JUB = Me%WorkSize3D%JUB
+            KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+        
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%Matrix3D(i, j, KUB)  > NewPropField%MappingLimit) then
+                    NewPropField%DynamicMapping(i,j)  = 1
+                else
+                    NewPropField%DynamicMapping(i,j)  = 0
+                endif
+            enddo
+            enddo
+
+        
+        elseif (NewPropField%SpaceDim == Dim2D) then
+            
+            if (.not. associated(NewPropField%DynamicMapping)) then
+                allocate(NewPropField%DynamicMapping(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+                FirstTimeTrue =.true.                 
+            endif            
+        
+            ILB = Me%WorkSize2D%ILB; JLB = Me%WorkSize2D%JLB
+            IUB = Me%WorkSize2D%IUB; JUB = Me%WorkSize2D%JUB
+        
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%Matrix2D(i, j)  > NewPropField%MappingLimit) then
+                    NewPropField%DynamicMapping(i,j)  = 1
+                else
+                    NewPropField%DynamicMapping(i,j)  = 0
+                endif
+            enddo
+            enddo
+            
+        endif
+        
+        if (FirstTimeTrue) then
+            call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
+                                    Array           = Me%ExternalVar%WaterPoints2D,     &
+                                    STAT            = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR10'                
+                
+            call UpdateWaterPoints2D(HorizontalMapID = Me%ObjHorizontalMap,             &
+                                        WaterPoints  = NewPropField%DynamicMapping,     &
+                                        STAT         = STAT_CALL)              
+            if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR20'     
+                
+            call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
+                                    WaterPoints2D     = Me%ExternalVar%WaterPoints2D,   &
+                                    STAT              = STAT_CALL)                
+            if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR30'      
+            
+            if (Me%ObjMap > 0) then
+                
+                allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,                             &
+                               Me%Size3D%JLB:Me%Size3D%JUB,                             &
+                               Me%Size3D%KLB:Me%Size3D%KUB))
+                
+                Aux3D(:,:,:) = Me%ExternalVar%WaterPoints3D(:,:,:)
+                
+                do j = JLB, JUB
+                do i = ILB, IUB                
+                
+                    if (NewPropField%DynamicMapping(i,j) == 0) then
+                        Aux3D(i,j,:) = NewPropField%DynamicMapping(i, j)
+                    endif
+                
+                enddo
+                enddo
+                
+                call UnGetMap(Map_ID          = Me%ObjMap,                              &
+                              Array           = Me%ExternalVar%WaterPoints3D,           &
+                              STAT            = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR40'        
+                
+                call UpDateWaterPoints3D(Map_ID         = Me%ObjMap,                    &
+                                         WaterPoints3D  = Aux3D,                        &
+                                         STAT           = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR50'
+                
+                deallocate(Aux3D)
+                
+                call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) stop 'DynamicMappingLimit - ModuleField4D - ERR60'      
+            endif
+        endif        
+        
+    end subroutine DynamicMappingLimit
+
+
+    !--------------------------------------------------------------------------    
 
     !--------------------------------------------------------------------------
     subroutine ReadValues2DHarmonics (NewPropField)
@@ -5076,12 +5236,22 @@ d2:     do N =1, NW
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (Me%File%Form == HDF5_) then            
 
-            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
-                                    GroupName   = "/Time",                              &
-                                    Exist       = TimeExist,                            &
-                                    STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetField4DNumberOfInstants - ModuleField4D - ERR10'
+                call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
+                                        GroupName   = "/Time",                          &
+                                        Exist       = TimeExist,                        &
+                                        STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'GetField4DNumberOfInstants - ModuleField4D - ERR10'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then     
+                
+                TimeExist = .true.
+                
+#endif                
+            endif   
 
             if (TimeExist) then
 
@@ -5125,11 +5295,21 @@ d2:     do N =1, NW
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
-                                    GroupName   = "/Time",                              &
-                                    Exist       = TimeExist,                            &
-                                    STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetField4DInstant - ModuleField4D - ERR10'
+            if (Me%File%Form == HDF5_) then            
+
+                call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                      &
+                                        GroupName   = "/Time",                          &
+                                        Exist       = TimeExist,                        &
+                                        STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'GetField4DInstant - ModuleField4D - ERR10'
+                
+#ifndef _NO_NETCDF
+            else if (Me%File%Form == NetCDF_) then     
+                
+                TimeExist = .true.
+                
+#endif                
+            endif   
 
             if (TimeExist) then
                 GetField4DInstant = Me%File%InstantsDates(Instant)
@@ -5566,6 +5746,9 @@ d2:     do N =1, NW
                 call ReadDynamicMap (PropField, Previous = .false.)
             endif                        
             
+            if (PropField%MappingLimitOn) then
+                call DynamicMappingLimit(PropField)
+            endif
 
             if (PropField%Generic4D%ON) then
 
@@ -5881,7 +6064,11 @@ d2:     do N =1, NW
 
                 if (PropField%DynamicMappingOn) then
                     call ReadDynamicMap (PropField, Previous = .false.)
-                endif                        
+                endif        
+                
+                if (PropField%MappingLimitOn) then
+                    call DynamicMappingLimit(PropField)
+                endif                
                 
 
 ifG4D:          if (PropField%Generic4D%ON) then
@@ -6167,7 +6354,7 @@ dnP:    do nP = 1,nPoints
                     if (Me%ExternalVar%Waterpoints2D(i, j) == WaterPoint) then
                         Field(nP) = Me%Matrix2D(i, j)
                         NoData(nP) = .false.
-                        if (PropField%DynamicMappingOn) then
+                        if (PropField%DynamicMappingOn .or. PropField%MappingLimitOn) then
                             if (PropField%DynamicMapping(i, j) == 0) then
                                 Field (nP) = FillValueReal
                                 NoData(nP) = .true.
@@ -6528,7 +6715,7 @@ dnP:    do nP = 1,nPoints
                     if (Me%ExternalVar%Waterpoints3D(i, j, KUB) == WaterPoint) then
                         Field(nP) = Me%Matrix3D(i, j, KUB)
                         NoData(nP) = .false.
-                        if (PropField%DynamicMappingOn) then
+                        if (PropField%DynamicMappingOn .or. PropField%MappingLimitOn) then
                             if (PropField%DynamicMapping(i, j) == 0) then
                                 Field (nP) = FillValueReal
                                 NoData(nP) = .true.
@@ -7063,7 +7250,7 @@ dnP:    do nP = 1,nPoints
                     if (Mask == WaterPoint) then
                         Field(nP) = Value
                         NoData(nP) = .false.
-                        if (PropField%DynamicMappingOn) then
+                        if (PropField%DynamicMappingOn  .or. PropField%MappingLimitOn) then
                             if (PropField%DynamicMapping(i, j) == 0) then
                                 Field (nP) = FillValueReal
                                 NoData(nP) = .true.
