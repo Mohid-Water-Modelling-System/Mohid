@@ -20,13 +20,13 @@ IS_DEBUG=false                   # default : false
 
 #### libraries path ####
 DIR_REQ=$HOME/apps_intel
-ZLIB=$DIR_REQ/zlib-1.2.12
+ZLIB=$DIR_REQ/zlib-1.2.13
 HDF5=$DIR_REQ/hdf5-1.8.17
 NETCDF=$DIR_REQ/netcdf-c-4.8.1
 #MPI=$DIR_REQ/mpich-4.0a2
-MPI=/opt/intel/oneapi/mpi/2021.5.1
-PROJ4=$DIR_REQ/proj-4.9.3
-PROJ4F=$DIR_REQ/proj4-fortran
+MPI=/opt/intel/oneapi/mpi/latest
+#PROJ4=$DIR_REQ/proj-4.9.3
+#PROJ4F=$DIR_REQ/proj4-fortran
 #IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
 #PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
 
