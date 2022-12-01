@@ -1,3 +1,4 @@
+
 #!/bin/bash
 #==============================================================================
 #title        : install_req.sh
@@ -12,18 +13,14 @@
 #==============================================================================
 
 ### Make the changes to fit your setup ###
-#source /opt/intel/bin/compilervars.sh intel64
-#source /opt/intel/bin/ifortvars.sh intel64
-#source /opt/intel/bin/icc.sh intel64 
 
 source /opt/intel/oneapi/setvars.sh
 
 ## default path to compiler
-#export CC=/opt/intel/bin/icc
-export CC=/opt/intel/oneapi/compiler/2022.0.2/linux/bin/intel64/icc
-export CXX=/opt/intel/oneapi/compiler/2022.0.2/linux/bin/intel64/icpc
-export FC=/opt/intel/oneapi/compiler/2022.0.2/linux/bin/intel64/ifort
-export F77=/opt/intel/oneapi/compiler/2022.0.2/linux/bin/intel64/ifort
+export CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc
+export CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icpc
+export FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort
+export F77=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort
 
 
 ## intel flags compiler
@@ -40,7 +37,7 @@ DIRINSTALL=$HOME/apps_intel
 sudo=          ## no
 
 ## libraries to intall
-zlib='zlib-1.2.12'
+zlib='zlib-1.2.13'
 hdf5='hdf5-1.8.17'
 #netcdf='netcdf-4.4.1.1'
 netcdf='netcdf-c-4.8.1'
@@ -85,8 +82,8 @@ HELP(){
            echo "    -hdf5                   : install hdf5 library"
            echo "    -nc|netcdf              : install netcdf and netcdff library"
            echo "    -ncf|netcdff            : install netcdf fortran library"
-           echo "    -proj4                  : install proj4 library"
-           echo "    -proj4f|proj4fortran    : install proj4-fortran wrapper library"
+	   echo "    -proj4                  : install proj4 library (optional)"
+	   echo "    -proj4f|proj4fortran    : install proj4-fortran wrapper library (optional)"
            echo "    -phqc|iphreeqc          : install iphreeqc library               (optional)"
            echo "    -phqcrm|phreeqcrm       : install phreeqcrm library              (optional)"
            echo "    -mpich                  : install mpich                          (optional)"
