@@ -743,6 +743,7 @@ MOHID_TOOLS(){
         ModulePatchHDF5Files \
         ModuleSWAN \
         ModuleTecnoceanAscii \
+	ModuleUpscaleHDF5 \
        # ModuleWRFFormat \
        # ModuleCALMETFormat
          )
