@@ -48,7 +48,7 @@ USE_LAGRANGIAN_GLOBAL=true       # default : true
 USE_GUI=false                    # default : false
 USE_GGI=false                    # default : false
 USE_BFM=false                    # default : false
-USE_INCREASE_MAXINSTANCES=false  # default : false
+USE_INCREASE_MAXINSTANCES=true   # default : false
 USE_ONLINE=false                 # default : false
 USE_NIX=true                     # default : true
 USE_OUTPUT_OFF=false             # default : false
@@ -214,9 +214,9 @@ elif [[ $FC == *"ifort"* ]]; then
     
     ## -fp-model source: Control the tradeoffs between accuracy, reproducibility and performance and
     ## improve the consistency and reproducibility of floating-point results while limiting the impact on performance.
-    OPT_FLAGS="-O3 -convert little_endian -fPIC -heap-arrays 64 -fp-model source" #-mcmodel=large
+    OPT_FLAGS="-O2 -convert little_endian -fPIC -heap-arrays 64 -mcmodel=large" # -fp-model source
   
-    OTH_FLAGS=" -xHost -ip -fpe0  -fpp "
+    OTH_FLAGS=" -xHost -ip -fpe3  -fpp "
     
     FPE3_FLAGS=" -xHost -ip -fpe3  -fpp " 
     
