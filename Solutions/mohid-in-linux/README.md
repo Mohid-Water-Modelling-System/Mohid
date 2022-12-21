@@ -1,6 +1,6 @@
 # MOHID instalation in Linux machines #
 ---
-This repository is an attempt to compile MOHID in a linux machine with Ubuntu linux distro and intel compiler ifort.
+How to compile MOHID in a linux machine with Ubuntu linux distro and intel compiler ifort.
 
 ## Install Intel® oneAPI Base Toolkit for Linux
 
@@ -138,7 +138,17 @@ ln -s <MOHID_INSTALLATION_PATH>/Mohid/Solutions/mohid-in-linux/bin/MohidWater.ex
 * If necessary use ext2uppercase.sh to uppercase all .f90 to .F90 extensions
 * If necessary use dos2unix linux command:
 ` find . -name *.F90 -exec dos2unix {} \; `
+* Intel MPI commonly changes the value of MPI_TAG_UB which sometimes results in errors like this:
 
+  *Fatal error in PMPI_Send: Invalid tag, error stack:
+  PMPI_Send(159): MPI_Send(buf=0x7ffdad70954c, count=1, MPI_INTEGER, dest=0, tag=999003, MPI_COMM_WORLD) failed
+  PMPI_Send(97).: Invalid tag, value is 999003*
+
+  It's possible to overcome this error by exporting the following environment variables:
+
+  export MPIR_CVAR_CH4_OFI_TAG_BITS=31
+
+  export MPIR_CVAR_CH4_OFI_RANK_BITS=8
 
 ## Help, Bugs, Feedback ##
 If you need help with compile MOHID in linux, you can hang out by mail: <general@mohid.com> or consult our [wiki](http://wiki.mohid.com). You can also subscribe to our [forum](http://forum.mohid.com). To report bugs, please contact any developers. More information consult <http://www.mohid.com>
