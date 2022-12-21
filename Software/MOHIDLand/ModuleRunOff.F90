@@ -147,11 +147,36 @@ Module ModuleRunOff
             real(c_double) :: level
         end function SewerGEMSEngine_setOutfallWaterLevel
 
+        integer(c_int) function SewerGEMSEngine_getNodeDownstreamLinkID(id, nodeDownstreamLinkID) bind(C, name='swmm_getNodeDownstreamLinkID')
+            use iso_c_binding
+            integer(c_int) :: id
+            integer(c_int) :: nodeDownstreamLinkID
+        end function SewerGEMSEngine_getNodeDownstreamLinkID
+
+        integer(c_int) function SewerGEMSEngine_setHeadwallWaterDepth(id, depth) bind(C, name='swmm_setHeadwallWaterDepth')
+            use iso_c_binding
+            integer(c_int) :: id
+            real(c_double) :: depth
+        end function SewerGEMSEngine_setHeadwallWaterDepth
+
+        integer(c_int) function SewerGEMSEngine_getHeadwallDownstreamFlow(id, flow) bind(C, name='swmm_getHeadwallDownstreamFlow')
+            use iso_c_binding
+            integer(c_int) :: id
+            real(c_double) :: flow
+        end function SewerGEMSEngine_getHeadwallDownstreamFlow
+
+
         integer(c_int) function SewerGEMSEngine_getNodeWaterLevel(id, level) bind(C, name='swmm_getNodeWaterLevel')
             use iso_c_binding
             integer(c_int) :: id
             real(c_double) :: level
         end function SewerGEMSEngine_getNodeWaterLevel
+
+        integer(c_int) function SewerGEMSEngine_getNodeWaterDepth(id, depth) bind(C, name='swmm_getNodeWaterDepth')
+            use iso_c_binding
+            integer(c_int) :: id
+            real(c_double) :: depth
+        end function SewerGEMSEngine_getNodeWaterDepth
 
         integer(c_int) function SewerGEMSEngine_setNodeSurfaceDepth(id, level) bind(C, name='swmm_setNodeSurfaceDepth')
             use iso_c_binding
@@ -345,6 +370,8 @@ Module ModuleRunOff
     integer, parameter                              :: Outfall_             = 4
     !Pond (can flow from SewerGEMS to 2D RunOff and from 2D to SewerGEMS)
     integer, parameter                              :: Pond_                = 5
+    !Headwall (can flow from SewerGEMS to 2D RunOff and from 2D to SewerGEMS)
+    integer, parameter                              :: Headwall_            = 6
 
     !SWMM node types
     integer, parameter                              :: SWMMJunction_        = 0
@@ -417,6 +444,7 @@ Module ModuleRunOff
         integer                                     :: CrossSectionID       = null_int  !internal ID of active cross sections
         integer                                     :: OutfallID            = null_int  !internal ID of active outfalls
         integer                                     :: PondID               = null_int  
+        integer                                     :: HeadwallID           = null_int  
         real                                        :: WaterLevel           = null_real
         real                                        :: Flow                 = null_real
         real                                        :: FluxWidth            = null_real
@@ -493,7 +521,23 @@ Module ModuleRunOff
         real                                        :: OutputTime           = null_real 
         integer                                     :: OutputUnit           = null_int 
     end type T_SewerGEMSInlet
-    
+
+    type T_SewerGEMSHeadwall
+        integer                                     :: ID                   = null_int !1 to number of headwalls
+        integer                                     :: SWMM_ID              = null_int !SWMM node id
+        integer                                     :: SWMM_DownstreamLinkID= null_int !SWMM downstream link id
+        character(Stringlength)                     :: Name                 = null_str
+        integer                                     :: I                    = null_int
+        integer                                     :: J                    = null_int
+        real                                        :: Flow                 = 0.0
+        real                                        :: FlowEnteringCell     = 0.0
+        logical                                     :: OutputResults        = .false.
+        type (T_Time)                               :: NextOutPutTime 
+        real                                        :: OutputTimeStep       = null_real 
+        real                                        :: OutputTime           = null_real 
+        integer                                     :: OutputUnit           = null_int 
+    end type T_SewerGEMSHeadwall
+
     type T_OutPutRunOff
         type (T_Time), pointer, dimension(:)        :: OutTime              => null()
         integer                                     :: NextOutPut           = 1
@@ -719,9 +763,11 @@ Module ModuleRunOff
         type(T_SewerGEMSCrossSection),    dimension(:), allocatable :: CrossSections
         type(T_SewerGEMSPond),            dimension(:), allocatable :: Ponds
         type(T_SewerGEMSOpenChannelLink), dimension(:), allocatable :: OpenChannelLinks
+        type(T_SewerGEMSHeadwall),        dimension(:), allocatable :: Headwalls
 
 
         integer                                     :: NumberOfInlets           = null_int
+        integer                                     :: NumberOfHeadwalls        = null_int
         integer                                     :: NumberOfNodes            = null_int
         integer                                     :: NumberOfIgnoredNodes     = null_int
         character(len=99), dimension(:), allocatable:: IgnoredNodes
@@ -810,6 +856,8 @@ Module ModuleRunOff
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
         real(8)                                     :: TotalDischargeFlowVolume  = 0.0  
         real(8)                                     :: TotalBoundaryFlowVolume   = 0.0     
+        real(8)                                     :: TotalBoundaryInflowVolume = 0.0     
+        real(8)                                     :: TotalBoundaryOutFlowVolume= 0.0     
         real(8)                                     :: TotalInfiltrationVolume   = 0.0     
         real(8)                                     :: TotalRainfallVolume       = 0.0  
         real(8)                                     :: TotalStoredVolume         = 0.0
@@ -817,6 +865,7 @@ Module ModuleRunOff
         real                                        :: TotalStormWaterVolume     = 0.0
         real                                        :: TotalInletsVolume         = 0.0
         real                                        :: TotalManholesVolume       = 0.0
+        real                                        :: TotalHeadwallsVolume      = 0.0
         real                                        :: TotalPondsVolume          = 0.0
         real                                        :: TotalOpenChannelVolume    = 0.0
         real                                        :: TotalOutfallsVolume       = 0.0
@@ -1103,7 +1152,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
         character(len=PathLength)                   :: MappingFileName, RootSRT
         character(len=PathLength)                   :: IgnoredNodesFileName, OpenChannelLinksFileName
-        character(len=PathLength)                   :: InletsFileName, PondsFileName
+        character(len=PathLength)                   :: InletsFileName, PondsFileName, HeadwallsFileName
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
         integer                                     :: i, j, n
@@ -1796,6 +1845,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
 
                 call ReadInletsFromFile(InletsFileName, RootSRT)
+
+            endif
+
+            !Headwalls
+            call GetData(HeadwallsFileName,                                                 &
+                         Me%ObjEnterData,                                                   &
+                         iflag,                                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'HEADWALLS_FILENAME',                               &
+                         ClientModule = 'ModuleRunOff',                                     &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR697'
+                
+            if (iflag == 0) then
+                write(*,*)
+                write(*,*)"HEADWALLS_FILENAME keyword setting the inlets file path was not found"
+                write(*,*)"Simulation will not consider headwalls"
+
+                Me%NumberOfHeadwalls = 0
+                
+            else
+
+                call ReadHeadwallsFromFile(HeadwallsFileName, RootSRT)
 
             endif
 
@@ -2846,6 +2918,161 @@ do2:    do
 
     !--------------------------------------------------------------------------
     
+    subroutine ReadHeadwallsFromFile(Filename, RootSRT)
+    
+        !Arguments-------------------------------------------------------------
+        character(len=PathLength), intent(in)       :: Filename
+        character(len=PathLength), intent(in)       :: RootSRT
+
+        !Local----------------------------------------------------------------
+        integer                                     :: HeadwallsObjEnterData, ClientNumber, STAT_CALL
+        integer                                     :: iflag, n
+        logical                                     :: BlockFound
+        character(len=PathLength)                   :: HeadwallOutputFilename
+
+        !Begin----------------------------------------------------------------    
+        
+        HeadwallsObjEnterData  = 0
+        Me%NumberOfHeadwalls   = 0
+
+        call ConstructEnterData(HeadwallsObjEnterData, Filename, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunoff - ERR01'  
+        
+
+do1:    do         
+            !Count number of headwalls
+            call ExtractBlockFromBuffer(HeadwallsObjEnterData,                                  &
+                                        ClientNumber    = ClientNumber,                         &
+                                        block_begin     = '<begin_headwall>',                   &
+                                        block_end       = '<end_headwall>',                     &
+                                        BlockFound      = BlockFound,                           &   
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+                
+                Me%NumberOfHeadwalls = Me%NumberOfHeadwalls + 1
+                
+            else
+                
+                call Block_Unlock(HeadwallsObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunoff - ERR10'                             
+                
+                exit do1   
+                
+            endif
+            
+        enddo do1
+
+        if(Me%NumberOfHeadwalls < 1)then
+            write(*,*)
+            write(*,*)"No headwalls were defined."
+            write(*,*)"File: ", trim(adjustl(Filename))
+            write(*,*)"ReadHeadwallsFromFile - ModuleRunoff - WRN01"
+            write(*,*)
+            return
+        endif
+
+        allocate(Me%Headwalls(1:Me%NumberOfHeadwalls))
+        
+        call RewindBuffer (HeadwallsObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR20'
+        
+        n = 0
+        
+do2:    do         
+            !Count number of headwalls
+            call ExtractBlockFromBuffer(HeadwallsObjEnterData,                                  &
+                                        ClientNumber    = ClientNumber,                         &
+                                        block_begin     = '<begin_headwall>',                   &
+                                        block_end       = '<end_headwall>',                     &
+                                        BlockFound      = BlockFound,                           &   
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL == SUCCESS_ .and. BlockFound) then
+                
+                n = n + 1
+
+                Me%Headwalls(n)%ID = n
+
+                call GetData(Me%Headwalls(n)%Name,                                              &
+                             HeadwallsObjEnterData, iflag,                                      &
+                             Keyword        = 'NAME',                                           &
+                             SearchType     = FromBlock,                                        &
+                             ClientModule   ='ModuleRunoff',                                    &
+                             STAT           = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR30'
+
+                if(iflag == 0)then
+                    write(*,*)"Please define NAME for headwall"
+                    write(*,*)"ID = ", n
+                    stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR40'
+                endif
+
+                call GetData(Me%Headwalls(n)%OutputResults,                                     &
+                             HeadwallsObjEnterData, iflag,                                      &
+                             Keyword        = 'OUTPUT_RESULTS',                                 &
+                             SearchType     = FromBlock,                                        &
+                             ClientModule   ='ModuleRunoff',                                    &
+                             Default        = .false.,                                          &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR40'
+
+                if(Me%Headwalls(n)%OutputResults)then
+                
+                    call GetData(Me%Headwalls(n)%OutputTimeStep,                                &
+                                 HeadwallsObjEnterData, iflag,                                  &
+                                 Keyword        = 'DT_OUTPUT_TIME',                             &
+                                 SearchType     = FromBlock,                                    &
+                                 ClientModule   ='ModuleRunoff',                                &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR46'
+                
+                    if(iflag == 0)then
+                        write(*,*)"Missing DT_OUTPUT_TIME in inlet ", trim(adjustl(Me%Headwalls(n)%Name))
+                        write(*,*)"in file ", trim(adjustl(Filename))
+                        stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR47'
+                    endif
+
+                    Me%Headwalls(n)%OutputTime     = 0.0
+                    Me%Headwalls(n)%NextOutputTime = Me%BeginTime
+                
+                    call UnitsManager(Me%Headwalls(n)%OutputUnit, OPEN_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR48'
+
+                    HeadwallOutputFilename = trim(adjustl(RootSRT))//trim(adjustl(Me%Headwalls(n)%Name))//".srh"
+                
+                    open(Unit = Me%Headwalls(n)%OutputUnit,                                     &
+                         File = trim(adjustl(HeadwallOutputFilename)),                          &
+                         STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR49'
+
+                    call WriteDataLine(Me%Headwalls(n)%OutputUnit, "NAME", Me%Headwalls(n)%Name)
+                    call WriteDataLine(Me%Headwalls(n)%OutputUnit, 'SERIE_INITIAL_DATA', Me%BeginTime)
+                    call WriteDataLine(Me%Headwalls(n)%OutputUnit, 'TIME_UNITS', 'SECONDS')
+                    
+                    !call WriteDataLine(Me%Headwalls(n)%OutputUnit, 'time WL2D_1 WL2D_2 WL1D_1 WL1D_2 Depth2D_1 Depth2D_2 Depth1D_1 Depth1D_2 flow flowEnteringCell')
+                    call WriteDataLine(Me%Headwalls(n)%OutputUnit, 'time water_level water_depth flow_entering_cell')
+                    call WriteDataLine(Me%Headwalls(n)%OutputUnit, '<BeginTimeSerie>')
+
+                endif
+
+            else
+                
+                call Block_Unlock(HeadwallsObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunoff - ERR150'                             
+                
+                exit do2   
+                
+            endif
+            
+        enddo do2
+
+
+        call KillEnterData(HeadwallsObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHeadwallsFromFile - ModuleRunoff - ERR200'  
+    
+    end subroutine ReadHeadwallsFromFile
+
+    !--------------------------------------------------------------------------
+    
     subroutine ReadInletsFromFile(Filename, RootSRT)
     
         !Arguments-------------------------------------------------------------
@@ -3061,7 +3288,7 @@ do2:    do
                                  Default        = InletFlowAboveMaxStage,                           &
                                  STAT           = STAT_CALL)                                      
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR120'
-
+                
                 else
                     
                     write(*,*)"Invalid INLET_TYPE"
@@ -4950,8 +5177,12 @@ do2:        do
         JUB = Me%WorkSize%JUB
 
         Me%TotalStormWaterVolume    = 0.0
+        Me%TotalBoundaryFlowVolume  = 0.0
+        Me%TotalBoundaryInflowVolume= 0.0
+        Me%TotalBoundaryOutflowVolume = 0.0
         Me%TotalInletsVolume        = 0.0
         Me%TotalManholesVolume      = 0.0
+        Me%TotalHeadwallsVolume     = 0.0
         Me%TotalPondsVolume         = 0.0
         Me%TotalOpenChannelVolume   = 0.0
         Me%TotalOutfallsVolume      = 0.0
@@ -4995,7 +5226,7 @@ do2:        do
         integer(c_int)                                  :: isOpenChannel
         integer                                         :: nInlets, iNode, nManholes, nOutfalls, nCrossSections, nPonds
         logical                                         :: Exists
-        integer                                         :: UncoupledElementsFileID
+        integer                                         :: UncoupledElementsFileID, nHeadwalls
         !--------------------------------------------------------------------------
         
         write(*,*)
@@ -5155,6 +5386,7 @@ do2:        do
         Me%NumberOfOutfalls     = 0
         nInlets                 = 0 
         nPonds                  = 0 
+        nHeadwalls              = 0 
 
         do n = 1, Me%NumberOfNodes
             
@@ -5242,6 +5474,9 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                             if(ValidateInlet(Me%NodesNames(n), Me%NodesID(n)) > 0)then !if not inlet returns null_int (-999999)
                                 Me%NodesType(n) = Inlet_
                                 nInlets         = nInlets + 1
+                            elseif(ValidateHeadwall(Me%NodesNames(n), Me%NodesID(n)) > 0)then
+                                Me%NodesType(n) = Headwall_
+                                nHeadwalls      = nHeadwalls + 1
                             else
                                 !if it's not an inlet then it's a manhole
                                 Me%NodesType(n)     = Manhole_ 
@@ -5328,14 +5563,22 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
             stop 'ConstructSewerGEMS - ModuleRunOff - ERR220'
         endif
 
+        !Double check headwalls
+        if(nHeadwalls .ne. Me%NumberOfHeadwalls)then
+            write(*,*)"Number of Headwalls in SWMM input file differs from Headwalls config file"
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR225'
+        endif
+
+
         !Double check ponds
         if(nPonds .ne. Me%NumberOfPonds)then
             write(*,*)"Number of Ponds in SWMM input file differs from Ponds config file"
             stop 'ConstructSewerGEMS - ModuleRunOff - ERR230'
         endif
         
-        Me%ActiveNodes = Me%NumberOfManholes      + Me%NumberOfInlets   + &
-                         Me%NumberOfCrossSections + Me%NumberOfOutfalls + Me%NumberOfPonds
+        Me%ActiveNodes = Me%NumberOfManholes      + Me%NumberOfInlets    + &
+                         Me%NumberOfCrossSections + Me%NumberOfHeadwalls + &
+                         Me%NumberOfOutfalls      + Me%NumberOfPonds
         !Double check
         if(Me%ActiveNodes + Me%InactiveNodes .ne. Me%NumberOfNodes)then
             stop 'ConstructSewerGEMS - ModuleRunOff - ERR250'
@@ -5346,6 +5589,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         write(*,*)"SewerGEMS - Junctions             : ", Me%NumberOfManholes + Me%NumberOfInlets
         write(*,*)"SewerGEMS - Manholes              : ", Me%NumberOfManholes
         write(*,*)"SewerGEMS - Inlets                : ", Me%NumberOfInlets
+        write(*,*)"SewerGEMS - Headwalls             : ", Me%NumberOfHeadwalls
         write(*,*)"SewerGEMS - Cross Sections        : ", Me%NumberOfCrossSections
         write(*,*)"SewerGEMS - Outfalls              : ", Me%NumberOfOutfalls
         write(*,*)"SewerGEMS - Ponds                 : ", Me%NumberOfPonds
@@ -5388,7 +5632,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
             do n = 1, Me%NumberOfNodes
                 if(Me%NodesType(n) == Manhole_)then
                     nManholes                        = nManholes + 1
-                    Me%Manholes(nManholes)%SWMM_ID    = n - 1
+                    Me%Manholes(nManholes)%SWMM_ID   = n - 1
                     Me%Manholes(nManholes)%I         = Me%NodesI(n)
                     Me%Manholes(nManholes)%J         = Me%NodesJ(n)
                     Me%Manholes(nManholes)%Name      = Me%NodesNames(n)
@@ -5400,6 +5644,33 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
 
         if(nManholes .ne. Me%NumberOfManholes)then
             stop 'ConstructSewerGEMS - ModuleRunOff - ERR260'
+        endif
+
+        nHeadwalls = 0
+
+        if(Me%NumberOfHeadwalls > 0)then
+            
+            do n = 1, Me%NumberOfNodes
+                if(Me%NodesType(n) == Headwall_)then
+                    nHeadwalls                         = nHeadwalls + 1
+                    Me%Headwalls(nHeadwalls)%SWMM_ID   = n - 1
+                    Me%Headwalls(nHeadwalls)%I         = Me%NodesI(n)
+                    Me%Headwalls(nHeadwalls)%J         = Me%NodesJ(n)
+                    Me%Headwalls(nHeadwalls)%Flow      = 0.0
+                    Me%Headwalls(nHeadwalls)%FlowEnteringCell = 0.0
+
+
+                    STAT_CALL = SewerGEMSEngine_getNodeDownstreamLinkID(Me%Headwalls(nHeadwalls)%SWMM_ID, &
+                                                                        Me%Headwalls(nHeadwalls)%SWMM_DownstreamLinkID)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructSewerGEMS - ModuleRunOff - ERR262'
+
+                endif
+            enddo
+
+        endif
+
+        if(nHeadwalls .ne. Me%NumberOfHeadwalls)then
+            stop 'ConstructSewerGEMS - ModuleRunOff - ERR265'
         endif
 
         nOutfalls = 0
@@ -5593,6 +5864,26 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         enddo
     
     end function ValidateInlet
+
+    !--------------------------------------------------------------------------
+    
+    integer function ValidateHeadwall(Name, NodeID)
+    
+        character(len = 99), intent(in) :: Name
+        integer,             intent(in) :: NodeID
+        integer                         :: n
+        
+        ValidateHeadwall = null_int
+        do n = 1, Me%NumberOfHeadwalls
+            if(trim(adjustl(Name)) == trim(adjustl(Me%Headwalls(n)%Name)))then
+                ValidateHeadwall        = Me%Headwalls(n)%ID
+                Me%Headwalls(n)%SWMM_ID = NodeID
+                exit 
+            end if 
+        enddo
+    
+    end function ValidateHeadwall
+
 
     !--------------------------------------------------------------------------
 
@@ -9391,6 +9682,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                     :: STAT_CALL, n, i, j, xn
         real                        :: Flow, Overflow
         real                        :: SecondLinkWaterLevel, dh, Area, WaterLevelSWMM, sign
+
         !--------------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "ComputeStormWaterModel")
@@ -9425,7 +9717,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         enddo
 
-
         do n = 1, Me%NumberOfOutfalls
             
             !I and J of the outfall node location - if outfall is connected to a cross-section 
@@ -9436,15 +9727,37 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Set 2D water level over outfall node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, Me%myWaterLevel(i,j))
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR40'
+            
+        enddo
+
+        do n = 1, Me%NumberOfHeadwalls
+            
+            !I and J of the headwall node location
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            Me%Headwalls(n)%FlowEnteringCell = 0.0
+
+            !Compute flow entering grid cell 
+            if(Me%iFlowX(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowX(i,  j  )
+            if(Me%iFlowX(i,j+1) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowX(i,  j+1)
+            if(Me%iFlowY(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowY(i,  j  )
+            if(Me%iFlowY(i+1,j) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowY(i+1,j  )
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
+            !Set 2D water depth for headwall node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setHeadwallWaterDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR50'
             
         enddo
 
 
-
         !Run SewerGEMS SWMM engine time step
         STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%ExtVar%DT)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
 
 
             
@@ -9455,7 +9768,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Get SewerGEMS SWMM flow out of manhole
             STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Manholes(n)%SWMM_ID, Me%Manholes(n)%Outflow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR70'
 
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
             Me%TotalManholesVolume   = Me%TotalManholesVolume   + Me%Manholes(n)%Outflow * Me%ExtVar%DT
@@ -9471,7 +9784,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
 
             STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR80'
 
         enddo
 
@@ -9482,10 +9795,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             !Get SewerGEMS SWMM flow in or out of inlet
             STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Inlets(n)%SWMM_ID, Overflow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
-
-            STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%WaterLevel)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR31'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR90'
 
             if(Overflow > 0.0)then
                 if(Me%Inlets(n)%PotentialFlow > 0)then
@@ -9525,7 +9835,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
 
             STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
 
 
         enddo
@@ -9536,12 +9846,63 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Get SewerGEMS SWMM flow in or out of outfall. 
             STAT_CALL = SewerGEMSEngine_getOutfallFlow(Me%Outfalls(n)%SWMM_ID, Me%Outfalls(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR130'
         
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
             Me%TotalOutfallsVolume   = Me%TotalOutfallsVolume   + Me%Outfalls(n)%Flow * Me%ExtVar%DT
         
         enddo
+
+        do n = 1, Me%NumberOfHeadwalls
+
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            !Get SewerGEMS Headwall downstream conduit flow
+            STAT_CALL = SewerGEMSEngine_getHeadwallDownstreamFlow(Me%Headwalls(n)%SWMM_DownstreamLinkID, Me%Headwalls(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR131'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalHeadwallsVolume  = Me%TotalHeadwallsVolume  - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            if(Me%Headwalls(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Headwalls(n)%NextOutputTime)then 
+                    !'time WL2D_1 WL2D_2 WL1D_1 WL1D_2 Depth2D_1 Depth2D_2 Depth1D_1 Depth1D_2
+                    !write(Me%Headwalls(n)%OutputUnit,600)Me%Headwalls(n)%OutputTime,        &
+                    !                                     Me%Headwalls(n)%Headwater2D_1,     &
+                    !                                     Me%Headwalls(n)%Headwater2D_2,     &
+                    !                                     Me%Headwalls(n)%Headwater1D_1,     &
+                    !                                     Me%Headwalls(n)%Headwater2D_2,     &
+                    !                                     Me%Headwalls(n)%WaterDepth2D_1,    &
+                    !                                     Me%Headwalls(n)%WaterDepth2D_2,    &
+                    !                                     Me%Headwalls(n)%WaterDepth1D_1,    &
+                    !                                     Me%Headwalls(n)%WaterDepth1D_2,    &
+                    !                                     Me%Headwalls(n)%Flow 
+
+                    write(Me%Headwalls(n)%OutputUnit,600)Me%Headwalls(n)%OutputTime,        &
+                                                         Me%myWaterLevel  (i, j),           &
+                                                         Me%myWaterColumn (i, j),           &
+                                                         Me%Headwalls(n)%FlowEnteringCell
+
+                    Me%Headwalls(n)%NextOutputTime = Me%Headwalls(n)%NextOutputTime + Me%Headwalls(n)%OutputTimeStep
+                    Me%Headwalls(n)%OutputTime     = Me%Headwalls(n)%OutputTime     + Me%Headwalls(n)%OutputTimeStep
+
+                end if
+            end if
+
+        enddo
+
+    600 format(1x, f13.2, 1x, 3(1x, e20.12e3))
 
         !set the flow at each cross section node to zero before computing open channel links
         !each open channel link will contribute with flow for its main node link (a cross-section)
@@ -9590,13 +9951,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 !Get water level for main link node (if link type is Direct_ no more information is needed)
                 STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%LinkID, Me%OpenChannelLinks(n)%WaterLevel)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR71'
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR140'
 
                 if(Me%OpenChannelLinks(n)%TypeOf == Weighted_)then
 
                     !Get water level for secondary link nodes
                     STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%SecondLinkID, SecondLinkWaterLevel)
-                    if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR71'
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR150'
 
                     !Interpolate between the 2 link nodes
                     Me%OpenChannelLinks(n)%WaterLevel = SecondLinkWaterLevel               + & 
@@ -9678,7 +10039,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Set 2D flow to/from cross section node to SewerGEMS SWMM 
             STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%CrossSections(n)%SWMM_ID, Me%CrossSections(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR160'
                 
         enddo
 
@@ -9688,13 +10049,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%TotalPondsVolume      = Me%TotalPondsVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
 
             STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%Ponds(n)%SWMM_ID, Me%Ponds(n)%Flow)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR170'
 
         enddo
         
         !Get SewerGEMS SWMM current total volume
         STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR129'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR180'
 
         if(Me%Total1DVolume > Me%MaxTotal1DVolume)then
             Me%MaxTotal1DVolume         = Me%Total1DVolume
@@ -9703,7 +10064,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         !Get SewerGEMS SWMM current time step 
         STAT_CALL = SewerGEMSEngine_getdt(dt)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR190'
         
         !Store SewerGEMS SWMM current time step
         !Check subroutine ComputeNextTimeStep where 
@@ -9715,7 +10076,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if(Me%StormWaterModelDT > 0.0)then
                 !Run SewerGEMS SWMM engine just to make sure last output is written in case of time step rounding error
                 STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%StormWaterModelDT)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR140'
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR200'
             endif
         endif
 
@@ -10916,6 +11277,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !logical                                     :: NearBoundary
         !real                                        :: AreaZX, AreaZY !, Width
         real                                        :: WaveHeight, Celerity, MaxFlow
+        real                                        :: InflowVolume, OutflowVolume
 
         !Routes water outside the watershed if water is higher then a given treshold values
         ILB = Me%WorkSize%ILB
@@ -10927,6 +11289,9 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         Me%iFlowBoundary = 0.0
 
         Me%BoundaryFlowVolume = 0.0
+        InflowVolume          = 0.0 
+        OutflowVolume         = 0.0
+
         
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10986,6 +11351,12 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
 
                     Me%BoundaryFlowVolume     = Me%BoundaryFlowVolume + dVol
+
+                    if(dVol > 0.0)then
+                        Me%TotalBoundaryInflowVolume    = Me%TotalBoundaryInflowVolume + dVol
+                    else
+                        Me%TotalBoundaryOutflowVolume   = Me%TotalBoundaryOutflowVolume + dVol
+                    endif
                         
                     !Updates Water Column
                     Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
@@ -11018,7 +11389,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: i, j !, di, dj
         integer                                     :: ILB, IUB, JLB, JUB
 !        logical                                     :: NearBoundary
-        real                                        :: OldVolume
+        real                                        :: OldVolume, dVol
 
         !Routes water outside the watershed if water is higher then a given treshold values
         ILB = Me%WorkSize%ILB
@@ -11057,6 +11428,14 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     
                     !Updates Volume and BoundaryFlowVolume
                     OldVolume              = Me%myWaterVolume(i, j)
+
+                    dVol = Me%myWaterVolume(i, j) - OldVolume
+
+                    if(dVol > 0.0)then
+                        Me%TotalBoundaryInflowVolume    = Me%TotalBoundaryInflowVolume + dVol
+                    else
+                        Me%TotalBoundaryOutflowVolume   = Me%TotalBoundaryOutflowVolume + dVol
+                    endif
                     
                     !m3 = m * m2
                     Me%myWaterVolume(i, j) = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
@@ -12078,6 +12457,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             Me%TimeOfMaxTotal1D2DVolume = Me%ExtVar%Now - Me%BeginTime
         endif
 
+!999 format(a20,1x,3f20.6)
+!        write(99,999) TimeToString(Me%ExtVar%Now), Me%Total1DVolume, Me%TotalStoredVolume, Me%Total1D2DVolume
+
+
     end subroutine CalculateTotalStoredVolume
 
     !--------------------------------------------------------------------------
@@ -12306,11 +12689,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 write(RunOffLogFileID, *)"---------------------- RUNOFF STATS ----------------------"
                 write(RunOffLogFileID, *)
 
-                write(RunOffLogFileID, *)"VERSION                        : 4"
+                write(RunOffLogFileID, *)"VERSION                        : 5"
                 write(RunOffLogFileID, *)"INITIAL_TOTAL_VOLUME           : ", Me%InitialTotalVolume
                 write(RunOffLogFileID, *)"FINAL_TOTAL_VOLUME             : ", Me%TotalStoredVolume
                 write(RunOffLogFileID, *)"TOTAL_INFLOW_VOLUME            : ", Me%TotalDischargeFlowVolume
                 write(RunOffLogFileID, *)"TOTAL_BOUNDARY_VOLUME          : ", Me%TotalBoundaryFlowVolume
+                write(RunOffLogFileID, *)"TOTAL_BOUNDARY_INFLOW_VOLUME   : ", Me%TotalBoundaryInflowVolume
+                write(RunOffLogFileID, *)"TOTAL_BOUNDARY_OUTFLOW_VOLUME  : ", Me%TotalBoundaryOutflowVolume
                 write(RunOffLogFileID, *)"TOTAL_STORMWATER_VOLUME        : ", Me%TotalStormWaterVolume
                 write(RunOffLogFileID, *)"TOTAL_RAINFALL_VOLUME          : ", Me%TotalRainfallVolume
                 write(RunOffLogFileID, *)"TOTAL_INFILTRATION_VOLUME      : ", Me%TotalInfiltrationVolume
@@ -12332,6 +12717,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 write(RunOffLogFileID, *)"TOTAL_OUTFALLS_VOLUME          : ", Me%TotalOutfallsVolume
                 write(RunOffLogFileID, *)"TOTAL_PONDS_VOLUME             : ", Me%TotalPondsVolume
                 write(RunOffLogFileID, *)"TOTAL_OPENCHANNELS_VOLUME      : ", Me%TotalOpenChannelVolume
+                write(RunOffLogFileID, *)"TOTAL_HEADWALLS_VOLUME         : ", Me%TotalHeadwallsVolume
                 
                 write(RunOffLogFileID, *)"MAX_1D_VOLUME                  : ", Me%MaxTotal1DVolume
                 write(RunOffLogFileID, *)"MAX_2D_VOLUME                  : ", Me%MaxTotal2DVolume
@@ -12589,6 +12975,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 #endif _CONVERT_SWMM_TO_HDF5_
 
 
+                    if(Me%NumberOfHeadwalls > 0)then
+                        do n = 1, Me%NumberOfHeadwalls
+                            if(Me%Headwalls(n)%OutputResults)then
+                                call WriteDataLine(Me%Headwalls(n)%OutputUnit, '<EndTimeSerie>')
+                                
+                                call UnitsManager(Me%Headwalls(n)%OutputUnit, CLOSE_FILE, STAT = STAT_CALL) 
+                                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR0831'
+                            endif
+                        enddo
+                    endif
+
                     if(Me%NumberOfInlets > 0)then
                         do n = 1, Me%NumberOfInlets
                             if(Me%Inlets(n)%OutputResults)then
@@ -12606,7 +13003,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(Me%NumberOfOutfalls      > 0)deallocate(Me%Outfalls     )
                     if(Me%NumberOfPonds         > 0)deallocate(Me%Ponds        )
                     if(Me%NumberOfIgnoredNodes  > 0)deallocate(Me%IgnoredNodes )
-                    
+                    if(Me%NumberOfHeadwalls     > 0)deallocate(Me%Headwalls    )
+
 
 #endif _SEWERGEMSENGINECOUPLER_
                 endif
