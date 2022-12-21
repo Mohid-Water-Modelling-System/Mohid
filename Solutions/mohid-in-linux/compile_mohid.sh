@@ -214,7 +214,7 @@ elif [[ $FC == *"ifort"* ]]; then
     
     ## -fp-model source: Control the tradeoffs between accuracy, reproducibility and performance and
     ## improve the consistency and reproducibility of floating-point results while limiting the impact on performance.
-    OPT_FLAGS="-O2 -convert little_endian -fPIC -heap-arrays 64 -mcmodel=large" # -fp-model source
+    OPT_FLAGS="-O3 -convert little_endian -fPIC -heap-arrays 64 -mcmodel=large -fp-model source"
   
     OTH_FLAGS=" -xHost -ip -fpe3  -fpp "
     
