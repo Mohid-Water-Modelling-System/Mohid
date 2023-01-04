@@ -1493,14 +1493,16 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
            
         !Local-----------------------------------------------------------------
         real ::  AuxAngle1, AuxAngle2, VelHorz, Aux
+        !real :: du, dv, dw
 
         !----------------------------------------------------------------------
 
 
         
         Me%Evolution%VelModulus = Sqrt(Me%Evolution%VelU ** 2 +                  &
-                                           Me%Evolution%VelV ** 2 +                  &
-                                           Me%Evolution%VelW ** 2)
+                                       Me%Evolution%VelV ** 2 +                  &
+                                       Me%Evolution%VelW ** 2)
+        
         VelHorz   =  Sqrt(Me%Evolution%VelU ** 2 + Me%Evolution%VelV ** 2)
 
 
@@ -1517,8 +1519,19 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                                          + Me%Ambient%LocalVelV * Me%Evolution%ey &
                                          + Me%Ambient%LocalVelW * Me%Evolution%ez
 
+        !Do not consider the direction of the flow and plume
         Me%Evolution%DVel = Abs(Me%Evolution%VelModulus - Me%Evolution%AmbientModulusT)
-
+        
+        !Correct way to compute the plume velocity relative to the flow. 
+        !However, this methodology give very high dilution results for flow 
+        !with a very different direction from the plume initial direction
+        
+        !du =  Me%Evolution%VelU - Me%Ambient%LocalVelU * Me%Evolution%ex 
+        !dv =  Me%Evolution%VelV - Me%Ambient%LocalVelV * Me%Evolution%ey
+        !dw =  Me%Evolution%VelW - Me%Ambient%LocalVelW * Me%Evolution%ez
+        !
+        !Me%Evolution%DVel = sqrt(du**2 + dv**2 + dw**2)
+        
         If (Me%Evolution%DragEntrainmentON) Then
 
             aux = Me%Evolution%AmbientModulusT / Me%Ambient%LocalVelModulus
@@ -1534,8 +1547,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%Evolution%AmbientWn = Me%Ambient%LocalVelW * Cos(AuxAngle2)
 
             Me%Evolution%AmbientModulusN =  Sqrt(Me%Evolution%AmbientUn ** 2 +   &
-                                                     Me%Evolution%AmbientVn ** 2 +   &
-                                                     Me%Evolution%AmbientWn ** 2)
+                                                 Me%Evolution%AmbientVn ** 2 +   &
+                                                 Me%Evolution%AmbientWn ** 2)
         Else
             Me%Evolution%AmbientUn       = 0
             Me%Evolution%AmbientVn       = 0
@@ -2953,7 +2966,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     subroutine DeallocateInstance 
 
         !Arguments-------------------------------------------------------------
-        type (T_Jet), pointer           :: ObjJet
+        !type (T_Jet), pointer           :: ObjJet
 
         !Local-----------------------------------------------------------------
         type (T_Jet), pointer           :: AuxJet
@@ -2976,8 +2989,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         endif
 
         !Deallocates instance
-        deallocate (ObjJet)
-        nullify    (ObjJet) 
+        !deallocate (ObjJet)
+        !nullify    (ObjJet) 
             
     end subroutine DeallocateInstance
 

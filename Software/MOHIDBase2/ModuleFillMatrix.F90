@@ -12432,29 +12432,41 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
             PrevI              = 1
             NextI              = 2
             CurrentHDF%Next4DValue = HDF5Generic4DInstant(1, CurrentHDF)
-            do
+            
+            if (CurrentHDF%Next4DValue > Generic_4D_Value_) then
+                
+                PrevI = 1
+                NextI = 1
+            else 
+                
+                do
 
-                CurrentHDF%Previous4DValue  = CurrentHDF%Next4DValue
-                CurrentHDF%Next4DValue      = HDF5Generic4DInstant(NextI, CurrentHDF)
+                    CurrentHDF%Previous4DValue  = CurrentHDF%Next4DValue
+                    CurrentHDF%Next4DValue      = HDF5Generic4DInstant(NextI, CurrentHDF)
 
-                if (CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.                  &
-                    CurrentHDF%Next4DValue     >= Generic_4D_Value_) then
-                    exit
-                endif
+                    if (CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.                  &
+                        CurrentHDF%Next4DValue     >= Generic_4D_Value_) then
+                        exit
+                    endif
 
-                if (NextI > CurrentHDF%NumberOfInstants) then
+                    if (NextI > CurrentHDF%NumberOfInstants) then
 
-                    write(*,*)
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'Time instants inconsistency.'
-                    stop      'ModifyHDFInput2DGeneric4D - ModuleFillMatrix - ERR10'
+                        !write(*,*)
+                        !write(*,*)'Could not read solution from HDF5 file'
+                        !write(*,*)'Time instants inconsistency.'
+                        !stop      'ModifyHDFInput2DGeneric4D - ModuleFillMatrix - ERR10'
+                    
+                        PrevI = CurrentHDF%NumberOfInstants
+                        NextI = CurrentHDF%NumberOfInstants
+                        exit
 
-                endif
+                    endif
 
-                PrevI = NextI
-                NextI = NextI + 1
+                    PrevI = NextI
+                    NextI = NextI + 1
 
-            enddo
+                enddo
+            endif
 
             CurrentHDF%NextInstant     = NextI
             CurrentHDF%PreviousInstant = PrevI

@@ -6190,7 +6190,7 @@ CTF:                if (CorrectTimeFrame) then
         integer,                            intent(IN)             :: Field4DID
         integer,                            intent(IN)             :: PropertyIDNumber
         real,    dimension(:),   pointer,   intent(IN)             :: X, Y
-        real,    dimension(:),   pointer,   intent(OUT)            :: Bathym
+        real,    dimension(:),   pointer,   intent(INOUT)          :: Bathym
         logical, dimension(:),   pointer,   intent(INOUT)          :: NoData
         integer,                            intent(OUT), optional  :: STAT
 

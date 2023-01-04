@@ -5195,24 +5195,23 @@ AC:     if (NewOrigin%EmissionSpatial == Accident_) then
         !Particle Thickness                
         if (NewOrigin%Movement%Float) then
             Me%State%Wind = ON
-
-            if (NewOrigin%EmissionSpatial == Accident_ .and.                           &
-                 NewOrigin%AccidentMethod == Thickness_) then                         
-                call GetData(NewOrigin%Movement%ThicknessMeters,                        &
-                             Me%ObjEnterData,                                           &
-                             flag,                                                      &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='THICKNESS_METERS',                          &
-                             ClientModule ='ModuleLagrangianGlobal',                    &
-                             STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR690'
-                if (flag /= 1) then
-                    write(*,*)'Keyword THICKNESS_METERS not defined at origin :',trim(adjustl(NewOrigin%Name))
-                    stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR38'
-                endif
-            endif
-
         endif
+        
+        if (NewOrigin%EmissionSpatial == Accident_ .and.                                &
+            NewOrigin%AccidentMethod == Thickness_) then                         
+            call GetData(NewOrigin%Movement%ThicknessMeters,                            &
+                            Me%ObjEnterData,                                            &
+                            flag,                                                       &
+                            SearchType   = FromBlock,                                   &
+                            keyword      ='THICKNESS_METERS',                           &
+                            ClientModule ='ModuleLagrangianGlobal',                     &
+                            STAT         = STAT_CALL)             
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR690'
+            if (flag /= 1) then
+                write(*,*)'Keyword THICKNESS_METERS not defined at origin :',trim(adjustl(NewOrigin%Name))
+                stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR38'
+            endif
+        endif        
 
 
         !Movement type
@@ -10245,9 +10244,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         allocate(Point)
                        
         !2D emission
-FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
-            CurrentOrigin%Deposition%BottomEmission .or.    &
-            CurrentOrigin%Position%SurfaceEmission) then
+!FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
+!            CurrentOrigin%Deposition%BottomEmission .or.    &
+!            CurrentOrigin%Position%SurfaceEmission) then
 
             nc = 0 
             
@@ -10345,11 +10344,11 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
 
             enddo
 
-        else FLOAT
-
-            stop 'EmissionPoly - ModuleLagrangianGlobal - ERR10' 
-
-        endif FLOAT
+        !else FLOAT
+        !
+        !    stop 'EmissionPoly - ModuleLagrangianGlobal - ERR10' 
+        !
+        !endif FLOAT
 
         deallocate(Point)
 
