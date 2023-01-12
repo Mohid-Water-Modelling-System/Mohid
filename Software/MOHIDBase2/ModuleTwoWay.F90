@@ -2708,7 +2708,7 @@ Module ModuleTwoWay
     subroutine UpscaleDischarge(SonID, Father_old, Father, VelocityID, STAT)
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: SonID, VelocityID
-        real, dimension(:, :, :), allocatable, intent(IN) :: Father_old
+        real, dimension(:, :, :)         , intent(IN)     :: Father_old
         real, dimension(:, :, :), pointer, intent(IN)     :: Father
         integer                          , intent(OUT)    :: STAT
         type (T_TwoWay), pointer                          :: ObjFather
@@ -2847,8 +2847,9 @@ Module ModuleTwoWay
         !Arguments--------------------------------------------------------------
         integer,                            intent(IN   ) :: TwoWayID
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Flow
-        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, VelSon, SonVolInFather, FatherVolume
-        real,    dimension(:,:  ), pointer, intent(IN   ) :: DecayTime
+        real,    dimension(:,:,:), pointer, intent(IN   ) :: VelFather, SonVolInFather, FatherVolume
+        real,    dimension(:,:,:), intent(IN   )          :: VelSon
+        real,    dimension(:,:  ), intent(IN   )          :: DecayTime
         real                              , intent(IN   ) :: CoefCold, VelDT
         integer                           , intent(IN   ) :: VelID
         integer, optional                 , intent(OUT  ) :: STAT

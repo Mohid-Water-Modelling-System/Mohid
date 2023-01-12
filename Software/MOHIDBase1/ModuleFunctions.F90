@@ -965,7 +965,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :), allocatable           :: Matrix
+        real(4), dimension(:, :), intent(inout)         :: Matrix
         type (T_Size2D)                                 :: Size
         real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
@@ -1053,7 +1053,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :), allocatable           :: Matrix
+        real(8), dimension(:, :), intent(inout)         :: Matrix
         type (T_Size2D)                                 :: Size
         real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
@@ -1141,9 +1141,9 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R4_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :), allocatable           :: Matrix
+        real(4), dimension(:, :), intent(inout)         :: Matrix
         type (T_Size2D)                                 :: Size
-        real(4), dimension(:, :), allocatable           :: InMatrix
+        real(4), dimension(:, :), intent(in)            :: InMatrix
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1314,9 +1314,9 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :), allocatable           :: Matrix
+        real(8), dimension(:, :), intent(inout)         :: Matrix
         type (T_Size2D)                                 :: Size
-        real(8), dimension(:, :), allocatable           :: InMatrix
+        real(8), dimension(:, :), intent(in)            :: InMatrix
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1358,9 +1358,9 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :, :), allocatable        :: Matrix
+        real(8), dimension(:, :, :), intent(inout)      :: Matrix
         type (T_Size3D), intent(in)                     :: Size
-        real(8), dimension(:, :, :), allocatable        :: InMatrix
+        real(8), dimension(:, :, :), intent(in)         :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1405,7 +1405,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R8_FromMatrixPointer(Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        real(8), dimension(:, :, :), intent(INOUT) :: Matrix
         type (T_Size3D), intent(in)                             :: Size
         real(8), dimension(:, :, :), pointer, intent(IN)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional          :: MapMatrix
@@ -1451,7 +1451,7 @@ Module ModuleFunctions
     !--------------------------------------------------------------------------
     subroutine SetMatrixValues3D_R_FromMatrixAllocatable_jik(Matrix, Size, KFloor, InMatrix, MapMatrix, MaskValue)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        real, dimension(:, :, :), intent(INOUT) :: Matrix
         type (T_Size3D)                      , intent(IN)    :: Size
         integer, dimension(:,:), pointer, intent(IN)         :: KFloor
         real, dimension(:, :, :), pointer    , intent(IN)    :: InMatrix
@@ -1614,7 +1614,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable        :: Matrix
+        real(4), dimension(:, :, :), intent(inout)      :: Matrix
         type (T_Size3D)                                 :: Size
         real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
@@ -1718,7 +1718,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :, :), allocatable        :: Matrix
+        real(8), dimension(:, :, :), intent(inout)      :: Matrix
         type (T_Size3D)                                 :: Size
         real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
@@ -1764,7 +1764,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, Dummy)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable           :: Matrix
+        real, dimension(:, :, :), intent(inout)         :: Matrix
         type (T_Size3D)                                 :: Size
         real, intent (IN)                               :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
@@ -1907,9 +1907,9 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R4_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable        :: Matrix
+        real(4), dimension(:, :, :), intent(inout)      :: Matrix
         type (T_Size3D)                                 :: Size
-        real(4), dimension(:, :, :), allocatable        :: InMatrix
+        real(4), dimension(:, :, :), intent(in)         :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1953,7 +1953,7 @@ Module ModuleFunctions
 subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        real(4), dimension(:, :, :), intent(inout)              :: Matrix
         type (T_Size3D)                                         :: Size
         real(4), dimension(:, :, :), pointer, intent(IN)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional          :: MapMatrix
@@ -2065,7 +2065,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
         type (T_Size3D)                     , intent(IN)            :: Size
-        real(8), dimension(:, :, :), allocatable, intent(IN)        :: InMatrix
+        real(8), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
         real, optional                                , intent(IN)  :: MaskValue
 
@@ -2128,7 +2128,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
         type (T_Size3D)                     , intent(IN)            :: Size
-        real(4), dimension(:, :, :), allocatable, intent(IN)        :: InMatrix
+        real(4), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
         real, optional                                , intent(IN)  :: MaskValue
 
@@ -2238,7 +2238,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     function GetPointer2D_I4(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
-        integer(4), dimension(:,:), allocatable, intent(in), target    :: matrix
+        integer(4), dimension(:,:), intent(in), target    :: matrix
 
         !Local-----------------------------------------------------------------
         integer(4), dimension(:,:), pointer                            :: ptr
@@ -2252,7 +2252,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     function GetPointer2D_R4(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:,:), allocatable, intent(in), target    :: matrix
+        real(4), dimension(:,:), intent(in), target    :: matrix
 
         !Local-----------------------------------------------------------------
         real(4), dimension(:,:), pointer                            :: ptr
@@ -2266,7 +2266,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     function GetPointer2D_R8(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:,:), allocatable, intent(in), target    :: matrix
+        real(8), dimension(:,:), intent(in), target    :: matrix
 
         !Local-----------------------------------------------------------------
         real(8), dimension(:,:), pointer                            :: ptr
@@ -2280,7 +2280,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     function GetPointer3D_R4(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:,:,:), allocatable, intent(in), target  :: matrix
+        real(4), dimension(:,:,:), intent(in), target  :: matrix
 
         !Local-----------------------------------------------------------------
         real(4), dimension(:,:,:), pointer                          :: ptr
@@ -2294,7 +2294,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     function GetPointer3D_R8(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:,:,:), allocatable, intent(in), target :: matrix
+        real(8), dimension(:,:,:), intent(in), target :: matrix
 
         !Local-----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer             :: ptr
@@ -2482,7 +2482,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), intent (INOUT) :: MatrixA
         real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
         type (T_Size3D)                                       :: Size
         integer, dimension(:,:), pointer, intent(IN)          :: KFloor
@@ -2514,7 +2514,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     subroutine SumMatrixes_jik_V2(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), pointer, intent (INOUT)           :: MatrixA
-        real, dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
+        real, dimension(:, :, :), intent (IN)          :: MatrixB
         type (T_Size3D)                                             :: Size
         integer, dimension(:,:), pointer, intent(IN)                :: KFloor
         integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
@@ -2544,7 +2544,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), intent (INOUT)              :: MatrixA
         real, dimension(:, :   ), pointer, intent (IN)        :: MatrixB
         type (T_Size3D)                                       :: Size
         integer, dimension(:,:), pointer, intent(IN)          :: KFloor
@@ -5970,11 +5970,11 @@ end function
         type(T_Time),      intent(IN)                   :: ActualTime
         type(T_Size3D)                                  :: Size
         type(T_Time),      intent(IN)                   :: Time1
-        real, dimension(:,:,:), allocatable             :: Matrix1
+        real, dimension(:,:,:), intent(in)              :: Matrix1
         type(T_Time),      intent(IN)                   :: Time2
-        real, dimension(:,:,:), allocatable             :: Matrix2
-        real, dimension(:,:,:), allocatable             :: MatrixOUT
-        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        real, dimension(:,:,:), intent(in)              :: Matrix2
+        real, dimension(:,:,:), intent(inout)           :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional, intent(in)  :: PointsToFill3D
 
         !Local-----------------------------------------------------------------
         real                                            :: X1, X, X2
@@ -6157,7 +6157,8 @@ end function
         !Arguments-------------------------------------------------------------
         real                                            :: X1, X2, X
         type(T_Size3D)                                  :: Size
-        real, dimension(:,:,:), Allocatable             :: Matrix1, Matrix2, MatrixOUT
+        real, dimension(:,:,:), intent(in)              :: Matrix1, Matrix2
+        real, dimension(:,:,:), intent(inout)           :: MatrixOUT
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k, CHUNK
@@ -14763,7 +14764,7 @@ D2:     do I=imax-1,2,-1
     subroutine DischargeFluxU(FatherU_old, FatherU, AreaU, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
-        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
+        real,    dimension(:, :, :), intent(IN)              :: FatherU_old
         real(8),    dimension(:)            , intent(INOUT)  :: Flow
         integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
@@ -14790,9 +14791,9 @@ D2:     do I=imax-1,2,-1
     subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer    , intent(IN)     :: FatherV, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN)     :: FatherV_old
+        real,    dimension(:, :, :)             , intent(IN)     :: FatherV_old
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        integer, dimension(:, :)                , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                                  :: line, i, j, k, MaxSize
         real                                                     :: F_South, F_North
@@ -14819,10 +14820,11 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU, SonVolInFather, FatherVolume
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU, SonVolInFather, FatherVolume
+        real,    dimension(:,:,:), intent(IN   )                 :: VelSon
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
-        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        integer, dimension(:, :)                , intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , intent(IN)                  :: DecayTime
         real                                , intent(IN)         :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
         integer                                                  :: line, i, j, k, MaxSize
@@ -14890,10 +14892,11 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV, SonVolInFather, FatherVolume
+        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, AreaV, SonVolInFather, FatherVolume
+        real,    dimension(:,:,:), intent(IN)                :: VelSon
         real(8),    dimension(:)            , intent(OUT)    :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
-        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        real   , dimension(:, :)   , intent(IN)              :: DecayTime
         real                                , intent(IN)     :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
@@ -14976,10 +14979,10 @@ D2:     do I=imax-1,2,-1
     !>@param[in] n_Z, Kfloor, KUB, I, J
     subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
-        integer, dimension(:, :), allocatable , intent(INOUT)     :: Matrix
-        integer,                           intent(IN)             :: I, J, KUB
-        integer, dimension(:, :), pointer, intent(IN)             :: KFloor
-        integer,                           intent(INOUT)          :: CurrentZ
+        integer, dimension(:, :)         , intent(INOUT)    :: Matrix
+        integer                          , intent(IN)       :: I, J, KUB
+        integer, dimension(:, :), pointer, intent(IN)       :: KFloor
+        integer,                           intent(INOUT)    :: CurrentZ
         !Local-------------------------------------------------------------------------------
         integer                                                   :: k, KBottom
         !------------------------------------------------------------------------------------
