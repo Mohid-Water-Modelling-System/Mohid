@@ -39285,7 +39285,7 @@ do3:            do k = kbottom, KUB
     SonVolInFather3D)
         !Arguments-------------------------------------------------------------------------------------
         real, dimension(:,:,:), pointer, intent(IN) :: DecayTime, SonVolInFather3D
-        real, dimension(:,:) , intent(IN) :: DecayTime_Upscale2D
+        real, dimension(:,:) , allocatable, intent(IN) :: DecayTime_Upscale2D
         real                           , intent(IN) :: CoefCold, CoefCold_Upscale
         real                                        :: Gradient, Gradient_Upscale
         real                                        :: Aceleration_Downscaling, Aceleration_Upscaling
@@ -39409,7 +39409,7 @@ do3:            do k = kbottom, KUB
     !>@param[in] DecayTime_Upscale2D, CoefCold_Upscale
     subroutine Relaxation_Acceleration_Up(DecayTime_Upscale2D, CoefCold_Upscale)
         !Arguments-------------------------------------------------------------------------------------
-        real, dimension(:,:), intent(IN) :: DecayTime_Upscale2D
+        real, dimension(:,:), allocatable, intent(IN) :: DecayTime_Upscale2D
         real                         , intent(IN) :: CoefCold_Upscale
         !Locals -----------------------------------------------------------------------------------------
         real, dimension(:,:,:), pointer           :: Relax_Aceleration
