@@ -268,7 +268,8 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer, DischargeIsAssociated, SetMatrixValueAllocatable
+                                          GetPointer, DischargeIsAssociated,                    &
+                                          SetMatrixValueAllocatable, FromDepth_2_layer
 
     use mpi
 #else _USE_MPI
@@ -283,7 +284,8 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer, DischargeIsAssociated, SetMatrixValueAllocatable
+                                          GetPointer, DischargeIsAssociated,                    &
+                                          SetMatrixValueAllocatable, FromDepth_2_layer
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -20471,7 +20473,7 @@ do3:            do k = kbottom, KUB
         type (T_Time)                               :: Actual
 !        real, dimension(:,:,:),pointer              :: SZZ
         real, dimension(:, :), pointer              :: WaterLevel, WaterColumnZ
-        integer                                     :: STAT_CALL, KUB
+        integer                                     :: STAT_CALL, KUB, KLB
         real                                        :: DischargeFlow
         integer                                     :: nProperties
         real, dimension(:), pointer                 :: DataBuffer
@@ -20486,7 +20488,8 @@ do3:            do k = kbottom, KUB
         integer                                     :: nCells, n, AuxCell, Aux
         integer                                     :: FlowDistribution
         real                                        :: ByPassConc
-        integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
+        integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax, kaux
+        real                                        :: Depth_min, Depth_max        
 
 
         !Begin------------------------------------------------------------
@@ -20494,6 +20497,7 @@ do3:            do k = kbottom, KUB
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WaterPropDischarges")
         
         KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
 
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
@@ -20536,6 +20540,9 @@ dd:     do dis = 1, Me%Discharge%Number
                 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
                                               VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                
+                
+                
                 if (STAT_CALL/=SUCCESS_)                                                     &
                 call CloseAllAndStop ('WaterPropDischarges - Failed GetDischargeFlowDistribuiton in upscaling')
                 ! skips adresses correspondent to upscaling discharges
@@ -20620,8 +20627,21 @@ dd:     do dis = 1, Me%Discharge%Number
                 DataBuffer(nProperties) = DischargeFlow
             endif
 
-            call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
-                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+            !call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
+            !                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+            
+            call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                              DischargeIDNumber     = dis,              &
+                                              nCells                = nCells,           &
+                                              FlowDistribution      = FlowDistribution, &
+                                              VectorI               = VectorI,          &
+                                              VectorJ               = VectorJ,          &
+                                              VectorK               = VectorK,          &
+                                              kmin                  = kmin,             &
+                                              kmax                  = kmax,             &
+                                              Depth_min             = Depth_min,        &
+                                              Depth_max             = Depth_max,        &
+                                              STAT                  = STAT_CALL)              
 
             if (STAT_CALL/=SUCCESS_)                                                     &
                 call CloseAllAndStop ('Sub. WaterPropDischarges - ModuleWaterProperties - ERR90')
@@ -20683,14 +20703,40 @@ dn:         do n=1, nCells
                 Me%Discharge%i      (AuxCell) = i
                 Me%Discharge%j      (AuxCell) = j
                 Me%Discharge%k      (AuxCell) = k
-                Me%Discharge%kmin   (AuxCell) = kmin
-                Me%Discharge%kmax   (AuxCell) = kmax
+
 
                 if (DischVertical == DischUniform_) then
-                    if (kmin < 0) Me%Discharge%kmin(AuxCell) = KFloor_Z(i, j)
-                    if (kmax < 0) Me%Discharge%kmax(AuxCell) = KUB
-                    if (k    < 0) k = Me%Discharge%kmax(AuxCell)
+                                        
+                    if (kmin < 0) kmin = KFloor_Z(i, j)
+                    if (kmax < 0) kmax = KUB
+                        
+                    if (Depth_max > FillValueReal) then
+
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                        if (kaux >= kmin .or. kaux <= kmax) then
+                            kmin = kaux
+                        endif
+
+                    endif                        
+
+
+                    if (Depth_min > FillValueReal) then
+
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                        if (kaux >= kmin .or. kaux <= kmax) then
+                            kmax = kaux
+                        endif
+
+                    endif                     
+                        
+                    if (k    < 0) k = kmax                        
+                    
                 endif
+                
+                Me%Discharge%kmin   (AuxCell) = kmin
+                Me%Discharge%kmax   (AuxCell) = kmax                
 
                 nProperties = 1
                 PropertyX => Me%FirstProperty

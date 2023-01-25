@@ -378,6 +378,9 @@ Module ModuleFunctions
     private :: SearchFace
     private :: Update_n_Z
 
+    !from depth to layer
+    public  ::  FromDepth_2_layer
+
     !types -------------------------------------------------------------------
 
     !griflet
@@ -15246,8 +15249,41 @@ D2:     do I=imax-1,2,-1
 
     end function ReadEsriGridData
 
+    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth)
 
-    end module ModuleFunctions
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:,:,:), pointer, intent(IN) :: SZZ
+        integer,    dimension(:,:,:), pointer, intent(IN) :: OpenPoints        
+        integer,                               intent(IN) :: i, j, KLB, KUB
+        real,                                  intent(IN) :: Depth
+        !Local-----------------------------------------------------------------
+        real                                              :: Depth_u, Depth_l
+        integer                                           :: k, k_depth
+
+        !Begin-----------------------------------------------------------------
+
+        k_depth = FillValueInt
+
+        do k = KUB, KLB, -1
+
+            if (OpenPoints(i, j, k) == OpenPoint) then
+                Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
+                Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+                if (Depth_u <= Depth .and. Depth_l >= Depth) then
+                    k_depth = k
+                    exit
+                endif
+            else
+                exit
+            endif
+
+        enddo
+
+        FromDepth_2_layer = k_depth
+
+    end function FromDepth_2_layer
+
+end module ModuleFunctions
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.

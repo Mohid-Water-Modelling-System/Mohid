@@ -36589,13 +36589,17 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: WaterLevelByPass !, Depth
         real                               :: CoordinateX, CoordinateY, XBypass, YBypass
         integer                            :: DirectionXY, DischargesNumber, DischargeID
-        integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
+        integer                            :: i, j, k, kd, di, dj, STAT_CALL, iNorth, jEast, KLB, KUB, n
         integer                            :: ib, jb !, kbottom, k1
         integer                            :: FlowDistribution, nCells, SpatialEmission
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
         integer                            :: DischVertical
         real                               :: InterceptionRatio
+        integer                            :: kmin, kmax, kaux
+        real                               :: Depth_min, Depth_max
+        real                               :: DischargeVelocityX, DischargeVelocityY, VectorGridX, VectorGridY
+        integer                            :: djx, diy 
 
         integer                            :: CHUNK
         logical                            :: UpscalingDischarge
@@ -36606,6 +36610,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
         DirectionXY = Me%Direction%XY
         KUB         = Me%WorkSize%KUB
+        KLB         = Me%WorkSize%KLB        
 
         Horizontal_Transport => Me%Forces%Horizontal_Transport
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
@@ -36694,37 +36699,75 @@ do1:    do DischargeID = 1, DischargesNumber
                 !do nothing...
             else
 
-                call GetDischargeWaterFlow(Me%ObjDischarges,                    &
-                                           Me%CurrentTime, DischargeID,         &
-                                           Me%WaterLevel%Old(I, J),             &
-                                           DischargeFlow,                       &
-                                           SurfaceElevation2 = WaterLevelByPass,&
+                call GetDischargeWaterFlow(Me%ObjDischarges,                            &
+                                           Me%CurrentTime, DischargeID,                 &
+                                           Me%WaterLevel%Old(I, J),                     &
+                                           DischargeFlow,                               &
+                                           SurfaceElevation2 = WaterLevelByPass,        &
                                            STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
 
+                call GetDischargeFlowVelocity(Me%ObjDischarges,                         &
+                                                Me%CurrentTime, DischargeID,            &
+                                                VelocityU = DischargeVelocityX,         &
+                                                VelocityV = DischargeVelocityY,         &
+                                                STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'      
+
+                call RotateVectorFieldToGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                             i                = i,                      &
+                                             j                = j,                      &
+                                             VectorInX        = DischargeVelocityX,     &
+                                             VectorInY        = DischargeVelocityY,     &
+                                             VectorOutX       = VectorGridX,            &
+                                             VectorOutY       = VectorGridY,            &
+                                             STAT             = STAT_CALL)                          
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                
+                djx = 0
+                diy = 0
+
                 if (DirectionXY == DirectionX_) then
 
-                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
-                                                    Me%CurrentTime, DischargeID,            &
-                                                    VelocityU = DischargeVelocity,          &
-                                                    STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'
+                    DischargeVelocity = VectorGridX
+                    
+                    !Critical to have symmetry (same effect independent of velocity direction) in momentum discharges 
+                    if (VectorGridX > 0) then
+                        djx = 1
+                    endif
 
                 else if (DirectionXY == DirectionY_) then
 
-                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
-                                                    Me%CurrentTime, DischargeID,            &
-                                                    VelocityV = DischargeVelocity,          &
-                                                    STAT = STAT_CALL)
-                    if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                    DischargeVelocity = VectorGridY
+                    
+                    !Critical to have symmetry (same effect independent of velocity direction) in momentum discharges 
+                    if (VectorGridY > 0) then
+                        diy = 1
+                    endif
+
+
                 endif
 
                 di  = Me%Direction%di
                 dj  = Me%Direction%dj
 
 
-                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                                    VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+!                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+!                                                    VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                
+                
+                call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                                  DischargeIDNumber     = DischargeID,      &
+                                                  nCells                = nCells,           &
+                                                  FlowDistribution      = FlowDistribution, &
+                                                  VectorI               = VectorI,          &
+                                                  VectorJ               = VectorJ,          &
+                                                  VectorK               = VectorK,          &
+                                                  kmin                  = kmin,             &
+                                                  kmax                  = kmax,             &
+                                                  Depth_min             = Depth_min,        &
+                                                  Depth_max             = Depth_max,        &
+                                                  STAT                  = STAT_CALL)                
 
                 if (STAT_CALL/=SUCCESS_)                                                     &
                     stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR90'
@@ -36749,13 +36792,13 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
 
                         call DischargeDistributionPerCell (VectorI          = VectorI,      &
-                                                            VectorJ          = VectorJ,      &
-                                                            nCells           = nCells,       &
-                                                            SpatialEmission  = SpatialEmission,&
-                                                            Mapping          = Me%External_Var%ComputeFaces3D_UV,&
-                                                            Property         = MomentumHorizontal_, &
-                                                            InterceptionRatio= InterceptionRatio, &
-                                                            DistributionCoef = DistributionCoef)
+                                                           VectorJ          = VectorJ,      &
+                                                           nCells           = nCells,       &
+                                                           SpatialEmission  = SpatialEmission,&
+                                                           Mapping          = Me%External_Var%ComputeFaces3D_UV,&
+                                                           Property         = MomentumHorizontal_, &
+                                                           InterceptionRatio= InterceptionRatio, &
+                                                           DistributionCoef = DistributionCoef)
 
 
                     else  i2
@@ -36786,11 +36829,17 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                 !!!$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
 
+                !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
+                i = i + diy
+                j = j + djx                
+
 dn:             do n=1, nCells
                     !!!$OMP MASTER
                     if (nCells > 1) then
-                        i         = VectorI(n)
-                        j         = VectorJ(n)
+                        !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
+                        i         = VectorI(n) + diy
+                        j         = VectorJ(n) + djx
+                        
                         kd        = VectorK(n)
 
                         call GetDischargeWaterFlow(Me%ObjDischarges,                        &
@@ -36822,6 +36871,28 @@ dn:             do n=1, nCells
                         endif
 
                         if (kmax == FillValueInt) kmax = KUB
+
+
+                        if (Depth_max > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmin = kaux
+                            endif
+
+                        endif                        
+
+
+                        if (Depth_min > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmax = kaux
+                            endif
+
+                        endif                                      
 
                         SectionHeight = 0
                         if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
@@ -49188,7 +49259,7 @@ subroutine ModifyWaterDischarges
         type (T_Time)                      :: CurrentTime
 
         real                               :: DischargeFlow, AuxFlowK
-        integer                            :: DischargesNumber, DischargeID, i, j, kd, k, kmin, kmax
+        integer                            :: DischargesNumber, DischargeID, i, j, kd, k
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         integer                            :: STAT_CALL, kbottom
 
@@ -49215,6 +49286,9 @@ subroutine ModifyWaterDischarges
         integer                            :: nCells, n
         integer                            :: FlowDistribution, SpatialEmission
         real                               :: InterceptionRatio
+        integer                            :: kmin, kmax, kaux
+        real                               :: Depth_min, Depth_max
+
 
         integer                            :: CHUNK
 
@@ -49338,8 +49412,21 @@ do1:        do DischargeID = 1, DischargesNumber
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
 
 
-                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+!                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+!                                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+
+                call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                                  DischargeIDNumber     = DischargeID,      &
+                                                  nCells                = nCells,           &
+                                                  FlowDistribution      = FlowDistribution, &
+                                                  VectorI               = VectorI,          &
+                                                  VectorJ               = VectorJ,          &
+                                                  VectorK               = VectorK,          &
+                                                  kmin                  = kmin,             &
+                                                  kmax                  = kmax,             &
+                                                  Depth_min             = Depth_min,        &
+                                                  Depth_max             = Depth_max,        &
+                                                  STAT                  = STAT_CALL)   
 
                 if (STAT_CALL/=SUCCESS_)                                                &
                     stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR110'
@@ -49409,6 +49496,28 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (kmin == FillValueInt) kmin = KFloor_Z(i, j)
                         if (kmax == FillValueInt) kmax = KUB
+
+                        if (Depth_max > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmin = kaux
+                            endif
+
+                        endif                        
+
+
+                        if (Depth_min > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmax = kaux
+                            endif
+
+                        endif                         
+                        
                         SectionHeight = 0
 
                         do k=kmin, kmax

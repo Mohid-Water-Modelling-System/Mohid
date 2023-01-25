@@ -274,6 +274,8 @@ Module ModuleDischarges
          integer                                :: FlowDistribution                 = DischByCell_
          integer                                :: kmin                             = FillValueInt
          integer                                :: kmax                             = FillValueInt
+         real                                   :: Depth_min                        = FillValueReal
+         real                                   :: Depth_max                        = FillValueReal
 
          !Important for the domain decomposition approach
          !is the ratio of the XYZPoints or Line or Polygon that intercepts the model domain
@@ -935,6 +937,34 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
                         stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR76.'
+                    
+                    if (NewDischarge%Localization%kmin == FillValueInt) then
+                        
+                        call GetData(NewDischarge%Localization%Depth_max,               &
+                                     Me%ObjEnterData,                                   &
+                                     flag,                                              &
+                                     FromBlock,                                         &
+                                     keyword      ='DEPTH_MAX',                         &
+                                     default      = FillValueReal,                      &
+                                     ClientModule = 'ModuleDischarges',                 &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR77.'                        
+                    endif
+                    
+                    if (NewDischarge%Localization%kmax == FillValueInt) then
+                        
+                        call GetData(NewDischarge%Localization%Depth_min,               &
+                                     Me%ObjEnterData,                                   &
+                                     flag,                                              &
+                                     FromBlock,                                         &
+                                     keyword      ='DEPTH_MIN',                         &
+                                     default      = FillValueReal,                      &
+                                     ClientModule = 'ModuleDischarges',                 &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR78.'                        
+                    endif                    
 
                 case (DischBottom_, DischSurf_)
                     !do not do nothing
@@ -3351,7 +3381,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
     Subroutine GetDischargeFlowDistribuiton(DischargesID, DischargeIDNumber,            &
                                             nCells, FlowDistribution,                   &
-                                            VectorI, VectorJ, VectorK, kmin, kmax, STAT)
+                                            VectorI, VectorJ, VectorK,                  &
+                                            kmin, kmax, Depth_min, Depth_max, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3361,6 +3392,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         integer, dimension(:), pointer, optional    :: VectorI, VectorJ, VectorK
         integer,                        optional    :: kmin, kmax
+        real,                           optional    :: Depth_min, Depth_max
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3427,6 +3459,19 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 kmax = DischargeX%Localization%kmax
 
             endif
+            
+
+            if (present(Depth_min)) then
+
+                Depth_min = DischargeX%Localization%Depth_min
+
+            endif
+
+            if (present(Depth_max)) then
+
+                Depth_max = DischargeX%Localization%Depth_max
+
+            endif            
 
             nullify(DischargeX)
 

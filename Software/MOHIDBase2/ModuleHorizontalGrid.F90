@@ -241,10 +241,12 @@ Module ModuleHorizontalGrid
         module procedure InterpolRegularGrid3D8
     end interface  InterpolRegularGrid
 
+    private:: RotateVectorFieldToGrid0D
     private:: RotateVectorFieldToGrid2D
     private:: RotateVectorFieldToGrid3D
     public :: RotateVectorFieldToGrid
     interface  RotateVectorFieldToGrid
+        module procedure RotateVectorFieldToGrid0D
         module procedure RotateVectorFieldToGrid2D
         module procedure RotateVectorFieldToGrid3D
     end interface  RotateVectorFieldToGrid
@@ -15135,7 +15137,78 @@ if31:   if (MasterOrSlave) then
     end subroutine ReadHDF5HorizontalGrid
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
+
+    subroutine RotateVectorFieldToGrid0D(HorizontalGridID, i, j, VectorInX, VectorInY,  &
+                                         VectorOutX, VectorOutY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,    intent(IN)                  :: HorizontalGridID        
+        integer,    intent(IN)                  :: i, j 
+        real,       intent(IN)                  :: VectorInX, VectorInY
+        real,       intent(OUT)                 :: VectorOutX, VectorOutY
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        real                                    :: XGrid, YGrid, AngleX, AngleY
+        integer                                 :: STAT_, ready_
+        real                                    :: GridRotationRadians
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+
+if1:        if  (Me%Distortion .or. Me%RegularRotation) then
+
+                GridRotationRadians = Me%Grid_Angle * Pi/180.
+
+                AngleX = 0.
+                AngleY = Pi / 2.
+
+                if      (Me%Distortion) then
+
+                    AngleX = Me%RotationX(i, j)
+                    AngleY = Me%RotationY(i, j)
+
+                else if (Me%RegularRotation) then
+
+                    AngleX = GridRotationRadians
+                    AngleY = GridRotationRadians + Pi / 2.
+
+                endif
+
+                call FromCartesianToGrid (VectorInX, VectorInY, AngleX, AngleY, Xgrid, Ygrid)
+
+                VectorOutX = Xgrid
+
+                VectorOutY = Ygrid
+
+            else  if1
+
+                VectorOutX = VectorInX
+
+                VectorOutY = VectorInY
+
+            endif if1
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateVectorFieldToGrid0D
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
 
