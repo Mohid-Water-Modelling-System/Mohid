@@ -27121,7 +27121,7 @@ DoCatch: do while (associated(CurrentOrigin))
     
         !Arguments------------------------------------------------------------------    
         character(len=*)                            :: PropName, Units
-        real,       dimension(:),  pointer          :: Array1D
+        real(8),    dimension(:),  pointer          :: Array1D
         integer                                     :: DimID
 
 

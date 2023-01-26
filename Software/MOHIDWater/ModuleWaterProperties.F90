@@ -21077,7 +21077,8 @@ if2:                                    if (Me%DDecomp%MPI_ID == Me%DDecomp%Disc
         !Local -----------------------------------------------------------------
         integer                                         :: PropertyID
         integer                                         :: NumberOfFields, NumberOfFields_Upscaling
-        real,    pointer, dimension(:,:,:)              :: PropAssimilation, DischargeFlow
+        real,    pointer, dimension(:,:,:)              :: PropAssimilation
+        real(8), pointer, dimension(:,:,:)              :: DischargeFlow
         integer                                         :: N_Field, STAT_CALL
         logical                                         :: SubModelON, FoundDomain
         real                                            :: CoefCold

@@ -471,6 +471,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_Constant
         module procedure SetMatrixValues3D_R4_FromMatrix
         module procedure SetMatrixValues3D_R8ToR4_FromMatrix
+        module procedure SetMatrixValues3D_R4ToR8_FromMatrix    
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix_Alloc
@@ -1860,13 +1861,62 @@ Module ModuleFunctions
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
 
-    subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+  subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+
+      !Arguments-------------------------------------------------------------
+      real(4), dimension(:, :, :), pointer            :: Matrix
+      type (T_Size3D)                                 :: Size
+      real(8), dimension(:, :, :), pointer            :: InMatrix
+      integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+
+      !Local-----------------------------------------------------------------
+      integer                                         :: i, j, k
+      integer                                         :: CHUNK
+
+      !Begin-----------------------------------------------------------------
+
+      CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+      if (present(MapMatrix)) then
+          !$OMP PARALLEL PRIVATE(I,J, K)
+          !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+          do k = Size%KLB, Size%KUB
+          do j = Size%JLB, Size%JUB
+          do i = Size%ILB, Size%IUB
+              if (MapMatrix(i, j, k) == 1) then
+                  Matrix (i, j, k) = InMatrix(i, j, k)
+              endif
+          enddo
+          enddo
+          enddo
+          !$OMP END DO NOWAIT
+          !$OMP END PARALLEL
+      else
+          !$OMP PARALLEL PRIVATE(I,J, K)
+          !$OMP DO SCHEDULE(STATIC)
+          do k = Size%KLB, Size%KUB
+          do j = Size%JLB, Size%JUB
+          do i = Size%ILB, Size%IUB
+              Matrix (i, j, k) = InMatrix(i, j, k)
+          enddo
+          enddo
+          enddo
+          !$OMP END DO NOWAIT
+          !$OMP END PARALLEL
+      endif
+  end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine SetMatrixValues3D_R4ToR8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), pointer            :: Matrix
+        real(8), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
-        real(8), dimension(:, :, :), pointer            :: InMatrix
+        real(4), dimension(:, :, :), pointer            :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real, optional                                  :: MaskValue
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
@@ -1875,9 +1925,22 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-
-        if (present(MapMatrix)) then
-            !$OMP PARALLEL PRIVATE(I,J, K)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
@@ -1891,7 +1954,7 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
@@ -1903,7 +1966,56 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif
-    end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
+
+    end subroutine SetMatrixValues3D_R4ToR8_FromMatrix
+
+    !--------------------------------------------------------------------------
+
+
+ !   subroutine SetMatrixValues3D_R4ToR8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+!
+ !       !Arguments-------------------------------------------------------------
+ !       real(8), dimension(:, :, :), pointer            :: Matrix
+ !       type (T_Size3D)                                 :: Size
+ !       real(4), dimension(:, :, :), pointer            :: InMatrix
+ !       integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+!
+ !       !Local-----------------------------------------------------------------
+ !       integer                                         :: i, j, k
+ !       integer                                         :: CHUNK
+!
+ !       !Begin-----------------------------------------------------------------
+!
+ !       CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+!
+ !       if (present(MapMatrix)) then
+ !           !$OMP PARALLEL PRIVATE(I,J, K)
+ !           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+ !           do k = Size%KLB, Size%KUB
+ !           do j = Size%JLB, Size%JUB
+ !           do i = Size%ILB, Size%IUB
+ !               if (MapMatrix(i, j, k) == 1) then
+ !                   Matrix (i, j, k) = InMatrix(i, j, k)
+ !               endif
+ !           enddo
+ !           enddo
+ !           enddo
+ !           !$OMP END DO NOWAIT
+ !           !$OMP END PARALLEL
+ !       else
+ !           !$OMP PARALLEL PRIVATE(I,J, K)
+ !           !$OMP DO SCHEDULE(STATIC)
+ !           do k = Size%KLB, Size%KUB
+ !           do j = Size%JLB, Size%JUB
+ !           do i = Size%ILB, Size%IUB
+ !               Matrix (i, j, k) = InMatrix(i, j, k)
+ !           enddo
+ !           enddo
+ !           enddo
+ !           !$OMP END DO NOWAIT
+ !           !$OMP END PARALLEL
+ !       endif
+ !   end subroutine SetMatrixValues3D_R4ToR8_FromMatrix
 
     !--------------------------------------------------------------------------
 
@@ -2001,6 +2113,10 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     
     !--------------------------------------------------------------------------
 
+    
+    
+
+
     subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
@@ -2062,6 +2178,8 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
     !--------------------------------------------------------------------------
+    
+    
 
     subroutine SetMatrixValues3D_R8_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 

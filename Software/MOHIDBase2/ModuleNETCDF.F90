@@ -1690,6 +1690,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine NETCDFWriteDataR4_1D (NCDFID, Name, LongName, StandardName, Units,       &
                                      ValidMin, ValidMax,  MinValue, MaxValue,           &
                                      MissingValue, Array1D, DimID, STAT)
+    
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -3709,27 +3710,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine NETCDFReadDataI4_3D
     !--------------------------------------------------------------------------    
 
-
     !--------------------------------------------------------------------------    
 
-    subroutine NETCDFReadDataR4_3D(NCDFID, Array3D, Name, nInstant, &
-                                   ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+    subroutine NETCDFReadDataI4_2D(NCDFID, Array2D, Name, nInstant,                     &
+                                  ILB, IUB, JLB, JUB, DefaultValue, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
-        real(4), dimension(:,:,:), pointer              :: Array3D        
+        integer(4), dimension(:,:), pointer             :: Array2D        
         character(len = *)                              :: Name
         integer, optional                               :: nInstant
-        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer, optional                               :: ILB, IUB, JLB, JUB
+        integer, optional                               :: DefaultValue                 
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), pointer                 :: Aux3D        
-        integer                                         :: VarID, numDims, i, j, k
-        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_         
-        integer                                         :: in, jn, kn
+        real, dimension(:,:), pointer                   :: Aux2D        
+        integer                                         :: VarID, numDims, i, j
+        integer                                         :: ILB_, IUB_, JLB_, JUB_
+        integer                                         :: in, jn
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
+        integer                                         :: nInstant_        
+        logical                                         :: DefaultNull_        
+        integer                                         :: DefaultValue_            
 
         !Begin-----------------------------------------------------------------
 
@@ -3739,26 +3743,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (ready_ .EQ. IDLE_ERR_) then
         
-            if (present(KUB)) then 
-                KUB_ = KUB
-            else
-                !Get the spatial vertical dimension        
-                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR10'
-            endif
-            
-            if (present(KLB)) then 
-                KLB_ = KLB
-            else
-                KLB_ = 1
-            endif
-            
             if (present(JUB)) then 
                 JUB_ = JUB
             else
                 !Get one of the horizontal spatial dimension        
                 call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR20'
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR20'
             endif
             
             if (present(JLB)) then 
@@ -3772,64 +3762,86 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 !Get one of the horizontal spatial dimension        
                 call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR30'
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR30'
             endif
             
             if (present(ILB)) then 
                 ILB_ = ILB
             else
                 ILB_ = 1
+            endif        
+            
+            if (present(DefaultValue)) then
+                DefaultNull_    = .true.
+                DefaultValue_   = DefaultValue
+            else
+                DefaultNull_    = .false.
+                DefaultValue_   = FillValueInt
             endif                    
                         
-            !Check if depth is defined in :
-            ! b) 3D (variable in depth and horizontaly)
-            ! c) 4D (variable in depth, horizontaly and in time)
+            ! 1) 2D (variable in horizontaly)
+            ! 2) 3D (variable in horizontaly and in time)
+            ! 3) 3D (variable in horizontaly and one layer)
             
             STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
             if (STAT_CALL /= nf90_noerr) then
                 write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
-                stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR40'
-            endif
+                if (DefaultNull_) then
+                    write(*,*) "Property ", trim(Name)," a default value is assumed =", DefaultValue_
+                    do j=JLB_,JUB_
+                    do i=ILB_,IUB_
+                        Array2D(i,j) = DefaultValue_
+                    enddo
+                    enddo                 
+                else
+                    stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR40'
+                endif
+            else                
 
-            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
-            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR50'
+                STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR50'
         
-            if (numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR60' 
+                if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR60' 
             
-            if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR70' 
+                if (numDims == 3) then
+                    if (present(nInstant)) then
+                        nInstant_ = nInstant
+                    else                    
+                        nInstant_ = 1
+                        !stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR70' 
+                    endif    
+                endif
             
+                jn = 1-JLB_+JUB_
+                in = 1-ILB_+IUB_
             
-            jn = 1-JLB_+JUB_
-            in = 1-ILB_+IUB_
-            kn = 1-KLB_+KUB_
-            
-            allocate(Aux3D (1:jn,1:in,1:kn))
+                allocate(Aux2D (1:jn,1:in))
                             
-            if (numDims == 3) then                                    
+                if (numDims == 2) then                                    
     
-                !Read 3D Field
-                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
-                    start = (/ JLB_, ILB_, KLB_/),                                      &
-                    count = (/   jn,   in,   kn/))                             
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR80'                                
-            else
-                !Read 4D Field
-                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
-                    start = (/ JLB_, ILB_, KLB_,  ninstant /),                          &
-                    count = (/   jn,   in,   kn, 1       /))                             
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR90'            
+                    !Read 2D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                        start = (/ JLB_, ILB_/),                                            &
+                        count = (/   jn,   in/))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR80'                                
+                else
+                    !Read 3D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                        start = (/ JLB_, ILB_,  ninstant_ /),                                &
+                        count = (/   jn,   in, 1       /))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR90'            
             
-            endif
+                endif
             
-            do j=JLB_,JUB_
-            do i=ILB_,IUB_
-            do k=KLB_,KUB_
-                Array3D(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
-            enddo
-            enddo
-            enddo 
+                do j=JLB_,JUB_
+                do i=ILB_,IUB_
+                    Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
+                enddo
+                enddo 
 
-            deallocate(Aux3D)
+                deallocate(Aux2D)
+                
+            endif
 
             STAT_ = SUCCESS_
 
@@ -3842,9 +3854,152 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFReadDataR4_3D
+    end subroutine NETCDFReadDataI4_2D
+
+!---------------------------------------------------------------------------------------    
+    
+    subroutine NETCDFReadDataR8_2D(NCDFID, Array2D, Name, nInstant,                     &
+                                  ILB, IUB, JLB, JUB, DefaultValue, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(8), dimension(:,:), pointer                :: Array2D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB
+        real, optional                                  :: DefaultValue
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2D        
+        integer                                         :: VarID, numDims, i, j
+        integer                                         :: ILB_, IUB_, JLB_, JUB_
+        integer                                         :: in, jn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+        logical                                         :: DefaultNull_        
+        real                                            :: DefaultValue_        
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif        
+            
+            if (present(DefaultValue)) then
+                DefaultNull_    = .true.
+                DefaultValue_   = DefaultValue
+            else
+                DefaultNull_    = .false.
+                DefaultValue_   = FillValueReal 
+            endif
+                        
+            ! 1) 2D (variable in horizontaly)
+            ! 2) 3D (variable in horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                
+                if (DefaultNull_) then
+                    write(*,*) "Property ", trim(Name)," a default value is assumed =", DefaultValue_
+                    do j=JLB_,JUB_
+                    do i=ILB_,IUB_
+                        Array2D(i,j) = DefaultValue_
+                    enddo
+                    enddo                 
+                else
+                    stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR40'
+                endif
+            else
+            
+                STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR50'
+        
+                if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR60' 
+            
+                if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR70' 
+            
+            
+                jn = 1-JLB_+JUB_
+                in = 1-ILB_+IUB_
+            
+                allocate(Aux2D (1:jn,1:in))
+                            
+                if (numDims == 2) then                                    
+    
+                    !Read 2D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                        start = (/ JLB_, ILB_/),                                            &
+                        count = (/   jn,   in/))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR80'                                
+                else
+                    !Read 3D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                        start = (/ JLB_, ILB_,  ninstant /),                                &
+                        count = (/   jn,   in, 1       /))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR90'            
+            
+                endif
+            
+                do j=JLB_,JUB_
+                do i=ILB_,IUB_
+                    Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
+                enddo
+                enddo 
+
+                deallocate(Aux2D)
+                
+            endif
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR8_2D
+    
+    
     !--------------------------------------------------------------------------    
-!--------------------------------------------------------------------------    
+
+
+    !--------------------------------------------------------------------------    
 
     subroutine NETCDFReadDataR8_3D(NCDFID, Array3D, Name, nInstant,      &
                                    ILB, IUB, JLB, JUB, KLB, KUB, STAT)
@@ -3991,159 +4146,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine NETCDFReadDataR8_3D
     !--------------------------------------------------------------------------    
-
-
+!---------------------------------------------------------------------------------------    
     
-    !--------------------------------------------------------------------------    
-
-    subroutine NETCDFReadDataI4_2D(NCDFID, Array2D, Name, nInstant,                     &
-                                  ILB, IUB, JLB, JUB, DefaultValue, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: NCDFID
-        integer(4), dimension(:,:), pointer             :: Array2D        
-        character(len = *)                              :: Name
-        integer, optional                               :: nInstant
-        integer, optional                               :: ILB, IUB, JLB, JUB
-        integer, optional                               :: DefaultValue                 
-        integer, optional                               :: STAT
-        
-        !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer                   :: Aux2D        
-        integer                                         :: VarID, numDims, i, j
-        integer                                         :: ILB_, IUB_, JLB_, JUB_
-        integer                                         :: in, jn
-        integer                                         :: STAT_, ready_
-        integer                                         :: STAT_CALL
-        integer                                         :: nInstant_        
-        logical                                         :: DefaultNull_        
-        integer                                         :: DefaultValue_            
-
-        !Begin-----------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready (NCDFID, ready_)
-
-        if (ready_ .EQ. IDLE_ERR_) then
-        
-            if (present(JUB)) then 
-                JUB_ = JUB
-            else
-                !Get one of the horizontal spatial dimension        
-                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR20'
-            endif
-            
-            if (present(JLB)) then 
-                JLB_ = JLB
-            else
-                JLB_ = 1
-            endif
-                    
-            if (present(IUB)) then 
-                IUB_ = IUB
-            else
-                !Get one of the horizontal spatial dimension        
-                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR30'
-            endif
-            
-            if (present(ILB)) then 
-                ILB_ = ILB
-            else
-                ILB_ = 1
-            endif        
-            
-            if (present(DefaultValue)) then
-                DefaultNull_    = .true.
-                DefaultValue_   = DefaultValue
-            else
-                DefaultNull_    = .false.
-                DefaultValue_   = FillValueInt
-            endif                    
-                        
-            ! 1) 2D (variable in horizontaly)
-            ! 2) 3D (variable in horizontaly and in time)
-            ! 3) 3D (variable in horizontaly and one layer)
-            
-            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
-            if (STAT_CALL /= nf90_noerr) then
-                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
-                if (DefaultNull_) then
-                    write(*,*) "Property ", trim(Name)," a default value is assumed =", DefaultValue_
-                    do j=JLB_,JUB_
-                    do i=ILB_,IUB_
-                        Array2D(i,j) = DefaultValue_
-                    enddo
-                    enddo                 
-                else
-                    stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR40'
-                endif
-            else                
-
-                STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR50'
-        
-                if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR60' 
-            
-                if (numDims == 3) then
-                    if (present(nInstant)) then
-                        nInstant_ = nInstant
-                    else                    
-                        nInstant_ = 1
-                        !stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR70' 
-                    endif    
-                endif
-            
-                jn = 1-JLB_+JUB_
-                in = 1-ILB_+IUB_
-            
-                allocate(Aux2D (1:jn,1:in))
-                            
-                if (numDims == 2) then                                    
-    
-                    !Read 2D Field
-                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
-                        start = (/ JLB_, ILB_/),                                            &
-                        count = (/   jn,   in/))                             
-                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR80'                                
-                else
-                    !Read 3D Field
-                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
-                        start = (/ JLB_, ILB_,  ninstant_ /),                                &
-                        count = (/   jn,   in, 1       /))                             
-                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR90'            
-            
-                endif
-            
-                do j=JLB_,JUB_
-                do i=ILB_,IUB_
-                    Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
-                enddo
-                enddo 
-
-                deallocate(Aux2D)
-                
-            endif
-
-            STAT_ = SUCCESS_
-
-        else
-
-            STAT_ = ready_
-
-        endif
-
-        if (present(STAT)) STAT = STAT_
-
-
-    end subroutine NETCDFReadDataI4_2D
-    
-    !--------------------------------------------------------------------------    
-
     subroutine NETCDFReadDataR4_2D(NCDFID, Array2D, Name, nInstant,                     &
-                                  ILB, IUB, JLB, JUB, STAT)
+                                  ILB, IUB, JLB, JUB, DefaultValue, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -4151,6 +4157,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len = *)                              :: Name
         integer, optional                               :: nInstant
         integer, optional                               :: ILB, IUB, JLB, JUB
+        real, optional                                  :: DefaultValue
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
@@ -4160,6 +4167,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: in, jn
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
+        logical                                         :: DefaultNull_        
+        real                                            :: DefaultValue_        
 
         !Begin-----------------------------------------------------------------
 
@@ -4195,126 +4204,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 ILB_ = ILB
             else
                 ILB_ = 1
-            endif                    
-                        
-            ! 1) 2D (variable in horizontaly)
-            ! 2) 3D (variable in horizontaly and in time)
-            
-            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
-            if (STAT_CALL /= nf90_noerr) then
-                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
-                stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR40'
-            endif
-
-            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
-            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR50'
-        
-            if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR60' 
-            
-            if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR70' 
-            
-            
-            jn = 1-JLB_+JUB_
-            in = 1-ILB_+IUB_
-            
-            allocate(Aux2D (1:jn,1:in))
-                            
-            if (numDims == 2) then                                    
-    
-                !Read 2D Field
-                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
-                    start = (/ JLB_, ILB_/),                                            &
-                    count = (/   jn,   in/))                             
-                if (STAT_CALL /= nf90_noerr) then
-                    stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR80'
-                endif
-            else
-                !Read 3D Field
-                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
-                    start = (/ JLB_, ILB_,  ninstant /),                                &
-                    count = (/   jn,   in, 1       /))                             
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR90'            
-            
-            endif
-            
-            do j=JLB_,JUB_
-            do i=ILB_,IUB_
-                Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
-            enddo
-            enddo 
-
-            deallocate(Aux2D)
-
-            STAT_ = SUCCESS_
-
-        else
-
-            STAT_ = ready_
-
-        endif
-
-        if (present(STAT)) STAT = STAT_
-
-
-    end subroutine NETCDFReadDataR4_2D
-    !--------------------------------------------------------------------------    
-
-    subroutine NETCDFReadDataR8_2D(NCDFID, Array2D, Name, nInstant,                     &
-                                  ILB, IUB, JLB, JUB, DefaultValue, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: NCDFID
-        real(8), dimension(:,:), pointer                :: Array2D        
-        character(len = *)                              :: Name
-        integer, optional                               :: nInstant
-        integer, optional                               :: ILB, IUB, JLB, JUB
-        real, optional                                  :: DefaultValue
-        integer, optional                               :: STAT
-        
-        !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer                   :: Aux2D        
-        integer                                         :: VarID, numDims, i, j
-        integer                                         :: ILB_, IUB_, JLB_, JUB_
-        integer                                         :: in, jn
-        integer                                         :: STAT_, ready_
-        integer                                         :: STAT_CALL
-        logical                                         :: DefaultNull_        
-        real                                            :: DefaultValue_        
-
-        !Begin-----------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready (NCDFID, ready_)
-
-        if (ready_ .EQ. IDLE_ERR_) then
-        
-            if (present(JUB)) then 
-                JUB_ = JUB
-            else
-                !Get one of the horizontal spatial dimension        
-                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR20'
-            endif
-            
-            if (present(JLB)) then 
-                JLB_ = JLB
-            else
-                JLB_ = 1
-            endif
-                    
-            if (present(IUB)) then 
-                IUB_ = IUB
-            else
-                !Get one of the horizontal spatial dimension        
-                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR30'
-            endif
-            
-            if (present(ILB)) then 
-                ILB_ = ILB
-            else
-                ILB_ = 1
             endif        
             
             if (present(DefaultValue)) then
@@ -4340,16 +4229,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     enddo
                     enddo                 
                 else
-                    stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR40'
+                    stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR40'
                 endif
             else
             
                 STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
-                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR50'
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR50'
         
-                if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR60' 
+                if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR60' 
             
-                if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR70' 
+                if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR70' 
             
             
                 jn = 1-JLB_+JUB_
@@ -4363,13 +4252,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
                         start = (/ JLB_, ILB_/),                                            &
                         count = (/   jn,   in/))                             
-                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR80'                                
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR80'                                
                 else
                     !Read 3D Field
                     STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
                         start = (/ JLB_, ILB_,  ninstant /),                                &
                         count = (/   jn,   in, 1       /))                             
-                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR90'            
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR90'            
             
                 endif
             
@@ -4394,9 +4283,158 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFReadDataR8_2D
+    end subroutine NETCDFReadDataR4_2D
     
     
+    !--------------------------------------------------------------------------    
+
+
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataR4_3D(NCDFID, Array3D, Name, nInstant,      &
+                                   ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(4), dimension(:,:,:), pointer              :: Array3D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D        
+        integer                                         :: VarID, numDims, i, j, k
+        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_         
+        integer                                         :: in, jn, kn        
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(KUB)) then 
+                KUB_ = KUB
+            else
+                !Get the spatial vertical dimension        
+                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR10'
+            endif
+            
+            if (present(KLB)) then 
+                KLB_ = KLB
+            else
+                KLB_ = 1
+            endif
+            
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            !Check if depth is defined in :
+            ! b) 3D (variable in depth and horizontaly)
+            ! c) 4D (variable in depth, horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR70' 
+            
+           
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            kn = 1-KLB_+KUB_
+            
+            allocate(Aux3D (1:jn,1:in,1:kn))
+                            
+            if (numDims == 3) then     
+                
+                
+                if (ninstant > 1) then
+                    
+                    !Read 3D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                       &
+                        start = (/ JLB_, ILB_,  ninstant /),                            &
+                        count = (/   jn,   in,  1       /))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR75'                         
+                    
+                else
+                    
+                    !Read 3D Field
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                        start = (/ JLB_, ILB_, KLB_/),                                      &
+                        count = (/   jn,   in,   kn/))                             
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR40'
+                    
+                endif
+            else
+                !Read 4D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_,  ninstant /),                          &
+                    count = (/   jn,   in,   kn, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+            do k=KLB_,KUB_
+                Array3D(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
+            enddo
+            enddo
+            enddo 
+
+            deallocate(Aux3D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR4_3D
     !--------------------------------------------------------------------------    
 
 
@@ -4551,7 +4589,7 @@ end module ModuleNETCDF
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tecnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 
 

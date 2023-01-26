@@ -1144,7 +1144,8 @@ wwd1:       if (Me%WindowWithData) then
             call NETCDFReadData(NCDFID  = Me%File%Obj,                          &
                                 Array2D = Bathym,                               &
                                 Name    = trim(Me%File%BathymName),             &
-                                ILB  = ILB, IUB = IUB,                          &
+                                ILB     = ILB,                                  &
+                                IUB = IUB,                          &
                                 JLB  = JLB, JUB = JUB,                          &
                                 DefaultValue = 0.,                              &
                                 STAT = STAT_CALL)
