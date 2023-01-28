@@ -476,6 +476,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_I4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix_Alloc
         module procedure SetMatrixValues3D_R4_FromMatrix_Alloc
+        module procedure SetMatrixValues3D_R8R4_FromMatrix_Alloc
     end interface SetMatrixValue
 
     interface SetMatrixValueAllocatable
@@ -497,6 +498,11 @@ Module ModuleFunctions
     interface SetMatrixValueAllocatable_jik
         module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
     end interface SetMatrixValueAllocatable_jik
+    
+    interface SumMatrixes_jik_V2
+        module procedure SumMatrixes_jik_V2_R8R4
+        module procedure SumMatrixes_jik_V2_R8
+    end interface SumMatrixes_jik_V2
 
     interface GetPointer
         module procedure GetPointer2D_I4
@@ -2242,6 +2248,69 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix_Alloc
+    
+    !--------------------------------------------------------------------------
+    subroutine SetMatrixValues3D_R8R4_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
+        type (T_Size3D)                     , intent(IN)            :: Size
+        real(4), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
+        integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
+        real, optional                                , intent(IN)  :: MaskValue
+
+        !Local-----------------------------------------------------------------
+        integer                                                     :: i, j, k
+        integer                                                     :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MaskValue)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine SetMatrixValues3D_R8R4_FromMatrix_Alloc
 
     !--------------------------------------------------------------------------
     
@@ -2632,10 +2701,10 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     end subroutine SumMatrixes_jik
 
-    subroutine SumMatrixes_jik_V2(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+    subroutine SumMatrixes_jik_V2_R8R4(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer, intent (INOUT)           :: MatrixA
-        real, dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
+        real(8), dimension(:, :, :), pointer, intent (INOUT)        :: MatrixA
+        real(4), dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
         type (T_Size3D)                                             :: Size
         integer, dimension(:,:), pointer, intent(IN)                :: KFloor
         integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
@@ -2661,7 +2730,38 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !$OMP END DO
         !$OMP END PARALLEL
 
-    end subroutine SumMatrixes_jik_V2
+    end subroutine SumMatrixes_jik_V2_R8R4
+    
+    subroutine SumMatrixes_jik_V2_R8(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, intent (INOUT)        :: MatrixA
+        real(8), dimension(:, :, :), allocatable, intent (IN)       :: MatrixB
+        type (T_Size3D)                                             :: Size
+        integer, dimension(:,:), pointer, intent(IN)                :: KFloor
+        integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_jik_V2_R8
 
     subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
@@ -14941,7 +15041,8 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU, SonVolInFather, FatherVolume
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU, SonVolInFather
+        real(8),    dimension(:, :, :), pointer, intent(IN)      :: FatherVolume
         real,    dimension(:,:,:), allocatable, intent(IN   )    :: VelSon
         real(8),    dimension(:), allocatable   , intent(INOUT)  :: Flow
         integer, dimension(:, :), allocatable   , intent(IN)     :: DischargeConnection
@@ -15013,7 +15114,8 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)      :: VelFather, AreaV, SonVolInFather, FatherVolume
+        real,    dimension(:, :, :), pointer, intent(IN)      :: VelFather, AreaV, SonVolInFather
+        real(8),    dimension(:, :, :), pointer, intent(IN)   :: FatherVolume
         real,    dimension(:,:,:), allocatable, intent(IN)    :: VelSon
         real(8),    dimension(:), allocatable, intent(OUT)    :: Flow
         integer, dimension(:, :), allocatable, intent(IN)     :: DischargeConnection

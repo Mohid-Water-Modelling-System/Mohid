@@ -49729,44 +49729,44 @@ do5:            do i = ILB, IUB
         
         do iL =1, NFieldsUV3D_Upscaling
             !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
-                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
-                                    Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
-                                    MapMatrix = Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
-                where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
-                        Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
+            call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
+                                MapMatrix = Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
+            where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
+                    Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
         enddo
         
         call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
                                             Flow            = Me%WaterFluxes%Discharges,                &
                                             VelFather       = Me%Velocity%Horizontal%U%New,             &
                                             VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                            DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
                                             CoefCold        = CoefCold,                                 &
                                             VelID           = VelocityU_,                               &
-                                                VelDT           = Me%Velocity%DT,                           &
-                                                SonVolInFather  = SonVolInFather3D,                         &
-                                                FatherVolume    = Me%External_Var%Volume_U, STAT = STAT_CALL)
+                                            VelDT           = Me%Velocity%DT,                           &
+                                            SonVolInFather  = SonVolInFather3D,                         &
+                                            FatherVolume    = Me%External_Var%Volume_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
                 
-            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
         
         do iL =1, NFieldsUV3D_Upscaling
             !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
-                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
-                                    Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
-                                    MapMatrix = Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
+            call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
+                                MapMatrix = Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
         enddo
         
         call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
                                             Flow            = Me%WaterFluxes%Discharges,                &
                                             VelFather       = Me%Velocity%Horizontal%V%New,             &
                                             VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                            DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
                                             CoefCold        = CoefCold,                                 &
                                             VelID           = VelocityV_,                               &
-                                                VelDT           = Me%Velocity%DT,                           &
-                                                SonVolInFather  = SonVolInFather3D,                         &
-                                                FatherVolume    = Me%External_Var%Volume_V, STAT = STAT_CALL)
+                                            VelDT           = Me%Velocity%DT,                           &
+                                            SonVolInFather  = SonVolInFather3D,                         &
+                                            FatherVolume    = Me%External_Var%Volume_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
         
         ! -------------------------------- Kill variables -------------------------------------------------------------
@@ -50366,14 +50366,14 @@ i1:     if (Me%HighLowTide%ON) then
 
                     if (Me%ComputeOptions%UpscalingMethod == Discharge_) then
                         call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
-                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelU, &
+                                            FatherMatrix_D  = ObjFather%WaterFluxes%DischargesVelU, &
                                             SonMatrix       = Me%Velocity%Horizontal%U%New,         &
                                             CallerID        = mHydrodynamic_,                       &
                                             VelocityID      = VelocityU_,                           &
                                             STAT            = STAT_CALL)
                         
                         call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
-                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelV, &
+                                            FatherMatrix_D  = ObjFather%WaterFluxes%DischargesVelV, &
                                             SonMatrix       = Me%Velocity%Horizontal%V%New,         &
                                             CallerID        = mHydrodynamic_,                       &
                                             VelocityID      = VelocityV_,                           &
@@ -50420,13 +50420,13 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------
 
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                            FatherMatrix     = Father_U,                            &
-                                       SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityU_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
+        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                            FatherMatrix     = Father_U,                                          &
+                            SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
+                            CallerID         = mHydrodynamic_,                                    &
+                            VelocityID       = VelocityU_,                                        &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
 
         if (ObjFather%ComputeOptions%UpscalingDischarge) &
                         call UpscaleDischarge(SonID = AuxHydrodynamicID, &
@@ -50443,13 +50443,13 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father V matrix with son information-------------------------------------
 
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                            FatherMatrix     = Father_V,                            &
-                                       SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityV_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
+        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                FatherMatrix     = Father_V,                            &
+                            SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
+                            CallerID         = mHydrodynamic_,                                    &
+                            VelocityID       = VelocityV_,                                        &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
 
         if (ObjFather%ComputeOptions%UpscalingDischarge) &
                         call UpscaleDischarge(SonID = AuxHydrodynamicID, &
@@ -50466,12 +50466,12 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father W matrix with son information-------------------------------------
         if (Me%ComputeOptions%UpscalingVelocityW) then
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+            call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                 FatherMatrix     = Father_W,                            &
-                                       SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
+                                SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
+                                CallerID         = mHydrodynamic_,                                    &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
 
                     !Account for sinks and sources of Volume due to Upscaling.
             if (Me%OutPut%Upscaling%MassSinkSource) then
@@ -50481,13 +50481,13 @@ i1:     if (Me%HighLowTide%ON) then
         endif
 !-------------------------------------------Updates father water level matrix with son information---------------------
         if (Me%ComputeOptions%UpscalingWaterLevel) then
-                        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+            call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                 FatherMatrix2D   = ObjFather%WaterLevel%New,        &
-                                           SonMatrix2D      = Me%WaterLevel%New,                                 &
-                                           CallerID         = mHydrodynamic_,                                    &
-                                           STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
-                    endif
+                                SonMatrix2D      = Me%WaterLevel%New,                                 &
+                                CallerID         = mHydrodynamic_,                                    &
+                                STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+            endif
 
     end subroutine Upscaling_Nudging
 
