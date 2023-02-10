@@ -2213,7 +2213,6 @@ cd2 :           if (BlockFound) then
         integer, dimension(:,:,:), pointer, intent(IN)    :: PointsToFill3D
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Matrix3D
         !Locals ----------------------------------------------------------------
-        integer                                           :: CellFaceIsOpen
         integer                                           :: CHUNK, i, j, k
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)

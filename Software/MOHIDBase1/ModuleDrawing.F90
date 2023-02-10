@@ -53,6 +53,8 @@ Module ModuleDrawing
     public  ::    InvertVerticesOrder
     public  ::    CheckPolygonClockwise
     public  ::    ConvexPolygon
+
+    public  ::    From2Points2Line
     
     public  ::    GetPolygonsNumber
     public  ::    GetSpecificPolygon 
@@ -521,6 +523,38 @@ if2 :               if (BlockFound) then
     end subroutine NewLine   
    
     !--------------------------------------------------------------------------
+
+!--------------------------------------------------------------------------
+   
+    subroutine From2Points2Line(X1, X2, Y1, Y2, Line)
+        
+        !Arguments-------------------------------------------------------------
+        real                                        :: X1, X2, Y1, Y2
+        type(T_Lines),                 pointer      :: Line
+
+        !Local-----------------------------------------------------------------
+        type(T_Lines), pointer                      :: CurrLine
+
+        nullify(CurrLine)
+
+        call AddLine (Line, CurrLine)
+
+        CurrLine%nNodes = 2
+    
+        allocate(CurrLine%X(1:2))
+        allocate(CurrLine%Y(1:2))
+
+        CurrLine%X(1) = X1
+        CurrLine%Y(1) = Y1
+        CurrLine%X(2) = X2
+        CurrLine%Y(2) = Y2
+
+        call SetLimits(CurrLine)                            
+
+    end subroutine From2Points2Line   
+   
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
     subroutine AddLine (Lines, ObjLine)

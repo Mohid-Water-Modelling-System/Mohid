@@ -1999,6 +1999,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                    &
                                  Me%ExternalVar%Density,                                &
                                  Me%ExternalVar%SigmaDens,                              &
+                                 Me%ExternalVar%Temperature,                            &
+                                 Me%ExternalVar%Salinity,                               &                                   
                                  PredHydroDT,                                           &
                                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR210'

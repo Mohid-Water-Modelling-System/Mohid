@@ -168,6 +168,7 @@ Module ModuleFunctions
     public  :: RODAXY
     public  :: FromCartesianToGrid
     public  :: SphericalToCart
+    public  :: CartToSpherical
     public  :: FromCoord2RegGrid
 
     public  :: FromGridToCartesian
@@ -5442,6 +5443,35 @@ end function
     end subroutine SphericalToCart
 
     !--------------------------------------------------------------------------
+
+    subroutine CartToSpherical(X, Y, Lat, Lon, LonRef, LatRef)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: X, Y, LonRef, LatRef   
+        real(8), intent(Out)            :: Lat, Lon
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+        
+        Lat          = Y / (EarthRadius * radians) + LatRef
+        
+        Rad_Lat      = Lat * radians
+        CosenLat     = cos(Rad_Lat) 
+
+        if (CosenLat == 0.) then
+            stop 'CartToSpherical - Module functions - ERR10'
+        endif    
+        
+        Lon          = X / (CosenLat * EarthRadius * radians) + LonRef
+        
+    end subroutine CartToSpherical
+
+    !--------------------------------------------------------------------------    
 
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
@@ -15489,8 +15519,8 @@ D2:     do I=imax-1,2,-1
             if (OpenPoints(i, j, k) == OpenPoint) then
                 Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
                 Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+                k_depth = k
                 if (Depth_u <= Depth .and. Depth_l >= Depth) then
-                    k_depth = k
                     exit
                 endif
             else

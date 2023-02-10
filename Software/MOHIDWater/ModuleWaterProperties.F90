@@ -197,7 +197,8 @@ Module ModuleWaterProperties
                                           GetDischargeON, GetByPassConcIncrease,                &
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
                                           GetDistributionCoefMass, IsUpscaling, Kill_Discharges,&
-                                          CorrectsBypassCellsDischarges, GetDischargesDTOutput
+                                          CorrectsBypassCellsDischarges, GetDischargesDTOutput, &
+                                          GetDischarges_MohidJetON, GetDischMohidJetON
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -12541,6 +12542,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call HydroIntegration_Processes
 
             if (Me%Coupled%Discharges%Yes) then
+                call CheckNeedReallocation
                 call WaterPropDischargesByPassConc
                 call WaterPropDischarges
             endif
@@ -20457,6 +20459,89 @@ do3:            do k = kbottom, KUB
 
     end subroutine ComputeSurfaceHeatFluxes
 
+    !--------------------------------------------------------------------------    
+    
+    subroutine CheckNeedReallocation
+        !Local-----------------------------------------------------------------
+        type (T_property), pointer          :: PropertyX
+        logical                             :: MohidJetON
+        integer                             :: STAT_CALL, dis, TotalCells
+        !Begin------------------------------------------------------------
+
+        call GetDischarges_MohidJetON(DischargesID  = Me%ObjDischarges,                 &
+                                      MohidJetON    = MohidJetON,                       &
+                                      STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'CheckNeedReallocation - ModuleWaterProperties - ERR10'
+        endif
+
+if1:    if (MohidJetON) then
+
+            TotalCells = 0
+
+d1:         do dis = 1, Me%Discharge%Number
+
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis,                &
+                                                  Me%Discharge%nCells(dis), STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'CheckNeedReallocation - ModuleWaterProperties - ERR20'
+                endif
+
+                TotalCells = TotalCells +  Me%Discharge%nCells(dis)
+
+            enddo d1
+
+            deallocate(Me%Discharge%Flow,                                               &
+                       Me%Discharge%i      ,                                            &
+                       Me%Discharge%j      ,                                            &
+                       Me%Discharge%k      ,                                            &
+                       Me%Discharge%kmin   ,                                            &
+                       Me%Discharge%kmax   )            
+
+            allocate(Me%Discharge%Flow   (TotalCells),                                  &
+                     Me%Discharge%i      (TotalCells),                                  &
+                     Me%Discharge%j      (TotalCells),                                  &
+                     Me%Discharge%k      (TotalCells),                                  &
+                     Me%Discharge%kmin   (TotalCells),                                  &
+                     Me%Discharge%kmax   (TotalCells))
+
+
+
+            Me%Discharge%Flow   (:) = FillValueReal
+            Me%Discharge%i      (:) = FillValueInt
+            Me%Discharge%j      (:) = FillValueInt
+            Me%Discharge%k      (:) = FillValueInt
+            Me%Discharge%kmin   (:) = FillValueInt
+            Me%Discharge%kmax   (:) = FillValueInt
+
+
+            PropertyX   => Me%FirstProperty
+
+d2:         do while (associated(PropertyX))
+
+if2:            if (PropertyX%Evolution%Discharges .and. Me%Discharge%Number > 0) then
+
+                    deallocate(PropertyX%DischConc)
+
+                    allocate  (PropertyX%DischConc(TotalCells))
+
+                    PropertyX%DischConc(1:TotalCells) = FillValueReal
+                    
+                    deallocate(PropertyX%DischByPassConc)
+
+                    allocate  (PropertyX%DischByPassConc(Me%Discharge%Number))
+                    
+                    PropertyX%DischByPassConc(1:Me%Discharge%Number) = FillValueReal                        
+
+                endif if2
+                PropertyX=>PropertyX%Next
+            enddo d2
+
+        endif if1
+
+    end subroutine CheckNeedReallocation
+
 
     !--------------------------------------------------------------------------
     !   Makes the connection between the
@@ -20607,7 +20692,7 @@ dd:     do dis = 1, Me%Discharge%Number
 
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR70')
 
-            if (ByPassON) then
+            if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
                 WaterLevelByPass = WaterLevel(ib, jb)
             else
                 WaterLevelByPass = FillValueReal
@@ -20668,6 +20753,12 @@ i22:            if      (FlowDistribution == DischByCell_       ) then
             AuxFlowIJ = DischargeFlow
 
             if (nCells > 1) DischargeFlow = 0.
+
+            !Mohidjet discharge update only the VectorI, VectorJ and not the I,J original cell discharge
+            if (GetDischMohidJetON(Me%ObjDischarges, dis) .and. nCells == 1) then
+                i         = VectorI(1)
+                j         = VectorJ(1)
+            endif 
 
             Me%Discharge%Vert   (dis) = DischVertical
 

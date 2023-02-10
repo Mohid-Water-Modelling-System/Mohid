@@ -65,6 +65,7 @@ Module ModuleDischarges
 
     !Selector
     public  :: GetDischargesNumber                                  !Returns the number of discharge points
+    public  :: GetDischarges_MohidJetON
     public  :: GetDischargesGridLocalization
     public  :: GetDischargesNodeID
     public  :: GetDischargesReservoirID
@@ -88,6 +89,8 @@ Module ModuleDischarges
     public  :: GetDischargeSpatialType
     public  :: GetDischargeType    
     public  :: GetDischargeFlowDistribuiton
+    public  :: GetDischargeMohidJet
+    public  :: GetDischMohidJetON
     public  :: GetDischargeON
     public  :: GetDischargesDTOutput
     public  :: IsUpscaling
@@ -96,6 +99,7 @@ Module ModuleDischarges
     public  :: SetLocationCellsZ
     public  :: SetLayer
     public  :: SetDistributionCoefMass
+    public  :: SetMohidJetProp
     public  :: UngetDischarges
     !Modifier
     public  :: CorrectsCellsDischarges
@@ -142,6 +146,9 @@ Module ModuleDischarges
     integer, parameter :: Valve         = 3
     integer, parameter :: OpenMILink    = 4
     integer, parameter :: RatingCurve   = 5
+    !Uniform discharge along a section define by "line" and two depths ("DEPTH_MIN", "DEPTH_MAX")
+    !MohidJet module to update the section size and position. 
+    integer, parameter :: MohidJet_     = 6
 
     !Valve side
     integer, parameter :: SideA         = 1
@@ -229,6 +236,12 @@ Module ModuleDischarges
         real                                    :: PipeManning          = null_real
         real                                    :: AreaInTime           = null_real
     end  type T_Valve
+    
+    type       T_MohidJet
+        logical                                 :: ON                   = .false.
+        character(len=PathLength)               :: FileName             = null_str
+        real                                    :: DT                   = null_real
+    end  type T_MohidJet    
 
     type T_GridCoordinates
         integer                                 :: I    = FillValueInt
@@ -327,6 +340,7 @@ Module ModuleDischarges
          type(T_IndividualDischarge), pointer   :: Prev             => null()
          type(T_ByPass             )            :: ByPass
          type(T_FromIntake         )            :: FromIntake
+         type(T_MohidJet           )            :: MohidJet 
          logical                                :: IgnoreON         = .false.
          logical                                :: IsReservoirOutflow = .false.
     end type T_IndividualDischarge
@@ -346,8 +360,9 @@ Module ModuleDischarges
          real                                   :: SlowStart        = null_real
          type (T_Time)                          :: BeginTime
          type (T_Time)                          :: EndTime
-         real                                   :: DT_Output
-         logical                                :: DDecompON
+         real                                   :: DT_Output        = null_real
+         logical                                :: DDecompON        = .false.  
+         logical                                :: MohidJetON       = .false. 
     end type T_Discharges
 
     !Global Variables
@@ -501,6 +516,8 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             call Construct_DischargeList
 
             call ConstructIntakeDischarges
+
+            call ConstructMohidJet
 
             !User Feed-Back
             call ConstructLog
@@ -1355,7 +1372,8 @@ i1:     if (NewDischarge%TimeSerieON) then
                  NewDischarge%DischargeType /= FlowOver     .and.                       &
                  NewDischarge%DischargeType /= Valve        .and.                       &
                  NewDischarge%DischargeType /= OpenMILink   .and.                       &
-                 NewDischarge%DischargeType /= RatingCurve)   then
+                 NewDischarge%DischargeType /= RatingCurve  .and.                       &
+                 NewDischarge%DischargeType /= MohidJet_)   then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
 
@@ -1411,25 +1429,25 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          flag,                                                          &
                          FromBlock,                                                     &
                          keyword      ='VALVE_SECTION_TYPE',                            &
-                         default      = circular_area,                                      &
+                         default      = circular_area,                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR100'
 
             if      (NewDischarge%Valve%SectionType == circular_area) then
 
-                call GetData(NewDischarge%Valve%Diameter,                                   &
-                             Me%ObjEnterData,                                               &
-                             flag,                                                          &
-                             FromBlock,                                                     &
-                             keyword      ='VALVE_DIAMETER',                                &
-                             ClientModule = 'ModuleDischarges',                             &
+                call GetData(NewDischarge%Valve%Diameter,                               &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='VALVE_DIAMETER',                            &
+                             ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR102'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR110'
 
                 if (flag /= 1) then
                     write(*,*) 'Valve diameter missing - circular section'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR104'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR120'
                 endif
 
             elseif  (NewDischarge%Valve%SectionType == rectangular_area) then
@@ -1442,11 +1460,11 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              keyword      ='VALVE_HEIGHT',                                  &
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR106'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR130'
 
                 if (flag /= 1) then
                     write(*,*) 'Valve height missing - rectangular section'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR107'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR140'
                 endif
 
                 call GetData(NewDischarge%Valve%Width,                                  &
@@ -1456,16 +1474,16 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              keyword      ='VALVE_WIDTH',                               &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR108'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR150'
 
                 if (flag /= 1) then
                     write(*,*) 'Valve width missing - rectangular section'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR109'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR160'
                 endif
 
             else
 
-                stop ' Construct_FlowValues - ModuleDischarges - ERR110'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR170'
 
             endif
 
@@ -1477,7 +1495,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          ClientModule = 'ModuleDischarges',                             &
                          default      = 1.,                                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR180'
 
             call GetData(NewDischarge%Valve%SillHeigth,                                 &
                          Me%ObjEnterData,                                               &
@@ -1486,7 +1504,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          keyword      ='VALVE_SILL_HEIGTH',                             &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR190'
 
             if (Me%ReferentialZ == Hydrographic_) then
                 NewDischarge%Valve%SillHeigth =  - NewDischarge%Valve%SillHeigth
@@ -1502,7 +1520,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              keyword      ='VALVE_AXIS_HEIGTH',                             &
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR135'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR200'
 
                 if (Me%ReferentialZ == Hydrographic_) then
                     NewDischarge%Valve%AxisHeigth =  - NewDischarge%Valve%AxisHeigth
@@ -1520,7 +1538,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
                 if (flag /= 1) then
                     write(*,*) 'Valve axis Missing'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR138'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR210'
                 endif
 
             endif
@@ -1533,7 +1551,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          ClientModule = 'ModuleDischarges',                             &
                          default      = 0.,                                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR136'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR220'
 
             !manning coefficient
             call GetData(NewDischarge%Valve%PipeManning,                                &
@@ -1543,11 +1561,11 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          keyword      ='PIPE_MANNING',                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR137'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR230'
 
             if (NewDischarge%Valve%PipeLength > 0. .and. flag == 0) then
                 write(*,*) 'need to define PIPE_MANNING'
-                stop 'Construct_FlowValues - ModuleDischarges - ERR138'
+                stop 'Construct_FlowValues - ModuleDischarges - ERR240'
             endif
 
         else if (NewDischarge%DischargeType == RatingCurve) then i2
@@ -1560,10 +1578,10 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          keyword      ='RATING_CURVE_FILE',                             &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138 - no rating curve file specified'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250 - no rating curve file specified'
             
             call ConstructEnterData(localFile, NewDischarge%RatingCurve%File, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138.5 - no rating curve file found'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260 - no rating curve file found'
             
             !Get Block with rating curves values
             call ExtractBlockFromBuffer(localFile, localClientNumber,                   &
@@ -1588,7 +1606,7 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                                      Buffer_Line = iLine,                                   &
                                      STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ .or. flag /= 2)             &
-                            stop "Read Rating Curve Values - ModuleDischarges - ERR139"
+                            stop "Read Rating Curve Values - ModuleDischarges - ERR270"
                         NewDischarge%RatingCurve%Level(iValue) = BufferLine (1)
                         NewDischarge%RatingCurve%Flow(iValue) = BufferLine (2)
                         iValue = iValue + 1
@@ -1600,10 +1618,34 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                     call KillEnterData(localFile, STAT = STAT_CALL)
             else
 
-                stop "Read Rating Curve Values - ModuleDischarges - ERR140"
+                stop "Read Rating Curve Values - ModuleDischarges - ERR280"
 
             endif cd1
 
+        else if (NewDischarge%DischargeType == MohidJet_) then  i2
+
+            NewDischarge%MohidJet%ON = .true.
+            
+            Me%MohidJetON = .true. 
+
+            call GetData(NewDischarge%MohidJet%FileName,                                &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='MOHID_JET_FILE',                                &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR290 - no Mohid Jet file specified'
+
+            call GetData(NewDischarge%MohidJet%DT,                                      &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='MOHID_JET_DT',                                  &
+                         default      = 600.,                                           &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR300'
 
 
         endif i2
@@ -1616,11 +1658,11 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                      Default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR310'
 
         if (NewDischarge%DischargeType == Valve .and. .not. NewDischarge%ByPass%ON) then
             write(*,*) 'In the case of a type "valve" discharge the discharge must also be "bypass"'
-            stop 'Construct_FlowValues - ModuleDischarges - ERR145'
+            stop 'Construct_FlowValues - ModuleDischarges - ERR320'
         endif
         
         if (NewDischarge%ByPass%ON) then
@@ -1630,7 +1672,7 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                     write(*,*) '- ByPass/Valve or ByPass/FlowOver discharges - '
                     write(*,*) 'Need to apply to bypass/water_level the same methodology '
                     write(*,*) 'applied to bypass/concentration - see ModuleWaterProperties'
-                    stop 'Construct_FlowValues - ModuleDischarges - ERR147'
+                    stop 'Construct_FlowValues - ModuleDischarges - ERR330'
                 endif                    
             endif
         endif
@@ -1646,11 +1688,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                              keyword      ='BYPASS_X',                                  &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR150'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR340'
 
                 if (flag /= 1) then
                     write(*,*) 'Bypass I cell missing'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR160'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR350'
                 endif
 
                 call GetData(NewDischarge%ByPass%Y,                                     &
@@ -1660,11 +1702,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                              keyword      ='BYPASS_Y',                                  &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR160'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR360'
 
                 if (flag /= 1) then
                     write(*,*) 'Bypass J cell missing'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR170'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR370'
                 endif
 
 
@@ -1677,11 +1719,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                              keyword      ='BYPASS_I',                                  &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR180'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR380'
 
                 if (flag /= 1) then
                     write(*,*) 'Bypass I cell missing'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR190'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR390'
                 endif
 
                 call GetData(NewDischarge%ByPass%j,                                     &
@@ -1691,11 +1733,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                              keyword      ='BYPASS_J',                                  &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR160'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR400'
 
                 if (flag /= 1) then
                     write(*,*) 'Bypass J cell missing'
-                    stop ' Construct_FlowValues - ModuleDischarges - ERR200'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR410'
                 endif
 
             endif i4
@@ -1708,11 +1750,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          keyword      ='BYPASS_K',                                      &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR210'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR420'
 
             if (flag /= 1) then
                 write(*,*) 'Bypass K cell missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR220'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR430'
             endif
 
             call GetData(NewDischarge%ByPass%Side,                                      &
@@ -1722,16 +1764,16 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          keyword      ='BYPASS_SIDE',                                   &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR440'
 
             if (flag /= 1) then
                 write(*,*) 'Bypass side missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR240'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR450'
             endif
 
             if      (NewDischarge%ByPass%Side /= SideA   .and.                          &
                      NewDischarge%ByPass%Side /= SideB) then
-                     stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+                     stop 'Construct_FlowValues - ModuleDischarges - ERR460'
             endif
 
             call GetData(NewDischarge%ByPass%OneWay,                                    &
@@ -1742,7 +1784,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR470'
 
         endif i3
 
@@ -1753,7 +1795,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR480'
 
         if(NewDischarge%FromIntake%ON)then
 
@@ -1763,12 +1805,12 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          keyword      = 'INTAKE_NAME',                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR490'
 
             if(flag == 0)then
                 write(*,*)"Must define INTAKE_NAME"
                 write(*,*)"in discharge ", trim(adjustl(NewDischarge%ID%Name))
-                stop 'Construct_FlowValues - ModuleDischarges - ERR290'
+                stop 'Construct_FlowValues - ModuleDischarges - ERR500'
             endif
 
             call GetData(NewDischarge%FromIntake%AssociateFlow,                         &
@@ -1778,7 +1820,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR300'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR510'
 
 
             if(NewDischarge%FromIntake%AssociateFlow)then
@@ -1790,7 +1832,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                              default      = 1.0,                                        &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR310'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR520'
 
                 if(NewDischarge%FromIntake%FlowFraction < 0)then
 
@@ -1817,7 +1859,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 ClientModule = 'ModuleDischarges',                             &
                 default      = .false.,                                        &
                 STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING - Construct_FlowValues'
+
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*) 'Invalid value for Keyword UPSCALING - Construct_FlowValues'
+            stop 'Construct_FlowValues - ModuleDischarges - ERR530'
+        endif
 
         call GetData(NewDischarge%WaterFlow%UpscalingMethod,                   &
                 Me%ObjEnterData,                                               &
@@ -1827,7 +1873,10 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 ClientModule = 'ModuleDischarges',                             &
                 default      = 1,                                              &
                 STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*) 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
+            stop 'Construct_FlowValues - ModuleDischarges - ERR540'
+        endif
 
         if (NewDischarge%WaterFlow%Upscaling) then
             NewDischarge%WaterFlow%scalar = 0.
@@ -2338,6 +2387,64 @@ ifvar:  if (NewProperty%Variable) then
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructMohidJet
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: CurrentDischarge
+        type(T_Property),            pointer        :: PropertyX
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------        
+
+        CurrentDischarge => Me%FirstDischarge
+        do while (associated (CurrentDischarge))
+
+            if(CurrentDischarge%MohidJet%ON)then
+
+                !Force the discharge to be vertically uniform 
+                CurrentDischarge%Localization%DischVertical = DischUniform_
+
+                !Force the discharge to be along a line horizontally 
+                CurrentDischarge%Localization%SpatialEmission = DischLine_
+
+                !Force the discharge to be uniform by cell horizontally 
+                CurrentDischarge%Localization%FlowDistribution = DischByCell_
+
+                !Need to have salinity define
+                call Search_Property(CurrentDischarge, PropertyX, STAT_CALL, PropertyXIDNumber=Salinity_)
+
+                if (STAT_CALL/=SUCCESS_) then
+                !If salinity is not found the program stop
+                    write(*,*) 'Missing definition of salinity in discharge named =', CurrentDischarge%ID%name  
+                    stop  'ConstructMohidJet - ModuleDischarges - ERR010'
+                endif
+
+                !Need to have temperature define
+                call Search_Property(CurrentDischarge, PropertyX, STAT_CALL, PropertyXIDNumber=Temperature_)
+
+                if (STAT_CALL/=SUCCESS_) then
+                !If temperature is not found the program stop
+                    write(*,*) 'Missing definition of salinity in discharge named =', CurrentDischarge%ID%name  
+                    stop  'ConstructMohidJet - ModuleDischarges - ERR020'
+                endif
+                
+                !It allways assumed that the entire discharge is done in the one domain
+                !so is forced the InterceptionRatio to be allways 1 (or 100%)
+                CurrentDischarge%Localization%InterceptionRatio = 1.
+
+
+            end if
+
+            CurrentDischarge => CurrentDischarge%Next
+        enddo
+
+
+    end subroutine ConstructMohidJet
+
+    !--------------------------------------------------------------------------    
+
     subroutine ConstructLog
 
         !Arguments-------------------------------------------------------------
@@ -2409,6 +2516,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     end Subroutine GetDischargesNumber
     !--------------------------------------------------------------------------
+
+
+    Subroutine GetDischarges_MohidJetON(DischargesID, MohidJetON, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DischargesID
+        logical,           intent(OUT)              :: MohidJetON
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            MohidJetON = Me%MohidJetON
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischarges_MohidJetON
+    !--------------------------------------------------------------------------    
 
     Subroutine GetDischargesDTOutput(DischargesID, DischargesDT_Output, STAT)
 
@@ -4155,7 +4299,129 @@ cd8:            if (DischargeX%VelocityFlow%WVariable) then
     end subroutine GetDischargeFlowVelocity
 
     !--------------------------------------------------------------------------
+
+
     !--------------------------------------------------------------------------
+
+    subroutine GetDischargeMohidJet(DischargesID, DischargeIDNumber, MohidJetON, MohidJetFile, MohidJetDT, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: DischargesID
+        integer,           intent(IN )              :: DischargeIDNumber
+        logical,           intent(OUT)              :: MohidJetON
+        character(len=*),  intent(OUT)              :: MohidJetFile
+        real,              intent(OUT)              :: MohidJetDT
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            MohidJetON = .false.
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
+
+
+cd3 :       if (STAT_CALL /= SUCCESS_) then
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                    stop 'Subroutine GetDischargeON - ModuleDischarges. ERR10.'
+            end if cd3
+
+            if (.not. DischargeX%IgnoreON) then
+
+                MohidJetON      = DischargeX%MohidJet%ON 
+
+                MohidJetFile    = DischargeX%MohidJet%FileName 
+
+                MohidJetDT      = DischargeX%MohidJet%DT 
+
+            endif
+
+            nullify(DischargeX)
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetDischargeMohidJet
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    logical function GetDischMohidJetON(DischargesID, DischargeIDNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: DischargesID
+        integer,           intent(IN )              :: DischargeIDNumber
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
+
+
+cd3 :       if (STAT_CALL /= SUCCESS_) then
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                    stop 'Function GetDischMohidJetON - ModuleDischarges. ERR10.'
+            end if cd3
+
+            if (.not. DischargeX%IgnoreON) then
+
+                GetDischMohidJetON = DischargeX%MohidJet%ON 
+
+            else
+
+                GetDischMohidJetON = .false.
+
+            endif
+
+            nullify(DischargeX)
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetDischMohidJetON
+    !--------------------------------------------------------------------------
+
 
     subroutine GetDischargeON(DischargesID, DischargeIDNumber, IgnoreON, STAT)
 
@@ -4834,6 +5100,71 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     end subroutine SetDistributionCoefMass
 
     !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetMohidJetProp (DischargeID, DischargeIDNumber, JetDepthMin, JetDepthMax, &
+                                JetHorizontalLine, Jet_VelX, Jet_VelY, Jet_VelZ, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer,                      intent (IN)     :: DischargeID, DischargeIDNumber
+        real,                         intent (IN)     :: JetDepthMin, JetDepthMax
+        type (T_Lines), pointer                       :: JetHorizontalLine
+        real,                         intent (IN)     :: Jet_VelX, Jet_VelY, Jet_VelZ
+        integer, optional,            intent (OUT)    :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge),pointer           :: DischargeX
+        integer                                       :: ready_
+        integer                                       :: STAT_, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargeID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+
+            if (STAT_CALL/=SUCCESS_) then
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'Sub. SetMohidJetProp - ModuleDischarges - ERR01'
+            endif
+
+            DischargeX%Localization%Depth_min = JetDepthMin
+            DischargeX%Localization%Depth_max = JetDepthMax            
+
+            if (associated(DischargeX%Localization%Line)) then
+                deallocate(DischargeX%Localization%Line) 
+            endif
+            
+            nullify(DischargeX%Localization%Line)
+            allocate(DischargeX%Localization%Line)
+
+            DischargeX%Localization%Line = JetHorizontalLine
+
+            DischargeX%VelocityFlow%UScalar = Jet_VelX            
+            DischargeX%VelocityFlow%VScalar = Jet_VelY            
+            DischargeX%VelocityFlow%WScalar = Jet_VelZ                        
+
+            nullify(DischargeX)
+
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine SetMohidJetProp
+
+    !--------------------------------------------------------------------------    
 
     !--------------------------------------------------------------------------
 

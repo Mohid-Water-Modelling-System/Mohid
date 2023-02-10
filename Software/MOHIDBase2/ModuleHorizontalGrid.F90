@@ -37,7 +37,7 @@ Module ModuleHorizontalGrid
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
                                   AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
-                                  SphericalToCart, PolygonBoundGridCurv
+                                  SphericalToCart, CartToSpherical, PolygonBoundGridCurv
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -136,6 +136,7 @@ Module ModuleHorizontalGrid
     public  :: GetGridOutBorderCartPolygon
     public  :: GetGridBorderLimits
     public  :: GetGridOutBorderCartLimits
+    public  :: GetPoly_Coord_InsideInnerDomain
 
     public  :: GetXYInsideDomain
     public  :: GetXY_Coord_InsideInnerDomain    
@@ -168,6 +169,7 @@ Module ModuleHorizontalGrid
 
     public  :: WindowIntersectDomain
     private ::      WindowCellsIntersection
+
 
 #ifdef _USE_PROJ4
     public  :: FromGeo2SpherMercator1D
@@ -5087,23 +5089,27 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         !Local-----------------------------------------------------------------
         real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
-
+        real(8)                         :: LatRef, LonRef
         !Begin-----------------------------------------------------------------
                 
-        radians      = Pi / 180.0
-        EarthRadius  = 6378000.
-        
-        Lat          = Y / (EarthRadius * radians) + Me%Latitude
-        
-        Rad_Lat      = Lat * radians
-        CosenLat     = cos(Rad_Lat) 
+       !radians      = Pi / 180.0
+       !EarthRadius  = 6378000.
+       !
+       !Lat          = Y / (EarthRadius * radians) + Me%Latitude
+       !
+       !Rad_Lat      = Lat * radians
+       !CosenLat     = cos(Rad_Lat) 
 
-        if (CosenLat == 0.) then
-            stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
-        endif    
+       !if (CosenLat == 0.) then
+       !    stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
+       !endif    
+       !
+       !Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
+
+        LonRef = Me%Longitude
+        LatRef = Me%Latitude
         
-        Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
-        
+        call CartToSpherical(X, Y, Lat, Lon, LonRef, LatRef)
         
     end subroutine FromCartToSpherical    
 
@@ -11134,7 +11140,6 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end function GetXY_Coord_InsideInnerDomain
 
     !--------------------------------------------------------------------------
-
     !--------------------------------------------------------------------------
 
     logical function GetXYInsideDomain(HorizontalGridID, XPoint, YPoint, Referential, STAT)
@@ -11331,6 +11336,50 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridBorderPolygon
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine GetPoly_Coord_InsideInnerDomain(HorizontalGridID, Polygon, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        type(T_Polygon),  pointer                   :: Polygon
+        integer, optional,  intent(OUT)             :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
+            (ready_ == READ_LOCK_ERR_)) then
+    
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)    
+
+            if (Me%DDecomp%ON) then
+
+                Polygon => Me%DDecomp%Mapping_Bound%Polygon_
+
+            else
+
+                Polygon => Me%GridBorderCoord%Polygon_
+                
+            endif
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetPoly_Coord_InsideInnerDomain
+
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
 
@@ -11627,6 +11676,7 @@ dw:         do while (associated(CurrentXYZPoints))
         integer                                     :: STAT_
         integer                                     :: ready_
         logical                                     :: DoesCount
+        integer                                     :: ILB, IUB, JLB, JUB
 
         !------------------------------------------------------------------------
 
@@ -11665,6 +11715,11 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             AuxI(:) = FillValueInt
             AuxJ(:) = FillValueInt
 
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB            
+            
             nCell_ = 0
 
             CurrentLine => Line
@@ -11680,8 +11735,8 @@ d1:             do l = 1, CurrentLine%nNodes - 1
                     Segment%EndAt%Y = CurrentLine%Y(l+1)
 
 
-d2:                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-d3:                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+d2:                 do j = JLB, JUB
+d3:                 do i = ILB, IUB
 
 i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) == WaterPoint) then
 
@@ -12380,7 +12435,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: ready_
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_, MPI_ID, i, j
+        integer                                     :: STAT_, MPI_ID, i
         type (T_Border),                pointer     :: Mapping_Bound          
 
         !----------------------------------------------------------------------
