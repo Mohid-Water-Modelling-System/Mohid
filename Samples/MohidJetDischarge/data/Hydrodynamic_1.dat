@@ -1,0 +1,32 @@
+
+CORIOLIS                : 0 
+WATER_DISCHARGES        : 1
+MOMENTUM_DISCHARGE      : 1
+
+BAROCLINIC              : 1
+BAROCLINIC_METHOD       : 1
+BAROCLINIC_POLIDEGREE   : 1
+
+LOCAL_SOLUTION           : 3
+DATA_ASSIMILATION        : 1
+BR_FORCE                 : 0
+RADIATION                : 2
+FLATHER_COLD_PERIOD      : 600
+
+OUTPUT_TIME             : 0 3600
+OUTPUT_MOHIDJET			: 1
+
+
+ADV_METHOD_H            : 4
+ADV_METHOD_V            : 4
+TVD_LIMIT_H             : 4
+TVD_LIMIT_V             : 4
+VOLUME_RELATION_MAX     : 1.3
+
+INITIAL_ELEVATION       : 1
+INITIAL_ELEVATION_VALUE : 0
+
+
+RESIDUAL                 : 0
+ENERGY                   : 1
+CONTINUOUS               : 0

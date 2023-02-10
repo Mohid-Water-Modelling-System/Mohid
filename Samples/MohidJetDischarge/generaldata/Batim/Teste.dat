@@ -1,0 +1,23 @@
+COMENT1                 : Automatic Generated Grid Data File
+COMENT2                 : Based On ../generaldata/Batim/Teste.dat
+ 
+ 
+ ILB_IUB    :           1          50
+ JLB_JUB    :           1          50
+ COORD_TIP  :          4
+ ORIGIN     : -9  38
+ GRID_ANGLE :   0
+ LATITUDE   :   38     
+ LONGITUDE  :  -9     
+ FILL_VALUE :  -99.0000000000000     
+ 
+ 
+CONSTANT_SPACING_X : 1
+DX                 : 1e-4
+
+ 
+CONSTANT_SPACING_Y : 1
+DY                 : 1e-4
+
+CONSTANT_IN_SPACE  : 1
+DEFAULT_VALUE      : 10

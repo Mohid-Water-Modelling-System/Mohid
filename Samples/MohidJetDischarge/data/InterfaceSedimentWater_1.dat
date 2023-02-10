@@ -1,0 +1,5 @@
+<begin_rugosity>
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.0025
+<end_rugosity>
+

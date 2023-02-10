@@ -1,0 +1,27 @@
+ PORT_DIAMETER           : 0.8
+ PORT_BOTTOM_DISTANCE    : 3
+!East direction
+ PORT_ANGLE_XY           : 0
+ PORT_ANGLE_HZ           : 0
+ PORTS_NUMBER            : 1
+ OUTFALL_LENGTH          : 1
+ OUTFALL_ANGLE           : 10
+  
+ DISCONNECT_VERT_LIMIT   : 0
+ 
+ !Evita valores de diluição muito elevados
+ MIN_PORT_VELOCITY       : 0.5   
+
+?????begin
+ RUN_MIN_PERIOD          : 0.01
+ RUN_MAX_PERIOD          : 1000
+ DT_OUTPUT               : 1
+ MAX_DV                  : 1
+ MAX_DT                  : 1
+ PARAMETERIZATION        : CORJET
+ OUTPUT_TYPE             : CLOUD
+?????end
+
+ PARTICLES_NUMBER        : 400
+ INITIAL_TRACER_CONCENTRATION : 1e6
+

@@ -1,0 +1,34 @@
+OUTPUT_TIME              : 0  3600
+
+ADV_METHOD_H            : 4
+ADV_METHOD_V            : 4
+TVD_LIMIT_H             : 4
+TVD_LIMIT_V             : 4
+VOLUME_RELATION_MAX     : 1.5
+
+<beginproperty>
+NAME                         : salinity
+UNITS                        : ºC
+DESCRIPTION                  : salinity
+DEFAULTVALUE                 : 36
+ADVECTION_DIFFUSION          : 1
+OUTPUT_HDF                   : 1
+BOUNDARY_CONDITION           : 4
+DISCHARGES                   : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                         : temperature
+UNITS                        : ºC
+DESCRIPTION                  : temperature profile measure off the Nazare Canyon by NIOZ (Holand) in August of 1999
+DEFAULTVALUE                 : 16.
+ADVECTION_DIFFUSION          : 1
+DATA_ASSIMILATION            : 1 
+BOUNDARY_CONDITION           : 4
+OUTPUT_HDF                   : 1
+DISCHARGES                   : 1
+FILE_IN_TIME          		 : NONE
+INITIALIZATION_METHOD        : PROFILE
+FILENAME                     : ..\GeneralData\metocean\TempSummerProfile.dat
+<endproperty>

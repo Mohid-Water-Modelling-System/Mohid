@@ -1,0 +1,22 @@
+
+VISCOSITY_V : 0.000
+VISCOSITY_H : 0.1
+
+MODTURB     : turbulence_equation
+CONTINUOUS  : 0
+
+MLD         : 1
+MLD_BOTTOM  : 1
+
+TKE_MLD     : 1e-5
+RICH_MLD    : 0.5
+
+
+
+
+
+
+
+
+
+
