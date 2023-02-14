@@ -11006,10 +11006,6 @@ i7:             if (.not. ContinuousGOTM)  then
             stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR10'
         endif
 
-        if (.not.GeoCoordON) then
-            write(*,*) 'MOHID Jet discharges only work for grids defined in geographical coordinates'
-            stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR20'
-        endif
 
         
         call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT  = STAT_CALL)
@@ -11115,7 +11111,12 @@ i7:             if (.not. ContinuousGOTM)  then
             Me%MohidJet%Jetx(dis)%ON         = MohidJetON
 
             if (MohidJetON) then
-
+                
+                if (.not.GeoCoordON) then
+                    write(*,*) 'MOHID Jet discharges only work for grids defined in geographical coordinates'
+                    stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR20'
+                endif            
+                
                 Me%MohidJet%ON = .true. 
 
                 call GetDischargesIDName (DischargesID      = Me%ObjDischarges,         &
@@ -36939,7 +36940,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: Depth_min, Depth_max
         real                               :: DischargeVelocityX, DischargeVelocityY, VectorGridX, VectorGridY
         integer                            :: djx, diy 
-
+        integer                            :: IUB, ILB, JUB, JLB
         integer                            :: CHUNK
         logical                            :: UpscalingDischarge
 
@@ -36950,6 +36951,10 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         DirectionXY = Me%Direction%XY
         KUB         = Me%WorkSize%KUB
         KLB         = Me%WorkSize%KLB        
+        IUB         = Me%WorkSize%IUB
+        ILB         = Me%WorkSize%ILB        
+        JUB         = Me%WorkSize%JUB
+        JLB         = Me%WorkSize%JLB
 
         Horizontal_Transport => Me%Forces%Horizontal_Transport
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
@@ -37172,14 +37177,17 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                         i         = VectorI(1)
                         j         = VectorJ(1)
                     endif
-                    if (Me%DDecomp%MasterOrSlave) then
-                             
-                    endif
                 endif 
 
                 !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
                 i = i + diy
                 j = j + djx                
+                
+                if (i == IUB + 1) i = IUB
+                if (j == JUB + 1) j = JUB
+                if (i == ILB    ) i = ILB + 1
+                if (j == JLB    ) j = JLB + 1
+                
 
                 !!!$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
 dn:             do n=1, nCells
@@ -37188,6 +37196,11 @@ ifn:                if (nCells > 1) then
                         !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
                         i         = VectorI(n) + diy
                         j         = VectorJ(n) + djx
+                        
+                        if (i == IUB + 1) i = IUB
+                        if (j == JUB + 1) j = JUB
+                        if (i == ILB    ) i = ILB + 1
+                        if (j == JLB    ) j = JLB + 1
                         
                         kd        = VectorK(n)
 
@@ -37206,6 +37219,11 @@ ifn:                if (nCells > 1) then
 
                     iNorth = i+di
                     jEast =  j+dj
+                    
+                    if (iNorth == IUB + 1) iNorth = IUB
+                    if (jEast  == JUB + 1) jEast  = JUB 
+                    if (iNorth == ILB    ) iNorth = ILB + 1
+                    if (jEast  == JLB    ) jEast  = JLB + 1
 
                     if (DischVertical == DischUniform_) then
 
@@ -37241,7 +37259,15 @@ ifn:                if (nCells > 1) then
                                 kmax = kaux
                             endif
 
-                        endif                                      
+                        endif      
+                        
+                        if (kmin < 1 .or. kmax < 1) then
+                            write(*,*) 'kmin, kmax =', kmin, kmax
+                            write(*,*) 'i , j =',i, j
+                            write(*,*) 'iNorth, jEast =', iNorth, jEast
+                            stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR125'
+                        endif
+                                            
 
                         SectionHeight = 0
                         if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
@@ -37260,13 +37286,20 @@ ifn:                if (nCells > 1) then
                     endif
 
                     MomentumDischarge = 0.
+                    
+                    if (kmin < 1 .or. kmax < 1) then
+                        write(*,*) 'kmin, kmax =', kmin, kmax
+                        write(*,*) 'i , j =',i, j
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+                    endif
+                    
                     !!!$OMP END MASTER
                     !!!$OMP BARRIER
 
                     !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     dk:             do k = kmin,kmax
 
-                        !write(*,*) AuxFlowK, AuxFlowIJ
+                        !write(*,*) i, j, k
                         AuxFlowK = AuxFlowIJ
 
                         if (ComputeFaces3D_UV(i, j, k) == Covered) then
@@ -37367,15 +37400,15 @@ ifn:                if (nCells > 1) then
 
                 call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR160'
             endif iup
 
     enddo do1
@@ -37390,7 +37423,7 @@ ifn:                if (nCells > 1) then
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR170'
 
 
     End Subroutine ModifyMomentumDischarge
