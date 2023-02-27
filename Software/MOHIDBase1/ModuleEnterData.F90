@@ -3932,8 +3932,9 @@ cd3:    if (OutPutsOn) then
 
             ExtraTime_Seconds = EndTime - (CurrentTime + AuxDT(ReadValuesNumber - 1))
 
-            if (ExtraTime_Seconds < 0)                                                   &
+            if (ExtraTime_Seconds < 0)  then
                 call SetError(FATAL_, INTERNAL_, "OutPutTimeInternal - EnterData - ERR03")        
+            endif
 
             ! ExtraOutPuts is equal to the total number of outputs after the last specific output         
             ExtraOutPuts = int(ExtraTime_Seconds/AuxDT(ReadValuesNumber)) 

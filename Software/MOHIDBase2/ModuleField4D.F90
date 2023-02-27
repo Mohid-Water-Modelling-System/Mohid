@@ -588,7 +588,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid,  &
                                               STAT             = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR55'
+            if (STAT_CALL/=SUCCESS_) then
+                stop 'ConstructField4D - ModuleField4D - ERR55'
+            endif
 
 
             OnlyReadGridFromFile_ = .false.
@@ -625,8 +627,10 @@ wwd:            if (Me%WindowWithData) then
                     call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
                                           WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                                           STAT              = STAT_CALL)
-                    if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR70'
-
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR70'
+                    endif
+                    
                     if (Me%MaskDim == Dim3D) then
 
                         if (present(GeometryID)) then

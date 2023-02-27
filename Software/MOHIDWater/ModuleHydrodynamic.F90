@@ -50443,10 +50443,13 @@ iIn:                    if (InterceptionRatio <= 0.) then
 
     !End------------------------------------------------------------------------------    
 
-    subroutine OutputHydroMohidJet(ObjHDF5, Index) 
+    subroutine OutputHydroMohidJet(ObjHDF5, Index, WorkILB, WorkIUB, WorkJLB,           &
+                                                   WorkJUB, WorkKLB, WorkKUB) 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHDF5, Index
+        integer                                     :: WorkILB, WorkIUB, WorkJLB,       &
+                                                       WorkJUB, WorkKLB, WorkKUB
 
         !Local-----------------------------------------------------------------
                 
@@ -50460,30 +50463,34 @@ iIn:                    if (InterceptionRatio <= 0.) then
         Me%MohidJet%TotalOutParticles = 0
         
         do dis = 1, Me%MohidJet%DischargesNumber
-
-            call GetOutPutFormatType(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,        &
-                                     FormatType  = FormatType,                          & 
-                                     STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR010'
-            endif
             
-            if (FormatType /= 2) then
-                write(*,*) "In file =", trim(Me%MohidJet%Jetx(dis)%DataFile)
-                write(*,*) "need to configure a cloud output type"
-                write(*,*) "OUTPUT_TYPE             : CLOUD"
-                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR020'
-            endif
+            if (Me%MohidJet%Jetx(dis)%ON) then            
+
+                call GetOutPutFormatType(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,    &
+                                         FormatType  = FormatType,                      & 
+                                         STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR010'
+                endif
+            
+                if (FormatType /= 2) then
+                    write(*,*) "In file =", trim(Me%MohidJet%Jetx(dis)%DataFile)
+                    write(*,*) "need to configure a cloud output type"
+                    write(*,*) "OUTPUT_TYPE             : CLOUD"
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR020'
+                endif
             
         
-            call GetOutPutLines(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,             &
-                                OutPutLines = Me%MohidJet%Jetx(dis)%OutParticles,       & 
-                                STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR030'
-            endif
+                call GetOutPutLines(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,         &
+                                    OutPutLines = Me%MohidJet%Jetx(dis)%OutParticles,   & 
+                                    STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR030'
+                endif
 
-            Me%MohidJet%TotalOutParticles = Me%MohidJet%TotalOutParticles + Me%MohidJet%Jetx(dis)%OutParticles
+                Me%MohidJet%TotalOutParticles = Me%MohidJet%TotalOutParticles + Me%MohidJet%Jetx(dis)%OutParticles
+                
+            endif
             
         enddo
 
@@ -50709,9 +50716,8 @@ iIn:                    if (InterceptionRatio <= 0.) then
         
         endif
         
-        call HDF5SetLimits  (ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                 &
-                                      Me%WorkSize%JLB, Me%WorkSize%JUB,                 &
-                                      Me%WorkSize%KLB, Me%WorkSize%KUB, STAT = STAT_CALL)
+        call HDF5SetLimits  (ObjHDF5,  WorkILB, WorkIUB, WorkJLB,                       &
+                                       WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
             stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR200'
         endif
@@ -50719,8 +50725,8 @@ iIn:                    if (InterceptionRatio <= 0.) then
         if (associated(Me%External_Var%Salinity)) then
             !salinity [ppt]        
             !HDF 5
-            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/salinity_3D",          &
-                                "salinity",  "ppt", Array3D = Me%External_Var%Salinity ,    &
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/salinity_3D",      &
+                                "salinity",  "ppt", Array3D = Me%External_Var%Salinity ,&
                                 OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR210'
@@ -52441,7 +52447,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             call HDF5SetLimits  (ObjHDF5, 1, 1, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR30'
 
-            call HDF5WriteData  (ObjHDF5, "/Generic4D", "Generic4D", "-",        &
+            call HDF5WriteData  (ObjHDF5, "/Generic4D", "Generic4D", "-",               &
                                  Array1D = TimePtr, OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR40'
             deallocate(TimePtr)
@@ -52449,7 +52455,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
         
         if (Me%MohidJet%ON .and. OutputMohidJetON) then
-            call OutputHydroMohidJet(ObjHDF5, Index)
+            call OutputHydroMohidJet(ObjHDF5, Index, WorkILB, WorkIUB, WorkJLB,         &
+                                                     WorkJUB, WorkKLB, WorkKUB)
         endif
         
 
