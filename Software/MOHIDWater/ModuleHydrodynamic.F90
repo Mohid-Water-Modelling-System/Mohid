@@ -52455,6 +52455,11 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
         
         if (Me%MohidJet%ON .and. OutputMohidJetON) then
+            if (Index == 2) then
+                !Simple way to have for output 1 also MohidJet Results
+                call OutputHydroMohidJet(ObjHDF5, Index-1, WorkILB, WorkIUB, WorkJLB,   &
+                                                         WorkJUB, WorkKLB, WorkKUB) 
+            endif
             call OutputHydroMohidJet(ObjHDF5, Index, WorkILB, WorkIUB, WorkJLB,         &
                                                      WorkJUB, WorkKLB, WorkKUB)
         endif

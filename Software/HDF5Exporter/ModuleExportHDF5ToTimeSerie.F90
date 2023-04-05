@@ -396,6 +396,8 @@ Module ModuleExportHDF5ToTimeSerie
                 
                 Me%mask_2D(:,:) = -99
                 
+                nullify(MaskPolygons)
+                
                 call New(MaskPolygons, Me%PolygonsFile)
                 
                 PolygonsNumber = GetPolygonsNumber(MaskPolygons)

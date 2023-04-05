@@ -85,21 +85,21 @@ Module ModuleJet
                                                            !LINEAR  - The user wants a water column where 
                                                            !the density and velocity have a linear profile
 !   DEFAULT_SALINITY        : real (psu)       [36]       !ambient salinity when a UNIFORM water column is admitted
-!   DEFAULT_TEMPERATURE     : real (ºC)        [16]       !ambient temperature when a UNIFORM water column is admitted
+!   DEFAULT_TEMPERATURE     : real (ÂºC)        [16]       !ambient temperature when a UNIFORM water column is admitted
 !   DEFAULT_VELU            : real (m/s)       [0.2]      !ambient velocity U when a UNIFORM water column is admitted
 !   DEFAULT_VELV            : real (m/s)       [0]        !ambient velocity V when a UNIFORM water column is admitted
 !   BOTTOM_SALINITY         : real (psu)       [36]       !ambient bottom salinity when a LINEAR water column is admitted
-!   BOTTOM_TEMPERATURE      : real (ºC)        [16]       !ambient bottom temperature when a LINEAR water column is admitted
+!   BOTTOM_TEMPERATURE      : real (ÂºC)        [16]       !ambient bottom temperature when a LINEAR water column is admitted
 !   BOTTOM_VELU             : real (m/s)       [0.2]      !ambient bottom velocity U when a LINEAR water column is admitted
 !   BOTTOM_VELV             : real (m/s)       [0]        !ambient bottom velocity V when a LINEAR water column is admitted
 !   SURFACE_SALINITY        : real (psu)       [36]       !ambient surface salinity when a LINEAR water column is admitted
-!   SURFACE_TEMPERATURE     : real (ºC)        [16]       !ambient surface temperature when a LINEAR water column is admitted 
+!   SURFACE_TEMPERATURE     : real (ÂºC)        [16]       !ambient surface temperature when a LINEAR water column is admitted 
 !   SURFACE_VELU            : real (m/s)       [0.2]      !ambient surface velocity U when a LINEAR water column is admitted
 !   SURFACE_VELV            : real (m/s)       [0]        !ambient surface velocity V when a LINEAR water column is admitted
 
     use ModuleGlobalData
     use ModuleEnterData,      only : ConstructEnterData, GetData, KillEnterData, GetExtractType
-    use ModuleFunctions,      only : SigmaUNESCO
+    use ModuleFunctions,      only : SigmaUNESCO, normcrossprod_v2
     use ModuleHorizontalGrid, only : GetCellRotation    
 
     implicit none 
@@ -1052,7 +1052,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      STAT         = STAT_CALL)        
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR70'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR70'      
+        
 
     end subroutine ReadJetData
 
@@ -1294,7 +1295,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         Me%Evolution%Temperature= Me%Port%Temperature
         Me%Evolution%Density    = Me%Port%Density
 
-        Me%Evolution%InversionZ = .false.
+        Me%Evolution%InversionZ   = .false.
 
         Call LocalAmbientProp    
         Call AuxiliarVectors     
@@ -1957,12 +1958,18 @@ i1:     if (.not. Me%Evolution%VertBoundContact) then
             endif    
 
 !            If (Me%NumericalOptions%Parametrization == CORJET)  Then
+            
+            if (Me%Ambient%LocalDensity >= Me%Port%Density) then 
+                !Only valid for positive buoyancy plumes.  
+            
 
                 If (Me%Evolution%z <= SurfaceLevel + Aux) Then
                     Me%Evolution%z = SurfaceLevel + Aux + Precision
                     Me%Evolution%VelW = 0
                     Me%Evolution%VertBoundContact = .true.
                 end If
+            
+            endif
 
 
 !            ElseIf (Me%NumericalOptions%Parametrization == JETLAG) Then
@@ -1976,19 +1983,22 @@ i1:     if (.not. Me%Evolution%VertBoundContact) then
             !
             !end If
 
-            If (Me%Evolution%z >= BottomLevel) Then
-                Me%Evolution%z    = BottomLevel - Precision
-                Me%Evolution%VelW = 0
-                Me%Evolution%VertBoundContact = .true.
-            end If
-
+            if (Me%Ambient%LocalDensity < Me%Port%Density) then             
+            
+                If (Me%Evolution%z >= BottomLevel - Aux) Then
+                    Me%Evolution%z    = BottomLevel - Aux - Precision
+                    Me%Evolution%VelW = 0
+                    Me%Evolution%VertBoundContact = .true.
+                end If
+            endif
+            
         endif i1
 
 i2:     if (Me%Evolution%VertBoundContact) then
         
             if (.not.Me%Evolution%DisconnectVertLimit) then
                 Me%Evolution%EndRun = .true.
-                Me%Evolution%EndRunType = "Plume Arrive to surface"
+                Me%Evolution%EndRunType = "Plume Arrive to surface/bottom"
             endif
 
             if (.not. Me%Evolution%NotFirstContact) then
@@ -2001,14 +2011,18 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         endif i2
 
-
         if (Me%Evolution%z_old > Me%Evolution%z .and.                            &
-            Me%Evolution%Time > Me%NumericalOptions%MinSimulationPeriod)         &
+            Me%Evolution%Time > Me%NumericalOptions%MinSimulationPeriod) then
             Me%Evolution%InversionZ = .true.
-
-        if (Me%Evolution%z     > Me%Evolution%z_old .and. Me%Evolution%InversionZ) then
-            Me%Evolution%EndRun = .true.
-            Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
+            endif
+            
+        if (Me%Ambient%LocalDensity > Me%Port%Density) then 
+            !Only valid for positive buoyancy plumes.  
+            if (Me%Evolution%z     > Me%Evolution%z_old .and. Me%Evolution%InversionZ) then
+                Me%Evolution%EndRun = .true.
+                Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
+            endif
+            
         endif
 
         if (Me%Port%Number > 1) then
@@ -2323,36 +2337,43 @@ Subroutine CloudOutPut_V2
         
    
         !Local-----------------------------------------------------------------
-        real                :: xposition, yposition, zposition, SurfaceLevel, r
-        real, dimension(3)  :: normal_vector, PointCenter, PointOut
+        real                :: xposition, yposition, zposition, SurfaceLevel, r, t
+        real, dimension(3)  :: normal_vector, PointCenter, PointOut 
+        real, dimension(3)  :: surf_vector_1, surf_vector_2, generic_vector
         integer             :: I, J, K, iP
+        !real                :: ex1,ey1, ez1
+        !real                :: X1, Y1, Z1, t, u
         !----------------------------------------------------------------------
 
         I       = Me%Ambient%I
         J       = Me%Ambient%J
         K       = Me%Ambient%SurfaceLayer
+        
+        ! Define the normal vector and center point for the circular surface
+        normal_vector = [Me%Evolution%ex, Me%Evolution%ey, -Me%Evolution%ez]
 
+        PointCenter = [Me%Evolution%x, Me%Evolution%y, Me%Evolution%z]
+        
+        generic_vector = [1., 0., 0.]
+            
+        surf_vector_1 = normcrossprod_v2 (normal_vector, generic_vector)
+        surf_vector_2 = normcrossprod_v2 (normal_vector, surf_vector_1)
+                    
+        r = Me%Evolution%Diameter/2.0 
+        
         do ip=1, Me%OutPut%ParticlesNumber
 
             Me%OutPut%Number = Me%OutPut%Number + 1
 
-            ! Define the normal vector and center point for the circular surface
-            normal_vector = [Me%Evolution%ex, Me%Evolution%ey, Me%Evolution%ez]
-            !normal_vector = normal_vector / sqrt(dot_product(normal_vector, normal_vector))
-            PointCenter = [Me%Evolution%x, Me%Evolution%y, Me%Evolution%z]
-  
-            ! Generate random points on the circular surface
-            call random_number(PointOut(:))
-            PointOut(:) = PointOut(:) - 0.5 
-            PointOut(:) = PointOut(:) - dot_product(PointOut(:), normal_vector) * normal_vector
-            r = sqrt(dot_product(PointOut(:), PointOut(:)))
-            PointOut(:) = PointOut(:) * (Me%Evolution%Diameter/2.0) / r
-            PointOut(:) = PointOut(:) + PointCenter(:)
-
+            call random_number(t)
+            t = 2*Pi*t
+            
+            PointOut = PointCenter + r * (cos(t) * surf_vector_1 + sin(t) * surf_vector_2)
+            
             xposition = PointOut(1)
             yposition = PointOut(2)
             zposition = PointOut(3)
-
+            
             SurfaceLevel = Me%Ambient%SZZ(I, J, K)
 
             if (zposition < SurfaceLevel) zposition = SurfaceLevel

@@ -8,7 +8,7 @@
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : September 2011
-! REVISION      : Paulo Leitão 
+! REVISION      : Paulo LeitÃ£o 
 ! DESCRIPTION   : Three dimensional multinesting lagrangian tracers model
 !
 !------------------------------------------------------------------------------
@@ -4740,13 +4740,13 @@ BF:         if (BlockFound) then
 IT:     if (NewOrigin%EmissionTemporal == Instantaneous_) then
 
             !Gets the interval between emissions
-            call GetData(NewOrigin%InstantEmission,                              &
-                         Me%ObjEnterData,                                        &
-                         flag,                                                   &
-                         SearchType   = FromBlock,                               &
-                         keyword      ='INSTANT_PARTIC_EMIT',                    &
-                         ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = Me%ExternalVar%BeginTime,                &
+            call GetData(NewOrigin%InstantEmission,                                     &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='INSTANT_PARTIC_EMIT',                           &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = Me%ExternalVar%BeginTime,                       &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR320'
             
@@ -4757,24 +4757,24 @@ IT:     if (NewOrigin%EmissionTemporal == Instantaneous_) then
 ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
 
             !Gets the interval between emissions
-            call GetData(NewOrigin%DT_Emit,                                      &
-                         Me%ObjEnterData,                                        &
-                         flag,                                                   &
-                         SearchType   = FromBlock,                               &
-                         keyword      ='DT_EMIT',                                &
-                         ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = Me%DT_Partic,                            &
+            call GetData(NewOrigin%DT_Emit,                                             &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='DT_EMIT',                                       &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = Me%DT_Partic,                                   &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR325'
             
             !Gets the duration of the emission starting from the simulation initial time
-            call GetData(EmissionDuration,                                       &
-                         Me%ObjEnterData,                                        &
-                         flag,                                                   &
-                         SearchType   = FromBlock,                               &
-                         keyword      ='EMISSION_DURATION',                      &
-                         ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = null_real,                               &
+            call GetData(EmissionDuration,                                              &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='EMISSION_DURATION',                             &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = null_real,                                      &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR326'
 
@@ -4789,25 +4789,25 @@ ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
             elseif(flag == 0)then
             
                 !Gets the interval between emissions
-                call GetData(NewOrigin%StartEmission,                            &
-                             Me%ObjEnterData,                                    &
-                             flag,                                               &
-                             SearchType   = FromBlock,                           &
-                             keyword      ='START_PARTIC_EMIT',                  &
-                             ClientModule ='ModuleLagrangianGlobal',             &
-                             Default      = Me%ExternalVar%BeginTime,            &
+                call GetData(NewOrigin%StartEmission,                                   &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='START_PARTIC_EMIT',                         &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             Default      = Me%ExternalVar%BeginTime,                   &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR330'
                 
 
                 !Gets the interval between emissions
-                call GetData(NewOrigin%StopEmission,                             &
-                             Me%ObjEnterData,                                    &
-                             flag,                                               &
-                             SearchType   = FromBlock,                           &
-                             keyword      ='STOP_PARTIC_EMIT',                   &
-                             ClientModule ='ModuleLagrangianGlobal',             &
-                             Default      = Me%ExternalVar%EndTime,              &
+                call GetData(NewOrigin%StopEmission,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='STOP_PARTIC_EMIT',                          &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             Default      = Me%ExternalVar%EndTime,                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR340'
 
@@ -4825,16 +4825,15 @@ ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
             endif
 
             !Gets flow associated to a continuous emission
-iP:         if (NewOrigin%EmissionSpatial == Point_) then
-
+iP:         if (NewOrigin%EmissionSpatial == Point_ .or. NewOrigin%EmissionSpatial == Poly_) then
 
                 !Flow variable in time
-                call GetData(NewOrigin%FlowVariable,                            &
-                             Me%ObjEnterData,                                   &
-                             flag,                                              &
-                             SearchType   = FromBlock,                          &
-                             keyword      ='FLOW_VARIABLE',                     &
-                             ClientModule ='ModuleLagrangianGlobal',            &
+                call GetData(NewOrigin%FlowVariable,                                    &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='FLOW_VARIABLE',                             &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR360'
 
@@ -4851,35 +4850,35 @@ iFV:            if (NewOrigin%FlowVariable) then
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR370'
 
                     !flow column
-                    call GetData(NewOrigin%FlowColumn,                          &
-                                 Me%ObjEnterData,                               &
-                                 flag,                                          &
-                                 SearchType   = FromBlock,                      &
-                                 keyword      ='FLOW_COLUMN',                   &
-                                 ClientModule ='ModuleLagrangianGlobal',        &
+                    call GetData(NewOrigin%FlowColumn,                                  &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='FLOW_COLUMN',                           &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR373'
                     
                     if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR375'
 
                     !flow scale factor
-                    call GetData(NewOrigin%FlowScaleFactor,                     &
-                                 Me%ObjEnterData,                               &
-                                 flag,                                          &
-                                 SearchType   = FromBlock,                      &
-                                 keyword      ='FLOW_SCALE_FACTOR',             &
-                                 Default      = 1.,                             &
-                                 ClientModule ='ModuleLagrangianGlobal',        &
+                    call GetData(NewOrigin%FlowScaleFactor,                             &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='FLOW_SCALE_FACTOR',                     &
+                                 Default      = 1.,                                     &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR378'
 
-                    call GetData(NewOrigin%EstimateMinVol,                      &
-                                 Me%ObjEnterData,                               &
-                                 flag,                                          &
-                                 SearchType   = FromBlock,                      &
-                                 keyword      ='ESTIMATE_MIN_VOL',              &
-                                 Default      = .false.,                        &
-                                 ClientModule ='ModuleLagrangianGlobal',        &
+                    call GetData(NewOrigin%EstimateMinVol,                              &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='ESTIMATE_MIN_VOL',                      &
+                                 Default      = .false.,                                &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR380'
 
@@ -4919,21 +4918,21 @@ iDF:                if (.not. NewOrigin%Default) then
 
                 endif iFV
 
-                    !get default flow of the origin
-                    call GetData(NewOrigin%Flow,                                &
-                                 Me%ObjEnterData,                               &
-                                 flag,                                          &
-                                 SearchType   = FromBlock,                      &
-                                 keyword      ='FLOW',                          &
-                                 default      = 1.,                             &
-                                 ClientModule ='ModuleLagrangianGlobal',        &
-                                 STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR390'
-                    if (flag /= 1 .and. .not. NewOrigin%FlowVariable) then
-                        write(*,*)'Keyword FLOW not defined at origin :',trim(adjustl(NewOrigin%Name))
-                        stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
+                !get default flow of the origin
+                call GetData(NewOrigin%Flow,                                            &
+                                Me%ObjEnterData,                                        &
+                                flag,                                                   &
+                                SearchType   = FromBlock,                               &
+                                keyword      ='FLOW',                                   &
+                                default      = 1.,                                      &
+                                ClientModule ='ModuleLagrangianGlobal',                 &
+                                STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR390'
+                if (flag /= 1 .and. .not. NewOrigin%FlowVariable) then
+                    write(*,*)'Keyword FLOW not defined at origin :',trim(adjustl(NewOrigin%Name))
+                    stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
                 
-                    endif 
+                endif 
 
                 call GetData(NewOrigin%MovingOrigin,                                    &
                              Me%ObjEnterData,                                           &
@@ -5042,6 +5041,19 @@ iDF:                if (.not. NewOrigin%Default) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR465'
         endif        
 
+        if (NewOrigin%EmissionSpatial == Poly_ .and. NewOrigin%FlowVariable) then
+            call GetData(NewOrigin%PointVolume,                                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='POINT_VOLUME',                                  &
+                         default      = 0.,                                             &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR467'
+        endif     
+
+
 i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
             if (.not. NewOrigin%Default .and. NewOrigin%EstimateMinVol) then
@@ -5065,12 +5077,12 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
         endif i23
 
         !Time to double volume
-        call GetData(NewOrigin%Movement%TVOL200,                                 &
-                     Me%ObjEnterData,                                            &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      ='TVOL200',                                    &
-                     ClientModule ='ModuleLagrangianGlobal',                     &
+        call GetData(NewOrigin%Movement%TVOL200,                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='TVOL200',                                           &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR470'
 
@@ -5081,36 +5093,36 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
         
         !Split particle
-        call GetData(NewOrigin%Movement%SPLIT_PART,                              &
-                     Me%ObjEnterData,                                            &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      = 'SPLIT_PART',                                &
-                     Default      = OFF,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                     &
+        call GetData(NewOrigin%Movement%SPLIT_PART,                                     &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SPLIT_PART',                                       &
+                     Default      = OFF,                                                &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR480'
 
 
         !Volume Factor when Particle dies
-        call GetData(NewOrigin%Movement%VOLFAC,                                  &
-                     Me%ObjEnterData,                                            &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      = 'VOLFAC',                                    &
-                     Default      = 10.,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                     &
+        call GetData(NewOrigin%Movement%VOLFAC,                                         &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'VOLFAC',                                           &
+                     Default      = 10.,                                                &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR490'
 
         !How to calculate volume increase
-        call GetData(String2,                                                    &
-                     Me%ObjEnterData,                                            &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      = 'VOLUME_INCREASE',                           &
-                     Default      = Char_Double,                                 &
-                     ClientModule ='ModuleLagrangianGlobal',                     &
+        call GetData(String2,                                                           &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'VOLUME_INCREASE',                                  &
+                     Default      = Char_Double,                                        &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR500'
 
@@ -5134,13 +5146,13 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
 
         !Floating Particle
-        call GetData(NewOrigin%Movement%Float,                                   &
-                     Me%ObjEnterData,                                 &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      ='FLOAT',                                      &
-                     Default      = OFF,                                         &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+        call GetData(NewOrigin%Movement%Float,                                          &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='FLOAT',                                             &
+                     Default      = OFF,                                                &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR520'
 
@@ -5271,34 +5283,34 @@ MO:     if (flag == 1) then
                 ! ---> Definition of the Horizontal and Vertical variance in 
                 !      the form of a percentage of the average velocity      
                 ! StandardDeviation = VarVelHX * Vel + VarVelH
-                call GetData(NewOrigin%Movement%VarVelHX,                        &
-                             Me%ObjEnterData,                         &
-                             flag,                                               &
-                             SearchType   = FromBlock,                           &
-                             keyword      ='VARVELHX',                           &
-                             ClientModule ='ModuleLagrangianGlobal',                   &  
-                             Default      = 0.2,                                 &
+                call GetData(NewOrigin%Movement%VarVelHX,                               &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='VARVELHX',                                  &
+                             ClientModule ='ModuleLagrangianGlobal',                    &  
+                             Default      = 0.2,                                        &
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR710'
 
 
-                call GetData(NewOrigin%Movement%VarVelH,                         &
-                             Me%ObjEnterData,                         &
-                             flag,                                               &
-                             SearchType   = FromBlock,                           &
-                             keyword      ='VARVELH',                            &
-                             ClientModule ='ModuleLagrangianGlobal',                   &  
-                             Default      = 0.0,                                 &
+                call GetData(NewOrigin%Movement%VarVelH,                                &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='VARVELH',                                   &
+                             ClientModule ='ModuleLagrangianGlobal',                    &  
+                             Default      = 0.0,                                        &
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR720'
 
 
-                call GetData(String2,                                            &
-                             Me%ObjEnterData,                         &
-                             flag,                                               &
-                             SearchType   = FromBlock,                           &
-                             keyword      ='TURB_V',                             &
-                             ClientModule ='ModuleLagrangianGlobal',                   &
+                call GetData(String2,                                                   &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='TURB_V',                                    &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR730'
 
@@ -18140,7 +18152,7 @@ iy:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, N
         VerifyErosionRate   = OFF
 
         !Partheniades, E., 1965. Erosion and deposition of cohesive soils.
-        !J. Hydr. Div., ASCE 91 HY1 , 105–139.
+        !J. Hydr. Div., ASCE 91 HY1 , 105â€“139.
      
         !The ressuspension of a tracer is function of the bottom shear stress
         !and of the erosion rate. The erosion rate (Er) is quantifiied in the form of
@@ -22494,8 +22506,8 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     do while (associated(CurrentPartic))
 
                         !Particle Mass
-                        !É necessário depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
-                        !também na subrotina EmissionBox
+                        !Ã‰ necessÃ¡rio depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
+                        !tambÃ©m na subrotina EmissionBox
                           
                         CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
                         CurrentPartic%OilDissolvedMass = 0.
@@ -22561,13 +22573,13 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                             !Particle Mass 
                             CurrentPartic%OilMass = CurrentPartic%Geometry%Volume*CurrentPartic%OilDensity
                             
-!                            ! Atenção falta Corrects Density to include only evaporation (excludes water content, 
+!                            ! AtenÃ§Ã£o falta Corrects Density to include only evaporation (excludes water content, 
                              !which is at water column)
 !                            CurrentPartic%OilDensity   = Me%ExternalVar%OilDensity
 !                            CurrentPartic%OilViscosity = Me%ExternalVar%OilViscosity
                          else       
  
-                            ! Atenção falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
+                            ! AtenÃ§Ã£o falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
 !                            CurrentPartic%OilDensity   = Me%ExternalVar%OilDensity
 !                            CurrentPartic%OilViscosity = Me%ExternalVar%OilViscosity
 
@@ -25182,14 +25194,14 @@ i1:             if (nP>0) then
 
                             !HDF 5
                             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude", &
-                                                "Longitude",  "º", Array1D = Matrix1DX,                      &
+                                                "Longitude",  "Âº", Array1D = Matrix1DX,                      &
                                                  Average = AverageX, Radius = RadiusOfInfluence,             &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR110'
 
                             !HDF 5
                             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
-                                                "Latitude",  "º", Array1D = Matrix1DY,                       &
+                                                "Latitude",  "Âº", Array1D = Matrix1DY,                       &
                                                  Average = AverageY, Radius = RadiusOfInfluence,             &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR120'
@@ -25205,7 +25217,7 @@ i1:             if (nP>0) then
 
                             if (Me%OutPut%OriginEnvelope) then
                                 call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
-                                                         "Longitude", "Latitude", "º", OutputNumber, em,    &
+                                                         "Longitude", "Latitude", "Âº", OutputNumber, em,    &
                                                          OutPutNetCDF = Me%OutPut%NetCDF)  
                             endif
                             
@@ -26043,7 +26055,7 @@ iTP:                    if (TotParticle(ig) == 0) then
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
                                                    "/Results/"//trim(GroupName)//"/Longitude", &
                                                    "Longitude",                              &
-                                                   "º",                                      &
+                                                   "Âº",                                      &
                                                    Array1D = Matrix1DX,                      &
                                                    OutputNumber = OutPutNumber,              &
                                                    STAT = STAT_CALL)
@@ -26072,7 +26084,7 @@ iTP:                    if (TotParticle(ig) == 0) then
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
                                                    "/Results/"//trim(GroupName)//"/Latitude",&
                                                    "Latitude",                               &
-                                                   "º",                                      &
+                                                   "Âº",                                      &
                                                    Array1D = Matrix1DY,                      &
                                                    OutputNumber = OutPutNumber,              &
                                                    STAT = STAT_CALL)
@@ -26080,7 +26092,7 @@ iTP:                    if (TotParticle(ig) == 0) then
 
                         if (Me%OutPut%OriginEnvelope) then
                             call WriteOriginEnvelope(trim(GroupName),Matrix1DX, Matrix1DY, &
-                                                      "Longitude", "Latitude", "º", OutputNumber, em)  
+                                                      "Longitude", "Latitude", "Âº", OutputNumber, em)  
                         endif
                                                    
 
@@ -27604,21 +27616,21 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude", &
-                                "Longitude",  "º", Array1D = Matrix1DX,                 &
+                                "Longitude",  "Âº", Array1D = Matrix1DX,                 &
                                  Average = AverageX, Radius = RadiusOfInfluence,        &
                                  OutputNumber = OutputNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR50'
 
             !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
-                                "Latitude",  "º", Array1D = Matrix1DY,                  &
+                                "Latitude",  "Âº", Array1D = Matrix1DY,                  &
                                  Average = AverageY, Radius = RadiusOfInfluence,        &
                                  OutputNumber = OutputNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR60'
 
             if (Me%OutPut%OriginEnvelope) then
                 call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY,      &
-                                          "Longitude", "Latitude", "º", OutputNumber, em)  
+                                          "Longitude", "Latitude", "Âº", OutputNumber, em)  
             endif
 
 
@@ -27632,12 +27644,12 @@ CurrOr:     do while (associated(CurrentOrigin))
                 
                 !HDF 5
                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
-                                    "Longitude",  "º", Array1D = Matrix1DX,                                       &
+                                    "Longitude",  "Âº", Array1D = Matrix1DX,                                       &
                                      OutputNumber = OutputNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR80'
                 !HDF 5
                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
-                                    "Latitude",  "º", Array1D = Matrix1DY,                                       &
+                                    "Latitude",  "Âº", Array1D = Matrix1DY,                                       &
                                      OutputNumber = OutputNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
             
@@ -27766,21 +27778,21 @@ CurrOr:     do while (associated(CurrentOrigin))
 
                     !HDF 5
                     call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude", &
-                                        "Longitude",  "º", Array1D = Matrix1DX,                      &
+                                        "Longitude",  "Âº", Array1D = Matrix1DX,                      &
                                          Average = AverageX, Radius = RadiusOfInfluence,             &
                                          OutputNumber = OutputNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR50'
 
                     !HDF 5
                     call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
-                                        "Latitude",  "º", Array1D = Matrix1DY,                       &
+                                        "Latitude",  "Âº", Array1D = Matrix1DY,                       &
                                          Average = AverageY, Radius = RadiusOfInfluence,             &
                                          OutputNumber = OutputNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR60'
 
                     if (Me%OutPut%OriginEnvelope) then
                         call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
-                                                  "Longitude", "Latitude", "º", OutputNumber, em)  
+                                                  "Longitude", "Latitude", "Âº", OutputNumber, em)  
                     endif
                     
                     if (Me%AveragePositionON) then
@@ -27796,12 +27808,12 @@ CurrOr:     do while (associated(CurrentOrigin))
                         
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
-                                            "Longitude",  "º", Array1D = MX1D,                          &
+                                            "Longitude",  "Âº", Array1D = MX1D,                          &
                                              OutputNumber = OutputNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR80'
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
-                                            "Latitude",  "º", Array1D = MY1D,                           &
+                                            "Latitude",  "Âº", Array1D = MY1D,                           &
                                              OutputNumber = OutputNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
                     
@@ -32839,5 +32851,5 @@ end Module ModuleLagrangianGlobal
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
