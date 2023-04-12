@@ -4288,7 +4288,9 @@ Module ModuleHDF5
 
             !Opens the Dataset
             call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR20'
+            endif
 
                 !Gets the data type id
             call h5dget_type_f (dset_id, datatype_id, STAT_CALL)

@@ -273,7 +273,8 @@ Module ModuleFunctions
     public  :: ComputeT90_Chapra                    !Function
 
 
-    public  ::  Normcrossprod
+    public  ::  normcrossprod
+    public  ::  normcrossprod_v2
 
     !Coordinates Functions
     public  ::  ComputeGridZone
@@ -12934,6 +12935,7 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     function Normcrossprod(x, y, z)
 
+    
         !Arguments-------------------------------------------------------------
         real(8), dimension(3)                       :: normcrossprod
         real   , dimension(3), intent(in)           :: x, y, z
@@ -12953,7 +12955,31 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     end function normcrossprod
 
-    !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
+    
+    function normcrossprod_v2(a, b)
+        
+        !Arguments---------------------------------------------------------
+        real, dimension(3)               :: normcrossprod_v2
+        real, dimension(3), intent(in)   :: a, b
+
+        !Local-------------------------------------------------------------
+        real                             :: norm
+
+        !Begin-------------------------------------------------------------              
+        normcrossprod_v2(1) = a(2) * b(3) - a(3) * b(2)
+        normcrossprod_v2(2) = a(3) * b(1) - a(1) * b(3)
+        normcrossprod_v2(3) = a(1) * b(2) - a(2) * b(1)
+        norm = sqrt(dot_product(normcrossprod_v2,normcrossprod_v2))
+        if (norm > 0) then
+            normcrossprod_v2 = normcrossprod_v2/norm        
+        else
+                stop 'Module Functions - function normcrossprod_v2 - ERR10'
+        endif
+      
+    end function normcrossprod_v2
+    
+   !--------------------------------------------------------------------------    
 
     !Settling velocity computed as function of a hindered settling concentration
     !Used only for cohesive sediments. Units in this formulation in kg/m3

@@ -1527,7 +1527,7 @@ d1:     do i=1, Count
     !                   possibility of being inside the polygon. Thus, it is 
     !                   drawn a "semi-recta" on the X axis to the right of the
     !                   point. If the "semi-recta" intersects the polygon an 
-    !                   odd ("ímpar") number of times then the point is 
+    !                   odd ("Ã­mpar") number of times then the point is 
     !                   inside the polygon. The intersection test is performed 
     !                   for every segment of the polygon. If the point belongs 
     !                   is a vertix of the polygon or belongs to one of the 
@@ -1688,7 +1688,7 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
 
         deallocate(Segment)
 
-        !if number of intersections is odd (odd = ímpar) then
+        !if number of intersections is odd (odd = Ã­mpar) then
         !point is inside the polygon
         IsPointInsidePolygon = IsOdd(NumberOfIntersections)
 
@@ -1709,9 +1709,9 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
 !         operators for:
 !             == to test equality
 !             != to test inequality
-!             Point  = Point ± Vector
+!             Point  = Point Â± Vector
 !             Vector = Point - Point
-!             Vector = Vector ± Vector
+!             Vector = Vector Â± Vector
 !             Vector = Scalar * Vector    (scalar product)
 !     Segment with defining endpoints {Point P0, P1;}
 ! ===================================================================
@@ -3709,7 +3709,7 @@ i6:                         if (DirectionX.ne.0.) then
 !                   the intersection of a polygon B (ref) and a                         !
 !                   polygon C (clip)using the Sutherl and Hodgman algorithm             !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -3763,7 +3763,7 @@ d1:     do i=1,ref%count-1 ! for each edge i of the polygon ref
 !                                                                                       !
 ! Subroutine goal : make the clipping  of the polygon by the line (x1x2)                !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -3841,7 +3841,7 @@ i4:     if (c .gt. 0) then
 ! Subroutine goal : computes the intersection between segment [x1x2]                    ! 
 !                   and line (y1y2)                                            !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -3898,7 +3898,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
 !                                                                                       !
 ! Subroutine goal :  function that tells is the point p is at left of the line (y1y2)   !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -4260,5 +4260,5 @@ end module ModuleDrawing
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
