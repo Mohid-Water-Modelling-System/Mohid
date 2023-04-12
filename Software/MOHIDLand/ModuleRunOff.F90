@@ -9703,9 +9703,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
    
         !--------------------------------------------------------------------------
         real(c_double)              :: dt, elapsedTime
-        integer                     :: STAT_CALL, n, i, j, xn, Pond_OutType
+        integer                     :: STAT_CALL, n, i, j, xn
         real                        :: Flow, Flow_1, Flow_2, Flow_3, Flow_4, Flow_5, myWaterLevel, Flow_formulation_2, tF
-        real                        :: SecondLinkWaterLevel, dh, area, WaterLevelSWMM, sign, HydraulicRadius, myWaterLevel_outfall
+        real                        :: SecondLinkWaterLevel, dh, area, WaterLevelSWMM, sign, HydraulicRadius
 
         !--------------------------------------------------------------------------
 
@@ -9765,11 +9765,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             i   = Me%OpenChannelLinks(n)%I
             j   = Me%OpenChannelLinks(n)%J
             
-            
-            Pond_OutType = 0
             myWaterLevel = Me%myWaterLevel (i, j)
-            dh=0.0
-            
             
             if(Me%OpenChannelLinks(n)%TypeOf == OutfallLink_)then
 
@@ -9777,7 +9773,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 !Divide total outfall flow by the weight of each grid cell it intercepts (= 1/nCells_InterceptedByOutfall) 
                 Flow = Me%Outfalls(xn)%Flow * Me%OpenChannelLinks(n)%Weight
-                myWaterLevel_outfall = Me%myWaterLevel (i, j)
 
                 Me%OpenChannelLinks(n)%Flow = Flow
 
@@ -9824,17 +9819,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
                 !Set default flow to 0
                 Flow = 0.0
-                Flow_1 = 0.0
-                Flow_2 = 0.0
-                Flow_3 = 0.0
-                Flow_4 = 0.0
-                Flow_5 = 0.0
-                Flow_formulation_2 = 0.0
-                tF = 0.0
-                area = 0.0
                 if (WaterLevelSWMM < Me%ExtVar%Topography(i, j)) then      
                     !SWMM above topography
-                    Pond_OutType = 1
                     if (Me%myWaterColumn (i, j) > Me%MinimumWaterColumn) then
 
                         dh = Me%myWaterColumn (i, j)
@@ -9878,7 +9864,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         endif
                     endif
                 else
-                    Pond_OutType = 2
                         
                     if (Me%myWaterLevel(i, j) - WaterLevelSWMM > Me%MinimumWaterColumn) then
                         !Water flows from 2D to channel/pond
@@ -9958,18 +9943,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
                 Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
                 
-                999 format(i5,1x,i3,1x,i3,1x,i1,1x,14f20.6)
-                if ((Me%Counter > 13400) .and. (Me%Counter < 13500)) then
-                !if ((i==46) .and. (j==36)) then
-                    write(99,999) Me%Counter,i,j,Pond_OutType,dh,myWaterLevel,WaterLevelSWMM,area,tF,&
-                        Flow,Flow_1,Flow_2,Flow_3,Flow_4,Flow_5,Flow_formulation_2,Me%OpenChannelLinks(n)%FluxWidth,&
-                        Me%ExtVar%Topography(i, j)
-                end if
             endif
             
         enddo
-        
-        write(*,*) "Counter and flow = ", Me%Counter, Me%Ponds(1)%Flow, Me%ExtVar%DT
 
         do n = 1, Me%NumberOfCrossSections
             
@@ -9991,10 +9967,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR170'
 
         enddo
-        
-        !999 format(i5,1x,i1,1x,5f20.6)
-        !write(99,999) Me%Counter,Pond_OutType,Me%Outfalls(1)%Flow,myWaterLevel_outfall, &
-        !    Me%myWaterLevel(8, 34),Me%Total1DVolume,Me%ExtVar%Topography(8, 34)
         
         !Get SewerGEMS SWMM current total volume
         STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
@@ -10448,8 +10420,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
         enddo
         
-        write(*,*) "Counter and flow = ", Me%Counter, Me%Ponds(1)%Flow, Me%ExtVar%DT
-
         do n = 1, Me%NumberOfCrossSections
             
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume  - Me%CrossSections(n)%Flow * Me%ExtVar%DT
