@@ -89,10 +89,10 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\IPhreeqc_interface.F90">
-			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthicEcology.F90"/>
@@ -119,10 +119,10 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMPImanagement.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModulePhreeqCRM.F90">
-			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90"/>
@@ -131,19 +131,19 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTask2000.F">
-			<FileConfiguration Name="Release MPI|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release MPI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug|x64">
+			<FileConfiguration Name="Release|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration></File>
@@ -152,21 +152,19 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleVoronoi3D.f"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality_V2.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWWTPQ.F90"/>
 		<File RelativePath="..\..\..\..\ExternalLibs\MPI_x64\Microsoft\mpi.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\proj4.F90">
-			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\RM_interface.F90">
-			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\WaterQuality_functions.F90"/></Filter></Files>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File></Filter></Files>
 	<Globals/></VisualStudioProject>
