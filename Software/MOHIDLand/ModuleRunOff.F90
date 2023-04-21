@@ -909,7 +909,6 @@ Module ModuleRunOff
         type(BankGridPointPtr_class), dimension(:), allocatable :: BankGridPointArray
         
         logical                                     :: Use1D2DInteractionMapping = .false.
-        integer                                     :: Counter = 0
         real                                        :: Transition_depth_1D2D = 0.005 !distance from SWMM to topography
                                                                                      !when a transition between weir and dynamic wave
                                                                                      !equations is performed
@@ -9731,7 +9730,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
         !------------------Run SewerGEMS SWMM engine time step-----------------------------------------
         
-        Me%Counter = Me%Counter + 1
         !Gets outflow coming from SWMM manhole and adds it to the MOHIDLand Cell
         !Updates WaterLevel, WaterColumn and volumes
         call FlowFromManholes
@@ -10236,7 +10234,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%Ponds(xn)%Flow = 0.0
         enddo
         
-        Me%Counter = Me%Counter + 1
 
         do n = 1, Me%NumberOfOpenChannelLinks
 
@@ -10411,12 +10408,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
                 Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
                 
-            999 format(i5,1x,i3,1x,i3,1x,i1,1x,i1,4f20.6,1x,i1,1x,6f20.6)
-                if ((Me%Counter > 15000) .and. (Me%Counter < 16000)) then
-                    write(99,999) Me%Counter,i,j,Pond_OutType,Compute_Flow,dh,myWaterLevel,WaterLevelSWMM,area,&
-                        FlowType,Flow,Flow_1,Flow_2,Slope,Me%OpenChannelLinks(n)%FluxWidth,Me%ExtVar%Topography(i, j)
-                end if
-            endif
             
         enddo
         
@@ -11198,7 +11189,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
     subroutine FlowFromToOutfalls
         !--------------------------------------------------------------------------
-        integer                     :: STAT_CALL, n, i, j
+        integer                     :: STAT_CALL, n
         !Begin---------------------------------------------------------------------
         do n = 1, Me%NumberOfOutfalls
             STAT_CALL = SewerGEMSEngine_getOutfallFlow(Me%Outfalls(n)%SWMM_ID, Me%Outfalls(n)%Flow)
