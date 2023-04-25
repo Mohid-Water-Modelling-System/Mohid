@@ -1020,7 +1020,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message = trim(Message)
 
         call ReadFileName('BOT_DAT', Me%Files%InPutData, Message = Message, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR01'
+        if(STAT_CALL .ne. SUCCESS_)stop 'ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater - ERR01'
 
         Message   ='Instant fields of bottom properties in HDF format.'
         Message   = trim(Message)
@@ -1030,7 +1030,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
                            DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR02'
+        if(STAT_CALL .ne. SUCCESS_)stop 'ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater - ERR02'
 
         ! ---> Bottom properties final values in HDF format
         Message   ='Bottom properties final values in HDF format.'
@@ -1042,7 +1042,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
-        if(STAT_CALL .ne. SUCCESS_)stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR03'
+        if(STAT_CALL .ne. SUCCESS_)stop 'ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater - ERR03'
 
 
 
@@ -1056,11 +1056,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             write(*,*)'Initial file not found.'
-            stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR04'
+            stop 'ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater - ERR04'
 
         else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then cd1
 
-            Message   = 'Keyword BOT_INI not found - StartInterfaceSedimentWater - ModuleInterfaceSedimentWater'
+            Message   = 'Keyword BOT_INI not found - ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater'
             Message   = trim(Message)
 
             call SetError(WARNING_, KEYWORD_, Message, Screen = .false.)
@@ -1071,7 +1071,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         else cd1
 
-            stop 'StartInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR06'
+            stop 'ReadWaterSedimentFilesName - ModuleInterfaceSedimentWater - ERR06'
 
         end if cd1
 

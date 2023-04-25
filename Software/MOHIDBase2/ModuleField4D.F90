@@ -3801,7 +3801,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = WaterPoints3D,                        &
                               STAT              = STAT_CALL)
-        if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100'
+        if (STAT_CALL/=SUCCESS_) then
+            stop 'ReadValues3D - ModuleField4D - ERR100'
+        endif
 
         if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
             allocate(Aux3D(SILB:SIUB, SJLB:SJUB, SKLB:SKUB))

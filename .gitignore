@@ -281,3 +281,9 @@ Solutions/Linux/MohidWater/MohidWater
 /Solutions/VisualStudio2017_IntelFortran18/MOHIDNumerics/PhreeqC/Debug Double
 Solutions/VisualStudio2013_IntelFortran15/MOHIDNumerics/Console1/Console1.vfproj
 /ExternalLibs/SWMM/swmm5.exp
+ExternalLibs/getlatestSWMM5.bat
+ExternalLibs/SWMM/SWMM.zip
+Solutions/VisualStudio2017_IntelFortran18/MOHIDNumerics/OceanColor/OceanColor.vcxproj
+Solutions/VisualStudio2017_IntelFortran18/MOHIDNumerics/PhreeqC/PhreeqC.vcxproj
+Solutions/VisualStudio2019_IntelFortran19/MOHIDNumerics/OceanColor/OceanColor.vcxproj
+Solutions/VisualStudio2019_IntelFortran19/MOHIDNumerics/PhreeqC/PhreeqC.vcxproj

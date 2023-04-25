@@ -909,6 +909,10 @@ Module ModuleRunOff
         type(BankGridPointPtr_class), dimension(:), allocatable :: BankGridPointArray
         
         logical                                     :: Use1D2DInteractionMapping = .false.
+        real                                        :: Transition_depth_1D2D = 0.005 !distance from SWMM to topography
+                                                                                     !when a transition between weir and dynamic wave
+                                                                                     !equations is performed
+        real                                        :: Transition_acoef_1D_2D = 100 ! "a" coeficient in ax+b=y
         
         type(T_RunOff), pointer                     :: Next                 => null()
     end type  T_RunOff
@@ -1949,7 +1953,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             keyword      = '1D_INTERACTION_MAPPING_FILE',          &
                             ClientModule = 'ModuleRunoff',                         &
                             STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR800' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR810' 
                                
             
             if (iflag .EQ. 1) then
@@ -1960,8 +1964,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         
+        !Get distance between SWMM water level and topography below wich a transition
+        ! factor is computed between the weir equation and the dynamic wave equation
+        ! this is important to reduce substantially potential spikes in flow from 2D to 1D or vice versa
+        call GetData(Me%Transition_depth_1D2D,                                          &
+                        Me%ObjEnterData,iflag,                                 &
+                        SearchType   = FromFile,                               &
+                        keyword      = '1D_2D_TRANSITION_DEPTH',               &
+                        default      = 0.005,                                  &
+                        ClientModule = 'ModuleRunoff',                         &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR820' 
         
-        
+        !Linear transition using ax + b = y where the first point is (x=-Me%transition_dh_1D_2D,y=0)
+        ! and the second is (x=Me%transition_dh_1D_2D,y=1) which leads to b = 0.5
+        Me%Transition_acoef_1D_2D = 0.5 / Me%Transition_depth_1D2D
 
         !Write Max Flow Modulus File 
         call GetData(Me%Output%WriteMaxFlowModulus,                             &
@@ -2815,10 +2832,16 @@ do2:    do
 
                 Me%OpenChannelLinks(n)%CellWidth = (Me%ExtVar%DUX(i, j) + Me%ExtVar%DVY(i, j) ) / 2.0
 
-                Me%OpenChannelLinks(n)%FluxWidth = (Me%ExtVar%BasinPoints(i,j-1) + &
-                                                    Me%ExtVar%BasinPoints(i,j+1) + &
-                                                    Me%ExtVar%BasinPoints(i-1,j) + &
-                                                    Me%ExtVar%BasinPoints(i+1,j))* &
+                !Me%OpenChannelLinks(n)%FluxWidth = (Me%ExtVar%BasinPoints(i,j-1) + &
+                !                                    Me%ExtVar%BasinPoints(i,j+1) + &
+                !                                    Me%ExtVar%BasinPoints(i-1,j) + &
+                !                                    Me%ExtVar%BasinPoints(i+1,j))* &
+                !                                   Me%OpenChannelLinks(n)%CellWidth  !SOBRINHO
+                
+                Me%OpenChannelLinks(n)%FluxWidth = ((1-Me%ExtVar%BasinPoints(i,j-1)) + &
+                                                    (1-Me%ExtVar%BasinPoints(i,j+1)) + &
+                                                    (1-Me%ExtVar%BasinPoints(i-1,j)) + &
+                                                    (1-Me%ExtVar%BasinPoints(i+1,j)))* &
                                                    Me%OpenChannelLinks(n)%CellWidth
 
 
@@ -9680,6 +9703,778 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !--------------------------------------------------------------------------
         real(c_double)              :: dt, elapsedTime
         integer                     :: STAT_CALL, n, i, j, xn
+        real                        :: Flow, Flow_1, Flow_2, Flow_3, Flow_4, Flow_5, myWaterLevel, Flow_formulation_2, tF
+        real                        :: SecondLinkWaterLevel, dh, area, WaterLevelSWMM, sign, HydraulicRadius
+
+        !--------------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
+        !Compute inlet potential flow
+        call ComputeInletsPotentialFlow
+        
+        !Sets Inlet Potential Flow and Node Surcharge Depth (MOHIDLand WaterColumn) in SWMM model
+        call setInlets_SewerGems
+        
+        !Sets Manholes Node Surcharge Depth (MOHIDLand WaterColumn) in SWMM model
+        call setManholes_SewerGems
+        
+        !Sets Outfalls Water level (MOHIDLand WaterLevel) in SWMM model
+        call setOutFalls_SewerGems
+
+        !Sets HeadWalls Water level (MOHIDLand WaterLevel) in SWMM model and updates FlowEnteringCell
+        call setHeadWalls_SewerGems
+
+        !------------------Run SewerGEMS SWMM engine time step-----------------------------------------
+        STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%ExtVar%DT)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
+        !------------------Run SewerGEMS SWMM engine time step-----------------------------------------
+        
+        !Gets outflow coming from SWMM manhole and adds it to the MOHIDLand Cell
+        !Updates WaterLevel, WaterColumn and volumes
+        call FlowFromManholes
+        
+        !Gets flow from or to SWMM inlets
+        !Computes Effective flow and updates WaterLevel, WaterColumn and volumes. Writes results to inlets output file
+        call FlowFromToInlets
+        
+        !Gets flow to or from outfalls and updates volumes
+        call FlowFromToOutfalls
+        
+        !Gets flow from or to SWMM HeadWalls
+        !Computes Effective flow and updates WaterLevel, WaterColumn and volumes. Writes results to headwall output file
+        call FlowFromHeadWalls
+        
+        !set the flow at each cross section node to zero before computing open channel links
+        !each open channel link will contribute with flow for its main node link (a cross-section)
+        do xn = 1, Me%NumberOfCrossSections
+            Me%CrossSections(xn)%Flow = 0.0
+        enddo
+
+        !set the flow at each pond node to zero before computing open channel links
+        !each open channel link will contribute with flow for its main node link (the pond)
+        do xn = 1, Me%NumberOfPonds
+            Me%Ponds(xn)%Flow = 0.0
+        enddo
+        
+
+        do n = 1, Me%NumberOfOpenChannelLinks
+
+            i   = Me%OpenChannelLinks(n)%I
+            j   = Me%OpenChannelLinks(n)%J
+            
+            myWaterLevel = Me%myWaterLevel (i, j)
+            
+            if(Me%OpenChannelLinks(n)%TypeOf == OutfallLink_)then
+
+                xn  = Me%OpenChannelLinks(n)%OutfallID
+
+                !Divide total outfall flow by the weight of each grid cell it intercepts (= 1/nCells_InterceptedByOutfall) 
+                Flow = Me%Outfalls(xn)%Flow * Me%OpenChannelLinks(n)%Weight
+
+                Me%OpenChannelLinks(n)%Flow = Flow
+
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
+
+                if(Me%myWaterVolume (i, j) < 0.0)then
+                    Me%myWaterVolume (i, j) = 0.0
+                    Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                endif
+
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            else
+
+                if(Me%OpenChannelLinks(n)%TypeOf == PondLink_)then
+                    xn  = Me%OpenChannelLinks(n)%PondID
+                else
+                    xn  = Me%OpenChannelLinks(n)%CrossSectionID
+                endif
+
+
+                !Get water level for main link node (if link type is Direct_ no more information is needed)
+                STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%LinkID, Me%OpenChannelLinks(n)%WaterLevel)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR140'
+
+                if(Me%OpenChannelLinks(n)%TypeOf == Weighted_)then
+
+                    !Get water level for secondary link nodes
+                    STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%SecondLinkID, SecondLinkWaterLevel)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR150'
+
+                    !Interpolate between the 2 link nodes
+                    Me%OpenChannelLinks(n)%WaterLevel = SecondLinkWaterLevel               + & 
+                                                        (Me%OpenChannelLinks(n)%WaterLevel - & 
+                                                         SecondLinkWaterLevel)             * &
+                                                        Me%OpenChannelLinks(n)%Weight
+
+                endif
+
+                WaterLevelSWMM = Me%OpenChannelLinks(n)%WaterLevel
+
+                Me%OpenChannelLinks(n)%Flow = 0.0
+                
+                !Set default flow to 0
+                Flow = 0.0
+                if (WaterLevelSWMM < Me%ExtVar%Topography(i, j)) then      
+                    !SWMM above topography
+                    if (Me%myWaterColumn (i, j) > Me%MinimumWaterColumn) then
+
+                        dh = Me%myWaterColumn (i, j)
+                        !Weir equation with 0.4 as coeficient.
+                        Flow_1 = 0.4 * Me%OpenChannelLinks(n)%FluxWidth  * sqrt(2.0 * Gravity) * dh ** 1.5
+                        
+                        Flow_2 = (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                        Flow_3 = (Me%myWaterLevel (i, j) - WaterLevelSWMM) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                        !Maximum empty cell or in between levels (if river level is close to topography)
+                        Flow = min(Flow_1, Flow_2, Flow_3)
+                        
+                        !Check if WaterLevelSWMM is close to topography (using 5mm for no specific reason).
+                        !If it is then the equation may soon change and a spike
+                        !in flow will appear. So a transition factor between the 2 formulations is computed to smooth it.
+                        !The use of mywatercolumn is because the transition can only occur until the maxwater level available
+                        !Which is the myWaterColumn.
+                        if (Me%ExtVar%Topography(i, j) - WaterLevelSWMM < Me%Transition_depth_1D2D) then
+                            !m2 = m * (m + m)/2
+                            !If WaterLevelSWMM is below topography the flux area must be mohid water column, or flow will be wrong
+                            area  = Me%OpenChannelLinks(n)%FluxWidth * dh
+                            
+                            !m = m + m
+                            !WaterlevelSWMM is below topography so height must be mohid water column
+                            HydraulicRadius = dh
+                            
+                            !m3/s = m2 * (m2/3) * [] / s/(m1/3)
+                            Flow_4 = area * HydraulicRadius ** (2./3.) *                        &
+                                sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                            
+                            Flow_5 = (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                            ![] - this factor varies from 1 when the distance is > 0.005 (assumes formulation for flow
+                            !from 2D to SWMM) and 0 when the distance is -0.005 (above topography)
+                            ! equation : ax+b = y with x = distance to topography and b = 0.5. a was computed in constructor
+                            tF = (Me%ExtVar%Topography(i, j) - WaterLevelSWMM) * Me%Transition_acoef_1D_2D + 0.5
+                            
+                            Flow_formulation_2 = min(Flow_4,Flow_5)
+                            
+                            Flow = tF * Flow + (1-tF) * Flow_formulation_2
+                        endif
+                    endif
+                else
+                        
+                    if (Me%myWaterLevel(i, j) - WaterLevelSWMM > Me%MinimumWaterColumn) then
+                        !Water flows from 2D to channel/pond
+                        !m = m + m
+                        dh =  Me%myWaterLevel(i, j) - WaterLevelSWMM
+                        !m2 = m * (m + m)/2
+                        !area  = Me%OpenChannelLinks(n)%FluxWidth * (((WaterLevelSWMM - Me%ExtVar%Topography(i, j)) +  &
+                        !        (Me%myWaterLevel (i, j) - Me%ExtVar%Topography(i, j))) / 2.0)
+                        area  = Me%OpenChannelLinks(n)%FluxWidth * dh
+                        !For hydraulic radius calculations it is assumed that when the base width
+                        !is much larger than the height, then the hydraulic radius is equal to the height
+                        !m = m
+                        HydraulicRadius = dh
+                        !m3/s = m2 * (m2/3) * [] / s/(m1/3)
+                        Flow_1 = area * HydraulicRadius ** (2./3.) *                        &
+                            sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                            
+                        Flow_2 = (dh / 2.0) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                            
+                        Flow = min (Flow_1, Flow_2)
+                        !Check if WaterLevelSWMM is close to topography (using 5mm for no specific reason).
+                        !If it is then the equation may soon change and a spike
+                        !in flow will appear. So a transition factor between the 2 formulations is computed to smooth it.
+                        !The use of mywatercolumn is because the transition can only occur until the maxwater level available
+                        !Which is the myWaterColumn. This is only made when MOHID WaterLevel is higher than SWMM as the
+                        ! weir equation works only when the water level of SWMM is very close or below topography.
+                        if ((WaterLevelSWMM - Me%ExtVar%Topography(i, j)) < Me%Transition_depth_1D2D) then
+                            
+                            dh = Me%myWaterColumn (i, j)
+                            !Weir equation with 0.4 as coeficient.
+                            Flow_3 = 0.4 * Me%OpenChannelLinks(n)%FluxWidth  * sqrt(2.0 * Gravity) * dh ** 1.5
+                        
+                            Flow_4 = (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                            Flow_5 = (Me%myWaterLevel (i, j) - WaterLevelSWMM) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                            ![] - this factor varies from 1 when the distance is > 0.005 (assumes formulation for flow
+                            !from 2D to SWMM) and 0 when the distance is -0.005 (above topography)
+                            tF = (WaterLevelSWMM - Me%ExtVar%Topography(i, j)) * Me%Transition_acoef_1D_2D + 0.5
+                            
+                            Flow_formulation_2 = min(Flow_3,Flow_4,Flow_5)
+                            
+                            Flow = tF * Flow + (1-tF) * Flow_formulation_2
+                        endif
+                    elseif  (WaterLevelSWMM - Me%myWaterLevel(i, j) > Me%MinimumWaterColumn) then
+                        ! Water flows from channel/pond to 2D
+                        dh =  WaterLevelSWMM - Me%myWaterLevel(i, j)
+                        area  = Me%OpenChannelLinks(n)%FluxWidth * dh
+                        HydraulicRadius =  dh
+                        Flow_1 = area * HydraulicRadius ** (2./3.) *                        &
+                            sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                            
+                        Flow_2 = (dh / 2.0) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                            
+                        Flow = -1 * min (Flow_1, Flow_2)
+                        !m3/s
+                        !Flow is negative because SWMM level is higher than MOHID
+                        
+                    end if
+                endif
+                
+                Me%OpenChannelLinks(n)%Flow = Flow
+
+                if(Me%OpenChannelLinks(n)%TypeOf == PondLink_)then
+                    Me%Ponds(xn)%Flow = Me%Ponds(xn)%Flow + Flow
+                else
+                    Me%CrossSections(xn)%Flow = Me%CrossSections(xn)%Flow + Flow
+                endif
+                
+
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
+                
+                if(Me%myWaterVolume (i, j) < 0.0)then
+                    Me%myWaterVolume (i, j) = 0.0
+                    Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                endif
+
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+                
+            endif
+            
+        enddo
+
+        do n = 1, Me%NumberOfCrossSections
+            
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume  - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            Me%TotalOpenChannelVolume= Me%TotalOpenChannelVolume - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            
+            !Set 2D flow to/from cross section node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%CrossSections(n)%SWMM_ID, Me%CrossSections(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR160'
+                
+        enddo
+
+        do n = 1, Me%NumberOfPonds
+                
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
+            Me%TotalPondsVolume      = Me%TotalPondsVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
+
+            STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%Ponds(n)%SWMM_ID, Me%Ponds(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR170'
+
+        enddo
+        
+        !Get SewerGEMS SWMM current total volume
+        STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR180'
+
+        if(Me%Total1DVolume > Me%MaxTotal1DVolume)then
+            Me%MaxTotal1DVolume         = Me%Total1DVolume
+            Me%TimeOfMaxTotal1DVolume   = Me%ExtVar%Now - Me%BeginTime            
+        endif
+
+        !Get SewerGEMS SWMM current time step 
+        STAT_CALL = SewerGEMSEngine_getdt(dt)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR190'
+        
+        !Store SewerGEMS SWMM current time step
+        !Check subroutine ComputeNextTimeStep where 
+        Me%StormWaterModelDT = dt
+!999 format(a20,1x,3f20.6)
+!        write(99,999) TimeToString(Me%ExtVar%Now), elapsedTime *86400.0, Me%ExtVar%DT, Me%StormWaterModelDT
+
+        if(Me%ExtVar%Now .ge. Me%EndTime)then
+            if(Me%StormWaterModelDT > 0.0)then
+                !Run SewerGEMS SWMM engine just to make sure last output is written in case of time step rounding error
+                STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%StormWaterModelDT)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR200'
+            endif
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
+
+#endif _SEWERGEMSENGINECOUPLER_
+ 
+    end subroutine ComputeStormWaterModel
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeStormWaterModel_v0
+
+#ifdef _SEWERGEMSENGINECOUPLER_
+   
+        !--------------------------------------------------------------------------
+        real(c_double)          :: dt, elapsedTime
+        integer                 :: STAT_CALL, n, i, j, xn, FlowType, Pond_OutType, Compute_Flow,nfaces
+        real                    :: Flow, Overflow, Flow_1, Flow_2, Flow_3, myWaterLevel, wetPerimeter, Slope, Slope_1, Slope_2
+        real                    :: SecondLinkWaterLevel, dh, Area, WaterLevelSWMM, sign, HydraulicRadius
+
+        !--------------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
+        !Compute inlet potential flow
+        call ComputeInletsPotentialFlow
+
+        do n = 1, Me%NumberOfInlets
+
+            i = Me%Inlets(n)%I
+            j = Me%Inlets(n)%J
+
+            
+            !Set SewerGEMS SWMM potential flow into inlet. 
+            !SWMM will decide if it can accomodate this flow and if not 
+            !it will return the effective flow into the inlet in the next iteration
+            STAT_CALL = SewerGEMSEngine_setInletPotentialFlow(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%PotentialFlow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR10'
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR20'
+
+        enddo
+
+        do n = 1, Me%NumberOfManholes
+
+            i = Me%Manholes(n)%I
+            j = Me%Manholes(n)%J
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
+        enddo
+
+        do n = 1, Me%NumberOfOutfalls
+            
+            !I and J of the outfall node location - if outfall is connected to a cross-section 
+            !the outfall may intercept multiple cells, but all have same terrain elevation and water elevation
+            i = Me%Outfalls(n)%I
+            j = Me%Outfalls(n)%J
+
+            
+            !Set 2D water level over outfall node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, Me%myWaterLevel(i,j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR40'
+            
+        enddo
+
+        do n = 1, Me%NumberOfHeadwalls
+            
+            !I and J of the headwall node location
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            Me%Headwalls(n)%FlowEnteringCell = 0.0
+
+            !Compute flow entering grid cell 
+            if(Me%iFlowX(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowX(i,  j  )
+            if(Me%iFlowX(i,j+1) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowX(i,  j+1)
+            if(Me%iFlowY(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowY(i,  j  )
+            if(Me%iFlowY(i+1,j) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowY(i+1,j  )
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR30'
+
+            !Set 2D water depth for headwall node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setHeadwallWaterDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR50'
+            
+        enddo
+
+
+        !Run SewerGEMS SWMM engine time step
+        STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%ExtVar%DT)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR60'
+
+
+            
+        do n = 1, Me%NumberOfManholes
+
+            i = Me%Manholes(n)%I
+            j = Me%Manholes(n)%J
+
+            !Get SewerGEMS SWMM flow out of manhole
+            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Manholes(n)%SWMM_ID, Me%Manholes(n)%Outflow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR70'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
+            Me%TotalManholesVolume   = Me%TotalManholesVolume   + Me%Manholes(n)%Outflow * Me%ExtVar%DT
+            
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR80'
+
+        enddo
+
+        do n = 1, Me%NumberOfInlets
+
+            i = Me%Inlets(n)%I
+            j = Me%Inlets(n)%J
+
+            !Get SewerGEMS SWMM flow in or out of inlet
+            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Inlets(n)%SWMM_ID, Overflow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR90'
+
+            if(Overflow > 0.0)then
+                if(Me%Inlets(n)%PotentialFlow > 0)then
+                    Me%Inlets(n)%EffectiveFlow = Overflow - Me%Inlets(n)%PotentialFlow 
+                else
+                    Me%Inlets(n)%EffectiveFlow = Overflow
+                endif
+            else
+                Me%Inlets(n)%EffectiveFlow = Me%Inlets(n)%PotentialFlow * -1.0
+            endif
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
+            Me%TotalInletsVolume     = Me%TotalInletsVolume     + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
+                
+            if(Me%Inlets(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Inlets(n)%NextOutputTime)then 
+
+                    write(Me%Inlets(n)%OutputUnit,500)Me%Inlets(n)%OutputTime,          &
+                                                      Me%Inlets(n)%FlowEnteringCell,    &
+                                                      Me%Inlets(n)%PotentialFlow,       &
+                                                      Me%Inlets(n)%EffectiveFlow*-1.0
+
+                    Me%Inlets(n)%NextOutputTime = Me%Inlets(n)%NextOutputTime + Me%Inlets(n)%OutputTimeStep
+                    Me%Inlets(n)%OutputTime     = Me%Inlets(n)%OutputTime     + Me%Inlets(n)%OutputTimeStep
+
+                end if
+            end if    
+
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR120'
+
+
+        enddo
+
+    500 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+
+        do n = 1, Me%NumberOfOutfalls
+            
+            !Get SewerGEMS SWMM flow in or out of outfall. 
+            STAT_CALL = SewerGEMSEngine_getOutfallFlow(Me%Outfalls(n)%SWMM_ID, Me%Outfalls(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR130'
+        
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalOutfallsVolume   = Me%TotalOutfallsVolume   + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+        
+        enddo
+
+        do n = 1, Me%NumberOfHeadwalls
+
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            !Get SewerGEMS Headwall downstream conduit flow
+            STAT_CALL = SewerGEMSEngine_getHeadwallDownstreamFlow(Me%Headwalls(n)%SWMM_DownstreamLinkID, Me%Headwalls(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR131'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalHeadwallsVolume  = Me%TotalHeadwallsVolume  - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            if(Me%Headwalls(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Headwalls(n)%NextOutputTime)then
+
+                    write(Me%Headwalls(n)%OutputUnit,600)Me%Headwalls(n)%OutputTime,        &
+                                                         Me%myWaterLevel  (i, j),           &
+                                                         Me%myWaterColumn (i, j),           &
+                                                         Me%Headwalls(n)%FlowEnteringCell
+
+                    Me%Headwalls(n)%NextOutputTime = Me%Headwalls(n)%NextOutputTime + Me%Headwalls(n)%OutputTimeStep
+                    Me%Headwalls(n)%OutputTime     = Me%Headwalls(n)%OutputTime     + Me%Headwalls(n)%OutputTimeStep
+
+                end if
+            end if
+
+        enddo
+
+    600 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+
+        !set the flow at each cross section node to zero before computing open channel links
+        !each open channel link will contribute with flow for its main node link (a cross-section)
+        do xn = 1, Me%NumberOfCrossSections
+            Me%CrossSections(xn)%Flow = 0.0
+        enddo
+
+        !set the flow at each pond node to zero before computing open channel links
+        !each open channel link will contribute with flow for its main node link (the pond)
+        do xn = 1, Me%NumberOfPonds
+            Me%Ponds(xn)%Flow = 0.0
+        enddo
+        
+
+        do n = 1, Me%NumberOfOpenChannelLinks
+
+            i   = Me%OpenChannelLinks(n)%I
+            j   = Me%OpenChannelLinks(n)%J
+            
+            FlowType = 0
+            Flow_1 = 0
+            Flow_2 = 0
+            Flow_3 = 0
+            Slope = 0
+            area = 0
+            Compute_Flow = 0
+            dh = 0
+            myWaterLevel = Me%myWaterLevel (i, j)
+            if(Me%OpenChannelLinks(n)%TypeOf == OutfallLink_)then
+
+                xn  = Me%OpenChannelLinks(n)%OutfallID
+
+                !Divide total outfall flow by the weight of each grid cell it intercepts (= 1/nCells_InterceptedByOutfall) 
+                Flow = Me%Outfalls(xn)%Flow * Me%OpenChannelLinks(n)%Weight
+
+                Me%OpenChannelLinks(n)%Flow = Flow
+
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
+
+                if(Me%myWaterVolume (i, j) < 0.0)then
+                    Me%myWaterVolume (i, j) = 0.0
+                    Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                endif
+
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            else
+
+                if(Me%OpenChannelLinks(n)%TypeOf == PondLink_)then
+                    xn  = Me%OpenChannelLinks(n)%PondID
+                else
+                    xn  = Me%OpenChannelLinks(n)%CrossSectionID
+                endif
+
+
+                !Get water level for main link node (if link type is Direct_ no more information is needed)
+                STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%LinkID, Me%OpenChannelLinks(n)%WaterLevel)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR140'
+
+                if(Me%OpenChannelLinks(n)%TypeOf == Weighted_)then
+
+                    !Get water level for secondary link nodes
+                    STAT_CALL = SewerGEMSEngine_getNodeWaterLevel(Me%OpenChannelLinks(n)%SecondLinkID, SecondLinkWaterLevel)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR150'
+
+                    !Interpolate between the 2 link nodes
+                    Me%OpenChannelLinks(n)%WaterLevel = SecondLinkWaterLevel               + & 
+                                                        (Me%OpenChannelLinks(n)%WaterLevel - & 
+                                                         SecondLinkWaterLevel)             * &
+                                                        Me%OpenChannelLinks(n)%Weight
+
+                endif
+
+                WaterLevelSWMM = Me%OpenChannelLinks(n)%WaterLevel
+
+                Me%OpenChannelLinks(n)%Flow = 0.0
+                
+                if (WaterLevelSWMM < Me%ExtVar%Topography(i, j)) then
+                    Pond_OutType = 1        
+                    !Only consider flow if level above minimum
+                    if (Me%myWaterColumn (i, j) > Me%MinimumWaterColumn) then
+                        Compute_Flow = 1
+
+                        dh = Me%myWaterColumn (i, j)
+                        !Weir equation with 0.4 as coeficient.
+                        Flow_1 = 0.4 * Me%OpenChannelLinks(n)%FluxWidth  * sqrt(2.0 * Gravity) * dh ** 1.5
+                        
+                        Flow_2 = (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                        Flow_3 = (Me%myWaterLevel (i, j) - WaterLevelSWMM) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                        
+                        !Maximum empty cell or in between levels (if river level is close to topography)
+                        Flow = min(Flow_1, Flow_2, Flow_3)
+
+                    else
+                        Flow = 0.0
+                    endif
+                else
+                    Pond_OutType = 2
+                    dh = WaterLevelSWMM - Me%myWaterLevel(i, j)
+                    if (abs(WaterLevelSWMM - Me%myWaterLevel(i, j)) > Me%MinimumWaterColumn) then
+                        dh = Me%myWaterLevel(i, j) - WaterLevelSWMM
+                        Compute_Flow = 1
+                        if (dh.LT.0.0) then
+                            sign = -1.0
+                        else
+                            sign = 1.0
+                        end if
+
+                        !correta
+                        !Area considered for the hydraulic radious calculation is the total width in contact with
+                        !the channel/pond * height. 
+                        area  = Me%OpenChannelLinks(n)%FluxWidth * sign * dh
+                        
+                        !area  = Me%OpenChannelLinks(n)%FluxWidth * (((WaterLevelSWMM - Me%ExtVar%Topography(i, j)) +  &
+                        !        (Me%myWaterLevel (i, j) - Me%ExtVar%Topography(i, j))) / 2.0)
+                        
+                        !For hydraulic radius calculations it is assumed that when the base width
+                        !is much larger than the height, then the hydraulic radius is equal to the height
+                        
+                        HydraulicRadius = abs(dh)
+                        nfaces = 0
+                        Slope_1 = 0
+                        Slope_2 = 0
+                        !Slope of the terrain model
+                        if (Me%ExtVar%BasinPoints(i, j-1) == 0 .and. Me%ExtVar%BasinPoints(i, j+1)==1) then
+                            !Compute slope from East to West
+                            nfaces = nfaces+1
+                            Slope_1 = abs((Me%ExtVar%Topography(i, j+1) - Me%ExtVar%Topography(i, j)))/Me%OpenChannelLinks(n)%CellWidth
+                        elseif (Me%ExtVar%BasinPoints(i, j+1) == 0 .and. Me%ExtVar%BasinPoints(i, j-1)==1) then
+                            !Compute slope from West to East
+                            nfaces = nfaces+1
+                            Slope_1 = abs((Me%ExtVar%Topography(i, j-1) - Me%ExtVar%Topography(i, j)))/Me%OpenChannelLinks(n)%CellWidth
+                        endif
+                        
+                        if (Me%ExtVar%BasinPoints(i+1, j) == 0 .and. Me%ExtVar%BasinPoints(i-1, j)==1) then
+                            !Compute slope from South to North. Pond or openchannel is North
+                            nfaces = nfaces+1
+                            Slope_2 = abs((Me%ExtVar%Topography(i-1, j) - Me%ExtVar%Topography(i, j)))/Me%OpenChannelLinks(n)%CellWidth
+                        elseif (Me%ExtVar%BasinPoints(i-1, j) == 0 .and. Me%ExtVar%BasinPoints(i+1, j)==1) then
+                            !Compute slope from North to South. Pond or openchannel is South
+                            nfaces = nfaces+1
+                            Slope_2 = abs((Me%ExtVar%Topography(i+1, j) - Me%ExtVar%Topography(i, j)))/Me%OpenChannelLinks(n)%CellWidth
+                        endif
+                        
+                        Slope = (Slope_1+Slope_2)/nfaces
+                        !Flow_1 = area * HydraulicRadius ** (2./3.) * sign *                        &
+                        !        sqrt(ABS(dh)/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                        
+                        Flow_1 = area * HydraulicRadius ** (2./3.) * sign *                        &
+                                sqrt(Slope) / Me%OverlandCoefficient(i, j)
+                        
+                        Flow_2 = sign * ABS(Me%myWaterLevel (i, j) - WaterLevelSWMM) / &
+                               2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
+                        
+                        !Maximum equal levels
+                        Flow = sign * min( ABS(Flow_1), ABS(Flow_2))
+                        
+                        if (Flow == sign*abs(Flow_1)) FlowType = 1
+                        if (Flow == sign*abs(Flow_2)) FlowType = 2
+                        
+                    else
+                        Flow = 0.0
+                    endif
+                endif
+                
+                Me%OpenChannelLinks(n)%Flow = Flow
+
+                if(Me%OpenChannelLinks(n)%TypeOf == PondLink_)then
+                    Me%Ponds(xn)%Flow = Me%Ponds(xn)%Flow + Flow
+                else
+                    Me%CrossSections(xn)%Flow = Me%CrossSections(xn)%Flow + Flow
+                endif
+                
+
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
+                
+                if(Me%myWaterVolume (i, j) < 0.0)then
+                    Me%myWaterVolume (i, j) = 0.0
+                    Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                endif
+
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+                
+            
+        enddo
+        
+        do n = 1, Me%NumberOfCrossSections
+            
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume  - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            Me%TotalOpenChannelVolume= Me%TotalOpenChannelVolume - Me%CrossSections(n)%Flow * Me%ExtVar%DT
+            
+            !Set 2D flow to/from cross section node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%CrossSections(n)%SWMM_ID, Me%CrossSections(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR160'
+                
+        enddo
+
+        do n = 1, Me%NumberOfPonds
+                
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
+            Me%TotalPondsVolume      = Me%TotalPondsVolume - Me%Ponds(n)%Flow * Me%ExtVar%DT
+
+            STAT_CALL = SewerGEMSEngine_setSurfaceLinkFlow(Me%Ponds(n)%SWMM_ID, Me%Ponds(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR170'
+
+        enddo
+        
+        !Get SewerGEMS SWMM current total volume
+        STAT_CALL = SewerGEMSEngine_getTotalVolume(Me%Total1DVolume)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR180'
+
+        if(Me%Total1DVolume > Me%MaxTotal1DVolume)then
+            Me%MaxTotal1DVolume         = Me%Total1DVolume
+            Me%TimeOfMaxTotal1DVolume   = Me%ExtVar%Now - Me%BeginTime            
+        endif
+
+        !Get SewerGEMS SWMM current time step 
+        STAT_CALL = SewerGEMSEngine_getdt(dt)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR190'
+        
+        !Store SewerGEMS SWMM current time step
+        !Check subroutine ComputeNextTimeStep where 
+        Me%StormWaterModelDT = dt
+!999 format(a20,1x,3f20.6)
+!        write(99,999) TimeToString(Me%ExtVar%Now), elapsedTime *86400.0, Me%ExtVar%DT, Me%StormWaterModelDT
+
+        if(Me%ExtVar%Now .ge. Me%EndTime)then
+            if(Me%StormWaterModelDT > 0.0)then
+                !Run SewerGEMS SWMM engine just to make sure last output is written in case of time step rounding error
+                STAT_CALL = SewerGEMSEngine_step_imposed_dt(elapsedTime, Me%StormWaterModelDT)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeStormWaterModel - ModuleRunOff - ERR200'
+            endif
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunOff", "ComputeStormWaterModel")
+
+
+#endif _SEWERGEMSENGINECOUPLER_
+ 
+    end subroutine ComputeStormWaterModel_v0
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeStormWaterModel_original
+
+#ifdef _SEWERGEMSENGINECOUPLER_
+   
+        !--------------------------------------------------------------------------
+        real(c_double)              :: dt, elapsedTime
+        integer                     :: STAT_CALL, n, i, j, xn
         real                        :: Flow, Overflow
         real                        :: SecondLinkWaterLevel, dh, Area, WaterLevelSWMM, sign
 
@@ -10085,8 +10880,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
 #endif _SEWERGEMSENGINECOUPLER_
  
-    end subroutine ComputeStormWaterModel
-
+    end subroutine ComputeStormWaterModel_original
+    
      !--------------------------------------------------------------------------
 
     subroutine ComputeInletsPotentialFlow
@@ -10213,6 +11008,245 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
     end subroutine ComputeInletsPotentialFlow
         
+    !--------------------------------------------------------------------------
+    
+    subroutine setInlets_SewerGems
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfInlets
+            i = Me%Inlets(n)%I
+            j = Me%Inlets(n)%J
+
+            !Set SewerGEMS SWMM potential flow into inlet. 
+            !SWMM will decide if it can accomodate this flow and if not 
+            !it will return the effective flow into the inlet in the next iteration
+            STAT_CALL = SewerGEMSEngine_setInletPotentialFlow(Me%Inlets(n)%SWMM_ID, Me%Inlets(n)%PotentialFlow)
+            if (STAT_CALL /= SUCCESS_) stop 'setInlets_SewerGems - ModuleRunOff - ERR10'
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'setInlets_SewerGems - ModuleRunOff - ERR20'
+        enddo
+    end subroutine setInlets_SewerGems
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine setManholes_SewerGems
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfManholes
+            i = Me%Manholes(n)%I
+            j = Me%Manholes(n)%J
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'setManholes_SewerGems - ModuleRunOff - ERR30'
+        enddo
+    end subroutine setManholes_SewerGems
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine setOutFalls_SewerGems
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfOutfalls
+            !I and J of the outfall node location - if outfall is connected to a cross-section 
+            !the outfall may intercept multiple cells, but all have same terrain elevation and water elevation
+            i = Me%Outfalls(n)%I
+            j = Me%Outfalls(n)%J
+
+            !Set 2D water level over outfall node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, Me%myWaterLevel(i,j))
+            if (STAT_CALL /= SUCCESS_) stop 'setOutFalls_SewerGems - ModuleRunOff - ERR10'
+        enddo
+    end subroutine setOutFalls_SewerGems
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine setHeadWalls_SewerGems
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfHeadwalls
+            
+            !I and J of the headwall node location
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            Me%Headwalls(n)%FlowEnteringCell = 0.0
+
+            !Compute flow entering grid cell 
+            if(Me%iFlowX(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowX(i,  j  )
+            if(Me%iFlowX(i,j+1) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowX(i,  j+1)
+            if(Me%iFlowY(i,j)   > 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell + Me%iFlowY(i,  j  )
+            if(Me%iFlowY(i+1,j) < 0.0) Me%Headwalls(n)%FlowEnteringCell = Me%Headwalls(n)%FlowEnteringCell - Me%iFlowY(i+1,j  )
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'setHeadWalls_SewerGems - ModuleRunOff - ERR10'
+
+            !Set 2D water depth for headwall node to SewerGEMS SWMM 
+            STAT_CALL = SewerGEMSEngine_setHeadwallWaterDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'setHeadWalls_SewerGems - ModuleRunOff - ERR20'
+        enddo
+    end subroutine setHeadWalls_SewerGems
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine FlowFromManholes
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfManholes
+
+            i = Me%Manholes(n)%I
+            j = Me%Manholes(n)%J
+
+            !Get SewerGEMS SWMM flow out of manhole
+            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Manholes(n)%SWMM_ID, Me%Manholes(n)%Outflow)
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromManholes - ModuleRunOff - ERR10'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Manholes(n)%Outflow * Me%ExtVar%DT
+            Me%TotalManholesVolume   = Me%TotalManholesVolume   + Me%Manholes(n)%Outflow * Me%ExtVar%DT
+            
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromManholes - ModuleRunOff - ERR20'
+
+        enddo
+    end subroutine FlowFromManholes
+    
+    !--------------------------------------------------------------------------
+
+    subroutine FlowFromToInlets
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        real                        :: Overflow
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfInlets
+
+            i = Me%Inlets(n)%I
+            j = Me%Inlets(n)%J
+
+            !Get SewerGEMS SWMM flow in or out of inlet
+            STAT_CALL = SewerGEMSEngine_getNodeOverflow(Me%Inlets(n)%SWMM_ID, Overflow)
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromToInlets - ModuleRunOff - ERR10'
+
+            if(Overflow > 0.0)then
+                if(Me%Inlets(n)%PotentialFlow > 0)then
+                    Me%Inlets(n)%EffectiveFlow = Overflow - Me%Inlets(n)%PotentialFlow 
+                else
+                    Me%Inlets(n)%EffectiveFlow = Overflow
+                endif
+            else
+                Me%Inlets(n)%EffectiveFlow = Me%Inlets(n)%PotentialFlow * -1.0
+            endif
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
+            Me%TotalInletsVolume     = Me%TotalInletsVolume     + Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT
+                
+            if(Me%Inlets(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Inlets(n)%NextOutputTime)then 
+
+                    write(Me%Inlets(n)%OutputUnit,500)Me%Inlets(n)%OutputTime,          &
+                                                      Me%Inlets(n)%FlowEnteringCell,    &
+                                                      Me%Inlets(n)%PotentialFlow,       &
+                                                      Me%Inlets(n)%EffectiveFlow*-1.0
+
+                    Me%Inlets(n)%NextOutputTime = Me%Inlets(n)%NextOutputTime + Me%Inlets(n)%OutputTimeStep
+                    Me%Inlets(n)%OutputTime     = Me%Inlets(n)%OutputTime     + Me%Inlets(n)%OutputTimeStep
+
+                end if
+            end if    
+
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            STAT_CALL = SewerGEMSEngine_setNodeSurfaceDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromToInlets - ModuleRunOff - ERR20'
+        enddo
+
+        500 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+    end subroutine FlowFromToInlets
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine FlowFromToOutfalls
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfOutfalls
+            STAT_CALL = SewerGEMSEngine_getOutfallFlow(Me%Outfalls(n)%SWMM_ID, Me%Outfalls(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromToOutfalls - ModuleRunOff - ERR10'
+        
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalOutfallsVolume   = Me%TotalOutfallsVolume   + Me%Outfalls(n)%Flow * Me%ExtVar%DT
+        enddo
+    end subroutine FlowFromToOutfalls
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine FlowFromHeadWalls
+        !--------------------------------------------------------------------------
+        integer                     :: STAT_CALL, n, i, j
+        !Begin---------------------------------------------------------------------
+        do n = 1, Me%NumberOfHeadwalls
+
+            i = Me%Headwalls(n)%I
+            j = Me%Headwalls(n)%J
+
+            !Get SewerGEMS Headwall downstream conduit flow
+            STAT_CALL = SewerGEMSEngine_getHeadwallDownstreamFlow(Me%Headwalls(n)%SWMM_DownstreamLinkID, Me%Headwalls(n)%Flow)
+            if (STAT_CALL /= SUCCESS_) stop 'FlowFromToOutfalls - ModuleRunOff - ERR10'
+
+            Me%TotalStormWaterVolume = Me%TotalStormWaterVolume - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            Me%TotalHeadwallsVolume  = Me%TotalHeadwallsVolume  - Me%Headwalls(n)%Flow * Me%ExtVar%DT
+            
+            Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
+
+            if(Me%myWaterVolume (i, j) < 0.0)then
+                Me%myWaterVolume (i, j) = 0.0
+                Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+            endif
+
+            Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+            Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
+
+            if(Me%Headwalls(n)%OutputResults)then
+                if(Me%ExtVar%Now >= Me%Headwalls(n)%NextOutputTime)then
+
+                    write(Me%Headwalls(n)%OutputUnit,600)Me%Headwalls(n)%OutputTime,        &
+                                                         Me%myWaterLevel  (i, j),           &
+                                                         Me%myWaterColumn (i, j),           &
+                                                         Me%Headwalls(n)%FlowEnteringCell
+
+                    Me%Headwalls(n)%NextOutputTime = Me%Headwalls(n)%NextOutputTime + Me%Headwalls(n)%OutputTimeStep
+                    Me%Headwalls(n)%OutputTime     = Me%Headwalls(n)%OutputTime     + Me%Headwalls(n)%OutputTimeStep
+
+                end if
+            end if
+
+        enddo
+
+        600 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+    end subroutine FlowFromHeadWalls
+    
     !--------------------------------------------------------------------------
 
     subroutine FlowIntoChannels(LocalDT)
