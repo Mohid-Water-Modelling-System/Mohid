@@ -198,7 +198,7 @@ Module ModuleWaterProperties
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
                                           GetDistributionCoefMass, IsUpscaling, Kill_Discharges,&
                                           CorrectsBypassCellsDischarges, GetDischargesDTOutput, &
-                                          GetDischarges_MohidJetON, GetDischMohidJetON
+                                          GetDischarges_MohidJetON, GetDischID_MohidJetON
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -20755,7 +20755,7 @@ i22:            if      (FlowDistribution == DischByCell_       ) then
             if (nCells > 1) DischargeFlow = 0.
 
             !Mohidjet discharge update only the VectorI, VectorJ and not the I,J original cell discharge
-            if (GetDischMohidJetON(Me%ObjDischarges, dis) .and. nCells == 1) then
+            if (GetDischID_MohidJetON(Me%ObjDischarges, dis) .and. nCells == 1) then
                 i         = VectorI(1)
                 j         = VectorJ(1)
             endif 

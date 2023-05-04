@@ -1848,6 +1848,7 @@ Module ModuleLagrangianGlobal
         type (T_Polygon), pointer               :: ThinWalls            => null()
         character(StringLength)                 :: ThinWallsFile        = null_str
         logical                                 :: ThinWallsON          = .false.
+        logical                                 :: CheckRogue           = .false.        
 
         logical                                 :: NewGridLocation      = .false.
         
@@ -4315,12 +4316,12 @@ d2:     do em =1, Me%EulerModelNumber
         endif       
         
 
-        call GetData(Me%ThinWallsFile,                                              &
-                     Me%ObjEnterData,                                               &
-                     flag,                                                          &
-                     SearchType   = FromFile,                                       &
-                     keyword      ='THINWALLS_FILE',                                &
-                     ClientModule ='ModuleLagrangianGlobal',                        &
+        call GetData(Me%ThinWallsFile,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='THINWALLS_FILE',                                    &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR243'
             
@@ -4331,14 +4332,27 @@ d2:     do em =1, Me%EulerModelNumber
             call New(Me%ThinWalls, Me%ThinWallsFile, Me%GridsBounds)
         endif      
         
-        call GetData(Me%BeachAreaFile,                                              &
-                     Me%ObjEnterData,                                               &
-                     flag,                                                          &
-                     SearchType   = FromFile,                                       &
-                     keyword      ='BEACH_AREA_FILE',                               &
-                     ClientModule ='ModuleLagrangianGlobal',                        &
+        if (Me%ThinWallsON) then
+        
+            call GetData(Me%CheckRogue,                                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='CHECK_ROGUE_PARTICLES',                         &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR244'
+            
+        endif
+        
+        call GetData(Me%BeachAreaFile,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='BEACH_AREA_FILE',                                   &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR243'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR245'
             
         if (flag == 0) then
             Me%BeachAreaON  = .false.
@@ -4355,7 +4369,7 @@ d2:     do em =1, Me%EulerModelNumber
                      keyword      ='NEW_GRID_CENTER',                                   &
                      ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR244'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR246'
             
         if (flag /= 2) then
             Me%NewGridLocation = .false.
@@ -4375,7 +4389,7 @@ em4:        do em =1, Me%EulerModelNumber
                 
                 !Recenter the model grid
                 call ReCenterHorizontalGrid(EulerModel%ObjHorizontalGrid, Xcenter, Ycenter, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR245'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR247'
                 
                 call ReadLockHorizontalGrid  (EulerModel)
             enddo em4 
@@ -16849,7 +16863,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: Wind
         logical                                     :: exitDoCycle
         real                                        :: DiffusionCoefH
-
+        type (T_PointF),                pointer     :: Point     
+        
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -16867,6 +16882,11 @@ CurrOr: do while (associated(CurrentOrigin))
                
             endif
         end if
+        
+        if (Me%CheckRogue) then
+            allocate(Point)
+        endif
+        
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
 
@@ -17852,11 +17872,25 @@ iMP:                if (MovePartic) then
                     if (MovePartic .and. .not. CurrentPartic%Freezed) exit 
                 endif
                 
-            enddo dts                
+            enddo dts       
+
+            !Check for rouge particle 
+            if (Me%CheckRogue) then
+                Point%X = CurrentPartic%Position%CoordX
+                Point%Y = CurrentPartic%Position%CoordY
+                if (IsVisible(Me%ThinWalls, Point)) then
+                    write(*,*) 'Rogue particle - inside land - partic id =', CurrentPartic%ID
+                endif
+            endif                        
+            
             
             CurrentPartic => CurrentPartic%Next
 
         enddo CP
+
+        if (Me%CheckRogue) then
+            deallocate(Point)
+        endif
 
     end subroutine MoveParticHorizontal
 

@@ -3529,7 +3529,7 @@ i6:                         if (DirectionX.ne.0.) then
         !Local------------------------------------------------------
         type (T_polygon), pointer            :: AuxPolygon, AuxPolygon1
         real(8)                              :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
-        real                                 :: dx, dy    
+        real(8)                              :: dx, dy    
         integer                              :: n    
         logical                              :: SearchSeg
         real                                 :: ymin, ymax, xmin, xmax
@@ -3614,7 +3614,7 @@ i6:                         if (DirectionX.ne.0.) then
                         if (present(LineAng)) then
                             dx = x4-x3
                             dy = y4-y3
-                            LineAng = atan2(dy, dx)
+                            LineAng = datan2(dy, dx)
                         endif                        
                         exit
                     endif
@@ -3665,43 +3665,36 @@ i6:                         if (DirectionX.ne.0.) then
         !Arguments--------------------------------------------------
         real(8)                      :: x1,y1,x2,y2, x3, y3, x4, y4
         !Local------------------------------------------------------
-        real(8)                      :: xi, yi, d
+        !real(8)                      :: xi, yi, d, dxy1, dxy2
+        real(dp15), dimension(2)     :: A, B, C, D
+        
         !Begin------------------------------------------------------
 
-        SegIntersectSegR8 = .true.
-
-        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-        if (d == 0) SegIntersectSegR8 = .false.
-        
-        if (SegIntersectSegR8) then
-        
-            xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
-            
-            if      (abs(x1-x2)>0) then
-                yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
-            else if (abs(x3-x4)>0) then
-                yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
-            else
-                SegIntersectSegR8 = .false.
-            endif
-            
-            if (SegIntersectSegR8) then
-            
-                if (abs(x1-x2) > abs(y1-y2)) then
-                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSegR8 = .false.
-                else
-                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSegR8 = .false.
-                endif 
-
-                if (abs(x3-x4) > abs(y3-y4)) then
-                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSegR8 = .false.        
-                else
-                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSegR8 = .false.
-                endif
-            endif
-        endif
+        A(1) = x1
+        A(2) = y1
+        B(1) = x2
+        B(2) = y2
+        C(1) = x3
+        C(2) = y3
+        D(1) = x4
+        D(2) = y4
     
+        SegIntersectSegR8 = do_segments_intersect(A, B, C, D)        
+        
     end function SegIntersectSegR8    
+    
+    
+    function ccw(A, B, C) result(res)
+        real(dp15), dimension(2) :: A, B, C
+        real(dp15) :: res
+        res = (C(2) - A(2)) * (B(1) - A(1)) - (B(2) - A(2)) * (C(1) - A(1))
+    end function ccw
+
+    function do_segments_intersect(A, B, C, D) result(intersects)
+        real(dp15), dimension(2) :: A, B, C, D
+        logical :: intersects
+        intersects = (ccw(A, C, D) * ccw(B, C, D) <= 0.0_dp15) .and. (ccw(A, B, C) * ccw(A, B, D) <= 0.0_dp15)
+    end function do_segments_intersect    
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                       !
