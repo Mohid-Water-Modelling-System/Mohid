@@ -128,10 +128,14 @@ Module ModuleGlobalData
     real   , parameter  :: FillValueReal        = -9.9e15
     integer, parameter  :: FillValueInt         = -9999999
     real   , parameter  :: HalfFillValueReal    = -9.9e15/2.0
+    
+    
                                                 
     real,    parameter  :: AllmostZeroFraction  = 1.e-5
     real,    parameter  :: AllmostZero          = 1.e-15
     real,    parameter  :: AlmostZero           = 1.e-15
+    
+    integer, parameter :: dp15 = selected_real_kind(15, 307)    
 
     integer,            parameter :: null_int   = -999999
     real,               parameter :: null_real  = -9.9E15

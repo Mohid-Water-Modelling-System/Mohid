@@ -90,7 +90,7 @@ Module ModuleDischarges
     public  :: GetDischargeType    
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeMohidJet
-    public  :: GetDischMohidJetON
+    public  :: GetDischID_MohidJetON
     public  :: GetDischargeON
     public  :: GetDischargesDTOutput
     public  :: IsUpscaling
@@ -4365,7 +4365,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
-    logical function GetDischMohidJetON(DischargesID, DischargeIDNumber, STAT)
+    logical function GetDischID_MohidJetON(DischargesID, DischargeIDNumber, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: DischargesID
@@ -4393,16 +4393,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
 cd3 :       if (STAT_CALL /= SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop 'Function GetDischMohidJetON - ModuleDischarges. ERR10.'
+                    stop 'Function GetDischID_MohidJetON - ModuleDischarges. ERR10.'
             end if cd3
 
             if (.not. DischargeX%IgnoreON) then
 
-                GetDischMohidJetON = DischargeX%MohidJet%ON 
+                GetDischID_MohidJetON = DischargeX%MohidJet%ON 
 
             else
 
-                GetDischMohidJetON = .false.
+                GetDischID_MohidJetON = .false.
 
             endif
 
@@ -4419,7 +4419,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
 
         !----------------------------------------------------------------------
 
-    end function GetDischMohidJetON
+    end function GetDischID_MohidJetON
     !--------------------------------------------------------------------------
 
 
