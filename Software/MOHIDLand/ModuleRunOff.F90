@@ -5640,7 +5640,6 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                 if(n .ne. m)then
                     if(Me%Inlets(n)%CellID == Me%Inlets(n)%CellID)then
                         Me%Inlets(n)%nInletsInGridCell = Me%Inlets(n)%nInletsInGridCell + 1
-                        Me%Inlets(m)%nInletsInGridCell = Me%Inlets(m)%nInletsInGridCell + 1
                     endif
                 endif
             enddo
@@ -10536,7 +10535,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
 
             Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
-            Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+            Me%Inlets(n)%PotentialFlow = Min(InletInflow, (Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
+                                                           Me%Inlets(n)%nInletsInGridCell)
 
         enddo
             
