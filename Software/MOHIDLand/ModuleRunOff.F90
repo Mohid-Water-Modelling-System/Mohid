@@ -5640,7 +5640,6 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                 if(n .ne. m)then
                     if(Me%Inlets(n)%CellID == Me%Inlets(n)%CellID)then
                         Me%Inlets(n)%nInletsInGridCell = Me%Inlets(n)%nInletsInGridCell + 1
-                        Me%Inlets(m)%nInletsInGridCell = Me%Inlets(m)%nInletsInGridCell + 1
                     endif
                 endif
             enddo
@@ -9777,8 +9776,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -9934,8 +9933,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
                 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10106,8 +10105,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10157,8 +10156,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10198,8 +10197,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10263,8 +10262,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10351,8 +10350,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
                 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10536,7 +10535,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
 
             Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
-            Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+            Me%Inlets(n)%PotentialFlow = Min(InletInflow, (Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
+                                                           Me%Inlets(n)%nInletsInGridCell)
 
         enddo
             
@@ -10647,8 +10647,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10706,8 +10706,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10756,8 +10756,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
