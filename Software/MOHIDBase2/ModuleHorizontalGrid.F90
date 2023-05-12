@@ -5463,9 +5463,9 @@ Inp:    if (Me%CornersXYInput) then
             if (STAT_CALL /= SUCCESS_) stop 'DefineBorderPolygons - ModuleHorizontalGrid - ERR10'
 
             File = trim(RootPath)//"ModelDomain.xy"
-        
+            
             call Add_MPI_ID_Private_Filename(File)  
-
+            
             call WriteItem(Me%GridOutBorderCoord%Polygon_, trim(File))   
 
         endif
@@ -5628,9 +5628,11 @@ Inp:    if (Me%CornersXYInput) then
 
             endif
 
+            call SetLimits(GridBorder%Polygon_)
+
         endif
 
-        call SetLimits(GridBorder%Polygon_)
+
 
 
 
@@ -5649,7 +5651,8 @@ Inp:    if (Me%CornersXYInput) then
         real,      dimension(:  ), pointer          :: XX1D, YY1D 
         integer,   dimension(:  ), pointer          :: I1D, J1D
         integer                                     :: Nvert, i, j, NP
-        type (T_PointF),    pointer                 :: Point                      
+        type (T_PointF),    pointer                 :: Point                
+        logical                                     :: InitialValidVertix      
         !Begin-----------------------------------------------------------------    
 
         
@@ -5668,19 +5671,22 @@ Inp:    if (Me%CornersXYInput) then
         Aux_YY2D(ILB:IUB+1,JLB:JUB+1) = YY2D(ILB:IUB+1,JLB:JUB+1)
         
         NP = 0
+
+        InitialValidVertix = .true. 
     
-        do while (Nvert >= 4) 
+        do while (InitialValidVertix) 
     
-            call PolygonBoundGridCurv (Aux_XX2D, Aux_YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, I1D, J1D, Nvert)
+            call PolygonBoundGridCurv (Aux_XX2D, Aux_YY2D, ILB, IUB+1, JLB, JUB+1, XX1D, YY1D, &
+                                       I1D, J1D, Nvert, InitialValidVertix)
+            
+            do i=1, Nvert 
+                Aux_XX2D(I1D(i), J1D(i)) = FillValueReal
+                Aux_YY2D(I1D(i), J1D(i)) = FillValueReal                    
+            enddo            
                                            
             if (Nvert>= 4) then
                 
-                call new(GridBorder%Polygon_, XX1D, YY1D)
-                
-                do i=1, Nvert 
-                    Aux_XX2D(I1D(i), J1D(i)) = FillValueReal
-                    Aux_YY2D(I1D(i), J1D(i)) = FillValueReal                    
-                enddo
+                call New(GridBorder%Polygon_, XX1D, YY1D)
                 
                 do i = ILB, IUB+1
                 do j=  JLB, JUB+1
@@ -11499,6 +11505,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_
         integer                                     :: ready_
+        type (T_Polygon), pointer                   :: Polygon_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -11515,13 +11522,35 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
                 South   = Me%BorderLimits%Values(3)
                 North   = Me%BorderLimits%Values(4)
                 
-            else                
-
-                West    = Me%GridBorderCoord%Polygon_%Limits%Left
-                East    = Me%GridBorderCoord%Polygon_%Limits%Right
-                South   = Me%GridBorderCoord%Polygon_%Limits%Bottom
-                North   = Me%GridBorderCoord%Polygon_%Limits%Top
+            else              
                 
+                West    = - FillValueReal
+                East    =   FillValueReal  
+                South   = - FillValueReal
+                North   =   FillValueReal                
+                
+                nullify(Polygon_)
+
+                Polygon_ => Me%GridBorderCoord%Polygon_ 
+
+                if (associated(Polygon_)) then
+
+                    do while(associated(Polygon_))
+
+                        West    = min(West,  Me%GridBorderCoord%Polygon_%Limits%Left  )
+                        East    = max(East,  Me%GridBorderCoord%Polygon_%Limits%Right )
+                        South   = min(South, Me%GridBorderCoord%Polygon_%Limits%Bottom)
+                        North   = max(North, Me%GridBorderCoord%Polygon_%Limits%Top   )
+
+                        Polygon_ => Polygon_%Next
+                        
+                    enddo
+
+                else
+
+                    stop 'ModuleHorizontalGrid - GetGridBorderLimits - ERR10'
+                    
+                endif
             endif                
 
             STAT_ = SUCCESS_

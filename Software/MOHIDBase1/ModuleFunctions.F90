@@ -5537,7 +5537,8 @@ end function
     
     !--------------------------------------------------------------------------
     !returns the boundary vertixes of curvilinear grid taking in consideration ghost vertixes = FillValueReal
-    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, I1D, J1D, Nvert)
+    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, &
+                                     I1D, J1D, Nvert, InitialValidVertix)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:,:), pointer, intent(IN)   :: XX2D, YY2D
@@ -5545,6 +5546,7 @@ end function
         real,       dimension(:  ), pointer, intent(OUT)  :: XX1D, YY1D
         integer,    dimension(:  ), pointer, intent(OUT)  :: I1D, J1D        
         integer                                           :: Nvert
+        logical                                           :: InitialValidVertix
 
         !Local-----------------------------------------------------------------
         real,       dimension(:,:), pointer               :: Aux_XX2D, Aux_YY2D
@@ -5553,7 +5555,7 @@ end function
         logical                                           :: StopCycle
         integer                                           :: MaxVert, c1, c2, auxINT, MAXINT, icount
         integer                                           :: ip1, ip2, ip3, ip4
-        integer                                           :: i, j
+        integer                                           :: i, j, istart, jstart
         
         !Begin-----------------------------------------------------------------
         
@@ -5586,168 +5588,198 @@ end function
         !        break;
         !    }
         !}
-
+        
+        
         !Find the initial position to create the path        
-        StopCycle = .false. 
+        InitialValidVertix = .false. 
         do j= JLB, JUB
             do i= ILB, IUB
                 if (XX2D(i,j) > HalfFillValueReal) then
                     c1         = i
                     c2         = j
-                    StopCycle = .true. 
+                    InitialValidVertix = .true. 
+                    istart    = c1
+                    jstart    = c2
                     exit
                 endif
             enddo
-            if (StopCycle) exit
+            if (InitialValidVertix) exit
         enddo
         
-       !while(linha!=12)
-       ! {
-       !     //the MAXINT value is assigned to the positions so that there is no possibility 
-       ! to return to that square in order to go through all the squares once
-       !    if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1,c2+1,S);
-       !         S->x1[auxINT] = S->x2D[c1][c2+1];
-       !         S->y1[auxINT++] = S->y2D[c1][c2+1];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c2++;
-       !         S->cord++;
-       !    }
-       !    else if(( (path(c1+1,c2,S) == 0) || (path(c1+1,c2,S) == 1) ) && S->x2D[c1+1][c2]!=MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1+1,c2,S);
-       !         S->x1[auxINT] = S->x2D[c1+1][c2];
-       !         S->y1[auxINT++] = S->y2D[c1+1][c2];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c1++;
-       !         S->cord++;
-       !    }
-       !    else if(( (path(c1,c2-1,S) == 0) || (path(c1,c2-1,S) == 1) ) && S->x2D[c1][c2-1]!= MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1,c2-1,S);
-       !         S->x1[auxINT] = S->x2D[c1][c2-1];
-       !         S->y1[auxINT++] = S->y2D[c1][c2-1];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c2--;
-       !         S->cord++;
-       !    }
-       !    else if( ( (path(c1-1,c2,S) == 0) || (path(c1-1,c2,S) == 1) ) && S->x2D[c1-1][c2] !=  MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1-1,c2,S);
-       !         S->x1[auxINT] = S->x2D[c1-1][c2];
-       !         S->y1[auxINT++] = S->y2D[c1-1][c2];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c1--;
-       !         S->cord++;
-       !    }
-       !    else
-       !    {
-       !        S->x2D[c1][c2] = MAXINT;
-       !        S->cord++;
-       !        linha = 12;
-       !    }
-       ! }
         
-       
-       !Variable intialization
-        AuxInt           = 1
-        Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
-        Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
-        Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
-        Aux_I1D (AuxInt) = c1
-        Aux_J1D (AuxInt) = c2
-
-        StopCycle = .false.
-        MAXINT    = - FillValueInt
-        icount    = 0
-
-        do while (.not. StopCycle)
+        
+        !while(linha!=12)
+        !
+        !   //the MAXINT value is assigned to the positions so that there is no possibility to return to that square in order to go through all the squares once
+        !  if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1,c2+1,S);
+        !       S->x1[auxINT] = S->x2D[c1][c2+1];
+        !       S->y1[auxINT++] = S->y2D[c1][c2+1];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c2++;
+        !       S->cord++;
+        !  }
+        !  else if(( (path(c1+1,c2,S) == 0) || (path(c1+1,c2,S) == 1) ) && S->x2D[c1+1][c2]!=MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1+1,c2,S);
+        !       S->x1[auxINT] = S->x2D[c1+1][c2];
+        !       S->y1[auxINT++] = S->y2D[c1+1][c2];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c1++;
+        !       S->cord++;
+        !  }
+        !  else if(( (path(c1,c2-1,S) == 0) || (path(c1,c2-1,S) == 1) ) && S->x2D[c1][c2-1]!= MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1,c2-1,S);
+        !       S->x1[auxINT] = S->x2D[c1][c2-1];
+        !       S->y1[auxINT++] = S->y2D[c1][c2-1];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c2--;
+        !       S->cord++;
+        !  }
+        !  else if( ( (path(c1-1,c2,S) == 0) || (path(c1-1,c2,S) == 1) ) && S->x2D[c1-1][c2] !=  MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1-1,c2,S);
+        !       S->x1[auxINT] = S->x2D[c1-1][c2];
+        !       S->y1[auxINT++] = S->y2D[c1-1][c2];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c1--;
+        !       S->cord++;
+        !  }
+        !  else if(i1>=1)
+        !  {
+        !       S->x2D[c1][c2] = MAXINT;
+        !       i1 = i1-1;
+        !       c1 = way[i1]/S->c;
+        !       c2 = way[i1]%S->c;
+        !  }
+        !  else
+        !  {
+        !      S->x2D[c1][c2] = MAXINT;
+        !      S->cord++;
+        !      linha = 12;
+        !  }
+        
+        NVert  = 0
+        
+       if (InitialValidVertix) then
+           !Variable intialization
+            AuxInt           = 1
+            Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
+            Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
+            Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
+            Aux_I1D (AuxInt) = c1
+            Aux_J1D (AuxInt) = c2
             
-            ip1 = path_bound(c1,c2+1, ILB, IUB, JLB, JUB, XX2D)              
-            ip2 = path_bound(c1+1,c2, ILB, IUB, JLB, JUB, XX2D)  
-            ip3 = path_bound(c1,c2-1, ILB, IUB, JLB, JUB, XX2D)  
-            ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
+            StopCycle = .false.
+            MAXINT    = - FillValueInt
+            icount    = 0
+
+            do while (.not. StopCycle)
             
-            if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
+                ip1 = path_bound(c1,c2+1, ILB, IUB, JLB, JUB, XX2D)              
+                ip2 = path_bound(c1+1,c2, ILB, IUB, JLB, JUB, XX2D)  
+                ip3 = path_bound(c1,c2-1, ILB, IUB, JLB, JUB, XX2D)  
+                ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
+            
+                if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
                                 
-                AuxInt = AuxInt + 1
-                Aux_ZZ1D(AuxInt) = ip1
-                Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
-                Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
-                Aux_I1D (AuxInt) = c1
-                Aux_J1D (AuxInt) = c2+1
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip1
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
+                    Aux_I1D (AuxInt) = c1
+                    Aux_J1D (AuxInt) = c2+1
                  
-                Aux_XX2D(c1, c2) = MAXINT
-                c2 = c2 + 1
-                icount = icount + 1
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c2 = c2 + 1
+                    icount = icount + 1
 
-            elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
-                AuxInt = AuxInt + 1
-                Aux_ZZ1D(AuxInt) = ip2
-                Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
-                Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
-                Aux_I1D (AuxInt) = c1+1
-                Aux_J1D (AuxInt) = c2                
-                Aux_XX2D(c1, c2) = MAXINT
-                c1 = c1 + 1
-                icount = icount + 1            
+                elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip2
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
+                    Aux_I1D (AuxInt) = c1+1
+                    Aux_J1D (AuxInt) = c2                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c1 = c1 + 1
+                    icount = icount + 1            
 
-            elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
-                AuxInt = AuxInt + 1
-                Aux_ZZ1D(AuxInt) = ip3
-                Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
-                Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
-                Aux_I1D (AuxInt) = c1
-                Aux_J1D (AuxInt) = c2-1                
-                Aux_XX2D(c1, c2) = MAXINT
-                c2 = c2 - 1
-                icount = icount + 1
+                elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip3
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
+                    Aux_I1D (AuxInt) = c1
+                    Aux_J1D (AuxInt) = c2-1                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c2 = c2 - 1
+                    icount = icount + 1
 
-            elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
-                AuxInt = AuxInt + 1
-                Aux_ZZ1D(AuxInt) = ip4
-                Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
-                Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
-                Aux_I1D (AuxInt) = c1-1
-                Aux_J1D (AuxInt) = c2                
-                Aux_XX2D(c1, c2) = MAXINT
-                c1 = c1 - 1
-                icount = icount + 1                             
-            else
-                Aux_XX2D(c1, c2) = MAXINT            
-                icount = icount + 1
-                StopCycle = .true.
-            endif
-        enddo
+                elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip4
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
+                    Aux_I1D (AuxInt) = c1-1
+                    Aux_J1D (AuxInt) = c2                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c1 = c1 - 1
+                    icount = icount + 1   
+                elseif (c1 /= istart  .and. c2 /= jstart) then
+                     Aux_XX2D(c1, c2) = MAXINT
+                     AuxInt = AuxInt - 1
+                     icount = icount - 1
+                     c1 = Aux_I1D (AuxInt)
+                     c2 = Aux_J1D (AuxInt)
+                else
+                    Aux_XX2D(c1, c2) = MAXINT            
+                    icount = icount + 1
+                    StopCycle = .true.
+                endif
+                
 
-        allocate(XX1D(1:icount+1), YY1D(1:icount+1))        
-        allocate(I1D (1:icount+1), J1D (1:icount+1))        
+            enddo
 
-        XX1D(1:icount) = Aux_XX1D(1:icount)
-        YY1D(1:icount) = Aux_YY1D(1:icount)
+            allocate(XX1D(1:icount+1), YY1D(1:icount+1))        
+            allocate(I1D (1:icount+1), J1D (1:icount+1))        
+
+            XX1D(1:icount) = Aux_XX1D(1:icount)
+            YY1D(1:icount) = Aux_YY1D(1:icount)
         
-        I1D(1:icount) = Aux_I1D(1:icount)
-        J1D(1:icount) = Aux_J1D(1:icount)        
+            I1D(1:icount) = Aux_I1D(1:icount)
+            J1D(1:icount) = Aux_J1D(1:icount)        
 
-        !Last verttix equal to the first
-        XX1D(icount+1) = XX1D(1)
-        YY1D(icount+1) = YY1D(1)
+            !Last verttix equal to the first
+            XX1D(icount+1) = XX1D(1)
+            YY1D(icount+1) = YY1D(1)
         
-        I1D(icount+1) = I1D(1)
-        J1D(icount+1) = J1D(1)
+            I1D(icount+1) = I1D(1)
+            J1D(icount+1) = J1D(1)
         
 
-        NVert = icount + 1
+            NVert = icount + 1
         
-        !write(*,*) 'XX1D(i), YY1D(i), J1D(i), I1D(i)'
-        !do i =1, NVert
-        !    write(*,*)  XX1D(i), YY1D(i), J1D(i), I1D(i)
-        !enddo
+            !write(*,*) 'XX1D(i), YY1D(i), J1D(i), I1D(i)'
+            !do i =1, NVert
+            !    write(*,*)  XX1D(i), YY1D(i), J1D(i), I1D(i)
+            !enddo
         
-        deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
-        deallocate(Aux_I1D,  Aux_J1D)
-        deallocate(Aux_XX2D, Aux_YY2D)
+            deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
+            deallocate(Aux_I1D,  Aux_J1D)
+            deallocate(Aux_XX2D, Aux_YY2D)
+            
+        endif
         
     end subroutine PolygonBoundGridCurv
 
