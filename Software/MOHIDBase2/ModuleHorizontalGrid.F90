@@ -93,6 +93,7 @@ Module ModuleHorizontalGrid
     public  :: RecenterHorizontalGrid
     public  :: Add_MPI_ID_2_Filename
     public  :: No_BoxMap_HaloArea
+    public  :: PolygonBoundGridCurvSet
 
     !Selector
     public  :: GetHorizontalGridSize
@@ -455,7 +456,8 @@ Module ModuleHorizontalGrid
         type (T_FatherGrid),     pointer :: Prev => null()
     end type T_FatherGrid
 
-    type T_Border
+    public T_Border
+    type   T_Border
         !Grid boundary
         type(T_Polygon),          pointer       :: Polygon_ => null()
         integer                                 :: Type_    = null_int

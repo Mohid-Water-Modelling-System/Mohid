@@ -147,7 +147,6 @@ program DigitalTerrainCreator
     use ModuleGridData
     use ModuleTriangulation
 
-
     implicit none
 
     !Parameters----------------------------------------------------------------
@@ -244,7 +243,29 @@ program DigitalTerrainCreator
         real   , pointer, dimension(:  )            :: BedDepth
     end type T_River
     
-
+    type T_BorderLimits
+        !Cell limits
+        integer                                     :: ILB    = null_int
+        integer                                     :: IUB    = null_int        
+        integer                                     :: JLB    = null_int
+        integer                                     :: JUB    = null_int
+    end type T_BorderLimits
+    
+    type T_DD
+        logical                                         :: ON   = .false.
+        !Number of domains in the J/X direction
+        integer                                         :: nJX  = FillValueInt  
+        !Number of domains in the I/Y direction
+        integer                                         :: nIY  = FillValueInt  
+        !Number of domains
+        integer                                         :: nD   = FillValueInt
+        !Borders of the each domain
+        type (T_Border),       dimension(:), pointer    :: Border       => null()
+        !Borders Limits of the each domain
+        type (T_BorderLimits), dimension(:), pointer    :: BorderLimits => null()        
+        
+    end type T_DD        
+    
     type T_Global
         integer                                     :: ObjGrid                      = 0
         integer                                     :: ObjGridIn                    = 0
@@ -306,6 +327,9 @@ program DigitalTerrainCreator
         type(T_Overlapping)                         :: Overlapping
         type(T_River      )                         :: River
         type(T_Limits     )                         :: GridLimits
+        type(T_DD         )                         :: DD
+        type(T_Border     ), pointer                :: AllBorder
+        
     end type T_Global                                 
                                                      
     type (T_Global)                                 :: Me
@@ -342,6 +366,8 @@ program DigitalTerrainCreator
         if(STAT_CALL .ne. SUCCESS_) stop 'OpenProject - DigitalTerrainCreator - ERR01'
 
         call ReadGridFilesNames
+        
+        call SetGridLimits
 
         call ConstructGlobalOptions
 
@@ -460,7 +486,7 @@ program DigitalTerrainCreator
         integer                             :: ClientNumber, StartLine, EndLine
         integer                             :: CurrentLineNumber
         logical                             :: BlockFound
-
+        type (T_Polygon), pointer           :: AllPolygons, PolygonAux, PolygonAux2
         !Begin-----------------------------------------------------------------
         
         call ExtractBlockFromBuffer(Me%ObjEnterData,                                    &
@@ -500,9 +526,37 @@ program DigitalTerrainCreator
             write(*,*)"Constructing Land Area..."
 
             !Construct LandArea collection
-            call New(Me%LandArea,  trim(LandAreaFilePath))
+            call New(AllPolygons,  trim(LandAreaFilePath))
 
         end do
+        
+        PolygonAux => AllPolygons
+        
+        nullify(Me%LandArea)
+       
+        do while (associated(PolygonAux))
+            
+            allocate(PolygonAux2)
+            
+            PolygonAux2 = PolygonAux
+            
+            nullify(PolygonAux2%Next)
+            
+            call SetLimits(PolygonAux2)            
+            
+            if (Polygon_Intersect_Grid(PolygonAux2)) then
+                call Add(Me%LandArea,  PolygonAux2)
+            endif
+            
+            PolygonAux => PolygonAux%Next
+            
+        enddo
+    
+        
+        nullify(AllPolygons, PolygonAux, PolygonAux2)
+        
+        call writeItem (Me%LandArea, 'Final_Land.xy')
+            
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructLandZones - DigitalTerrainCreator - ERR40'
@@ -513,6 +567,35 @@ program DigitalTerrainCreator
     end subroutine ConstructLandZones
 
     !--------------------------------------------------------------------------
+    
+    logical function Polygon_Intersect_Grid (PolygonX)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+    
+        !Local-----------------------------------------------------------------
+        real                                :: XminA, XmaxA, YminA, YmaxA
+        real                                :: XminB, XmaxB, YminB, YmaxB
+        !Begin-----------------------------------------------------------------    
+        
+        
+        XminA = Me%GridLimits%Left  
+        XmaxA = Me%GridLimits%Right 
+        YminA = Me%GridLimits%Bottom
+        YmaxA = Me%GridLimits%Top   
+        
+        call GetPolyLimits(PolygonX, XminB, XmaxB, YminB, YmaxB)
+        
+        if (.not. XminB > XmaxA .and. .not. XmaxB < XminA .and. &
+            .not. YminB > YmaxA .and. .not. YmaxB < YminA) then
+            Polygon_Intersect_Grid = .true.
+        else
+            Polygon_Intersect_Grid = .false.                    
+        endif          
+    
+    end function Polygon_Intersect_Grid
+    
+    !--------------------------------------------------------------------------    
 
     subroutine ReadGridFilesNames
         
@@ -1106,14 +1189,182 @@ i2:         if      (trim(AuxChar) == 'j') then
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR120'        
         
-      
+
+        call GetData(Me%DD%ON,                                                          &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='DOMAIN_DECOMPOSITION',                              &
+                     Default      = .false.,                                            &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR130'    
+        
+        if (Me%DD%ON) then
+            call Construct_DD            
+        endif
+        
+        !call Construct_AllBorder
+        
 
     end subroutine ConstructGlobalOptions
-
     
     !--------------------------------------------------------------------------
 
+    subroutine Construct_DD
 
+        !Local-----------------------------------------------------------------
+        integer                             :: flag, STAT_CALL
+        integer                             :: i, j, nlines, ncolumns, iAux, jAux, n
+        integer                             :: ILB, IUB, JLB, JUB
+        type (T_Border),        pointer     :: BorDerX        
+        !Begin-----------------------------------------------------------------
+        
+        call GetData(Me%DD%nJX,                                                         &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='DD_COLUMNS',                                        &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = 1,                                                  &   
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'Construct_DD - DigitalTerrainCreator - ERR010'
+        
+        if (flag <= 0) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR020'
+        endif
+        
+        if (Me%DD%nJX <= 0) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR030'
+        endif        
+        
+        call GetData(Me%DD%nIY,                                                         &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='DD_LINES',                                          &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     Default      = 1,                                                  &   
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'Construct_DD - DigitalTerrainCreator - ERR040'
+        
+        if (flag <= 0) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR050'
+        endif        
+        
+        if (Me%DD%nIY <= 0) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR060'
+        endif            
+        
+        Me%DD%nD = Me%DD%nJX * Me%DD%nIY
+        
+        allocate(Me%DD%Border      (1:Me%DD%nD))
+
+        allocate(Me%DD%BorderLimits(1:Me%DD%nD))
+        
+        call Read_Lock_External_Var
+        
+        nlines      = Me%ExtVar%WorkSize%IUB - Me%ExtVar%WorkSize%ILB + 1
+        ncolumns    = Me%ExtVar%WorkSize%JUB - Me%ExtVar%WorkSize%JLB + 1
+
+        iAux        = nlines   / Me%DD%nIY
+        jAux        = ncolumns / Me%DD%nJX
+        
+        if (iAux < 10) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR050'
+        endif
+        
+        if (jAux < 10) then
+            stop 'Construct_DD - DigitalTerrainCreator - ERR060'
+        endif        
+        
+        n = 1
+        
+        do i = 1, Me%DD%nIY
+        do j = 1, Me%DD%nJX
+            
+            ILB =  Me%ExtVar%WorkSize%ILB     + iAux * (i - 1)
+            IUB =  Me%ExtVar%WorkSize%ILB     + iAux * (i    ) - 1
+            
+            JLB =  Me%ExtVar%WorkSize%JLB     + jAux * (j - 1)
+            JUB =  Me%ExtVar%WorkSize%JLB     + jAux * (j    ) - 1
+            
+            if (i == Me%DD%nIY) then
+                IUB =  Me%ExtVar%WorkSize%IUB
+            endif
+            
+            if (j == Me%DD%nJX) then
+                JUB =  Me%ExtVar%WorkSize%JUB
+            endif            
+            
+            Me%DD%BorderLimits(n)%ILB = ILB
+            Me%DD%BorderLimits(n)%IUB = IUB
+            
+            Me%DD%BorderLimits(n)%JLB = JLB
+            Me%DD%BorderLimits(n)%JUB = JUB     
+            
+            n = n + 1
+        enddo
+        enddo
+        
+        do n = 1, Me%DD%nD
+            
+            allocate(BorDerX)
+            
+            call PolygonBoundGridCurvSet(XX2D         = Me%ExtVar%XX_IE,                &
+                                         YY2D         = Me%ExtVar%YY_IE,                & 
+                                         GridBorder   = BorDerX,                        &
+                                         ILB          = Me%DD%BorderLimits(n)%ILB,      &
+                                         IUB          = Me%DD%BorderLimits(n)%IUB,      &
+                                         JLB          = Me%DD%BorderLimits(n)%JLB,      &
+                                         JUB          = Me%DD%BorderLimits(n)%JUB)
+            
+            Me%DD%Border(n) = BorDerX
+            
+            deallocate(BorDerX)            
+            
+        enddo
+        
+        call Read_UnLock_External_Var
+        
+    end subroutine Construct_DD
+    
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_AllBorder
+
+        !Local-----------------------------------------------------------------
+        integer                             :: ILB, IUB, JLB, JUB
+        !Begin-----------------------------------------------------------------
+        
+        call Read_Lock_External_Var
+            
+        ILB =  Me%ExtVar%WorkSize%ILB
+        IUB =  Me%ExtVar%WorkSize%IUB
+            
+        JLB =  Me%ExtVar%WorkSize%JLB
+        JUB =  Me%ExtVar%WorkSize%JUB
+        
+        allocate(Me%AllBorDer)
+        
+        call PolygonBoundGridCurvSet(XX2D         = Me%ExtVar%XX_IE,                    &
+                                     YY2D         = Me%ExtVar%YY_IE,                    & 
+                                     GridBorder   = Me%AllBorDer,                       &
+                                     ILB          = ILB,                                &
+                                     IUB          = IUB,                                &
+                                     JLB          = JLB,                                &
+                                     JUB          = JUB)
+            
+        
+        call Read_UnLock_External_Var
+        
+    end subroutine Construct_AllBorder
+    
+    !--------------------------------------------------------------------------
+    
+
+    
+    !--------------------------------------------------------------------------
+    
     subroutine ConstructSelectedArea
 
         !Local-----------------------------------------------------------------
@@ -1165,6 +1416,7 @@ i2:         if      (trim(AuxChar) == 'j') then
             end do
 
         endif
+
         
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSelectedArea - DigitalTerrainCreator - ERR160'
@@ -1498,8 +1750,6 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
 
         call AllocateTempVariables
         
-        call SetGridLimits
-        
        
         if (Me%BatimInON) then
             call ConstructInitialGridData
@@ -1565,7 +1815,11 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
                 
             case (Triangulation)
                 call SelectPoints
-                call Triangulator
+                if (Me%DD%ON) then
+                    call Triangulator_DD
+                else
+                    call Triangulator
+                endif
 
                 if (Me%River%CanonicSpace) then
                     if (Me%River%MaintainBed) then
@@ -2752,19 +3006,19 @@ i2:         if      (Me%River%MainAxe == AlongLine  ) then
 
 
         call UngetHorizontalGrid(Me%ObjGrid, Me%ExtVar%XX_IE, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'Read_Lock_External_Var - DigitalTerrainTool - ERR10'
+        if(STAT_CALL .ne. SUCCESS_)stop 'Read_UnLock_External_Var - DigitalTerrainTool - ERR10'
 
         call UngetHorizontalGrid(Me%ObjGrid, Me%ExtVar%YY_IE, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'Read_Lock_External_Var - DigitalTerrainTool - ERR20'
+        if(STAT_CALL .ne. SUCCESS_)stop 'Read_UnLock_External_Var - DigitalTerrainTool - ERR20'
 
         call UngetHorizontalGrid(Me%ObjGrid, Me%ExtVar%XX, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'Read_Lock_External_Var - DigitalTerrainTool - ERR30'
+        if(STAT_CALL .ne. SUCCESS_)stop 'Read_UnLock_External_Var - DigitalTerrainTool - ERR30'
 
         call UngetHorizontalGrid(Me%ObjGrid, Me%ExtVar%YY, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'Read_Lock_External_Var - DigitalTerrainTool - ERR40'
+        if(STAT_CALL .ne. SUCCESS_)stop 'Read_UnLock_External_Var - DigitalTerrainTool - ERR40'
 
         call UngetHorizontalGrid(Me%ObjGrid, Me%ExtVar%DefineCellsMap, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'Read_Lock_External_Var - DigitalTerrainTool - ERR50'
+        if(STAT_CALL .ne. SUCCESS_)stop 'Read_UnLock_External_Var - DigitalTerrainTool - ERR50'
 
     end subroutine Read_UnLock_External_Var
 
@@ -3534,101 +3788,30 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
     subroutine SetGridLimits
         
         !Local-----------------------------------------------------------------
-        type (T_PointF), pointer            :: LowerLeft, UpperLeft
-        type (T_PointF), pointer            :: LowerRight, UpperRight
-        integer                             :: i, j
+        !type (T_PointF), pointer            :: LowerLeft, UpperLeft
+        !type (T_PointF), pointer            :: LowerRight, UpperRight
+        !integer                             :: i, j
         real                                :: DX, DY
-        real                                :: OriginX, OriginY, Rotation
+        !real                                :: OriginX, OriginY, Rotation
+        integer                             :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Setting grid limits..."
-
-        OriginX  = Me%ExtVar%OriginX 
-        OriginY  = Me%ExtVar%OriginY 
-        Rotation = Me%ExtVar%Rotation
-
-        allocate(LowerLeft )
-        allocate(LowerRight)
-        allocate(UpperLeft )
-        allocate(UpperRight)
-
-        Me%GridLimits%Left      = -1. * null_real
-        Me%GridLimits%Right     = null_real
-        Me%GridLimits%Bottom    = -1. * null_real
-        Me%GridLimits%Top       = null_real
-
-        if (Me%ExtVar%GridDistortion) then
-            
-            do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB + 1 
-            do i = Me%ExtVar%WorkSize%ILB, Me%ExtVar%WorkSize%IUB + 1
-
-                if(abs(Me%ExtVar%XX_IE(i, j)) < abs(null_real/2.))then 
-
-                    if(Me%ExtVar%XX_IE(i,j) < Me%GridLimits%Left)then
-
-                        Me%GridLimits%Left = Me%ExtVar%XX_IE(i,j)
-
-                    end if
-
-                    if(Me%ExtVar%XX_IE(i,j) > Me%GridLimits%Right)then
-                        
-                        Me%GridLimits%Right = Me%ExtVar%XX_IE(i,j)
-
-                    end if
-
-                end if
-               
-                if(abs(Me%ExtVar%YY_IE(i, j)) < abs(null_real/2.))then 
-
-                    if(Me%ExtVar%YY_IE(i,j) > Me%GridLimits%Top)then
-                        
-                        Me%GridLimits%Top = Me%ExtVar%YY_IE(i,j)
-
-                    end if
-
-                    if(Me%ExtVar%YY_IE(i,j) < Me%GridLimits%Bottom)then
-
-                        Me%GridLimits%Bottom = Me%ExtVar%YY_IE(i,j)
-
-                    end if
-
-                end if
-
-            enddo
-            enddo
         
-        else
-
-            LowerLeft%X     = Me%ExtVar%XX(Me%ExtVar%WorkSize%JLB)
-            LowerLeft%Y     = Me%ExtVar%YY(Me%ExtVar%WorkSize%ILB)
-
-            LowerRight%X    = Me%ExtVar%XX(Me%ExtVar%WorkSize%JUB + 1)
-            LowerRight%Y    = Me%ExtVar%YY(Me%ExtVar%WorkSize%ILB)
-
-            UpperRight%X    = Me%ExtVar%XX(Me%ExtVar%WorkSize%JUB + 1)
-            UpperRight%Y    = Me%ExtVar%YY(Me%ExtVar%WorkSize%IUB + 1)
-
-            UpperLeft%X     = Me%ExtVar%XX(Me%ExtVar%WorkSize%JLB)
-            UpperLeft%Y     = Me%ExtVar%YY(Me%ExtVar%WorkSize%IUB + 1)
-
-            call RodaXY(OriginX, OriginY, Rotation, LowerLeft%X,   LowerLeft%Y )
-            call RodaXY(OriginX, OriginY, Rotation, LowerRight%X,  LowerRight%Y)
-            call RodaXY(OriginX, OriginY, Rotation, UpperRight%X,  UpperRight%Y)
-            call RodaXY(OriginX, OriginY, Rotation, UpperLeft%X,   UpperLeft%Y )
-
-            Me%GridLimits%Left   = min(LowerLeft%X, LowerRight%X, UpperRight%X, UpperLeft%X)
-            Me%GridLimits%Right  = max(LowerLeft%X, LowerRight%X, UpperRight%X, UpperLeft%X)
-            Me%GridLimits%Bottom = min(LowerLeft%Y, LowerRight%Y, UpperRight%Y, UpperLeft%Y)
-            Me%GridLimits%Top    = max(LowerLeft%Y, LowerRight%Y, UpperRight%Y, UpperLeft%Y)
-
-        endif
+        call GetGridBorderLimits(HorizontalGridID   = Me%ObjGrid,                       &
+                                 West               = Me%GridLimits%Left  ,             &
+                                 East               = Me%GridLimits%Right ,             & 
+                                 South              = Me%GridLimits%Bottom,             &
+                                 North              = Me%GridLimits%Top   ,             &
+                                 STAT               = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OverlappingGridData - DigitalTerrainTool - ERR20'        
 
         if(Me%ExpandGridLimits)then
 
             DX = (Me%GridLimits%Right - Me%GridLimits%Left  ) * Me%ExpandGridLimitsFraction
             DY = (Me%GridLimits%Top   - Me%GridLimits%Bottom) * Me%ExpandGridLimitsFraction
-
+            
             Me%GridLimits%Left   = Me%GridLimits%Left   - DX 
             Me%GridLimits%Right  = Me%GridLimits%Right  + DX 
             Me%GridLimits%Bottom = Me%GridLimits%Bottom - DY
@@ -3636,10 +3819,6 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
         endif
         
-        deallocate(LowerLeft )
-        deallocate(LowerRight)
-        deallocate(UpperLeft )
-        deallocate(UpperRight)
 
     end subroutine SetGridLimits
     
@@ -3766,8 +3945,166 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
     end subroutine Triangulator
 
+    !--------------------------------------------------------------------------
+    
+    !---------------------------------------------------------------------------
+
+    subroutine Triangulator_DD
+
+        !Local------------------------------------------------------------------
+        real, dimension(:), pointer         :: NodeX, NodeY, NodeZ
+        real, dimension(:), pointer         :: Aux_NodeX, Aux_NodeY, Aux_NodeZ        
+        integer                             :: i, j, STAT_CALL, icount, nNodes
+        integer                             :: n, nD, DomainNodes
+        integer                             :: ILB, IUB, JLB, JUB
+        real                                :: DX, DY, Left, Right, Bottom, Top, DXmin, DYmin 
+        real,    dimension(:), allocatable  :: Aux2
+        logical                             :: LandArea, InterpolOk, DomainOk
+
+        !Begin------------------------------------------------------------------
+
+        nNodes = size(Array = Me%PointsWithData, Dim = 1) 
+            
+        allocate (Aux_NodeX(nNodes), Aux_NodeY(nNodes), Aux_NodeZ(nNodes))
+        
+        DXmin = (Me%GridLimits%Right - Me%GridLimits%Left  ) * Me%ExpandGridLimitsFraction / Me%DD%nJX 
+        DYmin = (Me%GridLimits%Top   - Me%GridLimits%Bottom) * Me%ExpandGridLimitsFraction / Me%DD%nIY       
+        
+        if (associated(Me%LandArea)) then
+            LandArea = .true.
+        else
+            LandArea = .false.
+        endif
+        
+d1:     do n = 1, Me%DD%nD
+    
+            InterpolOk = .true.
+            DomainOk   = .true.
+    
+            if (.not. associated(Me%DD%Border(n)%Polygon_)) then
+                DomainOk    = .false.
+                InterpolOk  = .false.  
+            endif
+            
+            if (DomainOk.and. LandArea) then
+    
+                if (VertPolygonInsidePolygon(PolygonA = Me%DD%Border(n)%Polygon_, &
+                                             PolygonB = Me%LandArea)) then
+                    InterpolOk  = .false.    
+                endif
+                                             
+            endif
+            
+            if (InterpolOk) then
+    
+                write(*,*)"Performing triangulation of Domain =", n
+
+                NodeX =>  Me%PointsWithData(:,1)
+                NodeY =>  Me%PointsWithData(:,2)
+                NodeZ =>  Me%PointsWithData(:,3)
+            
+                Left   = Me%DD%Border(n)%Polygon_%Limits%Left  
+                Right  = Me%DD%Border(n)%Polygon_%Limits%Right 
+                Bottom = Me%DD%Border(n)%Polygon_%Limits%Bottom
+                Top    = Me%DD%Border(n)%Polygon_%Limits%Top               
+
+                DX = (Right - Left  ) * Me%ExpandGridLimitsFraction
+                DY = (Top   - Bottom) * Me%ExpandGridLimitsFraction
+                
+                DX = max (DX, DXmin)
+                DY = max (DY, DYmin)
+
+                Left   = Left   - DX 
+                Right  = Right  + DX 
+                Bottom = Bottom - DY
+                Top    = Top    + DY
+            
+                icount = 0
+                do nD = 1, nNodes
+
+                    if (NodeX(nD) > Left    .and. NodeX(nD) < Right  .and.          &
+                        NodeY(nD) > Bottom  .and. NodeY(nD) < Top) then
+                    
+                        icount            = icount + 1
+                        Aux_NodeX(icount) = NodeX(nD)
+                        Aux_NodeY(icount) = NodeY(nD)
+                        Aux_NodeZ(icount) = NodeZ(nD)
+                    
+                    endif
+                
+                enddo
+            
+                nullify(NodeX, NodeY, NodeZ)
+                DomainNodes = icount
+        
+                allocate (NodeX(DomainNodes), NodeY(DomainNodes), NodeZ(DomainNodes))
+            
+                NodeX(1:DomainNodes) = Aux_NodeX(1:DomainNodes)
+                NodeY(1:DomainNodes) = Aux_NodeY(1:DomainNodes)
+                NodeZ(1:DomainNodes) = Aux_NodeZ(1:DomainNodes)
+            
+                NodeX = NodeX * Me%TriangScale 
+                NodeY = NodeY * Me%TriangScale
+            
+                Me%ObjTriangulation = 0
+                
+                if (DomainNodes >= 10) then
+            
+                    !Constructs Triangulation
+                    call ConstructTriangulation (Me%ObjTriangulation, DomainNodes, NodeX, NodeY, NodeZ,   &
+                                                    Me%Triang%Tolerance, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Triangulator_DD - Digital Terrain Creator - ERR10'
+        
+                    ILB = Me%DD%BorderLimits(n)%ILB
+                    IUB = Me%DD%BorderLimits(n)%IUB 
+                    JLB = Me%DD%BorderLimits(n)%JLB
+                    JUB = Me%DD%BorderLimits(n)%JUB
+            
+                    allocate(Aux2(1:2))
+
+                    do i = ILB, IUB
+                    do j = JLB, JUB
+
+                        if(Me%Depth(i, j) == Me%NoDataPoint) then
+
+                            Aux2(1) = Me%GridPoint(i,j)%X
+                            Aux2(2) = Me%GridPoint(i,j)%Y
+                
+                            Aux2(1) = Aux2(1) * Me%TriangScale
+                            Aux2(2) = Aux2(2) * Me%TriangScale
+
+                            Me%Depth(i, j) = InterPolation(Me%ObjTriangulation,         &
+                                                           Aux2(1), Aux2(2),            &
+                                                           Me%Triang%FillOutsidePoints, &
+                                                           Default  = Me%NoDataPoint,   &
+                                                           STAT     = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Triangulator_DD - Digital Terrain Creator - ERR20'
+
+                        end if
+
+                    enddo
+                    enddo
+
+                    deallocate(Aux2)
+
+                    call KillTriangulation (Me%ObjTriangulation, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Triangulator_DD - Digital Terrain Creator - ERR40'
+                    
+                endif
+            
+                deallocate (NodeX, NodeY, NodeZ)
+                
+            endif
+            
+        enddo d1
+
+        deallocate (Aux_NodeX, Aux_NodeY, Aux_NodeZ)
+
+    end subroutine Triangulator_DD
+
 
     !--------------------------------------------------------------------------
+    
     subroutine CanonicVersusCartesian (PointsGroup, Count, Point, ToCanonic)
 
         !Arguments-------------------------------------------------------------
@@ -3888,8 +4225,6 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
     end subroutine CanonicVersusCartesian
 
-
-
     !--------------------------------------------------------------------------
     subroutine FindKnownRiverSections 
 
@@ -3900,7 +4235,6 @@ idef:       if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         logical                                 :: FoundSection, EndSection
 
         !Begin-----------------------------------------------------------------
-
 
         Counter                    = 0
         FoundSection               = .false.
@@ -4019,13 +4353,9 @@ i9:                 if (EndSection) then
 
         endif i1
 
-
         Me%River%SectionsNumber = Counter
 
-
     end subroutine FindKnownRiverSections
-
-
 
     !--------------------------------------------------------------------------
     subroutine DredgeRiverBed 
@@ -4340,9 +4670,7 @@ d5:     do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
     end subroutine DoFilterSpikes
 
     !--------------------------------------------------------------------------
-
-
-    !--------------------------------------------------------------------------
+    
     subroutine LocateSection(ij_Input, ij_Previous, ij_Next, InsideSection) 
 
         !Arguments-------------------------------------------------------------
