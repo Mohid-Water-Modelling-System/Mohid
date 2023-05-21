@@ -2831,12 +2831,6 @@ do2:    do
                 j = Me%OpenChannelLinks(n)%J
 
                 Me%OpenChannelLinks(n)%CellWidth = (Me%ExtVar%DUX(i, j) + Me%ExtVar%DVY(i, j) ) / 2.0
-
-                !Me%OpenChannelLinks(n)%FluxWidth = (Me%ExtVar%BasinPoints(i,j-1) + &
-                !                                    Me%ExtVar%BasinPoints(i,j+1) + &
-                !                                    Me%ExtVar%BasinPoints(i-1,j) + &
-                !                                    Me%ExtVar%BasinPoints(i+1,j))* &
-                !                                   Me%OpenChannelLinks(n)%CellWidth  !SOBRINHO
                 
                 Me%OpenChannelLinks(n)%FluxWidth = ((1-Me%ExtVar%BasinPoints(i,j-1)) + &
                                                     (1-Me%ExtVar%BasinPoints(i,j+1)) + &
@@ -5640,7 +5634,6 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
                 if(n .ne. m)then
                     if(Me%Inlets(n)%CellID == Me%Inlets(n)%CellID)then
                         Me%Inlets(n)%nInletsInGridCell = Me%Inlets(n)%nInletsInGridCell + 1
-                        Me%Inlets(m)%nInletsInGridCell = Me%Inlets(m)%nInletsInGridCell + 1
                     endif
                 endif
             enddo
@@ -9704,7 +9697,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real(c_double)              :: dt, elapsedTime
         integer                     :: STAT_CALL, n, i, j, xn
         real                        :: Flow, Flow_1, Flow_2, Flow_3, Flow_4, Flow_5, myWaterLevel, Flow_formulation_2, tF
-        real                        :: SecondLinkWaterLevel, dh, area, WaterLevelSWMM, sign, HydraulicRadius
+        real                        :: SecondLinkWaterLevel, dh, area, WaterLevelSWMM, sign
 
         !--------------------------------------------------------------------------
 
@@ -9777,8 +9770,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -9842,13 +9835,11 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             !If WaterLevelSWMM is below topography the flux area must be mohid water column, or flow will be wrong
                             area  = Me%OpenChannelLinks(n)%FluxWidth * dh
                             
-                            !m = m + m
                             !WaterlevelSWMM is below topography so height must be mohid water column
-                            HydraulicRadius = dh
                             
                             !m3/s = m2 * (m2/3) * [] / s/(m1/3)
-                            Flow_4 = area * HydraulicRadius ** (2./3.) *                        &
-                                sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                            Flow_4 = area * dh ** (2./3.) *                        &
+                                sqrt(dh/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
                             
                             Flow_5 = (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
                             ![] - this factor varies from 1 when the distance is > 0.005 (assumes formulation for flow
@@ -9873,11 +9864,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         area  = Me%OpenChannelLinks(n)%FluxWidth * dh
                         !For hydraulic radius calculations it is assumed that when the base width
                         !is much larger than the height, then the hydraulic radius is equal to the height
-                        !m = m
-                        HydraulicRadius = dh
-                        !m3/s = m2 * (m2/3) * [] / s/(m1/3)
-                        Flow_1 = area * HydraulicRadius ** (2./3.) *                        &
-                            sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                        !m3/s = m2 * (m2/3) * [] / s/(m1/3). dh represents the hydraulic radious
+                        Flow_1 = area * dh ** (2./3.) *                        &
+                            sqrt(dh/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
                             
                         Flow_2 = (dh / 2.0) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
                             
@@ -9909,9 +9898,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         ! Water flows from channel/pond to 2D
                         dh =  WaterLevelSWMM - Me%myWaterLevel(i, j)
                         area  = Me%OpenChannelLinks(n)%FluxWidth * dh
-                        HydraulicRadius =  dh
-                        Flow_1 = area * HydraulicRadius ** (2./3.) *                        &
-                            sqrt(HydraulicRadius/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
+                        Flow_1 = area * dh ** (2./3.) *                        &
+                            sqrt(dh/Me%OpenChannelLinks(n)%CellWidth) / Me%OverlandCoefficient(i, j)
                             
                         Flow_2 = (dh / 2.0) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT
                             
@@ -9934,8 +9922,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
                 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10106,8 +10094,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10157,8 +10145,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10198,8 +10186,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10263,8 +10251,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Flow * Me%ExtVar%DT)
 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10351,8 +10339,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
                 
                 if(Me%myWaterVolume (i, j) < 0.0)then
-                    Me%myWaterVolume (i, j) = 0.0
                     Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                    Me%myWaterVolume (i, j) = 0.0
                 endif
 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10536,7 +10524,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
 
             Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
-            Me%Inlets(n)%PotentialFlow = Min(InletInflow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+            Me%Inlets(n)%PotentialFlow = Min(InletInflow, (Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
+                                                           Me%Inlets(n)%nInletsInGridCell)
 
         enddo
             
@@ -10647,8 +10636,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Manholes(n)%Outflow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10706,8 +10695,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) + (Me%Inlets(n)%EffectiveFlow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10756,8 +10745,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Me%Headwalls(n)%Flow * Me%ExtVar%DT)
 
             if(Me%myWaterVolume (i, j) < 0.0)then
-                Me%myWaterVolume (i, j) = 0.0
                 Me%MassError(i, j) = Me%MassError(i, j) + Me%myWaterVolume(i,j)
+                Me%myWaterVolume (i, j) = 0.0
             endif
 
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
