@@ -1267,7 +1267,7 @@ Module ModuleUpscaleHDF5
         type(T_Time)                                :: CurrentDate, CurrentDate_child
         integer                                     :: CurrentProperty 
         type(T_Field), pointer                      :: NewField, AuxField
-        character(len=StringLength)                 :: PropertyName
+        character(len=StringLength)                 :: PropertyName, ChildPropertyName
         integer                                     :: Rank
         integer, dimension(7)                       :: Dimensions
         integer                                     :: Count, CurrentProperty_child, HDF5_READ
@@ -1571,19 +1571,20 @@ Module ModuleUpscaleHDF5
                                 
                         do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
                                 
-                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, PropertyName, &
+                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, ChildPropertyName, &
                                                 STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR190'
 
-                            if(.not. Me%ConvertAllFields)then
-                                ConvertThisField = .false.
-                                do n = 1, Me%nFieldsToUpscale
-                                    if(Me%FieldsToUpscale(n) == PropertyName) ConvertThisField = .true.
-                                end do
-                                if(.not. ConvertThisField) cycle
-                            end if
+                            if (ChildPropertyName /= PropertyName) cycle
+                            !if(.not. Me%ConvertAllFields)then
+                            !    ConvertThisField = .false.
+                            !    do n = 1, Me%nFieldsToUpscale
+                            !        if(Me%FieldsToUpscale(n) == PropertyName) ConvertThisField = .true.
+                            !    end do
+                            !    if(.not. ConvertThisField) cycle
+                            !end if
 
-                            write(*,*)'Reading '//trim(PropertyName)//' child fields'
+                            write(*,*)'Reading '//trim(ChildPropertyName)//' child fields'
                             
                             !Get time instants
                             call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
@@ -1596,7 +1597,7 @@ Module ModuleUpscaleHDF5
                                 if (CurrentDate == CurrentDate_child) then
                                     !start computation for current property
                                     !Get child ID field
-                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
+                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
                                                     CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, &
                                                     Rank, Dimensions, STAT = STAT_CALL)                                
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR200'
@@ -1660,8 +1661,8 @@ Module ModuleUpscaleHDF5
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR240'
 
                                     !read father field and save it in newfield 3D matrix with just 1 layer
-                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    trim(PropertyName), Array3D = ObjChildFile%NewField%Values3D, &
+                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                                    trim(ChildPropertyName), Array3D = ObjChildFile%NewField%Values3D, &
                                                     OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR250'
                                     
@@ -1710,12 +1711,12 @@ Module ModuleUpscaleHDF5
                                         end do
                                         end do
                                     end do
+                                    !Write into output HDF5 output file
+                                    call OutputFields3D(NewField, CurrentInstant)
                                 end if
                             end do
                         end do
                         
-                        !Write into output HDF5 output file
-                        call OutputFields3D(NewField, CurrentInstant)
                         ObjChildFile => ObjChildFile%next
                     end do
                     
