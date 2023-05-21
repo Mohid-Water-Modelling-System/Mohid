@@ -1392,19 +1392,13 @@ Module ModuleUpscaleHDF5
                                 
                         do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
                                 
-                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, PropertyName, &
+                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, ChildPropertyName, &
                                                 STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR70'
 
-                            if(.not. Me%ConvertAllFields)then
-                                ConvertThisField = .false.
-                                do n = 1, Me%nFieldsToUpscale
-                                    if(Me%FieldsToUpscale(n) == PropertyName) ConvertThisField = .true.
-                                end do
-                                if(.not. ConvertThisField) cycle
-                            end if
-
-                            write(*,*)'Reading '//trim(PropertyName)//' child fields'
+                            if (ChildPropertyName /= PropertyName) cycle
+                            
+                            write(*,*)'Reading '//trim(ChildPropertyName)//' child fields'
                             
                             !Get time instants
                             call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
@@ -1417,7 +1411,7 @@ Module ModuleUpscaleHDF5
                                 if (CurrentDate == CurrentDate_child) then
                                     !start computation for current property
                                     !Get child ID field
-                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
+                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
                                                     CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, Rank, &
                                                     Dimensions, STAT = STAT_CALL)                                
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR80'
@@ -1450,8 +1444,8 @@ Module ModuleUpscaleHDF5
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR120'
 
                                     !read father field and save it in newfield 2D matrix
-                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    trim(PropertyName), Array2D = ObjChildFile%NewField%Values2D, &
+                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                                    trim(ChildPropertyName), Array2D = ObjChildFile%NewField%Values2D, &
                                                     OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
                                     if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR20130'
                                     
