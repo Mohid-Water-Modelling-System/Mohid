@@ -1717,8 +1717,9 @@ Module ModuleLagrangianGlobal
 
     type T_Field
         character(Len=PathLength)                           :: FileName
+        logical                                             :: TimeOk       = .false.
         integer                                             :: ID           = 0
-        character(Len=PathLength), dimension(:), pointer    :: FileNameList
+        character(Len=PathLength), dimension(:), pointer    :: FileNameList => null()
         integer                                             :: NFilesList        
     end type T_Field
 
@@ -3408,7 +3409,8 @@ dw1:        do while (associated(CurrentProperty))
 
  d1:        do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
  
-                if (Me%MeteoOcean%Prop(nProp)%Field(i)%NFilesList > 0) then
+                if (Me%MeteoOcean%Prop(nProp)%Field(i)%NFilesList > 0  .and.                            &
+                    Me%MeteoOcean%Prop(nProp)%Field(i)%TimeOk) then
             
                     call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
                                           EnterDataID   = Me%ObjEnterData,                              &
@@ -3432,19 +3434,23 @@ dw1:        do while (associated(CurrentProperty))
             call ReadMeteoOceanFiles (ClientNumber, nProp)
 
 d2:         do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
-            
-                call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
-                                      EnterDataID   = Me%ObjEnterData,                              &
-                                      ExtractType   = FromBlockinBlock,                             &
-                                      FileName      = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName,  &
-                                      TimeID        = Me%ExternalVar%ObjTime,                       &   
-                                      MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
-                                      LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
-                                      LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
-                                      WindowLimitsXY= WindowLimitsXY,                               &
-                                      Extrapolate   = .false.,                                      &    
-                                      STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
+
+                if (Me%MeteoOcean%Prop(nProp)%Field(i)%TimeOk) then
+
+                    call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
+                                        EnterDataID   = Me%ObjEnterData,                              &
+                                        ExtractType   = FromBlockinBlock,                             &
+                                        FileName      = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName,  &
+                                        TimeID        = Me%ExternalVar%ObjTime,                       &   
+                                        MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
+                                        LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
+                                        LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
+                                        WindowLimitsXY= WindowLimitsXY,                               &
+                                        Extrapolate   = .false.,                                      &    
+                                        STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
+
+                endif
                                     
             enddo d2
 
@@ -3460,8 +3466,10 @@ d2:         do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
         integer                                         :: ClientNumber, nProp
 
         !Local-----------------------------------------------------------------
-        logical                                         :: BlockInBlockFound
+        logical                                         :: BlockInBlockFound, TimeOk  
         integer                                         :: STAT_CALL, FirstLine, LastLine, i, iflag 
+        character (len=PathLength)                      :: FileName
+
         !Begin-----------------------------------------------------------------
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
@@ -3490,6 +3498,12 @@ i1:     if (BlockInBlockFound) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR30'
 
+                FileName = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName
+                TimeOk   = CheckHDF5_IntersectRun(FileName, Me%ExternalVar%BeginTime, Me%ExternalVar%EndTime)
+                if (TimeOk) then
+                    Me%MeteoOcean%Prop(nProp)%Field(i)%TimeOk = .true.
+                endif                
+
             enddo
 
         else i1
@@ -3516,9 +3530,11 @@ i1:     if (BlockInBlockFound) then
         integer                                         :: ClientNumber, nProp
 
         !Local-----------------------------------------------------------------
-        logical                                         :: BlockInBlockFound
+        logical                                         :: BlockInBlockFound, TimeOk
         integer                                         :: STAT_CALL, FirstLine, LastLine, i, iflag
         integer                                         :: n, FileNumber, FieldNumber 
+        character (len=PathLength)                      :: FileName
+
         !Begin-----------------------------------------------------------------
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
@@ -3584,6 +3600,12 @@ i1:     if (BlockInBlockFound) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR60'
 
+                FileName = Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList(n)
+                TimeOk   = CheckHDF5_IntersectRun(FileName, Me%ExternalVar%BeginTime, Me%ExternalVar%EndTime)
+                if (TimeOk) then
+                    Me%MeteoOcean%Prop(nProp)%Field(i)%TimeOk = .true.
+                endif   
+
             enddo
 
         enddo            
@@ -3594,7 +3616,116 @@ i1:     if (BlockInBlockFound) then
     end subroutine ReadMeteoOceanListFiles
                 
     !--------------------------------------------------------------------------
+    
+    logical function CheckHDF5_IntersectRun(FileName, RunStart, RunEnd)
 
+        !Arguments-------------------------------------------------------------
+        character(len = *)                              :: FileName
+        type (T_Time)                                   :: RunStart, RunEnd
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                                   :: FileStart, FileEnd
+
+        !Begin-----------------------------------------------------------------   
+
+        call ReadHDF5_TimeLimits(FileName, FileStart, FileEnd) 
+
+        if (FileStart <= RunEnd .and. RunStart <= FileEnd) then
+            CheckHDF5_IntersectRun = .true. 
+        else
+            CheckHDF5_IntersectRun = .false. 
+        endif
+
+
+    end function CheckHDF5_IntersectRun
+
+
+    subroutine ReadHDF5_TimeLimits(FileName, StartTime, EndTime)
+
+        !Arguments-------------------------------------------------------------
+        character(len = *)                              :: FileName
+        type (T_Time)                                   :: StartTime, EndTime
+
+        !Local-----------------------------------------------------------------
+        logical                                         :: TimeON
+        integer                                         :: HDF5_Obj, HDF5_READ
+        integer                                         :: STAT_CALL, nInstants
+
+        !Begin-----------------------------------------------------------------    
+
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        HDF5_Obj = 0
+    
+        call ConstructHDF5 (HDF5_Obj, trim(FileName), HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_TimeLimits - ModuleLagrangianGlobal - ERR10'
+
+        call GetHDF5GroupExist (HDF5ID      = HDF5_Obj,                             &
+                                GroupName   = "/Time",                              &
+                                Exist       = TimeON,                               &
+                                STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_TimeLimits - ModuleLagrangianGlobal - ERR20'
+
+
+        if (TimeON) then
+
+            call GetHDF5GroupNumberOfItems(HDF5_Obj, "/Time", nInstants, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FileName = ',trim(FileName)
+                stop 'ReadHDF5_TimeLimits - ModuleLagrangianGlobal - ERR30'
+            endif
+
+            StartTime = HDF5TimeInstant(Instant =         1, HDF5ID = HDF5_Obj)
+            EndTime   = HDF5TimeInstant(Instant = nInstants, HDF5ID = HDF5_Obj)
+
+        else
+            stop 'ReadHDF5_TimeLimits - ModuleLagrangianGlobal - ERR40'
+        endif
+
+        call KillHDF5 (HDF5_Obj, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5_TimeLimits - ModuleLagrangianGlobal - ERR50'
+
+    end subroutine ReadHDF5_TimeLimits
+
+    !--------------------------------------------------------------------------
+        
+    type(T_Time) function HDF5TimeInstant(Instant, HDF5ID)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: Instant
+        integer                                 :: HDF5ID
+        
+
+        !Local-----------------------------------------------------------------
+!        type(T_Time)                            :: TimeInstant
+        real,    dimension(:), pointer          :: TimeVector
+        integer                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        allocate(TimeVector(6))
+
+        call HDF5SetLimits  (HDF5ID, 1, 6, STAT = STAT_CALL)        
+
+        call HDF5ReadWindow (HDF5ID         = HDF5ID,                                   &
+                             GroupName      = "/Time",                                  &
+                             Name           = "Time",                                   &
+                             Array1D        = TimeVector,                               &
+                             OutputNumber   = Instant,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleField4D - ERR01'
+
+        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+
+                                     
+        deallocate(TimeVector)
+
+    end function HDF5TimeInstant
+
+    !--------------------------------------------------------------------------    
+    
     subroutine ReadParticStatisticOptions
 
         !Arguments-------------------------------------------------------------
@@ -14149,6 +14280,8 @@ d1:     do while (associated(CurrentOrigin))
                     if (Me%MeteoOcean%Prop(nMOP)%FileListMode) then
                         if (Me%MeteoOcean%Prop(nMOP)%Field(nF)%NFilesList < 1) cycle
                     endif
+
+                    if (.not. Me%MeteoOcean%Prop(nMOP)%Field(nF)%TimeOk) cycle
     
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
@@ -31191,6 +31324,8 @@ do2:        do nF = 1, nFiles_total
                 if (Me%MeteoOcean%Prop(nMOP)%FileListMode) then
                     if (Me%MeteoOcean%Prop(nMOP)%Field(nF)%NFilesList < 1) cycle
                 endif
+
+                if (.not. Me%MeteoOcean%Prop(nMOP)%Field(nF)%TimeOk) cycle                
 
                 call KillField4D(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                  STAT                  = STAT_CALL)

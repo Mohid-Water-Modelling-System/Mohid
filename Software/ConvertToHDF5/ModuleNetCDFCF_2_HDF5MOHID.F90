@@ -5514,9 +5514,10 @@ if23:       if (Me%Depth%GeoVert == sigma_) then
             
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                
                 SumDepth = 0.
                 Method2 = .false.
-                do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
+dk1:            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
             
            
 if12:           if (Me%Mapping%Value3DOut(i,j,k) == 1) then
@@ -5600,9 +5601,19 @@ if17:                       if (SumDepth > 0) then
                         Me%Depth%Value3DOut(i, j, k) = FillValueReal
                     endif                        
                     Me%Depth%Value3DOut(i, j, k-1) = FillValueReal   
-                endif if12
-                                                   
-                enddo
+                 endif if12
+                 
+                 
+                enddo dk1
+
+                k = Me%WorkSize%KUB
+                
+                if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+                    if (Me%Depth%Value3DOut(i, j, k) == Me%Depth%Value3DOut(i, j, k-1)) then
+                        Me%Depth%Value3DOut(i, j, k) =  Me%Depth%Value3DOut(i, j, k) - 0.5
+                    endif
+                endif
+
             enddo
             enddo
             
@@ -5694,8 +5705,6 @@ i5:         if (Me%OutHDF5) then
 
         deallocate(Me%Depth%Value3DOut)
 
-        
-
    end subroutine WriteDepth        
                   
    !------------------------------------------------------------------------
@@ -5723,8 +5732,6 @@ i5:         if (Me%OutHDF5) then
 
         endif             
 
-                            
-            
         if       (Me%Field(iP)%Dim==3) then
             
             if (Me%Depth%Interpolate) allocate(ValueAux(1:Me%Depth%kmax),DepthAux(1:Me%Depth%kmax))
@@ -5951,8 +5958,8 @@ i5:         if (Me%OutHDF5) then
         endif    
     
     end subroutine WriteFieldAllInst
-!------------------------------------------------------------------------
 
+!------------------------------------------------------------------------
 
     subroutine CenterProp(iP, CenterX, CenterY)
     
@@ -6056,6 +6063,8 @@ i5:         if (Me%OutHDF5) then
         deallocate(Aux2D)
 
     end subroutine CenterProp    
+    
+!------------------------------------------------------------------------    
 
     !Computes the depth of a cell in the original grid 
     real function GetCellInDepth (i, j, l,lmax, iT, CellFace, TopDepth)
@@ -6205,9 +6214,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
     end function GetCellInDepth
 
-
     !--------------------------------------------------------------------------
-            
    
     subroutine WriteTimeHDF5
         !Arguments-------------------------------------------------------------
@@ -6275,9 +6282,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
     end subroutine WriteTimeHDF5
 
-
    !---------------------------------------------------------------------------
-   !------------------------------------------------------------------------
+
     subroutine WriteTimeNetCDF(DefDimTime)
         !Arguments-------------------------------------------------------------
         logical, optional                               :: DefDimTime
@@ -6333,7 +6339,6 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
         
     end subroutine WriteTimeNetCDF
-
 
    !---------------------------------------------------------------------------
    
