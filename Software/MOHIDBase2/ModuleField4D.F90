@@ -342,8 +342,9 @@ Module ModuleField4D
         logical                                     :: DynamicMappingOn     = .false. 
         integer, dimension(:,:), pointer            :: DynamicMapping       => null()
         real                                        :: MappingLimit         = null_real
-        logical                                     :: MappingLimitOn       = .false.        
+        logical                                     :: MappingLimitOn       = .false.   
         
+        logical                                     :: CheckInstantInFile   = .false.
         
         real                                        :: MinForDTDecrease     = AllmostZero
         real                                        :: DefaultValue         = null_real
@@ -435,13 +436,14 @@ Module ModuleField4D
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, TimeID,  FileName, &
+    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, TimeID, FileName,  &
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, FieldName_2, OnlyReadGridFromFile,  &
-                                DiscardFillValues, CheckHDF5_File, Upscaling, STAT)
+                                FileNameList, FieldName, FieldName_2,                   &
+                                OnlyReadGridFromFile, DiscardFillValues,                &
+                                CheckHDF5_File, Upscaling, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -2265,6 +2267,15 @@ wwd1:       if (Me%WindowWithData) then
         endif
 
 
+        call GetData(PropField%CheckInstantInFile,                                      &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'CHECK_INSTANT_IN_FILE',                            &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR350'   
+
     end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
@@ -2717,10 +2728,12 @@ flo:            if (Me%File%FileListON) then
 
 
                             if (k > 1) then
-                                if (Me%File%InstantsDates(k) < Me%File%InstantsDates(k-1)) then
-                                    write(*,*) 'ERROR - ',trim(Me%File%FilenameList(n))
-                                    write(*,*) 'ERROR - instant - ', j 
-                                    stop  'ConstructFile - ModuleField4D - ERR70'
+                                if (k <= Me%File%NumberOfInstants) then
+                                    if (Me%File%InstantsDates(k) < Me%File%InstantsDates(k-1)) then
+                                        write(*,*) 'ERROR - ',trim(Me%File%FilenameList(n))
+                                        write(*,*) 'ERROR - instant - ', j 
+                                        stop  'ConstructFile - ModuleField4D - ERR70'
+                                    endif
                                 endif
                             endif
                         enddo
@@ -2977,6 +2990,9 @@ flo:            if (Me%File%FileListON) then
         logical                                         :: FoundSecondInstant
 
         !Begin-----------------------------------------------------------------
+        
+        call null_time(NewPropField%NextTime    ) 
+        call null_time(NewPropField%PreviousTime)
 
 
 i0:     if(NewPropField%SpaceDim == Dim2D)then
@@ -3038,7 +3054,9 @@ it:     if (NewPropField%ChangeInTime) then
 
                 NewPropField%PreviousInstant  = Me%File%NumberOfInstants
                 NewPropField%NextInstant      = NewPropField%PreviousInstant
-                NewPropField%PreviousTime     = Me%File%InstantsDates(NewPropField%PreviousInstant)
+                if (NewPropField%PreviousInstant >= 1 .and. NewPropField%PreviousInstant <= Me%File%NumberOfInstants) then
+                    NewPropField%PreviousTime     = Me%File%InstantsDates(NewPropField%PreviousInstant)
+                endif
 
 
                 if(NewPropField%PreviousTime .lt. Me%EndTime)then
@@ -3051,7 +3069,9 @@ it:     if (NewPropField%ChangeInTime) then
 
                     FoundSecondInstant        = .true.
                     NewPropField%NextInstant  = NewPropField%PreviousInstant - 1
-                    NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant)
+                    if (NewPropField%NextInstant >= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then                    
+                        NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant)
+                    endif
                 end if
 
 
@@ -3067,7 +3087,9 @@ it:     if (NewPropField%ChangeInTime) then
             else
                 NewPropField%PreviousInstant  = 1
                 NewPropField%NextInstant      = NewPropField%PreviousInstant
-                NewPropField%PreviousTime     = Me%File%InstantsDates(NewPropField%PreviousInstant)
+                if (NewPropField%PreviousInstant >= 1 .and. NewPropField%PreviousInstant <= Me%File%NumberOfInstants) then      
+                    NewPropField%PreviousTime     = Me%File%InstantsDates(NewPropField%PreviousInstant)
+                endif
 
 
                 if(NewPropField%PreviousTime .gt. Me%StartTime)then
@@ -3080,7 +3102,9 @@ it:     if (NewPropField%ChangeInTime) then
 
                     FoundSecondInstant        = .true.
                     NewPropField%NextInstant  = NewPropField%PreviousInstant + 1
-                    NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant)
+                    if (NewPropField%NextInstant >= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then      
+                        NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant)
+                    endif
 
                 end if
 
@@ -3107,8 +3131,10 @@ it:     if (NewPropField%ChangeInTime) then
 
                     NewPropField%NextInstant      = NewPropField%NextInstant - 1
 
-                    NewPropField%NextTime         = Me%File%InstantsDates(NewPropField%NextInstant)
-
+                    if (NewPropField%NextInstant >= 1 .and.  NewPropField%NextInstant <= Me%File%NumberOfInstants) then
+                        NewPropField%NextTime         = Me%File%InstantsDates(NewPropField%NextInstant)
+                    endif
+                    
                     if(NewPropField%PreviousTime .ge. Me%EndTime .and. NewPropField%NextTime .le. Me%EndTime) then
                         FoundSecondInstant  = .true.
                         exit
@@ -3116,20 +3142,24 @@ it:     if (NewPropField%ChangeInTime) then
 
                     NewPropField%PreviousTime   = NewPropField%NextTime
 
-                    if(NewPropField%NextInstant .lt. 1) then
-                        write(*,*)
-                        !write(*,*)'Could not read solution from file'
-                        write(*,*) 'Filename =', trim(Me%File%FileName)
-                        write(*,*)'Could not find second instant in file'
-                        write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                        !stop      'ConstructPropertyField - ModuleField4D - ERR210'
-                    end if
-
+                    if (NewPropField%CheckInstantInFile) then
+                        if(NewPropField%NextInstant .lt. 1) then
+                            write(*,*)
+                            !write(*,*)'Could not read solution from file'
+                            write(*,*) 'Filename =', trim(Me%File%FileName)
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
+                            !stop      'ConstructPropertyField - ModuleField4D - ERR210'
+                        end if
+                    endif
+                        
 
                else
                     NewPropField%NextInstant      = NewPropField%NextInstant + 1
 
-                    NewPropField%NextTime         = Me%File%InstantsDates(NewPropField%NextInstant)
+                    if (NewPropField%NextInstant>= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then                    
+                        NewPropField%NextTime         = Me%File%InstantsDates(NewPropField%NextInstant)
+                    endif
 
                     if(NewPropField%PreviousTime .le. Me%StartTime .and. NewPropField%NextTime .ge. Me%StartTime) then
                         FoundSecondInstant  = .true.
@@ -3138,15 +3168,16 @@ it:     if (NewPropField%ChangeInTime) then
 
                     NewPropField%PreviousTime            = NewPropField%NextTime
 
-                    if(NewPropField%NextInstant .gt. Me%File%NumberOfInstants) then
-                        write(*,*)
-                        !write(*,*)'Could not read solution from file'
-                        write(*,*) 'Filename =', trim(Me%File%FileName)
-                        write(*,*)'Could not find second instant in file'
-                        write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                        !stop      'ConstructPropertyField - ModuleField4D - ERR220'
-                    end if
-
+                    if (NewPropField%CheckInstantInFile) then
+                        if(NewPropField%NextInstant .gt. Me%File%NumberOfInstants) then
+                            write(*,*)
+                            !write(*,*)'Could not read solution from file'
+                            write(*,*) 'Filename =', trim(Me%File%FileName)
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
+                            !stop      'ConstructPropertyField - ModuleField4D - ERR220'
+                        end if
+                    endif
                 endif
             end do d2
 
@@ -3568,7 +3599,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 endif
 
                 PropField%PreviousTime     = PropField%NextTime
-                PropField%NextTime         = Me%File%InstantsDates(PropField%NextInstant)
+                if (PropField%NextInstant >= 1 .and. PropField%NextInstant <= Me%File%NumberOfInstants) then                    
+                    PropField%NextTime     = Me%File%InstantsDates(PropField%NextInstant)
+                endif
 
                 n = n + 1
 
@@ -5319,7 +5352,11 @@ d2:     do N =1, NW
             endif   
 
             if (TimeExist) then
-                GetField4DInstant = Me%File%InstantsDates(Instant)
+                if (Instant >= 1 .and. Instant <= Me%File%NumberOfInstants) then
+                    GetField4DInstant = Me%File%InstantsDates(Instant)
+                else
+                    call null_time(GetField4DInstant)
+                endif
             else
                 GetField4DInstant = Me%StartTime
             endif
@@ -5335,6 +5372,8 @@ d2:     do N =1, NW
     end function GetField4DInstant
 
     !--------------------------------------------------------------------------
+    
+    
 
     !--------------------------------------------------------------------------
     real function GetField4DGeneric4DValue (Field4DID, Instant, STAT)
