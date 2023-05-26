@@ -319,6 +319,7 @@ program DigitalTerrainCreator
         integer                                     :: MarginPointsToAdd
         logical                                     :: ExportXYZ
         logical                                     :: Convert2Xbeach
+        logical                                     :: OutputSupportFiles
         
         real                                        :: TriangScale = 1000.
 
@@ -555,7 +556,9 @@ program DigitalTerrainCreator
         
         nullify(AllPolygons, PolygonAux, PolygonAux2)
         
-        call writeItem (Me%LandArea, 'Final_Land.xy')
+        if (Me%OutputSupportFiles) then
+            call writeItem (Me%LandArea, 'Final_Land.xy')
+        endif
             
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
@@ -1198,6 +1201,16 @@ i2:         if      (trim(AuxChar) == 'j') then
                      ClientModule ='DigitalTerrainCreator',                             &
                      STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR130'    
+        
+        
+        call GetData(Me%OutputSupportFiles,                                             &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile_,                                          &
+                     keyword      ='OUTPUT_SUPPORT_FILES',                              &
+                     Default      = .false.,                                            &
+                     ClientModule ='DigitalTerrainCreator',                             &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR140'    
         
         if (Me%DD%ON) then
             call Construct_DD            
@@ -2323,11 +2336,15 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
 
         call SelectPointsWithData
 
-        call WriteItem(Me%PointsWithData, Me%TotalWithData, Me%BaseAndComputedInformation)
+        if (Me%OutputSupportFiles) then
+            call WriteItem(Me%PointsWithData, Me%TotalWithData, Me%BaseAndComputedInformation)
+        endif
 
         call SelectPointsWithNoData
 
-        call WriteItem(Me%PointsNoData,   Me%TotalNoData,   Me%PointsWithNoInformation)
+        if (Me%OutputSupportFiles) then
+            call WriteItem(Me%PointsNoData,   Me%TotalNoData,   Me%PointsWithNoInformation)
+        endif
 
     end subroutine SelectPoints
 

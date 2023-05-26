@@ -3904,7 +3904,7 @@ cd5 :           if (opened) then
 
         allocate(Me%WaterLevelBoundaryValue(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%WaterLevelBoundaryValue(:,:) = Me%BoundaryValue
-
+        
         !$OMP PARALLEL PRIVATE(I,J,di,dj,Sum)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3917,7 +3917,7 @@ do4:            do di = -1, 1
                     Sum = dj + di
                     if ((Me%ExtVar%BasinPoints(i+di, j+dj) == 0) .and. (Sum .eq. -1 .or. Sum .eq. 1)) then
                         if(Me%ExtVar%Topography (i, j)  < Me%MaxDtmForBoundary)then
-                            Me%BoundaryCells(i,j) = BasinPoint
+                            Me%BoundaryCells(i,j) = 1
                             exit do3 
                         endif
                     endif
@@ -3930,6 +3930,15 @@ do4:            do di = -1, 1
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
+        if (Me%StormWaterModel) then
+            !set every basin point in contact with the 1D cells as non boundary cell
+            do n = 1, Me%NumberOfOpenChannelLinks
+                i = Me%OpenChannelLinks(n)%I
+                j = Me%OpenChannelLinks(n)%J
+                Me%BoundaryCells(i,j) = 0
+            enddo
+        endif
+        
         if(Me%HasBoundaryLines)then
 
             do line = 1, Me%NumberOfBoundaryLines
