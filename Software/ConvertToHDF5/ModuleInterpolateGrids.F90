@@ -1976,7 +1976,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         real(8)                                 :: INDepth, dz, Error
         integer                                 :: i,j,k,NDEPTHS, Aux, PoliDegree, STAT_CALL
         logical                                 :: PoliIsEven, FoundBottom, FoundSurface
-
+        integer                                 :: kub
         !Begin-----------------------------------------------------------------
 
         allocate(Depth (Me%Father%Size3D%KLB: Me%Father%Size3D%KUB))
@@ -1987,14 +1987,14 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         call GetGeometryDistances(Me%Aux%ObjGeometry, ZCellCenter = ZCellCenterAux, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'VerticalInterpolation - ModuleInterpolateGrids - ERR20'
-
+        
         do i = Me%New%WorkSize3D%ILB, Me%New%WorkSize3D%IUB
         do j = Me%New%WorkSize3D%JLB, Me%New%WorkSize3D%JUB
 
             if (Me%New%WaterPoints3D(i, j, Me%New%WorkSize3D%KUB   ) == 1) then
-            
             if (Me%Aux%WaterPoints3D(i, j, Me%Father%WorkSize3D%KUB) == 1) then
 
+                
                 Aux=Me%Father%WorkSize3D%KLB
 
                 do k=Me%Father%WorkSize3D%KUB, Me%Father%WorkSize3D%KLB, -1
@@ -2514,8 +2514,8 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         
               
 
-        call ModifyGridData (Me%Aux%ObjBathymetry, MaximumValue, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR44'    
+        !call ModifyGridData (Me%Aux%ObjBathymetry, MaximumValue, STAT = STAT_CALL)
+        !if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR44'    
 
         call ConstructHorizontalMap (HorizontalMapID  = Me%Aux%ObjHorizontalMap,        &
                                      GridDataID       = Me%Aux%ObjBathymetry,           &
