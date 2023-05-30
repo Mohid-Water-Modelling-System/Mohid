@@ -1,0 +1,106 @@
+OUTPUT_TIME             : 0 86400.
+
+
+<beginproperty>
+NAME                    : water level
+UNITS                   : m
+DIMENSION               : 2D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 1.4
+ADDING_FACTOR           : 2
+FILE_IN_TIME            : TIMESERIE
+FILENAME                : ..\GeneralData\Tide\MareEsquematica.dat
+DATA_COLUMN              : 4
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+<<end_coef>>
+
+
+<endproperty>
+
+<beginproperty>
+NAME                    : velocity U
+UNITS                   : m/s
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : -0.03
+ADDING_FACTOR           : 0.0
+FILE_IN_TIME            : TIMESERIE
+FILENAME                : ..\GeneralData\Tide\MareEsquematica.dat
+DATA_COLUMN              : 2
+<<end_field>>
+
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : u
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+<<end_coef>>
+
+<endproperty>
+
+
+<beginproperty>
+NAME                    : velocity V
+UNITS                   : m/s
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 0.01
+ADDING_FACTOR           : 0.0
+FILE_IN_TIME            : TIMESERIE
+FILENAME                : ..\GeneralData\Tide\MareEsquematica.dat
+DATA_COLUMN              : 3
+<<end_field>>
+
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : v
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+<<end_coef>>
+
+<endproperty>
+
+
+
+<beginproperty>
+NAME                    : temperature
+UNITS                   : m/s
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 16
+ADDING_FACTOR           : 0.0
+FILE_IN_TIME          		 : NONE
+INITIALIZATION_METHOD        : PROFILE
+FILENAME                     : ..\GeneralData\metocean\TempSummerProfile.dat
+<<end_field>>
+
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+SPONGE_OUT              : 600
+<<end_coef>>
+
+<endproperty>

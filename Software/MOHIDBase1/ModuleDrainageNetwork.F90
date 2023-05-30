@@ -1158,6 +1158,7 @@ Module ModuleDrainageNetwork
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_CALL
         integer                                         :: ready_ 
+        integer                                         :: Niter
         integer                                         :: NodeID        
         type (T_Node), pointer                          :: CurrNode
         type(T_Property), pointer                       :: Property
@@ -1206,6 +1207,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Gets Current Compute Time
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR01'
+            
+            call GetComputeTimeStep(Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR1b' 
             
             !Gets Compute Time Limits
             call GetComputeTimeLimits (Me%ObjTime, BeginTime = Me%BeginTime,           &
@@ -1320,8 +1324,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     enddo
                 enddo                
                 
-            end if
-            
+            end if            
+                    
+            Niter = 1            
+            call ComputeNextDT (Niter) 
 
             !Close input data file
             call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
@@ -1330,8 +1336,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Returns ID
             DrainageNetworkID = Me%InstanceID
 
-            STAT_CALL = SUCCESS_
-            
+            STAT_CALL = SUCCESS_           
 
         else cd0
             
@@ -5553,10 +5558,6 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
                 
             NewProperty%IntMassFluxNextOutput = Me%CurrentTime
         endif
-
-        call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR380' 
 
         ModelDT = Me%ExtVar%DT
 

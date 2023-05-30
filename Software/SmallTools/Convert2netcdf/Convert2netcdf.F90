@@ -87,6 +87,8 @@ program Convert2netcdf
         logical                                             :: ImposeMask       = .false.
         logical                                             :: ResultsAre2D     = .false.
         logical                                             :: OutputIs2D       = .false. 
+        logical                                             :: HdfMaskVariesInTime = .false.
+        character(len=StringLength)                         :: HdfMaskInTimeName = null_str
     end type T_HDFFile                                      
                                                             
     type T_NCDFFile                                         
@@ -139,6 +141,7 @@ program Convert2netcdf
         real,    dimension(:,:,:), pointer                  :: Float3DOut          => null()
         integer, dimension(:,:  ), pointer                  :: Int2DOut            => null()
         integer, dimension(:,:,:), pointer                  :: Int3DOut            => null()
+        integer, dimension(:,:,:,:), pointer                :: OpenPoints          => null()
         
         logical                                             :: IsMapping           = .false. 
 
@@ -203,7 +206,8 @@ program Convert2netcdf
         integer                                     :: STAT_CALL, iflag
         logical                                     :: exist, Exist2
         real, dimension(:), allocatable             :: Aux1D
-        
+        character(StringLength)                     :: AuxChar
+        integer                                     :: OutputNumber
         !Begin-----------------------------------------------------------------
         
         !Read input file name from nomfich file
@@ -516,6 +520,46 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'
+        
+        call GetData(Me%HDFFile%HdfMaskVariesInTime,                                    &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_MASK_IN_TIME',                                 &
+                     Default      = .false.,                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR341'
+        
+        if (Me%HDFFile%HdfMaskVariesInTime) then
+            call GetData(Me%HDFFile%HdfMaskInTimeName,                                      &
+                         Me%ObjEnterData,iflag,                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'HDF_MASK_IN_TIME_NAME',                            &
+                         Default      = 'WaterPoints3D',                                    &
+                         ClientModule = 'Convert2netcdf',                                   &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR342'
+            
+            OutputNumber = 1
+            call ConstructDataSetName(trim(Me%HDFFile%HdfMaskInTimeName), OutputNumber, AuxChar)
+            
+            call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
+                                      DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
+                                                      "/"//trim(Me%HDFFile%HdfMaskInTimeName)// &
+                                                      "/"//trim(adjustl(AuxChar)),   &
+                                      Exist         = Exist,                        & 
+                                      STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR343'
+        
+            if (.not. Exist) then
+                write(*,*) 'Name define in keyword HDF_MASK_IN_TIME_NAME not found in HDF'
+                write(*,*) trim(Me%HDFFile%SizeGroup)//"/"//trim(Me%HDFFile%HdfMaskInTimeName)// &
+                                                      "/"//trim(adjustl(AuxChar))
+                stop 'ReadMask - Convert2netcdf - ERR344'
+            endif
+            
+        end if
+        
 
         call GetData(Me%HDFFile%ResultsAre2D,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -1787,8 +1831,8 @@ program Convert2netcdf
         !Local-----------------------------------------------------------------
         character(len=StringLength)         :: NCDFName, LongName, StandardName, Units
         real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
-        integer                             :: STAT_CALL, i, j, k, KUB, kfloor
-
+        integer                             :: STAT_CALL, i, j, k, KUB, kfloor, instant
+        integer, dimension(:,:,:), pointer  :: aux3DHolder
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Reading and writing mask..."
@@ -1909,7 +1953,27 @@ program Convert2netcdf
                 
                     endif                
                 
-                endif                    
+                endif
+                
+                !Reads OpenPoints and saves it in a 4D matrix
+                if (Me%HDFFile%HdfMaskVariesInTime) then
+                    allocate(Me%OpenPoints(1:Me%HDFFile%Size%IUB, &
+                                          1:Me%HDFFile%Size%JUB, &
+                                          1:Me%HDFFile%Size%KUB, 1:Me%HDFFile%nInstants))
+                    
+                    do instant = 1, Me%HDFFile%nInstants
+                        aux3DHolder =>  Me%OpenPoints(:,:,:,instant)
+                        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                                          GroupName    = trim(Me%HDFFile%SizeGroup)//  &
+                                                         "/"//trim(Me%HDFFile%HdfMaskInTimeName), &
+                                          Name         = trim(Me%HDFFile%HdfMaskInTimeName),      &
+                                          Array3D      = aux3DHolder,                   &
+                                          OutputNumber = instant,                             &
+                                          STAT         = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR61'
+                    end do
+                    nullify(aux3DHolder)
+                end if
 
             else
 
@@ -3014,17 +3078,28 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     enddo                
                     
                 else                    
-                    
-                    do i=1,Me%HDFFile%Size%IUB
-                    do j=1,Me%HDFFile%Size%JUB
-                        if (Me%Float2DIn(i, j) /= FillValueReal) then
-                            Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
-                        else
-                            Me%Float2DOut(j,i) =  FillValueReal                                                       
-                        endif                            
-                    enddo
-                    enddo                
-                    
+                    if (Me%HDFFile%HdfMaskVariesInTime) then
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB              
+                            if (Me%OpenPoints(i, j, Me%HDFFile%Size%KUB, item) == 1) then                                                              
+                                Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+                            else
+                                Me%Float2DOut(j,i) = FillValueReal
+                            endif                                    
+                        enddo
+                        enddo
+                    else
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                            if (Me%Float2DIn(i, j) /= FillValueReal) then
+                                Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+                            else
+                                Me%Float2DOut(j,i) =  FillValueReal                                                       
+                            endif                            
+                        enddo
+                        enddo
+                    end if
+
                 endif                                        
 
                 call BuildAttributes(Name, NCDFName, LongName, StandardName, &
@@ -3219,17 +3294,32 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                     else                    
 
-                        do i=1,Me%HDFFile%Size%IUB
-                        do j=1,Me%HDFFile%Size%JUB
-                        do k=1,Me%HDFFile%Size%KUB                
-                            if (Me%Float3DIn(i, j, k) /= FillValueReal) then                                                              
-                                Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
-                            else
-                                Me%Float3DOut(j,i,k) = FillValueReal
-                            endif                                    
-                        enddo
-                        enddo
-                        enddo
+                        if (Me%HDFFile%HdfMaskVariesInTime) then
+                            do i=1,Me%HDFFile%Size%IUB
+                            do j=1,Me%HDFFile%Size%JUB
+                            do k=1,Me%HDFFile%Size%KUB                
+                                if (Me%OpenPoints(i, j, k, item) == 1) then                                                              
+                                    Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
+                                else
+                                    Me%Float3DOut(j,i,k) = FillValueReal
+                                endif                                    
+                            enddo
+                            enddo
+                            enddo
+                        else
+                            do i=1,Me%HDFFile%Size%IUB
+                            do j=1,Me%HDFFile%Size%JUB
+                            do k=1,Me%HDFFile%Size%KUB                
+                                if (Me%Float3DIn(i, j, k) /= FillValueReal) then                                                              
+                                    Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
+                                else
+                                    Me%Float3DOut(j,i,k) = FillValueReal
+                                endif                                    
+                            enddo
+                            enddo
+                            enddo
+                        end if
+                        
 
                     endif
 
@@ -3359,6 +3449,34 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         enddo
 
     end subroutine CheckAndCorrectVarName
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructDataSetName (Name, OutputNumber, AuxChar)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Name
+        integer                                     :: OutputNumber
+        character(len=*)                            :: AuxChar
+
+        !Local-----------------------------------------------------------------
+        character(StringLength)                     :: AuxNum
+
+        write(AuxNum, fmt=*)OutputNumber
+
+        if     (OutputNumber < 10     ) then
+            AuxChar = trim(adjustl(Name))//"_0000"//trim(adjustl(AuxNum))
+        elseif (OutputNumber < 100    ) then
+            AuxChar = trim(adjustl(Name))//"_000" //trim(adjustl(AuxNum))
+        elseif (OutputNumber < 1000   ) then
+            AuxChar = trim(adjustl(Name))//"_00"  //trim(adjustl(AuxNum))
+        elseif (OutputNumber < 10000  ) then
+            AuxChar = trim(adjustl(Name))//"_0"   //trim(adjustl(AuxNum))
+        else
+            AuxChar = trim(adjustl(Name))//"_"    //trim(adjustl(AuxNum))
+        endif
+
+    end subroutine ConstructDataSetName
     
     !--------------------------------------------------------------------------
 

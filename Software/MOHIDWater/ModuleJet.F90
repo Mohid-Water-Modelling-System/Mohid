@@ -85,21 +85,21 @@ Module ModuleJet
                                                            !LINEAR  - The user wants a water column where 
                                                            !the density and velocity have a linear profile
 !   DEFAULT_SALINITY        : real (psu)       [36]       !ambient salinity when a UNIFORM water column is admitted
-!   DEFAULT_TEMPERATURE     : real (ºC)        [16]       !ambient temperature when a UNIFORM water column is admitted
+!   DEFAULT_TEMPERATURE     : real (ÂºC)        [16]       !ambient temperature when a UNIFORM water column is admitted
 !   DEFAULT_VELU            : real (m/s)       [0.2]      !ambient velocity U when a UNIFORM water column is admitted
 !   DEFAULT_VELV            : real (m/s)       [0]        !ambient velocity V when a UNIFORM water column is admitted
 !   BOTTOM_SALINITY         : real (psu)       [36]       !ambient bottom salinity when a LINEAR water column is admitted
-!   BOTTOM_TEMPERATURE      : real (ºC)        [16]       !ambient bottom temperature when a LINEAR water column is admitted
+!   BOTTOM_TEMPERATURE      : real (ÂºC)        [16]       !ambient bottom temperature when a LINEAR water column is admitted
 !   BOTTOM_VELU             : real (m/s)       [0.2]      !ambient bottom velocity U when a LINEAR water column is admitted
 !   BOTTOM_VELV             : real (m/s)       [0]        !ambient bottom velocity V when a LINEAR water column is admitted
 !   SURFACE_SALINITY        : real (psu)       [36]       !ambient surface salinity when a LINEAR water column is admitted
-!   SURFACE_TEMPERATURE     : real (ºC)        [16]       !ambient surface temperature when a LINEAR water column is admitted 
+!   SURFACE_TEMPERATURE     : real (ÂºC)        [16]       !ambient surface temperature when a LINEAR water column is admitted 
 !   SURFACE_VELU            : real (m/s)       [0.2]      !ambient surface velocity U when a LINEAR water column is admitted
 !   SURFACE_VELV            : real (m/s)       [0]        !ambient surface velocity V when a LINEAR water column is admitted
 
     use ModuleGlobalData
     use ModuleEnterData,      only : ConstructEnterData, GetData, KillEnterData, GetExtractType
-    use ModuleFunctions,      only : SigmaUNESCO
+    use ModuleFunctions,      only : SigmaUNESCO, normcrossprod_v2
     use ModuleHorizontalGrid, only : GetCellRotation    
 
     implicit none 
@@ -115,11 +115,15 @@ Module ModuleJet
     !Selector 
         !  GetPlumeDilution
         !  GetOutPutMatrix
+        !  GetOutPutLines 
+        !  GetOutPutFormatType
         !  GetPlumeLocation
+        !  GetPlumeVerticalLocation
         !  GetPlumeDensity
         !  GetPlumeTemperature
         !  GetPlumeSalinity
         !  GetPlumeVelocity
+        !  GetPortVelocity
         !  GetPlumeMixingHorLength
         !  UngetJet
     !Destructor
@@ -142,15 +146,21 @@ Module ModuleJet
     !Selector
     public  :: GetPlumeDilution
     public  :: GetOutPutMatrix
+    public  :: GetOutPutLines
+    public  :: GetOutPutFormatType        
     public  :: GetOutPutHeader
     public  :: GetPlumeLocation
+    public  :: GetPlumeVerticalLocation
     public  :: GetPlumeDensity
     public  :: GetPlumeTemperature
     public  :: GetPlumeSalinity
     public  :: GetPlumeVelocity
+    public  :: GetPortVelocity    
     public  :: GetPlumeMixingHorLength
     public  :: GetPlumeThickness
+    public  :: GetPlumeDiameter
     public  :: GetPortGeometry
+    public  :: GetPlumeSection
     public  :: UngetJet
 
     private :: UngetJetChar1D
@@ -176,11 +186,12 @@ Module ModuleJet
     private ::              VelocityVariation         
     private ::              AuxiliarVectors           
     private ::              ThicknessVariation        
-    private ::              Plumetracjectory          
+    private ::              Plumetrajectory          
     private ::              ComputeGeometry           
     private ::              TimeControl    
     private ::                  JetOutPut 
     private ::                  CloudOutPut 
+    private ::                  CloudOutPut_V2
 
     !Destructor
     public  :: KillJet
@@ -226,6 +237,7 @@ Module ModuleJet
         real                            :: OutfallAngle                 = null_real
         integer                         :: Number                       = null_int
         real                            :: MinPortVelocity              = null_real 
+        logical                         :: MonitorPlumeTop              = .false. 
     end type T_Port
 
     type T_Ambient
@@ -321,9 +333,15 @@ Module ModuleJet
         real                            :: DVel                         = null_real
         real                            :: x                            = null_real
         real                            :: y                            = null_real
+        real                            :: x1                           = null_real
+        real                            :: y1                           = null_real
+        real                            :: x2                           = null_real
+        real                            :: y2                           = null_real
         real                            :: Xrand                        = null_real
         real                            :: Yrand                        = null_real
         real                            :: z                            = null_real
+        real                            :: Dmin                         = null_real        
+        real                            :: Dmax                         = null_real        
         real                            :: x_old                        = null_real
         real                            :: y_old                        = null_real
         real                            :: z_old                        = null_real
@@ -1025,6 +1043,17 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR60'
         
 
+        call GetData(Me%Port%MonitorPlumeTop,                                           &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MONITOR_PLUME_TOP',                                 &
+                     ClientModule ='ModuleJet',                                         &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)        
+
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR70'      
+        
 
     end subroutine ReadJetData
 
@@ -1266,7 +1295,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         Me%Evolution%Temperature= Me%Port%Temperature
         Me%Evolution%Density    = Me%Port%Density
 
-        Me%Evolution%InversionZ = .false.
+        Me%Evolution%InversionZ   = .false.
 
         Call LocalAmbientProp    
         Call AuxiliarVectors     
@@ -1353,7 +1382,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         Call VelocityVariation        
         Call AuxiliarVectors          
         Call ThicknessVariation       
-        Call Plumetracjectory         
+        Call Plumetrajectory         
         Call ComputeGeometry          
         Call TimeControl              
 
@@ -1493,14 +1522,16 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
            
         !Local-----------------------------------------------------------------
         real ::  AuxAngle1, AuxAngle2, VelHorz, Aux
+        !real :: du, dv, dw
 
         !----------------------------------------------------------------------
 
 
         
         Me%Evolution%VelModulus = Sqrt(Me%Evolution%VelU ** 2 +                  &
-                                           Me%Evolution%VelV ** 2 +                  &
-                                           Me%Evolution%VelW ** 2)
+                                       Me%Evolution%VelV ** 2 +                  &
+                                       Me%Evolution%VelW ** 2)
+        
         VelHorz   =  Sqrt(Me%Evolution%VelU ** 2 + Me%Evolution%VelV ** 2)
 
 
@@ -1517,8 +1548,19 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                                          + Me%Ambient%LocalVelV * Me%Evolution%ey &
                                          + Me%Ambient%LocalVelW * Me%Evolution%ez
 
+        !Do not consider the direction of the flow and plume
         Me%Evolution%DVel = Abs(Me%Evolution%VelModulus - Me%Evolution%AmbientModulusT)
-
+        
+        !Correct way to compute the plume velocity relative to the flow. 
+        !However, this methodology give very high dilution results for flow 
+        !with a very different direction from the plume initial direction
+        
+        !du =  Me%Evolution%VelU - Me%Ambient%LocalVelU * Me%Evolution%ex 
+        !dv =  Me%Evolution%VelV - Me%Ambient%LocalVelV * Me%Evolution%ey
+        !dw =  Me%Evolution%VelW - Me%Ambient%LocalVelW * Me%Evolution%ez
+        !
+        !Me%Evolution%DVel = sqrt(du**2 + dv**2 + dw**2)
+        
         If (Me%Evolution%DragEntrainmentON) Then
 
             aux = Me%Evolution%AmbientModulusT / Me%Ambient%LocalVelModulus
@@ -1534,8 +1576,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%Evolution%AmbientWn = Me%Ambient%LocalVelW * Cos(AuxAngle2)
 
             Me%Evolution%AmbientModulusN =  Sqrt(Me%Evolution%AmbientUn ** 2 +   &
-                                                     Me%Evolution%AmbientVn ** 2 +   &
-                                                     Me%Evolution%AmbientWn ** 2)
+                                                 Me%Evolution%AmbientVn ** 2 +   &
+                                                 Me%Evolution%AmbientWn ** 2)
         Else
             Me%Evolution%AmbientUn       = 0
             Me%Evolution%AmbientVn       = 0
@@ -1799,15 +1841,21 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
    
         !Local-----------------------------------------------------------------
         real    :: RestrainedLengthScale, DensityFrontSpeed
+        logical :: VertBoundContact
         !----------------------------------------------------------------------
 
+        if (Me%Evolution%DisconnectVertLimit) then
+            VertBoundContact = Me%Evolution%VertBoundContact
+        else
+            VertBoundContact = .false.
+        endif
 
         ![m] = [m^3/m]**.5
         Me%Evolution%Diameter_old = Me%Evolution%Diameter
 
 
 i1:     if (Me%Evolution%Diameter < Me%Evolution%MaxHorizLengthScale .and.              &
-            .not. Me%Evolution%VertBoundContact) then
+            .not. VertBoundContact) then
 
             !Disk geometry
             Me%Evolution%Diameter     =  Sqrt(Me%Evolution%Volume * 4 / Me%Evolution%Thickness / Pi)
@@ -1821,7 +1869,8 @@ i1:     if (Me%Evolution%Diameter < Me%Evolution%MaxHorizLengthScale .and.      
         else i1
             !There is a jet overlapping or the plume arrive to the surface or bottom
 
-i2:        if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale .and. Me%Evolution%VertBoundContact) then
+i2:        if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale .and.           &
+               VertBoundContact) then
 
                 ! Plume is not able to grow 
                 Me%Evolution%Diameter     =  Me%Evolution%Diameter
@@ -1833,7 +1882,7 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
                     RestrainedLengthScale = Me%Evolution%MaxHorizLengthScale
 
-                else if (Me%Evolution%VertBoundContact) then i3
+                else if (VertBoundContact) then i3
 
                     DensityFrontSpeed = sqrt(abs(Me%Evolution%dro) / Me%Ambient%LocalDensity * &
                                               Gravity * Me%Evolution%VertLengthScale)
@@ -1846,9 +1895,9 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
                 endif i3
 
-                !A rectangular geometry is admitted 
+                !A rectangular geometry is assumed 
                 !In this case the variable Diameter represents the length of the not limited side of the rectangular and
-                !MaxLengthScale the length of the limited side.
+                !VertLengthScale the length of the limited side.
                 !Example: 
                 !   When there is jets overlapping the largest side is the interface with the other JETS 
                 !   the smallest side is the interface with the "exterior"
@@ -1867,13 +1916,14 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
     !--------------------------------------------------------------------------    
 
-    subroutine Plumetracjectory
+    subroutine Plumetrajectory
 
         !Arguments-------------------------------------------------------------
         
    
         !Local-----------------------------------------------------------------
-        real :: dx, dy, dz, Aux, SurfaceLevel, BottomLevel, AuxRandX, AuxRandY, AuxRand
+        real    :: dx, dy, dz, Aux, SurfaceLevel, BottomLevel, AuxRandX, AuxRandY, AuxRand
+        real    :: length, nx, ny, WaterColumn
         integer :: I, J, K, Kbottom
         !----------------------------------------------------------------------
 
@@ -1884,6 +1934,7 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
         SurfaceLevel = Me%Ambient%Szz(I, J, K) 
         BottomLevel  = Me%Ambient%Szz(I, J, KBottom)
+        WaterColumn  = BottomLevel - SurfaceLevel
 
         dx = Me%Evolution%VelU * Me%Evolution%DT
         dy = Me%Evolution%VelV * Me%Evolution%DT
@@ -1899,41 +1950,55 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
 
 i1:     if (.not. Me%Evolution%VertBoundContact) then
-
-            If (Me%NumericalOptions%Parametrization == CORJET)  Then
-                !Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+    
+            if (Me%Port%MonitorPlumeTop) then                
+                Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+            else
                 Aux = 0.
+            endif    
+
+!            If (Me%NumericalOptions%Parametrization == CORJET)  Then
+            
+            if (Me%Ambient%LocalDensity >= Me%Port%Density) then 
+                !Only valid for positive buoyancy plumes.  
+            
+
                 If (Me%Evolution%z <= SurfaceLevel + Aux) Then
                     Me%Evolution%z = SurfaceLevel + Aux + Precision
                     Me%Evolution%VelW = 0
                     Me%Evolution%VertBoundContact = .true.
                 end If
+            
+            endif
 
 
-            ElseIf (Me%NumericalOptions%Parametrization == JETLAG) Then
-                If (Me%Evolution%z <= SurfaceLevel) Then
-                    Me%Evolution%z    = SurfaceLevel + Precision
+!            ElseIf (Me%NumericalOptions%Parametrization == JETLAG) Then
+!                If (Me%Evolution%z <= SurfaceLevel) Then
+!                    Me%Evolution%z    = SurfaceLevel + Precision
+!                    Me%Evolution%VelW = 0
+!                    Me%Evolution%VertBoundContact = .true.
+!                end If
+!
+            !ElseIf (Me%NumericalOptions%Parametrization == MOHIDJET) Then
+            !
+            !end If
+
+            if (Me%Ambient%LocalDensity < Me%Port%Density) then             
+            
+                If (Me%Evolution%z >= BottomLevel - Aux) Then
+                    Me%Evolution%z    = BottomLevel - Aux - Precision
                     Me%Evolution%VelW = 0
                     Me%Evolution%VertBoundContact = .true.
                 end If
-
-            ElseIf (Me%NumericalOptions%Parametrization == MOHIDJET) Then
-
-            end If
-
-            If (Me%Evolution%z >= BottomLevel) Then
-                Me%Evolution%z    = BottomLevel - Precision
-                Me%Evolution%VelW = 0
-                Me%Evolution%VertBoundContact = .true.
-            end If
-
+            endif
+            
         endif i1
 
 i2:     if (Me%Evolution%VertBoundContact) then
         
             if (.not.Me%Evolution%DisconnectVertLimit) then
                 Me%Evolution%EndRun = .true.
-                Me%Evolution%EndRunType = "Plume Arrive to surface"
+                Me%Evolution%EndRunType = "Plume Arrive to surface/bottom"
             endif
 
             if (.not. Me%Evolution%NotFirstContact) then
@@ -1946,14 +2011,18 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         endif i2
 
-
         if (Me%Evolution%z_old > Me%Evolution%z .and.                            &
-            Me%Evolution%Time > Me%NumericalOptions%MinSimulationPeriod)         &
+            Me%Evolution%Time > Me%NumericalOptions%MinSimulationPeriod) then
             Me%Evolution%InversionZ = .true.
-
-        if (Me%Evolution%z     > Me%Evolution%z_old .and. Me%Evolution%InversionZ) then
-            Me%Evolution%EndRun = .true.
-            Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
+            endif
+            
+        if (Me%Ambient%LocalDensity > Me%Port%Density) then 
+            !Only valid for positive buoyancy plumes.  
+            if (Me%Evolution%z     > Me%Evolution%z_old .and. Me%Evolution%InversionZ) then
+                Me%Evolution%EndRun = .true.
+                Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
+            endif
+            
         endif
 
         if (Me%Port%Number > 1) then
@@ -1965,12 +2034,37 @@ i2:     if (Me%Evolution%VertBoundContact) then
             !and the position of the tracer in the far field will locate random along the outfall
             Me%Evolution%Xrand = Me%Evolution%x + AuxRandX
             Me%Evolution%Yrand = Me%Evolution%y + AuxRandY
+            length = Me%Evolution%Diameter + Me%Port%OutfallLength        
         else
             Me%Evolution%Xrand = Me%Evolution%x
             Me%Evolution%Yrand = Me%Evolution%y
+            length = Me%Evolution%Diameter
         endif
 
-    end subroutine
+        nx = Cos(Me%Evolution%XYAngle)
+        ny = Sin(Me%Evolution%XYAngle)
+
+        ! Calculate the first point of the segment
+        Me%Evolution%X1  = Me%Evolution%x + (length/2)*ny
+        Me%Evolution%Y1  = Me%Evolution%y - (length/2)*nx
+      
+        ! Calculate the second point of the segment
+        Me%Evolution%X2  = Me%Evolution%x - (length/2)*ny
+        Me%Evolution%Y2  = Me%Evolution%y + (length/2)*nx
+        
+        
+        if (Me%Port%MonitorPlumeTop) then                
+            Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+        else
+            Aux = 0.
+        endif            
+
+        !Minimum and maximum depths of the plume     
+        Me%Evolution%Dmin = Me%Evolution%z - SurfaceLevel - Aux
+        Me%Evolution%Dmax = min(Me%Evolution%z - SurfaceLevel  + Me%Evolution%VertLengthScale - Aux, WaterColumn)
+        
+
+    end subroutine Plumetrajectory
 
     !--------------------------------------------------------------------------    
 
@@ -2010,7 +2104,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
             else if (Me%OutPut%FormatType == CLOUD) then
 
-                call CloudOutPut
+                call CloudOutPut_V2
 
             endif
 
@@ -2236,6 +2330,99 @@ i2:     if (Me%Evolution%VertBoundContact) then
     end subroutine CloudOutPut
 
     !--------------------------------------------------------------------------    
+    
+Subroutine CloudOutPut_V2
+
+        !Arguments-------------------------------------------------------------
+        
+   
+        !Local-----------------------------------------------------------------
+        real                :: xposition, yposition, zposition, SurfaceLevel, r, t
+        real, dimension(3)  :: normal_vector, PointCenter, PointOut 
+        real, dimension(3)  :: surf_vector_1, surf_vector_2, generic_vector
+        integer             :: I, J, K, iP
+        !real                :: ex1,ey1, ez1
+        !real                :: X1, Y1, Z1, t, u
+        !----------------------------------------------------------------------
+
+        I       = Me%Ambient%I
+        J       = Me%Ambient%J
+        K       = Me%Ambient%SurfaceLayer
+        
+        ! Define the normal vector and center point for the circular surface
+        normal_vector = [Me%Evolution%ex, Me%Evolution%ey, -Me%Evolution%ez]
+
+        PointCenter = [Me%Evolution%x, Me%Evolution%y, Me%Evolution%z]
+        
+        generic_vector = [1., 0., 0.]
+            
+        surf_vector_1 = normcrossprod_v2 (normal_vector, generic_vector)
+        surf_vector_2 = normcrossprod_v2 (normal_vector, surf_vector_1)
+                    
+        r = Me%Evolution%Diameter/2.0 
+        
+        do ip=1, Me%OutPut%ParticlesNumber
+
+            Me%OutPut%Number = Me%OutPut%Number + 1
+
+            call random_number(t)
+            t = 2*Pi*t
+            
+            PointOut = PointCenter + r * (cos(t) * surf_vector_1 + sin(t) * surf_vector_2)
+            
+            xposition = PointOut(1)
+            yposition = PointOut(2)
+            zposition = PointOut(3)
+            
+            SurfaceLevel = Me%Ambient%SZZ(I, J, K)
+
+            if (zposition < SurfaceLevel) zposition = SurfaceLevel
+
+            !Gaussian distribution normal to the plume trajectory
+            Me%OutPut%Matrix(Me%OutPut%Number, 1) = Me%Evolution%Time
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 2) = xposition
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 3) = yposition
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 4) = zposition
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 5) = Me%Evolution%Dilution
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 6) =  Me%OutPut%Concentration
+            
+            Me%OutPut%Matrix(Me%OutPut%Number, 7) = Me%Evolution%Diameter
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 8) =  Me%Evolution%VelModulus
+
+            Me%OutPut%Matrix(Me%OutPut%Number, 9) = Me%Evolution%Salinity
+
+            Me%OutPut%Matrix(Me%OutPut%Number,10) = Me%Evolution%Temperature
+
+            Me%OutPut%Matrix(Me%OutPut%Number,11) = Me%Evolution%Density
+
+        enddo
+
+        Me%OutPut%TimeOut = Me%OutPut%TimeOut + Me%OutPut%DT
+
+        Me%OutPut%VelModulus_Old    = Me%Evolution%VelModulus
+        Me%OutPut%Dilution_Old      = Me%Evolution%Dilution
+        Me%OutPut%Diameter_Old      = Me%Evolution%Diameter
+        Me%OutPut%Salinity_Old      = Me%Evolution%Salinity
+        Me%OutPut%Temperature_Old   = Me%Evolution%Temperature
+        Me%OutPut%Density_Old       = Me%Evolution%Density
+        Me%OutPut%x_old             = Me%Evolution%x
+        Me%OutPut%y_old             = Me%Evolution%y
+        Me%OutPut%z_old             = Me%Evolution%z
+        Me%OutPut%ex_old            = Me%Evolution%ex
+        Me%OutPut%ey_old            = Me%Evolution%ey
+        Me%OutPut%ez_old            = Me%Evolution%ez
+
+    end subroutine CloudOutPut_V2
+
+
+    !--------------------------------------------------------------------------    
+    
 
     real Function ComputeAngleXY(Modulus, X, Y) 
 
@@ -2438,6 +2625,46 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetPlumeVerticalLocation(JetID, PlumeZ, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        real                                        :: PlumeZ
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PlumeZ = Me%Evolution%z
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetPlumeVerticalLocation
+
+    !--------------------------------------------------------------------------    
+
     subroutine GetPlumeDensity(JetID, PlumeDensity, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2592,6 +2819,47 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !----------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetPortVelocity(JetID, PortVelX, PortVelY, PortVelZ, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        real                                        :: PortVelX, PortVelY, PortVelZ
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PortVelX = Me%Port%VelU
+            PortVelY = Me%Port%VelV
+            PortVelZ = Me%Port%VelW
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetPortVelocity
+
+    !----------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
@@ -2657,7 +2925,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            PlumeThickness = Me%Evolution%Diameter
+            PlumeThickness = Me%Evolution%VertLengthScale
 
             STAT_ = SUCCESS_
         else 
@@ -2672,8 +2940,94 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
      
     end subroutine GetPlumeThickness
 
-    !----------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
+    subroutine GetPlumeDiameter(JetID, PlumeDiameter, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        real                                        :: PlumeDiameter
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PlumeDiameter = Me%Evolution%Diameter
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetPlumeDiameter
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetPlumeSection(JetID, X1, Y1, X2, Y2, Dmin, Dmax, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        real                                        :: X1, Y1, X2, Y2, Dmin, Dmax
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+                ! Calculate the first point of the segment
+                X1 = Me%Evolution%X1
+                Y1 = Me%Evolution%Y1
+              
+                ! Calculate the second point of the segment
+                X2 = Me%Evolution%X2
+                Y2 = Me%Evolution%Y2
+            
+                !Minimum and maximum depths of the plume     
+                Dmin = Me%Evolution%Dmin
+                Dmax = Me%Evolution%Dmax
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetPlumeSection
+
+    !----------------------------------------------------------------------    
 
 
     subroutine GetOutPutMatrix(JetID, OutPutMatrix, OutPutLines, OutPutColumns, STAT)
@@ -2720,10 +3074,82 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine GetOutPutMatrix
     !----------------------------------------------------------------------
 
+    subroutine GetOutPutLines(JetID, OutPutLines, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        integer, intent(OUT)                        :: OutPutLines
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            OutPutLines   = Me%OutPut%Number
+  
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetOutPutLines
+
     !----------------------------------------------------------------------
+    
+    subroutine GetOutPutFormatType (JetID, FormatType , STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JetID
+        integer, intent(OUT)                        :: FormatType 
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
 
 
+        STAT_ = UNKNOWN_
 
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            FormatType    = Me%OutPut%FormatType 
+  
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+     
+    end subroutine GetOutPutFormatType
+
+    !----------------------------------------------------------------------
+        
     subroutine GetOutPutHeader(JetID, OutPutHeader, OutPutColumns, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2953,7 +3379,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     subroutine DeallocateInstance 
 
         !Arguments-------------------------------------------------------------
-        type (T_Jet), pointer           :: ObjJet
+        !type (T_Jet), pointer           :: ObjJet
 
         !Local-----------------------------------------------------------------
         type (T_Jet), pointer           :: AuxJet
@@ -2976,8 +3402,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         endif
 
         !Deallocates instance
-        deallocate (ObjJet)
-        nullify    (ObjJet) 
+        !deallocate (ObjJet)
+        !nullify    (ObjJet) 
             
     end subroutine DeallocateInstance
 
@@ -3039,5 +3465,5 @@ end Module ModuleJet
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T?cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------

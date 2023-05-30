@@ -1632,7 +1632,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             DoNextStep = .false.
 
 if9:        if (Me%CurrentTime .LT. Me%EndTime) then      
-                !João Sobrinho - Changed from GE to GT so that all domains sincronize with the First domain
+                !JoÃ£o Sobrinho - Changed from GE to GT so that all domains sincronize with the First domain
 if2:            if (Global_CurrentTime .GT. Me%CurrentTime) then
                 !if (Global_CurrentTime .GE. Me%CurrentTime) then
 
@@ -1813,8 +1813,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                     NewDT = Me%EndTime - Me%CurrentTime
                 endif
 
-                !WriteDTLog: com i, j e k opcionais. O nome do módulo deve conter
-                !a propriedade limitadora. O -99 deve conter o número da iteração.
+                !WriteDTLog: com i, j e k opcionais. O nome do mÃ³dulo deve conter
+                !a propriedade limitadora. O -99 deve conter o nÃºmero da iteraÃ§Ã£o.
                 if (MonitorDT)                                                          &
                     call WriteDTLog (trim(Me%ModelName), Me%Iteration, NewDT,           &
                                      PredictedDT%i, PredictedDT%j, predictedDT%k,       &
@@ -1999,6 +1999,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                    &
                                  Me%ExternalVar%Density,                                &
                                  Me%ExternalVar%SigmaDens,                              &
+                                 Me%ExternalVar%Temperature,                            &
+                                 Me%ExternalVar%Salinity,                               &                                   
                                  PredHydroDT,                                           &
                                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR210'
@@ -2390,5 +2392,5 @@ end module ModuleModel
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------

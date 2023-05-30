@@ -120,7 +120,10 @@ Module ModuleHydrodynamic
                                        SetDischargeInterceptionRatio,                    &
                                        GetDischargeInterceptionRatio,                    &
                                        Kill_Discharges, CorrectsBypassCellsDischarges,   &
-                                       SetDistributionCoefMass, IsUpscaling, UpscalingDischargeType
+                                       SetDistributionCoefMass, IsUpscaling,             &
+                                       UpscalingDischargeType, GetDischargeMohidJet,     &
+                                       GetDischargeConcentration, SetMohidJetProp,       &
+                                       GetDischID_MohidJetON, GetDischarges_MohidJetON
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput,              &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
@@ -149,7 +152,9 @@ Module ModuleHydrodynamic
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea, GetConnections, &
-                                       GetCornersCoordinates!, GetGhostCorners
+                                       GetCornersCoordinates, GetLatitudeLongitude,      &
+                                       GetGeoCoordON , GetXY_Coord_InsideInnerDomain !,     &
+                                       !GetPoly_Coord_InsideInnerDomain
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay,                    &
                                        UngetTwoWayExternal_Vars, &
@@ -159,7 +164,16 @@ Module ModuleHydrodynamic
                                        Offline_Upscaling_Discharge, GetUpscalingIDs,     &
                                        GetUpscalingDischargeVelocity, UnGetUpscalingDischargeVelocity, &
                                        ActiveUpscalingMomentumDischarge
-#ifdef _USE_MPI
+    
+    use ModuleJet,              only : Construct_Jet, ModifyJet, KillJet,               &
+                                       GetPlumeDilution, GetPlumeSection,               &
+                                       GetPlumeDensity, GetPlumeTemperature,            &
+                                       GetPlumeSalinity, GetPlumeVelocity,              &
+                                       GetPlumeMixingHorLength, GetPlumeThickness,      &
+                                       GetPlumeVerticalLocation, GetPortVelocity,       &
+                                       GetPlumeDiameter, GetOutPutMatrix,               &
+                                       GetOutPutLines, GetOutPutFormatType, UngetJet
+#ifdef _USE_MPI                                          
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
 
@@ -510,7 +524,7 @@ Module ModuleHydrodynamic
     public  :: GetResidualHorizontalVelocity
     public  :: GetResidualVelocityPeriod
     public  :: CheckOfflineUpscalingDisch
-    public  :: GetUscalingMethod
+    public  :: GetUpscalingMethod
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -852,6 +866,45 @@ Module ModuleHydrodynamic
          character(len=PathLength) :: BoxFluxesFileName   = null_str
          character(len=PathLength) :: Energy              = null_str
     end type T_Files
+
+    !Mohid Jet Variables
+
+    private :: T_JetX
+    type       T_JetX
+        logical                                     :: ON                   = .false.
+        character(len=StringLength)                 :: DischargeName        = null_str    
+        real                                        :: Salinity             = null_real
+        real                                        :: Temperature          = null_real
+        real                                        :: Dilution             = null_real
+        real                                        :: VelX                 = null_real
+        real                                        :: VelY                 = null_real
+        real                                        :: VelZ                 = null_real
+        real                                        :: Flow                 = null_real
+        real                                        :: CoordinateX          = null_real 
+        real                                        :: CoordinateY          = null_real 
+        real                                        :: CartX                = null_real 
+        real                                        :: CartY                = null_real         
+        integer                                     :: I                    = null_int
+        integer                                     :: J                    = null_int
+        real                                        :: DT                   = null_real
+        type (T_Time)                               :: NextActualization
+        character(PathLength)                       :: DataFile             = null_str
+        character(PathLength)                       :: FileOut              = null_str
+        integer                                     :: UnitOut              = null_int
+        logical                                     :: OutputON             = .false. 
+        integer                                     :: ObjJet               = 0
+        integer                                     :: OutParticles         = null_int
+    end type T_JetX        
+
+    private :: T_MohidJet
+    type       T_MohidJet
+        logical                                     :: ON                   = .false.
+        integer                                     :: DischargesNumber     = null_int
+        real                                        :: LatitudeRef          = null_real    
+        real                                        :: LongitudeRef         = null_real        
+        integer                                     :: TotalOutParticles    = null_int         
+        type (T_JetX), dimension(:), pointer        :: JetX                 => null()
+    end type T_MohidJet    
 
     private :: T_DDecomp
     type       T_DDecomp
@@ -1375,9 +1428,10 @@ Module ModuleHydrodynamic
                                               Vertical_Viscosity    => null()
 
         !Water Properties
-        real,    dimension(:,:,:), pointer :: Density   => null(), &
-                                              SigmaDens => null()
-
+        real,    dimension(:,:,:), pointer :: Density       => null()
+        real,    dimension(:,:,:), pointer :: SigmaDens     => null()
+        real,    dimension(:,:,:), pointer :: Temperature   => null()
+        real,    dimension(:,:,:), pointer :: Salinity      => null()
         !Bottom
         real,    dimension(:,:),   pointer :: ChezyZ            => null(), &
                                               ChezyVelUV        => null(), &
@@ -1659,8 +1713,7 @@ Module ModuleHydrodynamic
 
         logical                         :: AssimilaOneField         = .false.
         logical                         :: MatrixesOutputOpt        = .false.
-        logical							:: OperationalDefault       = .false. 
-
+        logical                         :: OperationalDefault       = .false.
     end type T_HydroOptions
 
     type       T_Upscaling
@@ -1691,6 +1744,8 @@ Module ModuleHydrodynamic
                                                     TurbineON           = .false.
 
          logical                                  :: Simple             = .false.
+         logical                                  :: MohidJetON         = .false.  
+         logical                                  :: MohidJetONWindow   = .false. 
 
          real,          dimension(:,:,:), pointer :: ModulusH       => null(), &
                                                      CenterU        => null(), &
@@ -2019,6 +2074,11 @@ Module ModuleHydrodynamic
         type(T_HighLowTide   ) :: HighLowTide
 
         logical                :: FirstIteration = .true.
+
+        !Mohid Jet 
+        type(T_MohidJet)        :: MohidJet
+
+
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
         !changed in sequential data assimilation (some external memory is used ocasionally)
@@ -2650,7 +2710,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ReadLock_ModuleGeometry
         !Sobrinho
-        call ModifyWaterDischarges
+        call ModifyWaterDischarges(ModifyPhase = .false.)
         call ReadUnLock_ModuleGeometry
 
         !The subroutine StartHydrodynamicFile in RECORDING mode must be called
@@ -10404,6 +10464,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         real                            :: InterceptionRatio
         !logical                         :: GhostCorners
 
+
         !----------------------------------------------------------------------
 
 
@@ -10412,11 +10473,13 @@ ic1:    if (Me%CyclicBoundary%ON) then
 i1:     if (WaterDischarges) then
 
 i2:          if (DischargesID == 0) then
-                call Construct_Discharges(Me%ObjDischarges,                             &
-                                          Me%ObjTime,                                   &
-                                          STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR10'
 
+                call Construct_Discharges(DischargesID  = Me%ObjDischarges,             &
+                                          ObjTime       = Me%ObjTime,                   &
+                                          DDecompON     = Me%DDecomp%ON,                &
+                                          STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR10'
+                
                 DischargesID = Me%ObjDischarges
 
                 call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT  = STAT_CALL)
@@ -10434,9 +10497,17 @@ i2:          if (DischargesID == 0) then
 
                 call GetGeometryKFloor(Me%ObjGeometry, Z = Me%External_Var%KFloor_Z, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                              &
-                stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
+                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
+
+                call ConstructHydroMohidJet                    
 
 d1:             do dn = 1, DischargesNumber
+    
+                    if (Me%MohidJet%ON) then
+                        if (Me%MohidJet%JetX(dn)%ON) then
+                            cycle
+                        endif
+                    endif
 
                     if (IsUpscaling(Me%ObjDischarges, dn))then
                         if (UpscalingDischargeType(Me%ObjDischarges, dn) == UpscalingDischargeByVolume)then
@@ -10448,7 +10519,6 @@ d1:             do dn = 1, DischargesNumber
                         endif
                         Me%ComputeOptions%UpscalingDischarge = .true.
                     endif
-
 
                     call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
                                                        DischVertical = DischVertical,   &
@@ -10858,7 +10928,7 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
         if (Me%Relaxation%Upscaling) then
             call GetNumberOfVelocityFields_Upscaling(NFieldsUV3D_Upscaling)
             if (Me%ComputeOptions%UpscalingDischarge .and. NFieldsUV3D_Upscaling > 0) then
-            call Build_Upscaling_Discharge
+                call Build_Upscaling_Discharge
             endif
         endif
 
@@ -10912,6 +10982,293 @@ i7:             if (.not. ContinuousGOTM)  then
 
     end subroutine Construct_Sub_Modules
     !------------------------------------------------------------------------------------------------------------------
+
+    subroutine ConstructHydroMohidJet 
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                             :: DischargesNumber, dis, STAT_CALL, I, J
+        logical                             :: MohidJetON, CoordinatesON
+        character(len=PathLength)           :: MohidJetFile, RootPath
+        character(len=StringLength)         :: DischargeName
+        real                                :: DischargeFlow, DischargeSal, DischargeTemp
+        real                                :: MohidJetDT
+        real(8)                             :: CartX, CartY
+        real(8)                             :: CoordinateX, CoordinateY
+        real                                :: CoordAuxX, CoordAuxY        
+        real(8)                             :: LongRef, LatRef
+        logical                             :: IgnoreOK, GeoCoordON, DischargeInSide
+        
+        !Begin----------------------------------------------------------------------    
+        
+        
+        call GetDischarges_MohidJetON(DischargesID  = Me%ObjDischarges,                 &
+                                      MohidJetON    = Me%MohidJet%ON,                   &
+                                      STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'CheckNeedReallocation - ModuleWaterProperties - ERR10'
+        endif
+
+if1:    if (Me%MohidJet%ON) then
+
+            call GetGeoCoordON(Me%ObjHorizontalGrid, GeoCoordON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR10'
+            endif
+
+
+        
+            call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR30'
+            endif
+
+            allocate(Me%MohidJet%JetX(1:DischargesNumber))
+
+            Me%MohidJet%DischargesNumber = DischargesNumber
+
+            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Me%MohidJet%LatitudeRef, Me%MohidJet%LongitudeRef, STAT= STAT_CALL)       
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR40'
+            endif        
+        
+            LatRef  = Me%MohidJet%LatitudeRef
+            LongRef = Me%MohidJet%LongitudeRef
+
+            Me%MohidJet%TotalOutParticles = 0
+
+    id:     do dis = 1, DischargesNumber
+            
+                !By default
+                Me%MohidJet%Jetx(dis)%ON = .false.
+
+                call GetDischargesGridLocalization(DischargesID         = Me%ObjDischarges, &
+                                                    DischargeIDNumber    = dis,              &
+                                                    CoordinateX          = CoordAuxX,        &
+                                                    CoordinateY          = CoordAuxY,        &
+                                                    CoordinatesON        = CoordinatesON,    &
+                                                    STAT                 = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR70'
+                endif
+
+                if (CoordinatesON) then
+                
+    !iMS:            if (Me%DDecomp%MasterOrSlave) then
+    !                    !Check if the discharge is inside the domain
+    !                    DischargeInSide = GetXY_Coord_InsideInnerDomain(Me%ObjHorizontalGrid, &
+    !                                        CoordAuxX, CoordAuxY, STAT = STAT_CALL)
+    !                    if (STAT_CALL /= SUCCESS_) then
+    !                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR75'
+    !                    endif
+    !
+    !                    if (.not. DischargeInSide) cycle
+    !             
+    !                endif iMS
+
+                    call GetXYCellZ(Me%ObjHorizontalGrid, CoordAuxX, CoordAuxY, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR80'
+                    endif
+
+                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. I < 0 .or. J < 0) then
+
+                        call TryIgnoreDischarge(Me%ObjDischarges, dis, IgnoreOK, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR90'
+
+                        if (IgnoreOK) then
+                            write(*,*) 'DISCHARGE IGNORED'
+                            write(*,*) 'I    , J  =', I, J
+                            write(*,*) 'STAT_CALL =', STAT_CALL
+                            write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
+                            cycle
+                        else
+                            write(*,*) 'STOP - DISCHARGE WITH WRONG LOCATION'
+                            write(*,*) 'I    , J  =', I, J
+                            write(*,*) 'STAT_CALL =', STAT_CALL
+                            write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR100'
+                        endif
+                    else
+                            write(*,*) 'DISCHARGE WITH VALID LOCATION'
+                            write(*,*) 'I    , J  =', I, J
+                            write(*,*) 'STAT_CALL =', STAT_CALL
+                            write(*,*) 'Discharge inside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
+
+                    endif
+
+                    call CorrectsCellsDischarges(Me%ObjDischarges, dis, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR110'
+
+                else
+
+                    write(*,*) 'A MohidJety location can only be defined using coordinates not cells position'
+                    stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR120'
+
+                endif   
+            
+                call GetDischargeMohidJet(DischargesID      = Me%ObjDischarges,             &
+                                          DischargeIDNumber = dis,                          &
+                                          MohidJetON        = MohidJetON,                   &
+                                          MohidJetFile      = MohidJetFile,                 &
+                                          MohidJetDT        = MohidJetDT,                   &
+                                          STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR50'
+                endif
+
+                Me%MohidJet%Jetx(dis)%ON         = MohidJetON
+
+                if (MohidJetON) then
+                
+                    if (.not.GeoCoordON) then
+                        write(*,*) 'MOHID Jet discharges only work for grids defined in geographical coordinates'
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR20'
+                    endif            
+                
+                    call GetDischargesIDName (DischargesID      = Me%ObjDischarges,         &
+                                              DischargeIDNumber = dis,                      &
+                                              IDName            = DischargeName,            &
+                                              STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR60'                                
+                    endif
+                
+                
+                    Me%MohidJet%Jetx(dis)%DischargeName = DischargeName
+
+                    Me%MohidJet%Jetx(dis)%DataFile   = MohidJetFile
+
+                    CoordinateX = CoordAuxX
+                    CoordinateY = CoordAuxY
+
+                    Me%MohidJet%Jetx(dis)%CoordinateX = CoordinateX
+                    Me%MohidJet%Jetx(dis)%CoordinateY = CoordinateY
+
+                    call SphericalToCart(Lat    = CoordinateY, Lon    = CoordinateX,        &
+                                         X      = CartX,       Y      = CartY,              &
+                                         LonRef = LongRef,     LatRef = LatRef)
+
+                    Me%MohidJet%Jetx(dis)%CartX       = CartX
+                    Me%MohidJet%Jetx(dis)%CartY       = CartY                
+
+                    Me%MohidJet%Jetx(dis)%I           = I
+                    Me%MohidJet%Jetx(dis)%J           = J
+
+
+                    call GetDischargeWaterFlow(DischargesID         = Me%ObjDischarges,     &
+                                               TimeX                = Me%CurrentTime,       &
+                                               DischargeIDNumber    = dis,                  &
+                                               SurfaceElevation     = Me%WaterLevel%Old(I, J),  &
+                                               Flow                 = DischargeFlow,        &
+                                               STAT                 = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR140'
+                    endif
+
+                    Me%MohidJet%Jetx(dis)%Flow           = DischargeFlow
+
+                    call GetDischargeConcentration (DischargesID        = Me%ObjDischarges, &
+                                                    TimeX               = Me%CurrentTime,   &
+                                                    DischargeIDNumber   = dis,              &
+                                                    Concentration       = DischargeSal,     &
+                                                    PropertyIDNumber    = Salinity_,        &
+                                                    STAT                = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR150'
+                    endif
+
+                    call GetDischargeConcentration (DischargesID        = Me%ObjDischarges, &
+                                                    TimeX               = Me%CurrentTime,   &
+                                                    DischargeIDNumber   = dis,              &
+                                                    Concentration       = DischargeTemp,    &
+                                                    PropertyIDNumber    = Temperature_,     &
+                                                    STAT                = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR160'
+                    endif
+
+                    Me%MohidJet%Jetx(dis)%Salinity       = DischargeSal
+                    Me%MohidJet%Jetx(dis)%Temperature    = DischargeTemp
+
+                    call Construct_Jet(JetID            = Me%MohidJet%Jetx(dis)%ObjJet,     &
+                                       FileName         = Me%MohidJet%Jetx(dis)%DataFile,   &
+                                       HorizontalGridID = Me%ObjHorizontalGrid,             &
+                                       PositionX        = Me%MohidJet%Jetx(dis)%CartX,      &
+                                       PositionY        = Me%MohidJet%Jetx(dis)%CartY,      &
+                                       Flow             = DischargeFlow,                    &
+                                       Salinity         = DischargeSal,                     &
+                                       Temperature      = DischargeTemp,                    &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR170'
+                    endif
+
+                    Me%MohidJet%Jetx(dis)%DT                = MohidJetDT                
+                
+                    Me%MohidJet%Jetx(dis)%NextActualization = Me%BeginTime
+                
+                    if (GetXY_Coord_InsideInnerDomain(Me%ObjHorizontalGrid, CoordAuxX, CoordAuxY)) then
+                
+                        Me%MohidJet%Jetx(dis)%OutPutON = .true. 
+                
+                    else
+                        Me%MohidJet%Jetx(dis)%OutPutON = .false. 
+                    endif
+
+                    if (Me%MohidJet%Jetx(dis)%OutPutON) then
+
+                        call UnitsManager(Me%MohidJet%Jetx(dis)%UnitOut, OPEN_FILE, STAT = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR180'
+                        endif
+
+                        call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR190'
+                        endif                
+
+                        Me%MohidJet%Jetx(dis)%FileOut = trim(RootPath)//trim(Me%MohidJet%Jetx(dis)%DischargeName)//"_HydroJet.jet"
+
+                        open (file  = Me%MohidJet%Jetx(dis)%FileOut,                            &
+                            unit   = Me%MohidJet%Jetx(dis)%UnitOut,                            &  
+                            status = "unknown",                                                &
+                            form   = "formatted",                                              &
+                            IOSTAT = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) then
+                            write(*,*) 'Error opening time series file ',                       &
+                                    trim(Me%MohidJet%Jetx(dis)%FileOut)
+                            stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR200'
+                        endif
+
+                        call WriteDataLine(Me%MohidJet%Jetx(dis)%UnitOut, 'SERIE_INITIAL_DATA', Me%BeginTime)
+
+                        write(Me%MohidJet%Jetx(dis)%UnitOut,*) 'TIME_UNITS              : SECONDS'           
+
+                        write(Me%MohidJet%Jetx(dis)%UnitOut,'(A192)')"Time Year Month Day Hour Minutes " &
+                        // "Seconds Dilution X1_Cart Y1_Cart X2_Cart Y2_Cart "                           &
+                        // "X1_Geo Y1_Geo, X2_Geo Y2_Geo Dmin Dmax Z "                                   &
+                        // "Density Temperature "                                                        &
+                        // "Salinity U V W MixingHorLength Thickness Diameter"
+                        write(Me%MohidJet%Jetx(dis)%UnitOut,*) '<BeginTimeSerie>'
+
+                    endif
+                endif
+
+        enddo id
+    
+    endif if1
+
+    end subroutine ConstructHydroMohidJet
+
+    !End------------------------------------------------------------------------------    
+    
+
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -11630,7 +11987,31 @@ cd5 :           if (opened) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR100")
+        
 
+        call GetData(Me%Output%MohidJetON,                                              &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_MOHIDJET',                                  &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleHydrodynamic',                               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR110")
+        
+
+        call GetData(Me%Output%MohidJetONWindow,                                        &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_MOHIDJET_WINDOW',                           &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleHydrodynamic',                               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR120")
+                
 
     end subroutine Construct_OutPutTime
 
@@ -12015,7 +12396,7 @@ cd1:    if (.not. Me%ComputeOptions%Continuous .and.                        &
             nullify (KFloor_U, KFloor_V)
             nullify (Area_U, Area_V)
 
-            call ModifyWaterDischarges
+            call ModifyWaterDischarges(ModifyPhase = .false.)
 
             Grid = Fix
 
@@ -12128,7 +12509,7 @@ cd1:    if (Evolution == Read_File_) then
             nullify (KFloor_U, KFloor_V)
             nullify (Area_U, Area_V)
 
-            call ModifyWaterDischarges
+            call ModifyWaterDischarges(ModifyPhase = .false.)
 
             Grid = Fix
 
@@ -13181,7 +13562,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
         integer                          :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                          :: ILBWork, IUBWork, JLBWork, JUBWork, KLBWork, KUBWork
         integer                          :: STATUS, iflag,fromfile
-        logical							 :: LogDefault
+        logical                          :: LogDefault
         !Begin --------------------------------------------------------------------
 
         IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
@@ -13191,38 +13572,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
         ILBWork = Me%WorkSize%ILB; JLBWork = Me%WorkSize%JLB; KLBWork = Me%WorkSize%KLB
 
         call GetExtractType(FromFile = FromFile)
-
-! ---> Compute
-!
-
-        !<BeginKeyword>
-            !Keyword          : BOUNDARYFILE
-            !<BeginDescription>
-               !
-               !The file name of 3D file where the relaxation coefficient are.
-               !
-            !<EndDescription>
-            !Type             : Character
-            !Default          : ******.***
-
-            !File keyword     : IN_DAD3D
-            !Multiple Options : Do not
-            !Search Type      : From File
-        !<EndKeyword>
-
-!        call GetData(FileName, Me%ObjEnterData, iflag,                      &
-!                     Keyword    = 'BOUNDARYFILE',                                        &
-!                     Default    = '********.***',                                        &
-!                     SearchType = FromFile,                                              &
-!                     STAT       = status)
-
-!        if (status /= SUCCESS_)                                                          &
-!           call SetError(FATAL_, INTERNAL_, "ConstructDataAssimilation - Hydrodynamic - ERR02")
-
-!        if (iflag == 0) &
-!           call SetError(FATAL_, INTERNAL_, "ConstructDataAssimilation - Hydrodynamic - ERR03")
-
-!        Me%DataAssimilation%BRfilename = FileName
 
         !<BeginKeyword>
             !Keyword          : BRCORIOLIS
@@ -13239,15 +13588,15 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Search Type      : From File
         !<EndKeyword>
 
-         call GetData(Me%Relaxation%coriolis,                         &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword    = 'BRCORIOLIS',                                          &
-                     Default    = .false.,                                               &
-                     SearchType = FromFile,                                              &
-                     ClientModule ='ModuleHydrodynamic',                                &
-                     STAT       = status)
+         call GetData(Me%Relaxation%coriolis,                                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'BRCORIOLIS',                                     &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   ='ModuleHydrodynamic',                              &
+                     STAT           = status)
 
-        if (status /= SUCCESS_)                                                          &
+        if (status /= SUCCESS_)                                                         &
            call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR04")
 
         !<BeginKeyword>
@@ -13289,13 +13638,13 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Search Type      : From File
         !<EndKeyword>
 
-        call GetData(Me%Relaxation%HorizAdv,                                &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword    = 'BRHORIZ_ADV',                                         &
-                     Default    = .false.,                                               &
-                     SearchType = FromFile,                                              &
-                     ClientModule ='ModuleHydrodynamic',                                 &
-                     STAT       = status)
+        call GetData(Me%Relaxation%HorizAdv,                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'BRHORIZ_ADV',                                    &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   ='ModuleHydrodynamic',                              &
+                     STAT           = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR06")
 
 ! ---> Velocity field relaxation
@@ -13316,15 +13665,15 @@ cd2 :           if (IC3D(i,j,k)>0) then
         !<EndKeyword>
 
 
-         call GetData(Me%Relaxation%Velocity,                         &
-                      Me%ObjEnterData, iflag,                               &
-                      keyword = 'BRVELOCITY',                                            &
-                      default = .false.,                                                 &
-                      SearchType = FromFile,                                             &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = status)
+         call GetData(Me%Relaxation%Velocity,                                           &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword       = 'BRVELOCITY',                                     &
+                      default       = .false.,                                          &
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
 
-        if (status /= SUCCESS_)                                                          &
+        if (status /= SUCCESS_)                                                         &
            call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR14")
 
 
@@ -13347,36 +13696,36 @@ cd2 :           if (IC3D(i,j,k)>0) then
         !<EndKeyword>
 
 
-         call GetData(Me%Relaxation%WaterLevel,                             &
-                      Me%ObjEnterData, iflag,                               &
-                      keyword = 'BRWATERLEVEL',                                          &
-                      default = .false.,                                                 &
-                      SearchType = FromFile,                                             &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = status)
+         call GetData(Me%Relaxation%WaterLevel,                                         &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword       = 'BRWATERLEVEL',                                   &
+                      default       = .false.,                                          &
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR15")
 
-         call GetData(Me%Relaxation%RefBoundWaterLevel,                     &
-                      Me%ObjEnterData, iflag,                               &
-                      keyword = 'REF_BOUND_WATERLEVEL',                                  &
-                      default = .false.,                                                 &
-                      SearchType = FromFile,                                             &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = status)
+         call GetData(Me%Relaxation%RefBoundWaterLevel,                                 &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword       = 'REF_BOUND_WATERLEVEL',                           &
+                      default       = .false.,                                          &
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16")
 
-        call GetData(Me%Relaxation%ReferenceVelocity,                       &
-                      Me%ObjEnterData, iflag,                               &
-                      keyword = 'RELAX_REF_VEL',                                         &
-                      default = TotalVel_,                                               &
-                      SearchType = FromFile,                                             &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = status)
+        call GetData(Me%Relaxation%ReferenceVelocity,                                   &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword       = 'RELAX_REF_VEL',                                  &
+                      default       = TotalVel_,                                        &
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16a")
 
-        if (Me%Relaxation%ReferenceVelocity /= TotalVel_          .and.     &
-            Me%Relaxation%ReferenceVelocity /= BarotrVel_         .and.     &
-            Me%Relaxation%ReferenceVelocity /= BaroclVel_)                  &
+        if (Me%Relaxation%ReferenceVelocity /= TotalVel_          .and.                 &
+            Me%Relaxation%ReferenceVelocity /= BarotrVel_         .and.                 &
+            Me%Relaxation%ReferenceVelocity /= BaroclVel_)                              &
             call SetError(FATAL_, KEYWORD_, 'ConstructRelaxation - Hydrodynamic - ERR31.')
 
                 
@@ -13386,13 +13735,13 @@ cd2 :           if (IC3D(i,j,k)>0) then
             LogDefault = .false.
         endif
 
-         call GetData(Me%Relaxation%Force,                                  &
-                      Me%ObjEnterData, iflag,                               &
-                      keyword = 'BRFORCE',                                               &
-                      default = LogDefault,												&
-                      SearchType = FromFile,                                             &
-                      ClientModule ='ModuleHydrodynamic',                                &
-                      STAT       = status)
+         call GetData(Me%Relaxation%Force,                                              &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword       = 'BRFORCE',                                        &
+                      default       = LogDefault,										&
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
 
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR17")
 
@@ -13403,11 +13752,11 @@ cd2 :           if (IC3D(i,j,k)>0) then
 
              call GetData(Me%Relaxation%BrFroceOnlyAssimil,                             &
                           Me%ObjEnterData, iflag,                                       &
-                          keyword = 'BRFORCE_ONLY_ASSIMILA',                            &
-                          default = .false.,                                            &
-                          SearchType = FromFile,                                        &
-                          ClientModule ='ModuleHydrodynamic',                           &
-                          STAT       = status)
+                          keyword       = 'BRFORCE_ONLY_ASSIMILA',                      &
+                          default       = .false.,                                      &
+                          SearchType    = FromFile,                                     &
+                          ClientModule  ='ModuleHydrodynamic',                          &
+                          STAT          = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
             !Forces
             allocate (Me%Forces%Relax_Aceleration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
@@ -13424,11 +13773,11 @@ cd2 :           if (IC3D(i,j,k)>0) then
 
          call GetData(Me%Relaxation%Geometry,                                           &
                       Me%ObjEnterData, iflag,                                           &
-                      keyword = 'BRGEOMETRY',                                           &
-                      default = .false.,                                                &
-                      SearchType = FromFile,                                            &
-                      ClientModule ='ModuleHydrodynamic',                               &
-                      STAT       = status)
+                      keyword       = 'BRGEOMETRY',                                     &
+                      default       = .false.,                                          &
+                      SearchType    = FromFile,                                         &
+                      ClientModule  ='ModuleHydrodynamic',                              &
+                      STAT          = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR200")
 
         if (Me%Relaxation%Geometry) then
@@ -13439,30 +13788,30 @@ cd2 :           if (IC3D(i,j,k)>0) then
         endif
 
         !Sobrinho
-        call GetData(Me%Relaxation%Upscaling,                             &
-                    Me%ObjEnterData, iflag,                                       &
-                    keyword = 'UPSCALING',                                        &
-                    default = .false.,                                            &
-                    SearchType = FromFile,                                        &
-                    ClientModule ='ModuleHydrodynamic',                           &
-                    STAT       = status)
+        call GetData(Me%Relaxation%Upscaling,                                           &
+                    Me%ObjEnterData, iflag,                                             &
+                    keyword         = 'UPSCALING',                                      &
+                    default         = .false.,                                          &
+                    SearchType      = FromFile,                                         &
+                    ClientModule    ='ModuleHydrodynamic',                              &
+                    STAT            = status)
         if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR220")
 
         !Sobrinho
         if (Me%Relaxation%Upscaling) then
         !Sobrinho
-            call GetData(Me%Relaxation%Upscaling_Method,                             &
-                        Me%ObjEnterData, iflag,                                       &
-                        keyword = 'UPSCALING_METHOD',                                 &
-                        default = Nudging_Vol_,                                           &
-                        SearchType = FromFile,                                        &
-                        ClientModule ='ModuleHydrodynamic',                           &
-                        STAT       = status)
+            call GetData(Me%Relaxation%Upscaling_Method,                                &
+                        Me%ObjEnterData, iflag,                                         &
+                        keyword         = 'UPSCALING_METHOD',                           &
+                        default         = Nudging_Vol_,                                 &
+                        SearchType      = FromFile,                                     &
+                        ClientModule    ='ModuleHydrodynamic',                          &
+                        STAT            = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR230")
             
             if (Me%Relaxation%Upscaling_Method /= Nudging_Vol_ .and. &
                 Me%Relaxation%Upscaling_Method /= Discharge_) then
-                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 2')
+                call SetError(FATAL_, KEYWORD_, 'Upscaling method unknown. Options are 1 or 3')
             endif 
                 
             if (Me%Relaxation%Upscaling_Method == Nudging_Vol_) then
@@ -14079,10 +14428,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     !>@Brief
     !> Searches for Upscaling method used in hydrodynamics module
     !>@param[in] HydrodynamicID, Method, STAT
-    subroutine GetUscalingMethod(HydrodynamicID, Method, STAT)
+    subroutine GetUpscalingMethod(HydrodynamicID, Method, STAT, online)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                 :: HydrodynamicID
         integer, intent(OUT)                :: Method, STAT
+        logical, intent(in), optional       :: online
         !Local-----------------------------------------------------------------
         integer                             :: ready_
         !----------------------------------------------------------------------
@@ -14092,14 +14442,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_ ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            Method = Me%Relaxation%Upscaling_Method
+            if (present(online)) then
+                Method = Me%ComputeOptions%UpscalingMethod
+            else
+                Method = Me%Relaxation%Upscaling_Method
+            end if
             
             STAT = SUCCESS_
         else
             STAT = ready_
         endif
     
-    end subroutine GetUscalingMethod
+    end subroutine GetUpscalingMethod
 
     !--------------------------------------------------------------------------
 
@@ -15688,6 +16042,8 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     subroutine Modify_Hydrodynamic(HydrodynamicID,                             &
                                    Density,                                    &
                                    SigmaDens,                                  &
+                                   Temperature,                                &
+                                   Salinity,                                   &
                                    NewDT,                                      &
                                    STAT)
 
@@ -15696,6 +16052,8 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer, intent (IN )           :: HydrodynamicID
         real, dimension(:,:,:), pointer :: Density
         real, dimension(:,:,:), pointer :: SigmaDens
+        real, dimension(:,:,:), pointer :: Temperature
+        real, dimension(:,:,:), pointer :: Salinity        
         type(T_NewDT),    intent (OUT)  :: NewDT
 
 !   !OUTPUT PARAMETERS:
@@ -15732,7 +16090,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Read density values
             Me%External_Var%SigmaDens   => SigmaDens
             Me%External_Var%Density     => Density
-
+            Me%External_Var%Temperature => Temperature
+            Me%External_Var%Salinity    => Salinity
+            
             call Actualises_Hydrodynamic
 
             !Read Lock variables external variables
@@ -21407,7 +21767,7 @@ cd1:    if (Evolution == Solve_Equations_) then
         endif
 
 
-        call ModifyWaterDischarges
+        call ModifyWaterDischarges(ModifyPhase = .true.)
 
         Num_Discretization = Me%ComputeOptions%Num_Discretization
 
@@ -36580,14 +36940,18 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: WaterLevelByPass !, Depth
         real                               :: CoordinateX, CoordinateY, XBypass, YBypass
         integer                            :: DirectionXY, DischargesNumber, DischargeID
-        integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
+        integer                            :: i, j, k, kd, di, dj, STAT_CALL, iNorth, jEast, KLB, KUB, n
         integer                            :: ib, jb !, kbottom, k1
         integer                            :: FlowDistribution, nCells, SpatialEmission
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
         integer                            :: DischVertical
         real                               :: InterceptionRatio
-
+        integer                            :: kmin, kmax, kaux
+        real                               :: Depth_min, Depth_max
+        real                               :: DischargeVelocityX, DischargeVelocityY, VectorGridX, VectorGridY
+        integer                            :: djx, diy 
+        integer                            :: IUB, ILB, JUB, JLB
         integer                            :: CHUNK
         logical                            :: UpscalingDischarge
 
@@ -36597,6 +36961,11 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
         DirectionXY = Me%Direction%XY
         KUB         = Me%WorkSize%KUB
+        KLB         = Me%WorkSize%KLB        
+        IUB         = Me%WorkSize%IUB
+        ILB         = Me%WorkSize%ILB        
+        JUB         = Me%WorkSize%JUB
+        JLB         = Me%WorkSize%JLB
 
         Horizontal_Transport => Me%Forces%Horizontal_Transport
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
@@ -36661,7 +37030,7 @@ do1:    do DischargeID = 1, DischargesNumber
                 call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR45'
 
-                if (ByPassON) then
+                if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
 
                     call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR400'
@@ -36673,7 +37042,7 @@ do1:    do DischargeID = 1, DischargesNumber
 
             endif
 
-            if (ByPassON) then
+            if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
                 WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
             else
                 WaterLevelByPass = FillValueReal
@@ -36681,47 +37050,86 @@ do1:    do DischargeID = 1, DischargesNumber
 
             UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargeID)
 
-            if (UpscalingDischarge )then
+iup:        if (UpscalingDischarge )then
                 !do nothing...
-            else
+            else iup
 
-                call GetDischargeWaterFlow(Me%ObjDischarges,                    &
-                                           Me%CurrentTime, DischargeID,         &
-                                           Me%WaterLevel%Old(I, J),             &
-                                           DischargeFlow,                       &
-                                           SurfaceElevation2 = WaterLevelByPass,&
+                call GetDischargeWaterFlow(Me%ObjDischarges,                            &
+                                           Me%CurrentTime, DischargeID,                 &
+                                           Me%WaterLevel%Old(I, J),                     &
+                                           DischargeFlow,                               &
+                                           SurfaceElevation2 = WaterLevelByPass,        &
                                            STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
+                
+                AuxFlowIJ = DischargeFlow                
+                
+                call GetDischargeFlowVelocity(Me%ObjDischarges,                         &
+                                                Me%CurrentTime, DischargeID,            &
+                                                VelocityU = DischargeVelocityX,         &
+                                                VelocityV = DischargeVelocityY,         &
+                                                STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'      
+                
+                call RotateVectorFieldToGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                             i                = i,                      &
+                                             j                = j,                      &
+                                             VectorInX        = DischargeVelocityX,     &
+                                             VectorInY        = DischargeVelocityY,     &
+                                             VectorOutX       = VectorGridX,            &
+                                             VectorOutY       = VectorGridY,            &
+                                             STAT             = STAT_CALL)                          
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                
+                djx = 0
+                diy = 0
 
                 if (DirectionXY == DirectionX_) then
 
-                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
-                                                    Me%CurrentTime, DischargeID,            &
-                                                    VelocityU = DischargeVelocity,          &
-                                                    STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'
+                    DischargeVelocity = VectorGridX
+                    
+                    !Critical to have symmetry (same effect independent of velocity direction) in momentum discharges 
+                    if (VectorGridX > 0) then
+                        djx = 1
+                    endif
 
                 else if (DirectionXY == DirectionY_) then
 
-                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
-                                                    Me%CurrentTime, DischargeID,            &
-                                                    VelocityV = DischargeVelocity,          &
-                                                    STAT = STAT_CALL)
-                    if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                    DischargeVelocity = VectorGridY
+                    
+                    !Critical to have symmetry (same effect independent of velocity direction) in momentum discharges 
+                    if (VectorGridY > 0) then
+                        diy = 1
+                    endif
+
+
                 endif
 
                 di  = Me%Direction%di
                 dj  = Me%Direction%dj
 
 
-                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                                    VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+!                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+!                                                    VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                
+                
+                call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                                  DischargeIDNumber     = DischargeID,      &
+                                                  nCells                = nCells,           &
+                                                  FlowDistribution      = FlowDistribution, &
+                                                  VectorI               = VectorI,          &
+                                                  VectorJ               = VectorJ,          &
+                                                  VectorK               = VectorK,          &
+                                                  kmin                  = kmin,             &
+                                                  kmax                  = kmax,             &
+                                                  Depth_min             = Depth_min,        &
+                                                  Depth_max             = Depth_max,        &
+                                                  STAT                  = STAT_CALL)                
 
                 if (STAT_CALL/=SUCCESS_)                                                     &
                     stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR90'
 
-
-i1:         if (nCells > 1) then
+i1:             if (nCells > 1) then
                     allocate(DistributionCoef(1:nCells))
 
 i2:                 if      (FlowDistribution == DischByCell_       ) then
@@ -36740,13 +37148,13 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
 
                         call DischargeDistributionPerCell (VectorI          = VectorI,      &
-                                                            VectorJ          = VectorJ,      &
-                                                            nCells           = nCells,       &
-                                                            SpatialEmission  = SpatialEmission,&
-                                                            Mapping          = Me%External_Var%ComputeFaces3D_UV,&
-                                                            Property         = MomentumHorizontal_, &
-                                                            InterceptionRatio= InterceptionRatio, &
-                                                            DistributionCoef = DistributionCoef)
+                                                           VectorJ          = VectorJ,      &
+                                                           nCells           = nCells,       &
+                                                           SpatialEmission  = SpatialEmission,&
+                                                           Mapping          = Me%External_Var%ComputeFaces3D_UV,&
+                                                           Property         = MomentumHorizontal_, &
+                                                           InterceptionRatio= InterceptionRatio, &
+                                                           DistributionCoef = DistributionCoef)
 
 
                     else  i2
@@ -36757,7 +37165,6 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                 endif i1
 
-                AuxFlowIJ = DischargeFlow
 
                 CHUNK = CHUNK_K(kmin,kmax)
 
@@ -36775,13 +37182,37 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                 endif
 
 
-                !!!$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
+                if (GetDischID_MohidJetON(Me%ObjDischarges, DischargeID)) then
+                    !Mohidjet discharge update only the VectorI, VectorJ and not the I,J original cell discharge
+                    if (nCells == 1) then
+                        i         = VectorI(1)
+                        j         = VectorJ(1)
+                    endif
+                endif 
 
+                !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
+                i = i + diy
+                j = j + djx                
+                
+                if (i == IUB + 1) i = IUB
+                if (j == JUB + 1) j = JUB
+                if (i == ILB    ) i = ILB + 1
+                if (j == JLB    ) j = JLB + 1
+                
+
+                !!!$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
 dn:             do n=1, nCells
                     !!!$OMP MASTER
-                    if (nCells > 1) then
-                        i         = VectorI(n)
-                        j         = VectorJ(n)
+ifn:                if (nCells > 1) then
+                        !Adding (diy, djx) is critical to have symmetry (same effect independent of velocity direction) in momentum discharges                 
+                        i         = VectorI(n) + diy
+                        j         = VectorJ(n) + djx
+                        
+                        if (i == IUB + 1) i = IUB
+                        if (j == JUB + 1) j = JUB
+                        if (i == ILB    ) i = ILB + 1
+                        if (j == JLB    ) j = JLB + 1
+                        
                         kd        = VectorK(n)
 
                         call GetDischargeWaterFlow(Me%ObjDischarges,                        &
@@ -36795,10 +37226,15 @@ dn:             do n=1, nCells
                         if (STAT_CALL/=SUCCESS_)                                            &
                             stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
 
-                    endif
+                    endif ifn
 
                     iNorth = i+di
                     jEast =  j+dj
+                    
+                    if (iNorth == IUB + 1) iNorth = IUB
+                    if (jEast  == JUB + 1) jEast  = JUB 
+                    if (iNorth == ILB    ) iNorth = ILB + 1
+                    if (jEast  == JLB    ) jEast  = JLB + 1
 
                     if (DischVertical == DischUniform_) then
 
@@ -36813,6 +37249,36 @@ dn:             do n=1, nCells
                         endif
 
                         if (kmax == FillValueInt) kmax = KUB
+
+
+                        if (Depth_max > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmin = kaux
+                            endif
+
+                        endif                        
+
+
+                        if (Depth_min > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmax = kaux
+                            endif
+
+                        endif      
+                        
+                        if (kmin < 1 .or. kmax < 1) then
+                            write(*,*) 'kmin, kmax =', kmin, kmax
+                            write(*,*) 'i , j =',i, j
+                            write(*,*) 'iNorth, jEast =', iNorth, jEast
+                            stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR125'
+                        endif
+                                            
 
                         SectionHeight = 0
                         if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
@@ -36831,17 +37297,27 @@ dn:             do n=1, nCells
                     endif
 
                     MomentumDischarge = 0.
+                    
+                    if (kmin < 1 .or. kmax < 1) then
+                        write(*,*) 'kmin, kmax =', kmin, kmax
+                        write(*,*) 'i , j =',i, j
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+                    endif
+                    
                     !!!$OMP END MASTER
                     !!!$OMP BARRIER
 
                     !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     dk:             do k = kmin,kmax
 
+                        !write(*,*) i, j, k
                         AuxFlowK = AuxFlowIJ
 
                         if (ComputeFaces3D_UV(i, j, k) == Covered) then
 
-                            if (DischVertical == DischUniform_) AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
+                            if (DischVertical == DischUniform_) then
+                                AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
+                            endif
 
                             ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
                             if (AuxFlowK >= 0.) then
@@ -36935,16 +37411,16 @@ dn:             do n=1, nCells
 
                 call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
-            endif
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR160'
+            endif iup
 
     enddo do1
 
@@ -36958,7 +37434,7 @@ dn:             do n=1, nCells
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR170'
 
 
     End Subroutine ModifyMomentumDischarge
@@ -37215,7 +37691,7 @@ do1:    do DischargeID = 1, DischargesNumber
                 call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR45'
 
-                if (ByPassON) then
+                if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
 
                     call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR400'
@@ -37227,7 +37703,7 @@ do1:    do DischargeID = 1, DischargesNumber
 
             endif
 
-            if (ByPassON) then
+            if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
                 WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
             else
                 WaterLevelByPass = FillValueReal
@@ -39276,7 +39752,7 @@ do3:            do k = kbottom, KUB
     SonVolInFather3D)
         !Arguments-------------------------------------------------------------------------------------
         real, dimension(:,:,:), pointer, intent(IN) :: DecayTime, SonVolInFather3D
-        real, dimension(:,:)  , pointer, intent(IN) :: DecayTime_Upscale2D
+        real, dimension(:,:) , allocatable, intent(IN) :: DecayTime_Upscale2D
         real                           , intent(IN) :: CoefCold, CoefCold_Upscale
         real                                        :: Gradient, Gradient_Upscale
         real                                        :: Aceleration_Downscaling, Aceleration_Upscaling
@@ -39400,7 +39876,7 @@ do3:            do k = kbottom, KUB
     !>@param[in] DecayTime_Upscale2D, CoefCold_Upscale
     subroutine Relaxation_Acceleration_Up(DecayTime_Upscale2D, CoefCold_Upscale)
         !Arguments-------------------------------------------------------------------------------------
-        real, dimension(:,:), pointer, intent(IN) :: DecayTime_Upscale2D
+        real, dimension(:,:), allocatable, intent(IN) :: DecayTime_Upscale2D
         real                         , intent(IN) :: CoefCold_Upscale
         !Locals -----------------------------------------------------------------------------------------
         real, dimension(:,:,:), pointer           :: Relax_Aceleration
@@ -49169,17 +49645,16 @@ do3:                do  k = kbottom, KUB
     ! Author: Paulo Chambel (99/6)                                                         !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine ModifyWaterDischarges
+subroutine ModifyWaterDischarges(ModifyPhase)
 
         !Arguments-------------------------------------------------------------
-
-
+        logical                            :: ModifyPhase
         !Local-----------------------------------------------------------------
         real,    dimension(:,:  ), pointer :: AddSurfaceWater
         type (T_Time)                      :: CurrentTime
 
         real                               :: DischargeFlow, AuxFlowK
-        integer                            :: DischargesNumber, DischargeID, i, j, kd, k, kmin, kmax
+        integer                            :: DischargesNumber, DischargeID, i, j, kd, k
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         integer                            :: STAT_CALL, kbottom
 
@@ -49206,6 +49681,9 @@ subroutine ModifyWaterDischarges
         integer                            :: nCells, n
         integer                            :: FlowDistribution, SpatialEmission
         real                               :: InterceptionRatio
+        integer                            :: kmin, kmax, kaux
+        real                               :: Depth_min, Depth_max
+
 
         integer                            :: CHUNK
 
@@ -49231,6 +49709,10 @@ subroutine ModifyWaterDischarges
         !Water discharge - input of mass in the domain
 cd1:    if (Me%ComputeOptions%WaterDischarges) then
 
+            if (Me%MohidJet%ON .and. ModifyPhase) then
+                call ModifyHydroMohidJet
+            endif
+
             ! Sinks and Sources
             call GetDischargesNumber(Me%ObjDischarges,&
                                       DischargesNumber, STAT = STAT_CALL)
@@ -49242,6 +49724,7 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20'
 
 do1:        do DischargeID = 1, DischargesNumber
+
                 if (IsUpscaling(Me%ObjDischarges, DischargeID) .and. .not. Me%Relaxation%Upscaling) then
                     !Online coupling
                     if (UpscalingDischargesDone) cycle
@@ -49300,7 +49783,7 @@ do1:        do DischargeID = 1, DischargesNumber
                     call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR70'
 
-                    if (ByPassON) then
+                    if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
 
                         call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR80'
@@ -49312,7 +49795,7 @@ do1:        do DischargeID = 1, DischargesNumber
 
                 endif
 
-                if (ByPassON) then
+                if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
                     WaterLevelByPass = Me%WaterLevel%Old(ib, jb)
                 else
                     WaterLevelByPass = FillValueReal
@@ -49329,8 +49812,21 @@ do1:        do DischargeID = 1, DischargesNumber
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
 
 
-                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+!                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+!                                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+
+                call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                                  DischargeIDNumber     = DischargeID,      &
+                                                  nCells                = nCells,           &
+                                                  FlowDistribution      = FlowDistribution, &
+                                                  VectorI               = VectorI,          &
+                                                  VectorJ               = VectorJ,          &
+                                                  VectorK               = VectorK,          &
+                                                  kmin                  = kmin,             &
+                                                  kmax                  = kmax,             &
+                                                  Depth_min             = Depth_min,        &
+                                                  Depth_max             = Depth_max,        &
+                                                  STAT                  = STAT_CALL)   
 
                 if (STAT_CALL/=SUCCESS_)                                                &
                     stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR110'
@@ -49376,6 +49872,21 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                     Me%OutPut%TimeSerieDischProp(DischargeID,1) = 0.
                 endif
 
+                !Mohidjet discharge update only the VectorI, VectorJ and not the I,J original cell discharge
+                if (GetDischID_MohidJetON(Me%ObjDischarges, DischargeID) .and. nCells == 1 .and. ModifyPhase) then
+                    if (associated(VectorI)) then
+                        i = VectorI(1)
+                    else
+                        stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR151'
+                    endif
+                    if (associated(VectorJ)) then
+                        j = VectorJ(1)
+                    else
+                        stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR152'
+                    endif
+
+                endif 
+
  dn:            do n=1, nCells
 
                     if (nCells > 1) then
@@ -49400,6 +49911,28 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (kmin == FillValueInt) kmin = KFloor_Z(i, j)
                         if (kmax == FillValueInt) kmax = KUB
+
+                        if (Depth_max > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmin = kaux
+                            endif
+
+                        endif                        
+
+
+                        if (Depth_min > FillValueReal) then
+
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                            if (kaux >= kmin .or. kaux <= kmax) then
+                                kmax = kaux
+                            endif
+
+                        endif                         
+                        
                         SectionHeight = 0
 
                         do k=kmin, kmax
@@ -49552,6 +50085,684 @@ do5:            do i = ILB, IUB
     end subroutine ModifyWaterDischarges
 
     !End------------------------------------------------------------------------------
+
+    subroutine ModifyHydroMohidJet 
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+                
+        real,   dimension(:,:,:), pointer           :: Temperature3D, Salinity3D
+        real                                        :: PlumeDilution
+        real                                        :: PlumeCartX1, PlumeCartY1, PlumeCartX2, PlumeCartY2
+        real(8)                                     :: PlumeGeoX1, PlumeGeoY1, PlumeGeoX2, PlumeGeoY2
+        real(8)                                     :: CenterGeoX1, CenterGeoY1, CenterGeoX2, CenterGeoY2
+        real(8)                                     :: AuxCenterX, AuxCenterY
+        real                                        :: PlumeDmin, PlumeDmax, PlumeZ
+        real                                        :: PlumeDensity, PlumeTemperature, PlumeSalinity
+        real                                        :: PlumeU, PlumeV, PlumeW 
+        real                                        :: PlumeMixingHorLength, PlumeThickness, PlumeDiameter 
+        real                                        :: Year, Month, Day, Hour, Minutes, Seconds
+        integer                                     :: STAT_CALL, I, J, dis, UnitOut
+        real                                        :: DischargeSal, DischargeTemp
+        real                                        :: SecondsFromStart, DischargeFlow
+        type(T_Lines), pointer                      :: LineDischarge
+        integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
+        integer                                     :: nCells, nc
+        type (T_Polygon),   pointer                 :: ModelDomainLimit
+        real                                        :: InterceptionRatio
+        real                                        :: PortVelX, PortVelY, PortVelZ
+        character(len=100)                          :: AuxString
+        !Begin-----------------------------------------------------------------
+
+        
+        if (associated(Me%External_Var%Temperature)) then
+
+            Temperature3D => Me%External_Var%Temperature
+
+        else
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Need to define in the waproperties input file the temperature property'
+                stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR10'
+            endif
+        endif
+        
+
+        if (associated(Me%External_Var%Salinity)) then
+
+            Salinity3D => Me%External_Var%Salinity
+
+        else
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Need to define in the waproperties input file the salinity property'
+                stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR20'
+            endif
+        endif
+
+
+        do dis = 1, Me%MohidJet%DischargesNumber
+            
+            if (Me%MohidJet%Jetx(dis)%ON) then
+                    
+                if (Me%CurrentTime >= Me%MohidJet%Jetx(dis)%NextActualization)  then
+                    
+                    call GetDischargeWaterFlow(DischargesID         = Me%ObjDischarges,     &
+                                               TimeX                = Me%CurrentTime,       &
+                                               DischargeIDNumber    = dis,                  &
+                                               SurfaceElevation     = 0.,                   &
+                                               Flow                 = DischargeFlow,        &
+                                               STAT                 = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR70'
+                    endif
+
+                    Me%MohidJet%Jetx(dis)%Flow           = DischargeFlow
+
+                    call GetDischargeConcentration (DischargesID        = Me%ObjDischarges, &
+                                                    TimeX               = Me%CurrentTime,   &
+                                                    DischargeIDNumber   = dis,              &
+                                                    Concentration       = DischargeSal,     &
+                                                    PropertyIDNumber    = Salinity_,        &
+                                                    STAT                = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR80'
+                    endif
+
+                    call GetDischargeConcentration (DischargesID        = Me%ObjDischarges, &
+                                                    TimeX               = Me%CurrentTime,   &
+                                                    DischargeIDNumber   = dis,              &
+                                                    Concentration       = DischargeTemp,    &
+                                                    PropertyIDNumber    = Temperature_,     &
+                                                    STAT                = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR90'
+                    endif        
+                    
+                    I = Me%MohidJet%Jetx(dis)%I
+                    J = Me%MohidJet%Jetx(dis)%J
+                    
+                    !write(*,*) 'Ambiente sal temp u v w', Salinity3D(i,j,1), Temperature3D(i,j,1), &
+                    !                                     Me%Velocity%Horizontal%U%New(i,j,1),&
+                    !                                     Me%Velocity%Horizontal%V%New(i,j,1), &
+                    !                                     Me%Velocity%Vertical%Cartesian(i, j,1)
+                    !
+                    !write(*,*) 'jet sal temp flow', Me%MohidJet%Jetx(dis)%Salinity, Me%MohidJet%Jetx(dis)%Temperature, Me%MohidJet%Jetx(dis)%Flow
+        
+                    call ModifyJet(JetID          = Me%MohidJet%Jetx(dis)%ObjJet,       &
+                                   Salinity       = Salinity3D,                         &
+                                   Temperature    = Temperature3D,                      &
+                                   VelU           = Me%Velocity%Horizontal%U%New,       &
+                                   VelV           = Me%Velocity%Horizontal%V%New,       &
+                                   VelW           = Me%Velocity%Vertical%Cartesian,     &
+                                   SZZ            = Me%External_Var%SZZ,                &
+                                   I              = Me%MohidJet%Jetx(dis)%I,            &
+                                   J              = Me%MohidJet%Jetx(dis)%J,            &
+                                   BottomLayer    = Me%External_Var%KFloor_Z(I, J),     &
+                                   SurfaceLayer   = Me%WorkSize%KUB,                    &
+                                   OutPutOK       = .true.,                             &
+                                   JetFlow        = Me%MohidJet%Jetx(dis)%Flow,         &
+                                   JetSalinity    = Me%MohidJet%Jetx(dis)%Salinity,     &
+                                   JetTemperature = Me%MohidJet%Jetx(dis)%Temperature,  &
+                                   STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR100'
+                    endif
+
+
+                    call ExtractDate(Me%CurrentTime, Year, Month, Day, Hour, Minutes, Seconds)
+
+                    call GetPlumeDilution(Me%MohidJet%Jetx(dis)%ObjJet, PlumeDilution, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR130'
+                    endif
+
+                    call GetPlumeSection(Me%MohidJet%Jetx(dis)%ObjJet, PlumeCartX1, PlumeCartY1, &
+                                         PlumeCartX2, PlumeCartY2, PlumeDmin, PlumeDmax, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR140'
+                    endif
+
+                    call GetPlumeDensity(Me%MohidJet%Jetx(dis)%ObjJet, PlumeDensity, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR150'
+                    endif
+
+                    call GetPlumeTemperature(Me%MohidJet%Jetx(dis)%ObjJet, PlumeTemperature, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR160'
+                    endif
+
+                    call GetPlumeSalinity(Me%MohidJet%Jetx(dis)%ObjJet, PlumeSalinity, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR170'
+                    endif
+
+                    call GetPlumeVelocity(Me%MohidJet%Jetx(dis)%ObjJet, PlumeU, PlumeV, PlumeW, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR180'
+                    endif
+
+                    call GetPlumeMixingHorLength(Me%MohidJet%Jetx(dis)%ObjJet, PlumeMixingHorLength, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR190'
+                    endif
+
+                    call GetPlumeThickness(Me%MohidJet%Jetx(dis)%ObjJet, PlumeThickness, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR200'
+                    endif
+
+                    call GetPlumeVerticalLocation(Me%MohidJet%Jetx(dis)%ObjJet, PlumeZ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR210'
+                    endif
+
+                    call GetPortVelocity(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,    &
+                                         PortVelX    = PortVelX,                        &
+                                         PortVelY    = PortVelY,                        &
+                                         PortVelZ    = PortVelZ,                        & 
+                                         STAT        = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR220'
+                    endif                
+                    
+                    call GetPlumeDiameter(Me%MohidJet%Jetx(dis)%ObjJet, PlumeDiameter, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR230'
+                    endif                    
+
+                    SecondsFromStart = Me%CurrentTime - Me%BeginTime 
+
+                    call CartToSpherical(X      = dble(PlumeCartX1), Y      = dble(PlumeCartY1),    &
+                                        Lat     = PlumeGeoY1,        Lon    = PlumeGeoX1,           &
+                                        LonRef  = dble(Me%MohidJet%LongitudeRef),                   &
+                                        LatRef  = dble(Me%MohidJet%LatitudeRef))
+
+                    call CartToSpherical(X      = dble(PlumeCartX2), Y      = dble(PlumeCartY2),    &
+                                        Lat     = PlumeGeoY2,        Lon    = PlumeGeoX2,           &
+                                        LonRef  = dble(Me%MohidJet%LongitudeRef),                   &
+                                        LatRef  = dble(Me%MohidJet%LatitudeRef))
+
+                    if (Me%MohidJet%Jetx(dis)%OutPutON) then                                        
+                    
+                        UnitOut = Me%MohidJet%Jetx(dis)%UnitOut
+
+
+                        write(UnitOut,'(F16.0, 6F8.0, 1F8.1, 4F14.3, 4F14.6, 3F12.3, F16.6, 2F8.4, 3F12.5, F10.2, 2F8.3)') &
+                                        SecondsFromStart,                                        &
+                                        Year, Month, Day, Hour, Minutes, Seconds, PlumeDilution, &
+                                        PlumeCartX1, PlumeCartY1, PlumeCartX2, PlumeCartY2,      & 
+                                        PlumeGeoX1, PlumeGeoY1, PlumeGeoX2, PlumeGeoY2,          &
+                                        PlumeDmin, PlumeDmax, PlumeZ,                            &
+                                        PlumeDensity, PlumeTemperature,                          &
+                                        PlumeSalinity, PlumeU, PlumeV, PlumeW,                   &
+                                        PlumeMixingHorLength, PlumeThickness, PlumeDiameter
+                    endif
+                    
+                    nullify(LineDischarge)
+
+                    call From2Points2Line(X1 = real(PlumeGeoX1), X2 = real(PlumeGeoX2),      &
+                                          Y1 = real(PlumeGeoY1), Y2 = real(PlumeGeoY2),      &
+                                          Line = LineDischarge) 
+                    
+iMS:                 if (Me%DDecomp%MasterOrSlave) then
+                        !Get model domain polygon
+                        !call GetPoly_Coord_InsideInnerDomain(HorizontalGridID = Me%ObjHorizontalGrid, &
+                        !                                     Polygon          = ModelDomainLimit,     &
+                        !                                     STAT             = STAT_CALL)
+                        
+                        !Get model domain polygon
+                        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                        Polygon          = ModelDomainLimit,     &
+                                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)  then
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR170'
+                                    endif                        
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR240'
+                        endif   
+                        
+                        InterceptionRatio = PercentageLineInsidePolygon(LineDischarge, ModelDomainLimit) / 100.
+                            
+
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR250'
+                        endif  
+                        
+iIn:                    if (InterceptionRatio <= 0.) then
+                            
+                            deallocate(LineDischarge)
+                            nullify   (LineDischarge)
+                            
+                            !Center the line in the discharge point   
+                            AuxCenterX = Me%MohidJet%Jetx(dis)%CoordinateX - (PlumeGeoX1 + PlumeGeoX2) /2. 
+
+                            CenterGeoX1 = PlumeGeoX1 + AuxCenterX
+                            CenterGeoX2 = PlumeGeoX2 + AuxCenterX
+                            
+                            AuxCenterY = Me%MohidJet%Jetx(dis)%CoordinateY - (PlumeGeoY1 + PlumeGeoY2) /2. 
+
+                            CenterGeoY1 = PlumeGeoY1 + AuxCenterY
+                            CenterGeoY2 = PlumeGeoY2 + AuxCenterY
+                            
+                            nullify(LineDischarge)
+
+                            call From2Points2Line(X1 = real(CenterGeoX1), X2 = real(CenterGeoX2),      &
+                                                  Y1 = real(CenterGeoY1), Y2 = real(CenterGeoY2),      &
+                                                  Line = LineDischarge)     
+                            
+                            InterceptionRatio = PercentageLineInsidePolygon(LineDischarge, ModelDomainLimit) / 100.
+
+                            if (STAT_CALL /= SUCCESS_) then
+                                stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR260'
+                            endif          
+                            
+                            if (InterceptionRatio <= 0.) then
+                                stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR270'
+                            endif
+                            
+ !                           write(AuxString,'(A25,A75)') "The mohidjet discharge = ", trim(adjustl(Me%MohidJet%Jetx(dis)%DischargeName))
+ !                           write(*,'(A)') trim(adjustl(AuxString))
+ !                           write(AuxString,'(A)') "section is outside of the domain for that reason was reposition over the port location"
+ !                           write(*,'(A)') trim(adjustl(AuxString))
+ !                           write(AuxString,'(A45,f5.1)') "The interception ratio in % of the domain is = ",InterceptionRatio*100.  
+ !                           write(*,'(A)') trim(adjustl(AuxString))
+ !                           write(AuxString,'(A44,f12.7,f12.7)') "The dlong and dlat = ", AuxCenterX, AuxCenterY 
+ !                           write(*,'(A)') trim(adjustl(AuxString))
+                                        
+                        endif iIn
+
+                        !It allways assumed that the entire discharge is done in the one domain
+                        !so is forced the InterceptionRatio to be allways one
+                        !because of this it is assumed in the construct of the discharges (module discharges 
+                        ! InterceptionRatio = 1
+                        !call SetDischargeInterceptionRatio(Me%ObjDischarges, dis,       &
+                        !                                   InterceptionRatio, STAT = STAT_CALL)                        
+
+                        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                    Polygon          = ModelDomainLimit,     &
+                                                    STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR280'
+                        endif  
+                        
+                            
+                    endif iMS
+
+                    call GetCellZInterceptByLine(Me%ObjHorizontalGrid, LineDischarge,   &
+                                                 Me%External_Var%WaterPoints2D,         &
+                                                 VectorI, VectorJ, VectorK, nCells,     &
+                                                 STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR290'
+                    endif  
+                    
+                    
+                    call SetMohidJetProp(DischargeID         = Me%ObjDischarges,        &
+                                         DischargeIDNumber   = dis,                     &
+                                         JetDepthMin         = PlumeDmin,               &
+                                         JetDepthMax         = PlumeDmax,               &
+                                         JetHorizontalLine   = LineDischarge,           &
+                                         Jet_VelX            = PortVelX,                &
+                                         Jet_VelY            = PortVelY,                &
+                                         Jet_VelZ            = PortVelZ,                &
+                                         STAT                = STAT_CALL)      
+                    !!!!!PauloCH!!!!!
+                    !call SetMohidJetProp(DischargeID         = Me%ObjDischarges,        &
+                    !                     DischargeIDNumber   = dis,                     &
+                    !                     JetDepthMin         = 0.,               &
+                    !                     JetDepthMax         = 2.,               &
+                    !                     JetHorizontalLine   = LineDischarge,           &
+                    !                     Jet_VelX            = 1.,                &
+                    !                     Jet_VelY            = 0.,                &
+                    !                     Jet_VelZ            = 0.,                &
+                    !                     STAT                = STAT_CALL)                          
+
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR300'
+                    endif                                              
+                    
+                    deallocate(LineDischarge)
+                    nullify   (LineDischarge)
+                    
+                    !!!!!PauloCH!!!!!
+                    !deallocate(VectorI, VectorJ, VectorK)
+                    !allocate(VectorI(1), VectorJ(1), VectorK(1))                    
+                    !nCells = 1
+                    !VectorI(1) = 26
+                    !VectorJ(1) = 25
+                    !VectorK(1) = 1
+
+                    call SetLocationCellsZ (Me%ObjDischarges, dis, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR310'                   
+                    endif
+                    
+                    if (nCells < 1) then
+                        stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR330'
+                    endif
+
+                    Me%MohidJet%Jetx(dis)%NextActualization = Me%MohidJet%Jetx(dis)%NextActualization + Me%MohidJet%Jetx(dis)%DT
+
+                endif        
+            endif
+            
+        enddo 
+
+        nullify(Temperature3D)
+        nullify(Salinity3D)
+
+    end subroutine ModifyHydroMohidJet
+
+    !End------------------------------------------------------------------------------    
+
+    subroutine OutputHydroMohidJet(ObjHDF5, Index, WorkILB, WorkIUB, WorkJLB,           &
+                                                   WorkJUB, WorkKLB, WorkKUB) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjHDF5, Index
+        integer                                     :: WorkILB, WorkIUB, WorkJLB,       &
+                                                       WorkJUB, WorkKLB, WorkKUB
+
+        !Local-----------------------------------------------------------------
+                
+        real,   dimension(:,:), pointer             :: Aux1DTotal, OutPutMatrix
+        real,   dimension(:  ), pointer             :: Aux1D
+        integer                                     :: istart, iend, ijet, dis, iTotal
+        integer                                     :: STAT_CALL, FormatType
+        logical                                     :: DummyOn
+        !Begin-----------------------------------------------------------------
+        
+        Me%MohidJet%TotalOutParticles = 0
+        
+        do dis = 1, Me%MohidJet%DischargesNumber
+            
+            if (Me%MohidJet%Jetx(dis)%ON) then            
+
+                call GetOutPutFormatType(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,    &
+                                         FormatType  = FormatType,                      & 
+                                         STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR010'
+                endif
+            
+                if (FormatType /= 2) then
+                    write(*,*) "In file =", trim(Me%MohidJet%Jetx(dis)%DataFile)
+                    write(*,*) "need to configure a cloud output type"
+                    write(*,*) "OUTPUT_TYPE             : CLOUD"
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR020'
+                endif
+            
+        
+                call GetOutPutLines(JetID       = Me%MohidJet%Jetx(dis)%ObjJet,         &
+                                    OutPutLines = Me%MohidJet%Jetx(dis)%OutParticles,   & 
+                                    STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR030'
+                endif
+
+                Me%MohidJet%TotalOutParticles = Me%MohidJet%TotalOutParticles + Me%MohidJet%Jetx(dis)%OutParticles
+                
+            endif
+            
+        enddo
+
+        iTotal = Me%MohidJet%TotalOutParticles
+        
+        if (iTotal < 1) then
+            iTotal = 1
+            allocate (Aux1D     (1:iTotal  ))
+            Aux1D(1) = null_real
+            DummyOn  = .true. 
+        else     
+            DummyOn  = .false. 
+        endif
+
+        if (DummyOn) then
+            !call HDF5SetLimits  (ObjHDF5, 1, iTotal, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR020'
+            !endif
+            !
+            !!X cartesian [m]     
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/X Position",       &
+            !                    "X Position",  "m", Array1D = Aux1D,                    &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR030'
+            !endif
+            !!Y cartesian [m]
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/Y Position",       &
+            !                    "Y Position",  "m", Array1D = Aux1D,                    &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR040'
+            !endif        
+            !
+            !!Z cartesian [m]
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/Z Position",       &
+            !                    "Z Position",  "m", Array1D = Aux1D,                    &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR050'
+            !endif     
+            !
+            !!velocity modulus [m/s]        
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/velocity modulus", &
+            !                    "velocity modulus",  "m/s", Array1D = Aux1D,            &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR060'
+            !endif    
+            !
+            !!salinity [ppt]
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/salinity",         &
+            !                    "salinity",  "ppt", Array1D = Aux1D,                    &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR070'
+            !endif   
+            !
+            !!temperature [oC]
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/temperature",      &
+            !                    "temperature",  "oC", Array1D = Aux1D,                  &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR080'
+            !endif   
+            !
+            !!density [kg/m3]
+            !!HDF 5
+            !call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/density",          &
+            !                    "density",  "kg/m3", Array1D = Aux1D,                   &
+            !                    OutputNumber = Index, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) then
+            !    stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR090'
+            !endif   
+            !
+            !deallocate (Aux1D)
+            !nullify    (Aux1D)
+
+        else
+        
+            allocate (Aux1DTotal(1:iTotal,7))
+
+            allocate (Aux1D     (1:iTotal  ))
+
+            nullify  (OutPutMatrix)
+
+            istart = 1
+
+            do dis = 1, Me%MohidJet%DischargesNumber
+
+                if (Me%MohidJet%Jetx(dis)%ON) then
+                        
+                    call GetOutPutMatrix(JetID          = Me%MohidJet%Jetx(dis)%ObjJet, &
+                                        OutPutMatrix   = OutPutMatrix,                  &
+                                        STAT           = STAT_CALL)
+                                        
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR100'
+                    endif
+
+                    ijet = Me%MohidJet%Jetx(dis)%OutParticles
+                    iend = istart - 1 + ijet
+                    !X cartesian [m]     
+                    Aux1DTotal(istart:iend,1) = OutPutMatrix(1:ijet,2)
+                    !Y cartesian [m]
+                    Aux1DTotal(istart:iend,2) = OutPutMatrix(1:ijet,3)
+                    !Z cartesian [m]
+                    Aux1DTotal(istart:iend,3) = OutPutMatrix(1:ijet,4)
+                    !velocity modulus [m/s]
+                    Aux1DTotal(istart:iend,4) = OutPutMatrix(1:ijet,8)
+                    !salinity [ppt]
+                    Aux1DTotal(istart:iend,5) = OutPutMatrix(1:ijet,9)
+                    !temperature [oC]
+                    Aux1DTotal(istart:iend,6) = OutPutMatrix(1:ijet,10)
+                    !density [kg/m3]
+                    Aux1DTotal(istart:iend,7) = OutPutMatrix(1:ijet,11)
+
+                    istart = iend + 1
+                                            
+                    call UngetJet(JetID     = Me%MohidJet%Jetx(dis)%ObjJet,             &
+                                Matrix2D   = OutPutMatrix,                              &
+                                STAT       = STAT_CALL)
+                
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR110'
+                    endif
+
+                endif
+            
+            enddo
+
+            call HDF5SetLimits  (ObjHDF5, 1, iTotal, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR030'
+            endif
+
+            !X cartesian [m]     
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,1) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/X Position",       &
+                                "X Position",  "m", Array1D = Aux1D,                    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR120'
+            endif
+            !Y cartesian [m]
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,2) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/Y Position",       &
+                                "Y Position",  "m", Array1D = Aux1D,                    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR130'
+            endif        
+
+            !Z cartesian [m]
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,3) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/Z Position",       &
+                                "Z Position",  "m", Array1D = Aux1D,                    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR140'
+            endif     
+
+            !velocity modulus [m/s]        
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,4) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/velocity modulus", &
+                                "velocity modulus",  "m/s", Array1D = Aux1D,            &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR150'
+            endif    
+
+            !salinity [ppt]
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,5) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/salinity",         &
+                                "salinity",  "ppt", Array1D = Aux1D,                    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR160'
+            endif   
+
+            !temperature [oC]
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,6) 
+
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/temperature",      &
+                                "temperature",  "oC", Array1D = Aux1D,                  &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR170'
+            endif   
+
+            !density [kg/m3]
+            Aux1D(1:iTotal) = Aux1DTotal(1:iTotal,7)   
+            
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/density",          &
+                                "density",  "kg/m3", Array1D = Aux1D,                   &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR180'
+            endif   
+
+
+            deallocate (Aux1DTotal, Aux1D)
+            nullify    (Aux1DTotal, Aux1D)
+        
+        endif
+        
+        call HDF5SetLimits  (ObjHDF5,  WorkILB, WorkIUB, WorkJLB,                       &
+                                       WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR200'
+        endif
+
+        if (associated(Me%External_Var%Salinity)) then
+            !salinity [ppt]        
+            !HDF 5
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/salinity_3D",      &
+                                "salinity",  "ppt", Array3D = Me%External_Var%Salinity ,&
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR210'
+            endif   
+        endif
+
+        !temperature [oC]
+        !HDF 5
+         if (associated(Me%External_Var%Temperature)) then
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"MohidJet"//"/temperature_3D",       &
+                                "temperature",  "oC", Array3D = Me%External_Var%Temperature,&
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutputHydroMohidJet - ModuleHydrodynamic - ERR220'
+            endif         
+        endif
+        
+     
+
+    end subroutine OutputHydroMohidJet
+
+    !End------------------------------------------------------------------------------    
     
     !>@author Joao Sobrinho +Atlantic
     !>@Brief
@@ -49611,44 +50822,44 @@ do5:            do i = ILB, IUB
         
         do iL =1, NFieldsUV3D_Upscaling
             !Confirmar se VelAssimilation3D_U é inicializada a 0 e nao FillFalueReal
-                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
-                                    Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
-                                    MapMatrix = Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
-                where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
-                        Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
+            call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                Me%External_Var%KFloor_U, List3D(iL)%VelAssimilation3D_U,           &
+                                MapMatrix = Me%External_Var%ComputeFaces3D_U, MaskValue = 0.0)
+            where (List2D(iL)%Prop_DecayTime(:,:) /= FillValueReal) &
+                    Me%Relaxation%DecayTime_Upscale(:,:) = List2D(iL)%Prop_DecayTime(:,:)
         enddo
         
         call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
                                             Flow            = Me%WaterFluxes%Discharges,                &
                                             VelFather       = Me%Velocity%Horizontal%U%New,             &
                                             VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                            DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
                                             CoefCold        = CoefCold,                                 &
                                             VelID           = VelocityU_,                               &
-                                                VelDT           = Me%Velocity%DT,                           &
-                                                SonVolInFather  = SonVolInFather3D,                         &
-                                                FatherVolume    = Me%External_Var%Volume_U, STAT = STAT_CALL)
+                                            VelDT           = Me%Velocity%DT,                           &
+                                            SonVolInFather  = SonVolInFather3D,                         &
+                                            FatherVolume    = Me%External_Var%Volume_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR01'
                 
-            Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+        Me%Relaxation%Assim_RefVelocity_Upscale(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
         
         do iL =1, NFieldsUV3D_Upscaling
             !Confirmar se VelAssimilation3D_V é inicializada a 0 e nao FillFalueReal
-                call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
-                                    Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
-                                    MapMatrix = Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
+            call SetMatrixValueAllocatable_jik(Me%Relaxation%Assim_RefVelocity_Upscale, Me%WorkSize,    &
+                                Me%External_Var%KFloor_V, List3D(iL)%VelAssimilation3D_V,           &
+                                MapMatrix = Me%External_Var%ComputeFaces3D_V, MaskValue = 0.0)
         enddo
         
         call Offline_Upscaling_Discharge(   TwoWayID        = Me%ObjTwoWay,                             &
                                             Flow            = Me%WaterFluxes%Discharges,                &
                                             VelFather       = Me%Velocity%Horizontal%V%New,             &
                                             VelSon          = Me%Relaxation%Assim_RefVelocity_Upscale,  &
-                                                DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
+                                            DecayTime       = Me%Relaxation%DecayTime_Upscale,          &
                                             CoefCold        = CoefCold,                                 &
                                             VelID           = VelocityV_,                               &
-                                                VelDT           = Me%Velocity%DT,                           &
-                                                SonVolInFather  = SonVolInFather3D,                         &
-                                                FatherVolume    = Me%External_Var%Volume_V, STAT = STAT_CALL)
+                                            VelDT           = Me%Velocity%DT,                           &
+                                            SonVolInFather  = SonVolInFather3D,                         &
+                                            FatherVolume    = Me%External_Var%Volume_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Modify_Upscaling_Discharges - Hydrodynamic - ERR02'
         
         ! -------------------------------- Kill variables -------------------------------------------------------------
@@ -50248,14 +51459,14 @@ i1:     if (Me%HighLowTide%ON) then
 
                     if (Me%ComputeOptions%UpscalingMethod == Discharge_) then
                         call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
-                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelU, &
+                                            FatherMatrix_D  = ObjFather%WaterFluxes%DischargesVelU, &
                                             SonMatrix       = Me%Velocity%Horizontal%U%New,         &
                                             CallerID        = mHydrodynamic_,                       &
                                             VelocityID      = VelocityU_,                           &
                                             STAT            = STAT_CALL)
                         
                         call ModifyTwoWay ( SonID           = AuxHydrodynamicID,                    &
-                                            FatherMatrix    = ObjFather%WaterFluxes%DischargesVelV, &
+                                            FatherMatrix_D  = ObjFather%WaterFluxes%DischargesVelV, &
                                             SonMatrix       = Me%Velocity%Horizontal%V%New,         &
                                             CallerID        = mHydrodynamic_,                       &
                                             VelocityID      = VelocityV_,                           &
@@ -50302,13 +51513,13 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------
 
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                            FatherMatrix     = Father_U,                            &
-                                       SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityU_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
+        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                            FatherMatrix     = Father_U,                                          &
+                            SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
+                            CallerID         = mHydrodynamic_,                                    &
+                            VelocityID       = VelocityU_,                                        &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
 
         if (ObjFather%ComputeOptions%UpscalingDischarge) &
                         call UpscaleDischarge(SonID = AuxHydrodynamicID, &
@@ -50325,13 +51536,13 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father V matrix with son information-------------------------------------
 
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
-                            FatherMatrix     = Father_V,                            &
-                                       SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       VelocityID       = VelocityV_,                                        &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
+        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                FatherMatrix     = Father_V,                            &
+                            SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
+                            CallerID         = mHydrodynamic_,                                    &
+                            VelocityID       = VelocityV_,                                        &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
 
         if (ObjFather%ComputeOptions%UpscalingDischarge) &
                         call UpscaleDischarge(SonID = AuxHydrodynamicID, &
@@ -50348,12 +51559,12 @@ i1:     if (Me%HighLowTide%ON) then
 
     !-------------------------------------------Updates father W matrix with son information-------------------------------------
         if (Me%ComputeOptions%UpscalingVelocityW) then
-                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+            call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                 FatherMatrix     = Father_W,                            &
-                                       SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
+                                SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
+                                CallerID         = mHydrodynamic_,                                    &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
 
                     !Account for sinks and sources of Volume due to Upscaling.
             if (Me%OutPut%Upscaling%MassSinkSource) then
@@ -50363,13 +51574,13 @@ i1:     if (Me%HighLowTide%ON) then
         endif
 !-------------------------------------------Updates father water level matrix with son information---------------------
         if (Me%ComputeOptions%UpscalingWaterLevel) then
-                        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+            call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                 FatherMatrix2D   = ObjFather%WaterLevel%New,        &
-                                           SonMatrix2D      = Me%WaterLevel%New,                                 &
-                                           CallerID         = mHydrodynamic_,                                    &
-                                           STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
-                    endif
+                                SonMatrix2D      = Me%WaterLevel%New,                                 &
+                                CallerID         = mHydrodynamic_,                                    &
+                                STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+            endif
 
     end subroutine Upscaling_Nudging
 
@@ -51157,7 +52368,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         integer, dimension(:,:),   pointer  :: KFloorZ
         character(len = StringLength)       :: AuxChar, AuxProp
         integer                             :: CHUNK
-        logical                             :: SimpleOutPut
+        logical                             :: SimpleOutPut, OutputMohidJetON
         type (T_Time)                       :: Aux
         real(8)                             :: AuxPeriod, TotalTime
 
@@ -51182,6 +52393,12 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             if (Me%External_Var%BackTracking) then
                 Index = Me%OutW%OutPutWindows(iW)%Number - Index + 1
             endif
+            
+            if (Me%Output%MohidJetONWindow) then
+                OutputMohidJetON = .true.
+            else
+                OutputMohidJetON = .false.
+            endif            
 
         else
 
@@ -51198,6 +52415,12 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             endif
 
             if (Me%OutPut%Simple) SimpleOutPut = .true.
+            
+            if (Me%Output%MohidJetON) then
+                OutputMohidJetON = .true.
+            else
+                OutputMohidJetON = .false.
+            endif
 
         endif
 
@@ -51238,12 +52461,23 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             call HDF5SetLimits  (ObjHDF5, 1, 1, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR30'
 
-            call HDF5WriteData  (ObjHDF5, "/Generic4D", "Generic4D", "-",        &
+            call HDF5WriteData  (ObjHDF5, "/Generic4D", "Generic4D", "-",               &
                                  Array1D = TimePtr, OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR40'
             deallocate(TimePtr)
             nullify(TimePtr)
         endif
+        
+        if (Me%MohidJet%ON .and. OutputMohidJetON) then
+            if (Index == 2) then
+                !Simple way to have for output 1 also MohidJet Results
+                call OutputHydroMohidJet(ObjHDF5, Index-1, WorkILB, WorkIUB, WorkJLB,   &
+                                                         WorkJUB, WorkKLB, WorkKUB) 
+            endif
+            call OutputHydroMohidJet(ObjHDF5, Index, WorkILB, WorkIUB, WorkJLB,         &
+                                                     WorkJUB, WorkKLB, WorkKUB)
+        endif
+        
 
 
         !Writes SZZ
@@ -55456,6 +56690,10 @@ i1:     if (HDF5FormatOK) then
 
                 if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR01.'
 
+                if (Me%MohidJet%ON) then
+                    call KillHydroMohidJet 
+                endif
+
                 if (Me%OutPut%TimeSerieDischON) then
                     do dis = 1, Me%OutPut%DischargesNumber
 
@@ -56894,6 +58132,45 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 #endif _USE_SEQASSIMILATION
 
+
+    subroutine KillHydroMohidJet 
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer         :: dis, STAT_CALL
+        !Begin----------------------------------------------------------------------    
+    
+        do dis = 1, Me%MohidJet%DischargesNumber
+
+            if (Me%MohidJet%JetX(dis)%ON) then
+
+                call KillJet(JetID  = Me%MohidJet%Jetx(dis)%ObjJet, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'KillHydroMohidJet - ModuleHydrodynamic - ERR10'
+                endif
+                
+                if (Me%MohidJet%Jetx(dis)%OutPutON) then
+                    write(Me%MohidJet%Jetx(dis)%UnitOut,*) '<EndTimeSerie>'
+                    
+                    call UnitsManager(Me%MohidJet%Jetx(dis)%UnitOut, CLOSE_FILE, STAT = STAT_CALL)                
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'KillHydroMohidJet - ModuleHydrodynamic - ERR20'
+                    endif                                             
+                endif
+            endif
+
+        enddo
+    
+
+        if (associated(Me%MohidJet%JetX)) then
+            deallocate(Me%MohidJet%JetX)
+            nullify   (Me%MohidJet%JetX)
+        endif
+
+    end subroutine KillHydroMohidJet
+
+    !End------------------------------------------------------------------------------   
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

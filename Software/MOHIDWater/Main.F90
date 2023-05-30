@@ -1152,7 +1152,7 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
         integer                                     :: MPI_ID, MasterID, LastSlaveID
         type (T_MohidWater), pointer                :: CurrentModel, NextModel
         character(StringLength)                     :: Coment1, Coment2
-        character(PathLength)                       :: AuxChar, AuxChar1
+        character(PathLength)                       :: AuxChar, AuxChar1, TreeFilename
 
 
         !Nullifies First Pointer
@@ -1160,13 +1160,25 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
         !Verifies if Tree file exists and allocates the list of models
         inquire(file='tree.dat', EXIST = TreeExists)
+        
+        if (TreeExists) then
+            TreeFilename = 'tree.dat'
+        else
+            
+            inquire(file='Tree.dat', EXIST = TreeExists)            
+            
+            if (TreeExists) then
+                TreeFilename = 'Tree.dat'
+            endif
+            
+        endif
 
 iT:     if (TreeExists) then
 
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR10'
 
-            open(UNIT = iTree, FILE = 'tree.dat', status = 'OLD')
+            open(UNIT = iTree, FILE = trim(TreeFilename), status = 'OLD')
 
             read(unit=iTree, fmt=*) Coment1
             read(unit=iTree, fmt=*) Coment2

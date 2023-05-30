@@ -1,0 +1,16 @@
+Time Serie Results File
+NAME                    : Caudal
+LOCALIZATION_I          : -999999
+LOCALIZATION_J          : -999999
+LOCALIZATION_K          : 19
+SERIE_INITIAL_DATA      : 2017 10 30 00 00 00
+TIME_UNITS              : SECONDS
+MODEL_DOMAIN            : NA
+ COORD_X    : -8.812
+ COORD_Y    : 37.924
+Seconds   InTake_Start Discharge_Start InTake_H20 Discharge_H2O
+<BeginTimeSerie>
+0 0 0 0 0
+21600 0 0 -1.247777778 1.242222222 
+1e7 0 0 -1.247777778 1.242222222 
+<EndTimeSerie>

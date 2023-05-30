@@ -168,6 +168,7 @@ Module ModuleFunctions
     public  :: RODAXY
     public  :: FromCartesianToGrid
     public  :: SphericalToCart
+    public  :: CartToSpherical
     public  :: FromCoord2RegGrid
 
     public  :: FromGridToCartesian
@@ -272,7 +273,8 @@ Module ModuleFunctions
     public  :: ComputeT90_Chapra                    !Function
 
 
-    public  ::  Normcrossprod
+    public  ::  normcrossprod
+    public  ::  normcrossprod_v2
 
     !Coordinates Functions
     public  ::  ComputeGridZone
@@ -378,6 +380,9 @@ Module ModuleFunctions
     private :: SearchFace
     private :: Update_n_Z
 
+    !from depth to layer
+    public  ::  FromDepth_2_layer
+
     !types -------------------------------------------------------------------
 
     !griflet
@@ -468,10 +473,12 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_Constant
         module procedure SetMatrixValues3D_R4_FromMatrix
         module procedure SetMatrixValues3D_R8ToR4_FromMatrix
+        module procedure SetMatrixValues3D_R4ToR8_FromMatrix    
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix_Alloc
         module procedure SetMatrixValues3D_R4_FromMatrix_Alloc
+        module procedure SetMatrixValues3D_R8R4_FromMatrix_Alloc
     end interface SetMatrixValue
 
     interface SetMatrixValueAllocatable
@@ -493,6 +500,11 @@ Module ModuleFunctions
     interface SetMatrixValueAllocatable_jik
         module procedure SetMatrixValues3D_R_FromMatrixAllocatable_jik
     end interface SetMatrixValueAllocatable_jik
+    
+    interface SumMatrixes_jik_V2
+        module procedure SumMatrixes_jik_V2_R8R4
+        module procedure SumMatrixes_jik_V2_R8
+    end interface SumMatrixes_jik_V2
 
     interface GetPointer
         module procedure GetPointer2D_I4
@@ -965,14 +977,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :), allocatable           :: Matrix
-        type (T_Size2D)                                 :: Size
-        real(4), intent (IN)                            :: ValueX
-        integer, dimension(:, :), pointer, optional     :: MapMatrix
+        real(4), dimension(:, :), allocatable, intent(inout)    :: Matrix
+        type (T_Size2D)                                         :: Size
+        real(4), intent (IN)                                    :: ValueX
+        integer, dimension(:, :), pointer, optional             :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j
-        integer                                         :: CHUNK
+        integer                                                 :: i, j
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1053,7 +1065,7 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :), allocatable           :: Matrix
+        real(8), dimension(:, :), allocatable, intent(inout) :: Matrix
         type (T_Size2D)                                 :: Size
         real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
@@ -1141,14 +1153,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R4_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :), allocatable           :: Matrix
-        type (T_Size2D)                                 :: Size
-        real(4), dimension(:, :), allocatable           :: InMatrix
-        integer, dimension(:, :), pointer, optional     :: MapMatrix
+        real(4), dimension(:, :), allocatable, intent(inout)    :: Matrix
+        type (T_Size2D)                                         :: Size
+        real(4), dimension(:, :), allocatable, intent(in)       :: InMatrix
+        integer, dimension(:, :), pointer, optional             :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j
-        integer                                         :: CHUNK
+        integer                                                 :: i, j
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1314,14 +1326,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues2D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :), allocatable           :: Matrix
-        type (T_Size2D)                                 :: Size
-        real(8), dimension(:, :), allocatable           :: InMatrix
-        integer, dimension(:, :), pointer, optional     :: MapMatrix
+        real(8), dimension(:, :), allocatable, intent(inout)    :: Matrix
+        type (T_Size2D)                                         :: Size
+        real(8), dimension(:, :), allocatable, intent(in)       :: InMatrix
+        integer, dimension(:, :), pointer, optional             :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j
-        integer                                         :: CHUNK
+        integer                                                 :: i, j
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1358,14 +1370,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :, :), allocatable        :: Matrix
-        type (T_Size3D), intent(in)                     :: Size
-        real(8), dimension(:, :, :), allocatable        :: InMatrix
-        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real(8), dimension(:, :, :), allocatable, intent(inout) :: Matrix
+        type (T_Size3D), intent(in)                             :: Size
+        real(8), dimension(:, :, :), allocatable, intent(in)    :: InMatrix
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        integer                                         :: CHUNK
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1614,14 +1626,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable        :: Matrix
-        type (T_Size3D)                                 :: Size
-        real(4), intent (IN)                            :: ValueX
-        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real(4), dimension(:, :, :), allocatable, intent(inout) :: Matrix
+        type (T_Size3D)                                         :: Size
+        real(4), intent (IN)                                    :: ValueX
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        integer                                         :: CHUNK
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1718,14 +1730,14 @@ Module ModuleFunctions
     subroutine SetMatrixValues3D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:, :, :), allocatable        :: Matrix
-        type (T_Size3D)                                 :: Size
-        real(8), intent (IN)                            :: ValueX
-        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real(8), dimension(:, :, :), allocatable, intent(inout) :: Matrix
+        type (T_Size3D)                                         :: Size
+        real(8), intent (IN)                                    :: ValueX
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        integer                                         :: CHUNK
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1764,16 +1776,16 @@ Module ModuleFunctions
     subroutine SetMatrixValues_R_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix, Dummy)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), allocatable           :: Matrix
-        type (T_Size3D)                                 :: Size
-        real, intent (IN)                               :: ValueX
-        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
-        logical                            , optional   :: Dummy
+        real, dimension(:, :, :), allocatable, intent(inout)    :: Matrix
+        type (T_Size3D)                                         :: Size
+        real, intent (IN)                                       :: ValueX
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
+        logical                            , optional           :: Dummy
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        integer                                         :: CHUNK
-        logical                                         :: Dummy_
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
+        logical                                                 :: Dummy_
 
         !Begin-----------------------------------------------------------------
 
@@ -1857,13 +1869,62 @@ Module ModuleFunctions
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
 
-    subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+  subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+
+      !Arguments-------------------------------------------------------------
+      real(4), dimension(:, :, :), pointer            :: Matrix
+      type (T_Size3D)                                 :: Size
+      real(8), dimension(:, :, :), pointer            :: InMatrix
+      integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+
+      !Local-----------------------------------------------------------------
+      integer                                         :: i, j, k
+      integer                                         :: CHUNK
+
+      !Begin-----------------------------------------------------------------
+
+      CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+      if (present(MapMatrix)) then
+          !$OMP PARALLEL PRIVATE(I,J, K)
+          !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+          do k = Size%KLB, Size%KUB
+          do j = Size%JLB, Size%JUB
+          do i = Size%ILB, Size%IUB
+              if (MapMatrix(i, j, k) == 1) then
+                  Matrix (i, j, k) = InMatrix(i, j, k)
+              endif
+          enddo
+          enddo
+          enddo
+          !$OMP END DO NOWAIT
+          !$OMP END PARALLEL
+      else
+          !$OMP PARALLEL PRIVATE(I,J, K)
+          !$OMP DO SCHEDULE(STATIC)
+          do k = Size%KLB, Size%KUB
+          do j = Size%JLB, Size%JUB
+          do i = Size%ILB, Size%IUB
+              Matrix (i, j, k) = InMatrix(i, j, k)
+          enddo
+          enddo
+          enddo
+          !$OMP END DO NOWAIT
+          !$OMP END PARALLEL
+      endif
+  end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine SetMatrixValues3D_R4ToR8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), pointer            :: Matrix
+        real(8), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
-        real(8), dimension(:, :, :), pointer            :: InMatrix
+        real(4), dimension(:, :, :), pointer            :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real, optional                                  :: MaskValue
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
@@ -1872,9 +1933,22 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-
-        if (present(MapMatrix)) then
-            !$OMP PARALLEL PRIVATE(I,J, K)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
@@ -1888,7 +1962,7 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
@@ -1900,21 +1974,70 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif
-    end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
+
+    end subroutine SetMatrixValues3D_R4ToR8_FromMatrix
+
+    !--------------------------------------------------------------------------
+
+
+ !   subroutine SetMatrixValues3D_R4ToR8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+!
+ !       !Arguments-------------------------------------------------------------
+ !       real(8), dimension(:, :, :), pointer            :: Matrix
+ !       type (T_Size3D)                                 :: Size
+ !       real(4), dimension(:, :, :), pointer            :: InMatrix
+ !       integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+!
+ !       !Local-----------------------------------------------------------------
+ !       integer                                         :: i, j, k
+ !       integer                                         :: CHUNK
+!
+ !       !Begin-----------------------------------------------------------------
+!
+ !       CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+!
+ !       if (present(MapMatrix)) then
+ !           !$OMP PARALLEL PRIVATE(I,J, K)
+ !           !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+ !           do k = Size%KLB, Size%KUB
+ !           do j = Size%JLB, Size%JUB
+ !           do i = Size%ILB, Size%IUB
+ !               if (MapMatrix(i, j, k) == 1) then
+ !                   Matrix (i, j, k) = InMatrix(i, j, k)
+ !               endif
+ !           enddo
+ !           enddo
+ !           enddo
+ !           !$OMP END DO NOWAIT
+ !           !$OMP END PARALLEL
+ !       else
+ !           !$OMP PARALLEL PRIVATE(I,J, K)
+ !           !$OMP DO SCHEDULE(STATIC)
+ !           do k = Size%KLB, Size%KUB
+ !           do j = Size%JLB, Size%JUB
+ !           do i = Size%ILB, Size%IUB
+ !               Matrix (i, j, k) = InMatrix(i, j, k)
+ !           enddo
+ !           enddo
+ !           enddo
+ !           !$OMP END DO NOWAIT
+ !           !$OMP END PARALLEL
+ !       endif
+ !   end subroutine SetMatrixValues3D_R4ToR8_FromMatrix
 
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R4_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable        :: Matrix
-        type (T_Size3D)                                 :: Size
-        real(4), dimension(:, :, :), allocatable        :: InMatrix
-        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+        real(4), dimension(:, :, :), allocatable, intent(inout) :: Matrix
+        type (T_Size3D)                                         :: Size
+        real(4), dimension(:, :, :), allocatable, intent(in)    :: InMatrix
+        integer, dimension(:, :, :), pointer, optional          :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        integer                                         :: CHUNK
+        integer                                                 :: i, j, k
+        integer                                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1953,7 +2076,7 @@ Module ModuleFunctions
 subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:, :, :), allocatable, intent(INOUT) :: Matrix
+        real(4), dimension(:, :, :), allocatable, intent(inout) :: Matrix
         type (T_Size3D)                                         :: Size
         real(4), dimension(:, :, :), pointer, intent(IN)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional          :: MapMatrix
@@ -1997,6 +2120,10 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     end subroutine SetMatrixValues3D_R4_FromMatrixPointer
     
     !--------------------------------------------------------------------------
+
+    
+    
+
 
     subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
@@ -2059,13 +2186,15 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
     !--------------------------------------------------------------------------
+    
+    
 
     subroutine SetMatrixValues3D_R8_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
         type (T_Size3D)                     , intent(IN)            :: Size
-        real(8), dimension(:, :, :), allocatable, intent(IN)        :: InMatrix
+        real(8), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
         real, optional                                , intent(IN)  :: MaskValue
 
@@ -2121,6 +2250,69 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix_Alloc
+    
+    !--------------------------------------------------------------------------
+    subroutine SetMatrixValues3D_R8R4_FromMatrix_Alloc (Matrix, Size, InMatrix, MapMatrix, MaskValue)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
+        type (T_Size3D)                     , intent(IN)            :: Size
+        real(4), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
+        integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
+        real, optional                                , intent(IN)  :: MaskValue
+
+        !Local-----------------------------------------------------------------
+        integer                                                     :: i, j, k
+        integer                                                     :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+        if ((present(MapMatrix)) .and. (present(MaskValue))) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1 .and. InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        elseif (present(MaskValue)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (InMatrix (i, j, k) /= MaskValue) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine SetMatrixValues3D_R8R4_FromMatrix_Alloc
 
     !--------------------------------------------------------------------------
     
@@ -2128,7 +2320,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer, INTENT(INOUT)         :: Matrix
         type (T_Size3D)                     , intent(IN)            :: Size
-        real(4), dimension(:, :, :), allocatable, intent(IN)        :: InMatrix
+        real(4), dimension(:, :, :), allocatable, intent(in)        :: InMatrix
         integer, dimension(:, :, :), pointer, optional, intent(IN)  :: MapMatrix
         real, optional                                , intent(IN)  :: MaskValue
 
@@ -2511,10 +2703,10 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     end subroutine SumMatrixes_jik
 
-    subroutine SumMatrixes_jik_V2(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+    subroutine SumMatrixes_jik_V2_R8R4(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer, intent (INOUT)           :: MatrixA
-        real, dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
+        real(8), dimension(:, :, :), pointer, intent (INOUT)        :: MatrixA
+        real(4), dimension(:, :, :), allocatable, intent (IN)          :: MatrixB
         type (T_Size3D)                                             :: Size
         integer, dimension(:,:), pointer, intent(IN)                :: KFloor
         integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
@@ -2540,7 +2732,38 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !$OMP END DO
         !$OMP END PARALLEL
 
-    end subroutine SumMatrixes_jik_V2
+    end subroutine SumMatrixes_jik_V2_R8R4
+    
+    subroutine SumMatrixes_jik_V2_R8(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :, :), pointer, intent (INOUT)        :: MatrixA
+        real(8), dimension(:, :, :), allocatable, intent (IN)       :: MatrixB
+        type (T_Size3D)                                             :: Size
+        integer, dimension(:,:), pointer, intent(IN)                :: KFloor
+        integer, dimension(:, :, :), pointer, optional, intent (IN) :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_jik_V2_R8
 
     subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
@@ -5222,6 +5445,35 @@ end function
 
     !--------------------------------------------------------------------------
 
+    subroutine CartToSpherical(X, Y, Lat, Lon, LonRef, LatRef)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: X, Y, LonRef, LatRef   
+        real(8), intent(Out)            :: Lat, Lon
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+        
+        Lat          = Y / (EarthRadius * radians) + LatRef
+        
+        Rad_Lat      = Lat * radians
+        CosenLat     = cos(Rad_Lat) 
+
+        if (CosenLat == 0.) then
+            stop 'CartToSpherical - Module functions - ERR10'
+        endif    
+        
+        Lon          = X / (CosenLat * EarthRadius * radians) + LonRef
+        
+    end subroutine CartToSpherical
+
+    !--------------------------------------------------------------------------    
+
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
 
@@ -5285,29 +5537,37 @@ end function
     
     !--------------------------------------------------------------------------
     !returns the boundary vertixes of curvilinear grid taking in consideration ghost vertixes = FillValueReal
-    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, Nvert)
+    subroutine PolygonBoundGridCurv (XX2D, YY2D, ILB, IUB, JLB, JUB, XX1D, YY1D, &
+                                     I1D, J1D, Nvert, InitialValidVertix)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:,:), pointer, intent(IN)   :: XX2D, YY2D
         integer,                             intent(IN)   :: ILB, IUB, JLB, JUB
         real,       dimension(:  ), pointer, intent(OUT)  :: XX1D, YY1D
+        integer,    dimension(:  ), pointer, intent(OUT)  :: I1D, J1D        
         integer                                           :: Nvert
+        logical                                           :: InitialValidVertix
 
         !Local-----------------------------------------------------------------
         real,       dimension(:,:), pointer               :: Aux_XX2D, Aux_YY2D
         real,       dimension(:  ), pointer               :: Aux_XX1D, Aux_YY1D, Aux_ZZ1D
+        integer,    dimension(:  ), pointer               :: Aux_I1D, Aux_J1D        
         logical                                           :: StopCycle
         integer                                           :: MaxVert, c1, c2, auxINT, MAXINT, icount
         integer                                           :: ip1, ip2, ip3, ip4
-        integer                                           :: i, j
+        integer                                           :: i, j, istart, jstart
         
         !Begin-----------------------------------------------------------------
         
         MaxVert =  (JUB - JLB) * (IUB-ILB)
         allocate(Aux_XX1D(MaxVert), Aux_YY1D(MaxVert), Aux_ZZ1D(MaxVert))
-        allocate(Aux_XX2D(ILB-1:IUB+1, JLB-1:JUB+1))
-        allocate(Aux_YY2D(ILB-1:IUB+1, JLB-1:JUB+1))
-
+        allocate(Aux_I1D(MaxVert), Aux_J1D(MaxVert))
+        allocate(Aux_XX2D(ILB-2:IUB+1, JLB-2:JUB+1))
+        allocate(Aux_YY2D(ILB-2:IUB+1, JLB-2:JUB+1))
+        
+        Aux_XX2D(:,:) = FillValueReal
+        Aux_YY2D(:,:) = FillValueReal
+        
         Aux_XX2D(ILB:IUB, JLB:JUB) = XX2D(ILB:IUB, JLB:JUB)
         Aux_YY2D(ILB:IUB, JLB:JUB) = YY2D(ILB:IUB, JLB:JUB)
         
@@ -5328,146 +5588,198 @@ end function
         !        break;
         !    }
         !}
-
+        
+        
         !Find the initial position to create the path        
-        StopCycle = .false. 
+        InitialValidVertix = .false. 
         do j= JLB, JUB
             do i= ILB, IUB
                 if (XX2D(i,j) > HalfFillValueReal) then
                     c1         = i
                     c2         = j
-                    StopCycle = .true. 
+                    InitialValidVertix = .true. 
+                    istart    = c1
+                    jstart    = c2
                     exit
                 endif
             enddo
-            if (StopCycle) exit
+            if (InitialValidVertix) exit
         enddo
         
-       !while(linha!=12)
-       ! {
-       !     //the MAXINT value is assigned to the positions so that there is no possibility 
-       ! to return to that square in order to go through all the squares once
-       !    if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1,c2+1,S);
-       !         S->x1[auxINT] = S->x2D[c1][c2+1];
-       !         S->y1[auxINT++] = S->y2D[c1][c2+1];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c2++;
-       !         S->cord++;
-       !    }
-       !    else if(( (path(c1+1,c2,S) == 0) || (path(c1+1,c2,S) == 1) ) && S->x2D[c1+1][c2]!=MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1+1,c2,S);
-       !         S->x1[auxINT] = S->x2D[c1+1][c2];
-       !         S->y1[auxINT++] = S->y2D[c1+1][c2];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c1++;
-       !         S->cord++;
-       !    }
-       !    else if(( (path(c1,c2-1,S) == 0) || (path(c1,c2-1,S) == 1) ) && S->x2D[c1][c2-1]!= MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1,c2-1,S);
-       !         S->x1[auxINT] = S->x2D[c1][c2-1];
-       !         S->y1[auxINT++] = S->y2D[c1][c2-1];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c2--;
-       !         S->cord++;
-       !    }
-       !    else if( ( (path(c1-1,c2,S) == 0) || (path(c1-1,c2,S) == 1) ) && S->x2D[c1-1][c2] !=  MAXINT)
-       !    {
-       !         S->z1[auxINT] = path(c1-1,c2,S);
-       !         S->x1[auxINT] = S->x2D[c1-1][c2];
-       !         S->y1[auxINT++] = S->y2D[c1-1][c2];
-       !         S->x2D[c1][c2] = MAXINT;
-       !         c1--;
-       !         S->cord++;
-       !    }
-       !    else
-       !    {
-       !        S->x2D[c1][c2] = MAXINT;
-       !        S->cord++;
-       !        linha = 12;
-       !    }
-       ! }
         
-       
-       !Variable intialization
-        AuxInt           = 1
-        Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
-        Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
-        Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
-
-        StopCycle = .false.
-        MAXINT    = - FillValueInt
-        icount    = 0
-
-        do while (.not. StopCycle)
-            
-            ip1 = path_bound(c1,c2+1, ILB, IUB, JLB, JUB, XX2D)              
-            ip2 = path_bound(c1+1,c2, ILB, IUB, JLB, JUB, XX2D)  
-            ip3 = path_bound(c1,c2-1, ILB, IUB, JLB, JUB, XX2D)  
-            ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
-            
-            if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip1
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c2 = c2 + 1
-                 icount = icount + 1
-
-            elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip2
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c1 = c1 + 1
-                 icount = icount + 1            
-
-            elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip3
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c2 = c2 - 1
-                 icount = icount + 1
-
-            elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
-                 AuxInt = AuxInt + 1
-                 Aux_ZZ1D(AuxInt) = ip4
-                 Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
-                 Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
-                 Aux_XX2D(c1, c2) = MAXINT
-                 c1 = c1 - 1
-                 icount = icount + 1                             
-            else
-                Aux_XX2D(c1, c2) = MAXINT            
-                icount = icount + 1
-                StopCycle = .true.
-            endif
-        enddo
-
-        allocate(XX1D(1:icount), YY1D(1:icount))        
-
-        XX1D(1:icount) = Aux_XX1D(1:icount)
-        YY1D(1:icount) = Aux_YY1D(1:icount)
-
-        !Last verttix equal to the first
-        XX1D(icount+1) = XX1D(1)
-        YY1D(icount+1) = YY1D(1)
-
-        NVert = icount + 1
         
-        !do i =1, icount
-        !    write(*,*)  XX1D(i), YY1D(i), Aux_ZZ1D(i)
-        !enddo
+        !while(linha!=12)
+        !
+        !   //the MAXINT value is assigned to the positions so that there is no possibility to return to that square in order to go through all the squares once
+        !  if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1,c2+1,S);
+        !       S->x1[auxINT] = S->x2D[c1][c2+1];
+        !       S->y1[auxINT++] = S->y2D[c1][c2+1];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c2++;
+        !       S->cord++;
+        !  }
+        !  else if(( (path(c1+1,c2,S) == 0) || (path(c1+1,c2,S) == 1) ) && S->x2D[c1+1][c2]!=MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1+1,c2,S);
+        !       S->x1[auxINT] = S->x2D[c1+1][c2];
+        !       S->y1[auxINT++] = S->y2D[c1+1][c2];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c1++;
+        !       S->cord++;
+        !  }
+        !  else if(( (path(c1,c2-1,S) == 0) || (path(c1,c2-1,S) == 1) ) && S->x2D[c1][c2-1]!= MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1,c2-1,S);
+        !       S->x1[auxINT] = S->x2D[c1][c2-1];
+        !       S->y1[auxINT++] = S->y2D[c1][c2-1];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c2--;
+        !       S->cord++;
+        !  }
+        !  else if( ( (path(c1-1,c2,S) == 0) || (path(c1-1,c2,S) == 1) ) && S->x2D[c1-1][c2] !=  MAXINT)
+        !  {
+        !       S->z1[auxINT] = path(c1-1,c2,S);
+        !       S->x1[auxINT] = S->x2D[c1-1][c2];
+        !       S->y1[auxINT++] = S->y2D[c1-1][c2];
+        !       S->x2D[c1][c2] = MAXINT;
+        !       way[I1++] = c1*S->c+c2;
+        !       i1 = I1;
+        !       c1--;
+        !       S->cord++;
+        !  }
+        !  else if(i1>=1)
+        !  {
+        !       S->x2D[c1][c2] = MAXINT;
+        !       i1 = i1-1;
+        !       c1 = way[i1]/S->c;
+        !       c2 = way[i1]%S->c;
+        !  }
+        !  else
+        !  {
+        !      S->x2D[c1][c2] = MAXINT;
+        !      S->cord++;
+        !      linha = 12;
+        !  }
+        
+        NVert  = 0
+        
+       if (InitialValidVertix) then
+           !Variable intialization
+            AuxInt           = 1
+            Aux_ZZ1D(AuxInt) = path_bound(c1,c2, ILB, IUB, JLB, JUB, XX2D)
+            Aux_XX1D(AuxInt) = Aux_XX2D(c1,c2)
+            Aux_YY1D(AuxInt) = Aux_YY2D(c1,c2)
+            Aux_I1D (AuxInt) = c1
+            Aux_J1D (AuxInt) = c2
+            
+            StopCycle = .false.
+            MAXINT    = - FillValueInt
+            icount    = 0
 
-        deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
-        deallocate(Aux_XX2D, Aux_YY2D)
+            do while (.not. StopCycle)
+            
+                ip1 = path_bound(c1,c2+1, ILB, IUB, JLB, JUB, XX2D)              
+                ip2 = path_bound(c1+1,c2, ILB, IUB, JLB, JUB, XX2D)  
+                ip3 = path_bound(c1,c2-1, ILB, IUB, JLB, JUB, XX2D)  
+                ip4 = path_bound(c1-1,c2, ILB, IUB, JLB, JUB, XX2D)              
+            
+                if ((ip1 == 0 .or. ip1 == 1) .and. Aux_XX2D(c1,c2+1) /=  MAXINT) then
+                                
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip1
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2+1)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2+1)
+                    Aux_I1D (AuxInt) = c1
+                    Aux_J1D (AuxInt) = c2+1
+                 
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c2 = c2 + 1
+                    icount = icount + 1
+
+                elseif ((ip2 == 0 .or. ip2 == 1) .and. Aux_XX2D(c1+1,c2) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip2
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1+1,c2)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1+1,c2)
+                    Aux_I1D (AuxInt) = c1+1
+                    Aux_J1D (AuxInt) = c2                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c1 = c1 + 1
+                    icount = icount + 1            
+
+                elseif ((ip3 == 0 .or. ip3 == 1) .and. Aux_XX2D(c1,c2-1) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip3
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1,c2-1)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1,c2-1)
+                    Aux_I1D (AuxInt) = c1
+                    Aux_J1D (AuxInt) = c2-1                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c2 = c2 - 1
+                    icount = icount + 1
+
+                elseif ((ip4 == 0 .or. ip4 == 1) .and. Aux_XX2D(c1-1,c2) /=  MAXINT) then
+                    AuxInt = AuxInt + 1
+                    Aux_ZZ1D(AuxInt) = ip4
+                    Aux_XX1D(AuxInt) =  Aux_XX2D(c1-1,c2)
+                    Aux_YY1D(AuxInt) =  Aux_YY2D(c1-1,c2)
+                    Aux_I1D (AuxInt) = c1-1
+                    Aux_J1D (AuxInt) = c2                
+                    Aux_XX2D(c1, c2) = MAXINT
+                    c1 = c1 - 1
+                    icount = icount + 1   
+                elseif (c1 /= istart  .and. c2 /= jstart) then
+                     Aux_XX2D(c1, c2) = MAXINT
+                     AuxInt = AuxInt - 1
+                     icount = icount - 1
+                     c1 = Aux_I1D (AuxInt)
+                     c2 = Aux_J1D (AuxInt)
+                else
+                    Aux_XX2D(c1, c2) = MAXINT            
+                    icount = icount + 1
+                    StopCycle = .true.
+                endif
+                
+
+            enddo
+
+            allocate(XX1D(1:icount+1), YY1D(1:icount+1))        
+            allocate(I1D (1:icount+1), J1D (1:icount+1))        
+
+            XX1D(1:icount) = Aux_XX1D(1:icount)
+            YY1D(1:icount) = Aux_YY1D(1:icount)
+        
+            I1D(1:icount) = Aux_I1D(1:icount)
+            J1D(1:icount) = Aux_J1D(1:icount)        
+
+            !Last verttix equal to the first
+            XX1D(icount+1) = XX1D(1)
+            YY1D(icount+1) = YY1D(1)
+        
+            I1D(icount+1) = I1D(1)
+            J1D(icount+1) = J1D(1)
+        
+
+            NVert = icount + 1
+        
+            !write(*,*) 'XX1D(i), YY1D(i), J1D(i), I1D(i)'
+            !do i =1, NVert
+            !    write(*,*)  XX1D(i), YY1D(i), J1D(i), I1D(i)
+            !enddo
+        
+            deallocate(Aux_XX1D, Aux_YY1D, Aux_ZZ1D)
+            deallocate(Aux_I1D,  Aux_J1D)
+            deallocate(Aux_XX2D, Aux_YY2D)
+            
+        endif
         
     end subroutine PolygonBoundGridCurv
 
@@ -5939,17 +6251,17 @@ end function
                                          Time2, Matrix2, MatrixOUT, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
-        type(T_Time),      intent(IN)                   :: ActualTime
-        type(T_Size3D)                                  :: Size
-        type(T_Time),      intent(IN)                   :: Time1
-        real, dimension(:,:,:), allocatable             :: Matrix1
-        type(T_Time),      intent(IN)                   :: Time2
-        real, dimension(:,:,:), allocatable             :: Matrix2
-        real, dimension(:,:,:), allocatable             :: MatrixOUT
-        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        type(T_Time),      intent(IN)                               :: ActualTime
+        type(T_Size3D)                                              :: Size
+        type(T_Time),      intent(IN)                               :: Time1
+        real, dimension(:,:,:), allocatable, intent(in)             :: Matrix1
+        type(T_Time),      intent(IN)                               :: Time2
+        real, dimension(:,:,:), allocatable, intent(in)             :: Matrix2
+        real, dimension(:,:,:), allocatable, intent(inout)          :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional, intent(in)  :: PointsToFill3D
 
         !Local-----------------------------------------------------------------
-        real                                            :: X1, X, X2
+        real                                                        :: X1, X, X2
 
         !Begin-----------------------------------------------------------------
 
@@ -6127,13 +6439,14 @@ end function
                                          X2, Matrix2, MatrixOUT, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
-        real                                            :: X1, X2, X
-        type(T_Size3D)                                  :: Size
-        real, dimension(:,:,:), Allocatable             :: Matrix1, Matrix2, MatrixOUT
-        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        real                                                :: X1, X2, X
+        type(T_Size3D)                                      :: Size
+        real, dimension(:,:,:), allocatable, intent(in)     :: Matrix1, Matrix2
+        real, dimension(:,:,:), allocatable, intent(inout)  :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional      :: PointsToFill3D
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k, CHUNK
-        real                                            :: DT1, DT2, DTtotal
+        integer                                             :: i, j, k, CHUNK
+        real                                                :: DT1, DT2, DTtotal
         !Begin-----------------------------------------------------------------
 
         DT1      = X - X1
@@ -12654,6 +12967,7 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     function Normcrossprod(x, y, z)
 
+    
         !Arguments-------------------------------------------------------------
         real(8), dimension(3)                       :: normcrossprod
         real   , dimension(3), intent(in)           :: x, y, z
@@ -12673,7 +12987,31 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
 
     end function normcrossprod
 
-    !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
+    
+    function normcrossprod_v2(a, b)
+        
+        !Arguments---------------------------------------------------------
+        real, dimension(3)               :: normcrossprod_v2
+        real, dimension(3), intent(in)   :: a, b
+
+        !Local-------------------------------------------------------------
+        real                             :: norm
+
+        !Begin-------------------------------------------------------------              
+        normcrossprod_v2(1) = a(2) * b(3) - a(3) * b(2)
+        normcrossprod_v2(2) = a(3) * b(1) - a(1) * b(3)
+        normcrossprod_v2(3) = a(1) * b(2) - a(2) * b(1)
+        norm = sqrt(dot_product(normcrossprod_v2,normcrossprod_v2))
+        if (norm > 0) then
+            normcrossprod_v2 = normcrossprod_v2/norm        
+        else
+                stop 'Module Functions - function normcrossprod_v2 - ERR10'
+        endif
+      
+    end function normcrossprod_v2
+    
+   !--------------------------------------------------------------------------    
 
     !Settling velocity computed as function of a hindered settling concentration
     !Used only for cohesive sediments. Units in this formulation in kg/m3
@@ -12711,7 +13049,8 @@ d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
             write(*,*)'Concentration (g/l)          = ', Concentration
             write(*,*)'KL1 * (Concentration - CHS)  = ', Aux
             write(*,*)'Cell(i, j, k)                = ', i, j, k
-            stop 'Error computing the settling velocity - SettlingVelocity - ModuleFreeVerticalMovement'
+            SettlingVelocity                        = 0.
+            !stop 'Error computing the settling velocity - SettlingVelocity - ModuleFreeVerticalMovement'
 
         endif
 
@@ -14525,7 +14864,10 @@ D2:     do I=imax-1,2,-1
                  sigmaX = 0.09;
              endif
 
-             SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             SS = 0.3125*Hs**2*wp**4;
+             SS = SS / f(x)**5;
+             SS = SS * exp(-1.25/(f(x)/wp)**4);
              SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
 
              !Jonsoap
@@ -14645,8 +14987,8 @@ D2:     do I=imax-1,2,-1
         
         if (StartIndex /= 0) then
             
-            if (di /=0) IJFather = IFather ! means we are searching the north/South direction
-            if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
+            if (di /=0) IJFather = IFather + di ! means we are searching the north/South direction
+            if (dj /=0) IJFather = JFather + dj! means we are searching the west/east direction
             Aux2 = Aux
             i = StartIndex
             !Check if current face needs to be considered for the discharge velocity
@@ -14658,7 +15000,7 @@ D2:     do I=imax-1,2,-1
 
                 if (SonWaterPoints(ISon, JSon) == 1)then
                     !Check if adjacent cell of son domain is inside Father dicharge cell
-                    if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
+                    if (link(ISonAdjacent, JSonAdjacent) == IJFather)then
                         if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
                             n = n + 1 ! Found a discharge face
                         endif
@@ -14733,7 +15075,7 @@ D2:     do I=imax-1,2,-1
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
         real(8),    dimension(:)            , intent(INOUT)  :: Flow
-        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        integer, dimension(:, :), allocatable, intent(IN)    :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
         real                                                 :: F_East, F_West
@@ -14758,9 +15100,9 @@ D2:     do I=imax-1,2,-1
     subroutine DischargeFluxV(FatherV_old, FatherV, AreaV, Flow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer    , intent(IN)     :: FatherV, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN)     :: FatherV_old
+        real,    dimension(:, :, :)             , intent(IN)     :: FatherV_old
         real(8),    dimension(:)                , intent(INOUT)  :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
+        integer, dimension(:, :), allocatable   , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                                  :: line, i, j, k, MaxSize
         real                                                     :: F_South, F_North
@@ -14787,10 +15129,12 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxU(Flow, DischargeConnection, VelFather, VelSon, AreaU, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, VelSon, AreaU, SonVolInFather, FatherVolume
-        real(8),    dimension(:)                , intent(INOUT)  :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
-        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
+        real,    dimension(:, :, :), pointer, intent(IN)         :: VelFather, AreaU, SonVolInFather
+        real(8),    dimension(:, :, :), pointer, intent(IN)      :: FatherVolume
+        real,    dimension(:,:,:), allocatable, intent(IN   )    :: VelSon
+        real(8),    dimension(:), allocatable   , intent(INOUT)  :: Flow
+        integer, dimension(:, :), allocatable   , intent(IN)     :: DischargeConnection
+        real   , dimension(:, :), allocatable , intent(IN)       :: DecayTime
         real                                , intent(IN)         :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
         integer                                                  :: line, i, j, k, MaxSize
@@ -14858,15 +15202,17 @@ D2:     do I=imax-1,2,-1
     subroutine Offline_DischargeFluxV(Flow, DischargeConnection, VelFather, VelSon, AreaV, DecayTime, VelDT, &
     SonVolInFather, FatherVolume, CoefCold)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: VelFather, VelSon, AreaV, SonVolInFather, FatherVolume
-        real(8),    dimension(:)            , intent(OUT)    :: Flow
-        integer, dimension(:, :)   , allocatable, intent(IN)     :: DischargeConnection
-        real   , dimension(:, :)   , pointer, intent(IN)         :: DecayTime
-        real                                , intent(IN)     :: VelDT, CoefCold
+        real,    dimension(:, :, :), pointer, intent(IN)      :: VelFather, AreaV, SonVolInFather
+        real(8),    dimension(:, :, :), pointer, intent(IN)   :: FatherVolume
+        real,    dimension(:,:,:), allocatable, intent(IN)    :: VelSon
+        real(8),    dimension(:), allocatable, intent(OUT)    :: Flow
+        integer, dimension(:, :), allocatable, intent(IN)     :: DischargeConnection
+        real   , dimension(:, :), allocatable, intent(IN)     :: DecayTime
+        real                                , intent(IN)      :: VelDT, CoefCold
         !Local-------------------------------------------------------------------------------
-        integer                                              :: line, i, j, k, MaxSize
-        real                                                 :: F_North, F_South, TimeCoef, VolRat_S, VolRat_N
-        real                                                 :: Est_VelFather_South, Est_VelFather_North
+        integer                                               :: line, i, j, k, MaxSize
+        real                                                  :: F_North, F_South, TimeCoef, VolRat_S, VolRat_N
+        real                                                  :: Est_VelFather_South, Est_VelFather_North
         !------------------------------------------------------------------------------------
         MaxSize = size(Flow)
         
@@ -14944,12 +15290,12 @@ D2:     do I=imax-1,2,-1
     !>@param[in] n_Z, Kfloor, KUB, I, J
     subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
-        integer, dimension(:, :), allocatable , intent(INOUT)     :: Matrix
-        integer,                           intent(IN)             :: I, J, KUB
-        integer, dimension(:, :), pointer, intent(IN)             :: KFloor
-        integer,                           intent(INOUT)          :: CurrentZ
+        integer, dimension(:, :), allocatable, intent(INOUT) :: Matrix
+        integer                          , intent(IN)        :: I, J, KUB
+        integer, dimension(:, :), pointer, intent(IN)        :: KFloor
+        integer,                           intent(INOUT)     :: CurrentZ
         !Local-------------------------------------------------------------------------------
-        integer                                                   :: k, KBottom
+        integer                                              :: k, KBottom
         !------------------------------------------------------------------------------------
         KBottom = KFloor(I, J)
         do k = KBottom, KUB
@@ -15211,8 +15557,41 @@ D2:     do I=imax-1,2,-1
 
     end function ReadEsriGridData
 
+    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth)
 
-    end module ModuleFunctions
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:,:,:), pointer, intent(IN) :: SZZ
+        integer,    dimension(:,:,:), pointer, intent(IN) :: OpenPoints        
+        integer,                               intent(IN) :: i, j, KLB, KUB
+        real,                                  intent(IN) :: Depth
+        !Local-----------------------------------------------------------------
+        real                                              :: Depth_u, Depth_l
+        integer                                           :: k, k_depth
+
+        !Begin-----------------------------------------------------------------
+
+        k_depth = FillValueInt
+
+        do k = KUB, KLB, -1
+
+            if (OpenPoints(i, j, k) == OpenPoint) then
+                Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
+                Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+                k_depth = k
+                if (Depth_u <= Depth .and. Depth_l >= Depth) then
+                    exit
+                endif
+            else
+                exit
+            endif
+
+        enddo
+
+        FromDepth_2_layer = k_depth
+
+    end function FromDepth_2_layer
+
+end module ModuleFunctions
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.

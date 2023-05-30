@@ -2514,8 +2514,8 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         
               
 
-        call ModifyGridData (Me%Aux%ObjBathymetry, MaximumValue, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR44'    
+        ! call ModifyGridData (Me%Aux%ObjBathymetry, MaximumValue, STAT = STAT_CALL)
+        ! if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR44'    
 
         call ConstructHorizontalMap (HorizontalMapID  = Me%Aux%ObjHorizontalMap,        &
                                      GridDataID       = Me%Aux%ObjBathymetry,           &

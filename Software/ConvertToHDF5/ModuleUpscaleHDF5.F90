@@ -71,6 +71,9 @@ Module ModuleUpscaleHDF5
     private ::      FatherSonCommunication
     private ::      Open_HDF5_OutPut_File
     private ::      OpenAndReadChildHDF5Files
+    private ::          UpscaleFather2D
+    private ::          UpscaleFather3D
+    private ::              UpscaleFather3D_Child2D
     private ::          get_timeinstants
     private ::          get_nproperties
     private ::          HDF5TimeInstant
@@ -1267,7 +1270,7 @@ Module ModuleUpscaleHDF5
         type(T_Time)                                :: CurrentDate, CurrentDate_child
         integer                                     :: CurrentProperty 
         type(T_Field), pointer                      :: NewField, AuxField
-        character(len=StringLength)                 :: PropertyName
+        character(len=StringLength)                 :: PropertyName, ChildPropertyName
         integer                                     :: Rank
         integer, dimension(7)                       :: Dimensions
         integer                                     :: Count, CurrentProperty_child, HDF5_READ
@@ -1349,376 +1352,10 @@ Module ModuleUpscaleHDF5
                     
                 !Father field is 2D
                 case(2)
-                    !check dimensions
-                    if(Dimensions(1) .ne. Me%Father%WorkSize2D%IUB) then
-                        write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
-                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR30'
-                    end if
-
-                    if(Dimensions(2) .ne. Me%Father%WorkSize2D%JUB) then
-                        write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
-                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR40'
-                    end if 
-                    
-                    ILB = Me%Father%Size2D%ILB
-                    IUB = Me%Father%Size2D%IUB
-                    JLB = Me%Father%Size2D%JLB
-                    JUB = Me%Father%Size2D%JUB
-                
-                    !allocate new field
-                    nullify (NewField%Values2D)
-                    allocate(NewField%Values2D(ILB:IUB, JLB:JUB))
-                    allocate(AuxField%Values2D(ILB:IUB, JLB:JUB))
-                    
-                    call HDF5SetLimits (Me%Father%ObjHDF5,                 &
-                                    Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB, &
-                                    Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR50'
-
-                    !read father field and save it in newfield 2D matrix
-                    call HDF5ReadData(Me%Father%ObjHDF5, "/Results/"//trim(PropertyName), trim(PropertyName), &
-                                      Array2D      = NewField%Values2D,   &
-                                      OutputNumber = CurrentInstant, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR60'
-                    
-                    !Start computations
-                    
-                    !Cycle all child domains----------------------------------------------------------
-                    ObjChildFile => Me%FirstChildFile 
-
-                    do while (associated(ObjChildFile))
-                        
-                        call get_nproperties(ObjChildFile%Info)
-                                
-                        do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
-                                
-                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, PropertyName, &
-                                                STAT = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR70'
-
-                            if(.not. Me%ConvertAllFields)then
-                                ConvertThisField = .false.
-                                do n = 1, Me%nFieldsToUpscale
-                                    if(Me%FieldsToUpscale(n) == PropertyName) ConvertThisField = .true.
-                                end do
-                                if(.not. ConvertThisField) cycle
-                            end if
-
-                            write(*,*)'Reading '//trim(PropertyName)//' child fields'
-                            
-                            !Get time instants
-                            call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
-                        
-                            do CurrentInstant_child = StartInstant_child, EndInstant_child
-                                !find current full date+time of child hdf5
-                                CurrentDate_child = ObjChildFile%Info%InstantsArray(CurrentInstant_child)
-                            
-                                !Check if time in child HDF is equal to that of the father hdf5
-                                if (CurrentDate == CurrentDate_child) then
-                                    !start computation for current property
-                                    !Get child ID field
-                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, Rank, &
-                                                    Dimensions, STAT = STAT_CALL)                                
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR80'
-                                    
-                                    if(Dimensions(1) .ne. ObjChildFile%Info%WorkSize2D%IUB) then
-                                        write(*,*)'Fields size is not consistent with grid size :'
-                                        write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
-                                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR90'
-                                    end if
-
-                                    if(Dimensions(2) .ne. ObjChildFile%Info%WorkSize2D%JUB) then
-                                        write(*,*)'Fields size is not consistent with grid size :'
-                                        write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
-                                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR100'
-                                    end if 
-                    
-                                    ILB_child = ObjChildFile%Info%Size2D%ILB
-                                    IUB_child = ObjChildFile%Info%Size2D%IUB
-                                    JLB_child = ObjChildFile%Info%Size2D%JLB
-                                    JUB_child = ObjChildFile%Info%Size2D%JUB
-                
-                                    !allocate new field
-                                    nullify (ObjChildFile%NewField%Values2D)
-                                    allocate(ObjChildFile%NewField%Values2D(ILB:IUB, JLB:JUB))
-                    
-                                    call HDF5SetLimits (ObjChildFile%Info%ObjHDF5,                 &
-                                                    ObjChildFile%Info%WorkSize2D%ILB, ObjChildFile%Info%WorkSize2D%IUB, &
-                                                    ObjChildFile%Info%WorkSize2D%JLB, ObjChildFile%Info%WorkSize2D%JUB, &
-                                                    STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR120'
-
-                                    !read father field and save it in newfield 2D matrix
-                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    trim(PropertyName), Array2D = ObjChildFile%NewField%Values2D, &
-                                                    OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR20130'
-                                    
-                                    !AuxField is used only to account for the overlapped area between father and child domains
-                                    AuxField%Values2D(:,:) = 0
-                                    ObjChildFile%Info%nPointsInside(:,:) = 0
-                                    
-                                    !Fill NodeZ array of child HDF5
-                                    ILB_child = ObjChildFile%Info%WorkSize2D%ILB + ObjChildFile%Info%NRemoveFrame
-                                    JLB_child = ObjChildFile%Info%WorkSize2D%JLB + ObjChildFile%Info%NRemoveFrame
-                                    IUB_child = ObjChildFile%Info%WorkSize2D%IUB - ObjChildFile%Info%NRemoveFrame
-                                    JUB_child = ObjChildFile%Info%WorkSize2D%JUB - ObjChildFile%Info%NRemoveFrame
-                                    Count = 0
-                                    do j = JLB_child, JUB_child
-                                    do i = ILB_child, IUB_child
-                                        Count = Count + 1
-                                        ObjChildFile%Info%NodeZ(Count) = ObjChildFile%NewField%Values2D(i, j)
-                                    enddo
-                                    enddo
-                                    
-                                    !Fill every Father grid cell with available child points
-                                    do p = 1, size(ObjChildFile%Info%NodeZ)
-                                        i = ObjChildFile%Info%FatherPoint_ID_I(p)
-                                        j = ObjChildFile%Info%FatherPoint_ID_J(p)
-                                        if (i + j > 1) then
-                                            if (ObjChildFile%Info%NodeZ(p) > HalfFillValueReal) then
-                                                if (NewField%Values2D(i,j) > HalfFillValueReal) then
-                                                    ObjChildFile%Info%nPointsInside(i, j) = ObjChildFile%Info%nPointsInside(i, j) + 1
-                                                    AuxField%Values2D(i, j) = AuxField%Values2D(i, j) + ObjChildFile%Info%NodeZ(p)
-                                                end if
-                                            end if
-                                        end if
-                                    end do
-                
-                                    do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
-                                    do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
-                                        if (ObjChildFile%Info%nPointsInside(i, j) > 0) then
-                                            NewField%Values2D(i, j) =  AuxField%Values2D(i, j) &
-                                                                    / ObjChildFile%Info%nPointsInside(i, j)
-                                        end if
-                                    end do
-                                    end do
-                                end if
-                            end do
-                        end do
-                        
-                        !Write into output HDF5 output file
-                        call OutputFields(NewField, CurrentInstant)
-                        
-                        ObjChildFile => ObjChildFile%next
-                    end do
-                    
+                    call UpscaleFather2D (CurrentInstant, Dimensions, CurrentDate, PropertyName, NewField, AuxField)
                 !Father field is 3D
                 case(3)
-                    !Correct worksize dimensions when fields are 2D but matrixes are 3D (only one vertical layer)
-                    if (Me%Father%WorkSize3D%ILB < 1) Me%Father%WorkSize3D%ILB = Me%Father%WorkSize2D%ILB
-                    if (Me%Father%WorkSize3D%JLB < 1) Me%Father%WorkSize3D%JLB = Me%Father%WorkSize2D%JLB
-                    if (Me%Father%WorkSize3D%KLB < 1) Me%Father%WorkSize3D%KLB = 1
-                    if (Me%Father%WorkSize3D%IUB < 1) Me%Father%WorkSize3D%IUB = Me%Father%WorkSize2D%IUB
-                    if (Me%Father%WorkSize3D%JUB < 1) Me%Father%WorkSize3D%JUB = Me%Father%WorkSize2D%JUB
-                    if (Me%Father%WorkSize3D%KUB < 1) Me%Father%WorkSize3D%KUB = 1
-                    
-                    !check dimensions
-                    if(Dimensions(1) .ne. Me%Father%WorkSize3D%IUB) then
-                        write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
-                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR140'
-                    end if
-
-                    if(Dimensions(2) .ne. Me%Father%WorkSize3D%JUB) then
-                        write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
-                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR150'
-                    end if
-                    
-                    if(Dimensions(3) .ne. Me%Father%WorkSize3D%KUB) then
-                        write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
-                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR160'
-                    end if 
-                    
-                    ILB = Me%Father%Size3D%ILB
-                    IUB = Me%Father%Size3D%IUB
-                    JLB = Me%Father%Size3D%JLB
-                    JUB = Me%Father%Size3D%JUB
-                    KLB = Me%Father%Size3D%KLB
-                    KUB = Me%Father%Size3D%KUB
-                    
-                    if (ILB < 0) ILB = Me%Father%Size2D%ILB
-                    if (JLB < 0) JLB = Me%Father%Size2D%JLB
-                    if (KLB < 0) KLB = 0
-                    if (IUB < 0) IUB = Me%Father%Size2D%IUB
-                    if (JUB < 0) JUB = Me%Father%Size2D%JUB
-                    if (KUB < 0) KUB = 2
-                    
-                    !allocate new field
-                    nullify (NewField%Values3D)
-                    allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
-                    allocate(AuxField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
-            
-                    call HDF5SetLimits (Me%Father%ObjHDF5,                 &
-                                    Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB, &
-                                    Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB, &
-                                    Me%Father%WorkSize3D%KLB, Me%Father%WorkSize3D%KUB, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR170'
-
-                    !read father field and save it in newfield 3D matrix with just 1 layer
-                    call HDF5ReadData(Me%Father%ObjHDF5, "/Results/"//trim(PropertyName), trim(PropertyName), &
-                                      Array3D      = NewField%Values3D,   &
-                                      OutputNumber = CurrentInstant, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR180'
-                    
-                    !Start computations
-                    !Cycle all child domains----------------------------------------------------------
-                    ObjChildFile => Me%FirstChildFile 
-
-                    do while (associated(ObjChildFile))
-                        
-                        call get_nproperties(ObjChildFile%Info)
-                                
-                        do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
-                                
-                            call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, PropertyName, &
-                                                STAT = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR190'
-
-                            if(.not. Me%ConvertAllFields)then
-                                ConvertThisField = .false.
-                                do n = 1, Me%nFieldsToUpscale
-                                    if(Me%FieldsToUpscale(n) == PropertyName) ConvertThisField = .true.
-                                end do
-                                if(.not. ConvertThisField) cycle
-                            end if
-
-                            write(*,*)'Reading '//trim(PropertyName)//' child fields'
-                            
-                            !Get time instants
-                            call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
-                        
-                            do CurrentInstant_child = StartInstant_child, EndInstant_child
-                                !find current full date+time of child hdf5
-                                CurrentDate_child = ObjChildFile%Info%InstantsArray(CurrentInstant_child)
-                            
-                                !Check if time in child HDF is equal to that of the father hdf5
-                                if (CurrentDate == CurrentDate_child) then
-                                    !start computation for current property
-                                    !Get child ID field
-                                    call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, &
-                                                    Rank, Dimensions, STAT = STAT_CALL)                                
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR200'
-                                    
-                                    if (ObjChildFile%Info%WorkSize3D%ILB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%ILB = ObjChildFile%Info%WorkSize2D%ILB
-                                    if (ObjChildFile%Info%WorkSize3D%JLB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%JLB = ObjChildFile%Info%WorkSize2D%JLB
-                                    if (ObjChildFile%Info%WorkSize3D%KLB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%KLB = 1
-                                    if (ObjChildFile%Info%WorkSize3D%IUB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%IUB = ObjChildFile%Info%WorkSize2D%IUB
-                                    if (ObjChildFile%Info%WorkSize3D%JUB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%JUB = ObjChildFile%Info%WorkSize2D%JUB
-                                    if (ObjChildFile%Info%WorkSize3D%KUB < 1) &
-                                        ObjChildFile%Info%WorkSize3D%KUB = 1
-                                    
-                                    if(Dimensions(1) .ne. ObjChildFile%Info%WorkSize3D%IUB) then
-                                        write(*,*)'Fields size not consistent with grid size :'
-                                        write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
-                                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR210'
-                                    end if
-
-                                    if(Dimensions(2) .ne. ObjChildFile%Info%WorkSize3D%JUB) then
-                                        write(*,*)'Fields size not consistent with grid size :'
-                                        write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
-                                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR220'
-                                    end if 
-                                    
-                                    if(Dimensions(3) .ne. ObjChildFile%Info%WorkSize3D%KUB) then
-                                        write(*,*)'Fields size not consistent with grid size :'
-                                        write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
-                                        stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR230'
-                                    end if
-                                    
-                                    ILB_child = ObjChildFile%Info%Size3D%ILB
-                                    IUB_child = ObjChildFile%Info%Size3D%IUB
-                                    JLB_child = ObjChildFile%Info%Size3D%JLB
-                                    JUB_child = ObjChildFile%Info%Size3D%JUB
-                                    KLB_child = ObjChildFile%Info%Size3D%KLB
-                                    KUB_child = ObjChildFile%Info%Size3D%KUB
-                                    
-                                    if (ILB_child < 0) ILB_child = ObjChildFile%Info%Size2D%ILB
-                                    if (JLB_child < 0) JLB_child = ObjChildFile%Info%Size2D%JLB
-                                    if (KLB_child < 0) KLB_child = 0
-                                    if (IUB_child < 0) IUB_child = ObjChildFile%Info%Size2D%IUB
-                                    if (JUB_child < 0) JUB_child = ObjChildFile%Info%Size2D%JUB
-                                    if (KUB_child < 0) KUB_child = 2
-                                    
-                                    !allocate new field
-                                    nullify (ObjChildFile%NewField%Values3D)
-                                    allocate(ObjChildFile%NewField%Values3D(ILB_child:IUB_child, &
-                                                                            JLB_child:JUB_child, &
-                                                                            KLB_child:KUB_child))
-                    
-                                    call HDF5SetLimits (ObjChildFile%Info%ObjHDF5,                 &
-                                                    ObjChildFile%Info%WorkSize3D%ILB, ObjChildFile%Info%WorkSize3D%IUB, &
-                                                    ObjChildFile%Info%WorkSize3D%JLB, ObjChildFile%Info%WorkSize3D%JUB, &
-                                                    ObjChildFile%Info%WorkSize3D%KLB, ObjChildFile%Info%WorkSize3D%KUB, &
-                                                    STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR240'
-
-                                    !read father field and save it in newfield 3D matrix with just 1 layer
-                                    call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(PropertyName), &
-                                                    trim(PropertyName), Array3D = ObjChildFile%NewField%Values3D, &
-                                                    OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR250'
-                                    
-                                    !AuxField is used only to account for the overlapped area between father and child domains
-                                    AuxField%Values3D(:,:,:) = 0
-                                    
-                                    do k = ObjChildFile%Info%WorkSize3D%KLB, ObjChildFile%Info%WorkSize3D%KUB
-                                        
-                                        ObjChildFile%Info%nPointsInside(:,:) = 0
-                                        
-                                        ILB_child = ObjChildFile%Info%WorkSize3D%ILB + ObjChildFile%Info%NRemoveFrame
-                                        JLB_child = ObjChildFile%Info%WorkSize3D%JLB + ObjChildFile%Info%NRemoveFrame
-                                        IUB_child = ObjChildFile%Info%WorkSize3D%IUB - ObjChildFile%Info%NRemoveFrame
-                                        JUB_child = ObjChildFile%Info%WorkSize3D%JUB - ObjChildFile%Info%NRemoveFrame
-                                        !Fill NodeZ array of child HDF5
-                                        Count = 0
-                                        do j = JLB_child, JUB_child
-                                        do i = ILB_child, IUB_child
-                                            Count = Count + 1
-                                            ObjChildFile%Info%NodeZ(Count) = ObjChildFile%NewField%Values3D(i, j, k)
-                                        enddo
-                                        enddo
-                                    
-                                        !Fill every Father grid cell with available child points
-                                        do p = 1, size(ObjChildFile%Info%NodeZ)
-                                            i = ObjChildFile%Info%FatherPoint_ID_I(p)
-                                            j = ObjChildFile%Info%FatherPoint_ID_J(p)
-                                            if (i + j > 1) then
-                                                if (ObjChildFile%Info%NodeZ(p) > HalfFillValueReal) then
-                                                    if (NewField%Values3D(i,j,k) > HalfFillValueReal) then
-                                                        ObjChildFile%Info%nPointsInside(i,j) = &
-                                                            ObjChildFile%Info%nPointsInside(i,j) + 1
-                                                        AuxField%Values3D(i,j,k) = AuxField%Values3D(i,j,k) &
-                                                                                 + ObjChildFile%Info%NodeZ(p)
-                                                    end if
-                                                end if
-                                            end if
-                                        end do
-                
-                                        do j = Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB
-                                        do i = Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB
-                                            if (ObjChildFile%Info%nPointsInside(i, j) > 0) then
-                                                NewField%Values3D(i, j, k) = AuxField%Values3D(i, j, k) &
-                                                                           / ObjChildFile%Info%nPointsInside(i, j)
-                                            end if
-                                        end do
-                                        end do
-                                    end do
-                                end if
-                            end do
-                        end do
-                        
-                        !Write into output HDF5 output file
-                        call OutputFields3D(NewField, CurrentInstant)
-                        ObjChildFile => ObjChildFile%next
-                    end do
-                    
+                    call UpscaleFather3D (CurrentInstant, Dimensions, CurrentDate, PropertyName, NewField, AuxField)
                 case default
                     stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR260'
                 end select
@@ -1741,7 +1378,507 @@ Module ModuleUpscaleHDF5
         end do
 
     end subroutine OpenAndReadChildHDF5Files
+    
+    !--------------------------------------------------------------------------
 
+    subroutine UpscaleFather2D (CurrentInstant, Dimensions, CurrentDate, PropertyName, NewField, AuxField)
+        !Arguments------------------------------------------------------------- 
+        integer, dimension(7), intent(in)           :: Dimensions
+        integer, intent(in)                         :: CurrentInstant
+        type(T_Time), intent(in)                    :: CurrentDate
+        character(len=StringLength), intent(in)     :: PropertyName
+        type(T_Field), pointer, intent(in)          :: NewField, AuxField
+        integer                                     :: CurrentInstant_child
+        integer                                     :: StartInstant_child, EndInstant_child
+        type(T_Time)                                :: CurrentDate_child
+        character(len=StringLength)                 :: ChildPropertyName
+        integer, dimension(7)                       :: Dimensions_child
+        integer                                     :: Rank, STAT_CALL
+        integer                                     :: Count, CurrentProperty_child
+        integer                                     :: i, j, ILB, IUB, JLB, JUB, p
+        integer                                     :: ILB_child, IUB_child, JLB_child, JUB_child
+        type (T_Child),     pointer                 :: ObjChildFile
+        !Begin--------------------------------------------------------------------------------------
+        !check dimensions
+        if(Dimensions(1) .ne. Me%Father%WorkSize2D%IUB) then
+            write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
+            stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR30'
+        end if
+
+        if(Dimensions(2) .ne. Me%Father%WorkSize2D%JUB) then
+            write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
+            stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR40'
+        end if 
+                    
+        ILB = Me%Father%Size2D%ILB
+        IUB = Me%Father%Size2D%IUB
+        JLB = Me%Father%Size2D%JLB
+        JUB = Me%Father%Size2D%JUB
+                
+        !allocate new field
+        nullify (NewField%Values2D)
+        allocate(NewField%Values2D(ILB:IUB, JLB:JUB))
+        allocate(AuxField%Values2D(ILB:IUB, JLB:JUB))
+                    
+        call HDF5SetLimits (Me%Father%ObjHDF5,                 &
+                        Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB, &
+                        Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR50'
+
+        !read father field and save it in newfield 2D matrix
+        call HDF5ReadData(Me%Father%ObjHDF5, "/Results/"//trim(PropertyName), trim(PropertyName), &
+                            Array2D      = NewField%Values2D,   &
+                            OutputNumber = CurrentInstant, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR60'
+                    
+        !Start computations
+                    
+        !Cycle all child domains----------------------------------------------------------
+        ObjChildFile => Me%FirstChildFile 
+
+        do while (associated(ObjChildFile))
+                        
+            call get_nproperties(ObjChildFile%Info)
+                                
+            do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
+                                
+                call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, ChildPropertyName, &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR70'
+
+                if (ChildPropertyName /= PropertyName) cycle
+                            
+                write(*,*)'Reading '//trim(ChildPropertyName)//' child fields'
+                            
+                !Get time instants
+                call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
+                        
+                do CurrentInstant_child = StartInstant_child, EndInstant_child
+                    !find current full date+time of child hdf5
+                    CurrentDate_child = ObjChildFile%Info%InstantsArray(CurrentInstant_child)
+                            
+                    !Check if time in child HDF is equal to that of the father hdf5
+                    if (CurrentDate == CurrentDate_child) then
+                        !start computation for current property
+                        !Get child ID field
+                        call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                        CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, Rank, &
+                                        Dimensions_child, STAT = STAT_CALL)                                
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR80'
+                                    
+                        if(Dimensions_child(1) .ne. ObjChildFile%Info%WorkSize2D%IUB) then
+                            write(*,*)'Fields size is not consistent with grid size :'
+                            write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
+                            stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR90'
+                        end if
+
+                        if(Dimensions_child(2) .ne. ObjChildFile%Info%WorkSize2D%JUB) then
+                            write(*,*)'Fields size is not consistent with grid size :'
+                            write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
+                            stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR100'
+                        end if 
+                    
+                        ILB_child = ObjChildFile%Info%Size2D%ILB
+                        IUB_child = ObjChildFile%Info%Size2D%IUB
+                        JLB_child = ObjChildFile%Info%Size2D%JLB
+                        JUB_child = ObjChildFile%Info%Size2D%JUB
+                
+                        !allocate new field
+                        nullify (ObjChildFile%NewField%Values2D)
+                        allocate(ObjChildFile%NewField%Values2D(ILB:IUB, JLB:JUB))
+                    
+                        call HDF5SetLimits (ObjChildFile%Info%ObjHDF5,                 &
+                                        ObjChildFile%Info%WorkSize2D%ILB, ObjChildFile%Info%WorkSize2D%IUB, &
+                                        ObjChildFile%Info%WorkSize2D%JLB, ObjChildFile%Info%WorkSize2D%JUB, &
+                                        STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR120'
+
+                        !read father field and save it in newfield 2D matrix
+                        call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                        trim(ChildPropertyName), Array2D = ObjChildFile%NewField%Values2D, &
+                                        OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadChildHDF5Files - ModuleUpscaleHDF5 - ERR20130'
+                                    
+                        !AuxField is used only to account for the overlapped area between father and child domains
+                        AuxField%Values2D(:,:) = 0
+                        ObjChildFile%Info%nPointsInside(:,:) = 0
+                                    
+                        !Fill NodeZ array of child HDF5
+                        ILB_child = ObjChildFile%Info%WorkSize2D%ILB + ObjChildFile%Info%NRemoveFrame
+                        JLB_child = ObjChildFile%Info%WorkSize2D%JLB + ObjChildFile%Info%NRemoveFrame
+                        IUB_child = ObjChildFile%Info%WorkSize2D%IUB - ObjChildFile%Info%NRemoveFrame
+                        JUB_child = ObjChildFile%Info%WorkSize2D%JUB - ObjChildFile%Info%NRemoveFrame
+                        Count = 0
+                        do j = JLB_child, JUB_child
+                        do i = ILB_child, IUB_child
+                            Count = Count + 1
+                            ObjChildFile%Info%NodeZ(Count) = ObjChildFile%NewField%Values2D(i, j)
+                        enddo
+                        enddo
+                                    
+                        !Fill every Father grid cell with available child points
+                        do p = 1, size(ObjChildFile%Info%NodeZ)
+                            i = ObjChildFile%Info%FatherPoint_ID_I(p)
+                            j = ObjChildFile%Info%FatherPoint_ID_J(p)
+                            if (i + j > 1) then
+                                if (ObjChildFile%Info%NodeZ(p) > HalfFillValueReal) then
+                                    if (NewField%Values2D(i,j) > HalfFillValueReal) then
+                                        ObjChildFile%Info%nPointsInside(i, j) = ObjChildFile%Info%nPointsInside(i, j) + 1
+                                        AuxField%Values2D(i, j) = AuxField%Values2D(i, j) + ObjChildFile%Info%NodeZ(p)
+                                    end if
+                                end if
+                            end if
+                        end do
+                
+                        do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
+                        do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
+                            if (ObjChildFile%Info%nPointsInside(i, j) > 0) then
+                                NewField%Values2D(i, j) =  AuxField%Values2D(i, j) &
+                                                        / ObjChildFile%Info%nPointsInside(i, j)
+                            end if
+                        end do
+                        end do
+                    end if
+                end do
+            end do
+                        
+            !Write into output HDF5 output file
+            call OutputFields(NewField, CurrentInstant)
+                        
+            ObjChildFile => ObjChildFile%next
+        end do
+    end subroutine UpscaleFather2D
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine UpscaleFather3D (CurrentInstant, Dimensions, CurrentDate, PropertyName, NewField, AuxField)
+        !Arguments------------------------------------------------------------- 
+        integer, dimension(7), intent(in)           :: Dimensions
+        integer, intent(in)                         :: CurrentInstant
+        type(T_Time), intent(in)                    :: CurrentDate
+        character(len=StringLength), intent(in)     :: PropertyName
+        type(T_Field), pointer, intent(in)          :: NewField, AuxField
+        integer                                     :: CurrentInstant_child
+        integer                                     :: StartInstant_child, EndInstant_child
+        type(T_Time)                                :: CurrentDate_child
+        character(len=StringLength)                 :: ChildPropertyName
+        integer, dimension(7)                       :: Dimensions_child
+        integer                                     :: Rank, STAT_CALL
+        integer                                     :: Count, CurrentProperty_child
+        integer                                     :: i, j, ILB, IUB, JLB, JUB, KUB, KLB, p, k
+        integer                                     :: ILB_child, IUB_child, JLB_child, JUB_child, KUB_child, KLB_child
+        type (T_Child),     pointer                 :: ObjChildFile
+        !Begin--------------------------------------------------------------------------------------
+        
+        !Correct worksize dimensions when fields are 2D but matrixes are 3D (only one vertical layer)
+        if (Me%Father%WorkSize3D%ILB < 1) Me%Father%WorkSize3D%ILB = Me%Father%WorkSize2D%ILB
+        if (Me%Father%WorkSize3D%JLB < 1) Me%Father%WorkSize3D%JLB = Me%Father%WorkSize2D%JLB
+        if (Me%Father%WorkSize3D%KLB < 1) Me%Father%WorkSize3D%KLB = 1
+        if (Me%Father%WorkSize3D%IUB < 1) Me%Father%WorkSize3D%IUB = Me%Father%WorkSize2D%IUB
+        if (Me%Father%WorkSize3D%JUB < 1) Me%Father%WorkSize3D%JUB = Me%Father%WorkSize2D%JUB
+        if (Me%Father%WorkSize3D%KUB < 1) Me%Father%WorkSize3D%KUB = 1
+                    
+        !check dimensions
+        if(Dimensions(1) .ne. Me%Father%WorkSize3D%IUB) then
+            write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
+            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR140'
+        end if
+
+        if(Dimensions(2) .ne. Me%Father%WorkSize3D%JUB) then
+            write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
+            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR150'
+        end if
+                    
+        if(Dimensions(3) .ne. Me%Father%WorkSize3D%KUB) then
+            write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%InputFileName)
+            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR160'
+        end if 
+                    
+        ILB = Me%Father%Size3D%ILB
+        IUB = Me%Father%Size3D%IUB
+        JLB = Me%Father%Size3D%JLB
+        JUB = Me%Father%Size3D%JUB
+        KLB = Me%Father%Size3D%KLB
+        KUB = Me%Father%Size3D%KUB
+                    
+        if (ILB < 0) ILB = Me%Father%Size2D%ILB
+        if (JLB < 0) JLB = Me%Father%Size2D%JLB
+        if (KLB < 0) KLB = 0
+        if (IUB < 0) IUB = Me%Father%Size2D%IUB
+        if (JUB < 0) JUB = Me%Father%Size2D%JUB
+        if (KUB < 0) KUB = 2
+                    
+        !allocate new field
+        nullify (NewField%Values3D)
+        allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(AuxField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
+            
+        call HDF5SetLimits (Me%Father%ObjHDF5,                 &
+                        Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB, &
+                        Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB, &
+                        Me%Father%WorkSize3D%KLB, Me%Father%WorkSize3D%KUB, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR170'
+
+        !read father field and save it in newfield 3D matrix with just 1 layer
+        call HDF5ReadData(Me%Father%ObjHDF5, "/Results/"//trim(PropertyName), trim(PropertyName), &
+                            Array3D      = NewField%Values3D,   &
+                            OutputNumber = CurrentInstant, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR180'
+                    
+        !Start computations
+        !Cycle all child domains----------------------------------------------------------
+        ObjChildFile => Me%FirstChildFile 
+
+        do while (associated(ObjChildFile))
+                        
+            call get_nproperties(ObjChildFile%Info)
+                                
+            do CurrentProperty_child = 1, ObjChildFile%Info%NumberOfProperties
+                                
+                call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results", CurrentProperty_child, ChildPropertyName, &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR190'
+
+                if (ChildPropertyName /= PropertyName) cycle
+
+                write(*,*)'Reading '//trim(ChildPropertyName)//' child fields'
+                            
+                !Get time instants
+                call get_timeinstants(ObjChildFile%Info, StartInstant_child, EndInstant_child)
+                        
+                do CurrentInstant_child = StartInstant_child, EndInstant_child
+                    !find current full date+time of child hdf5
+                    CurrentDate_child = ObjChildFile%Info%InstantsArray(CurrentInstant_child)
+                            
+                    !Check if time in child HDF is equal to that of the father hdf5
+                    if (CurrentDate == CurrentDate_child) then
+                        !start computation for current property
+                        !Get child ID field
+                        call GetHDF5GroupID(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                        CurrentInstant, ObjChildFile%Info%Name, ObjChildFile%Info%Units, &
+                                        Rank, Dimensions_child, STAT = STAT_CALL)                                
+                        if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR200'
+                                    
+                        if (ObjChildFile%Info%WorkSize3D%ILB < 1) &
+                            ObjChildFile%Info%WorkSize3D%ILB = ObjChildFile%Info%WorkSize2D%ILB
+                        if (ObjChildFile%Info%WorkSize3D%JLB < 1) &
+                            ObjChildFile%Info%WorkSize3D%JLB = ObjChildFile%Info%WorkSize2D%JLB
+                        if (ObjChildFile%Info%WorkSize3D%KLB < 1) &
+                            ObjChildFile%Info%WorkSize3D%KLB = 1
+                        if (ObjChildFile%Info%WorkSize3D%IUB < 1) &
+                            ObjChildFile%Info%WorkSize3D%IUB = ObjChildFile%Info%WorkSize2D%IUB
+                        if (ObjChildFile%Info%WorkSize3D%JUB < 1) &
+                            ObjChildFile%Info%WorkSize3D%JUB = ObjChildFile%Info%WorkSize2D%JUB
+                        if (ObjChildFile%Info%WorkSize3D%KUB < 1) &
+                            ObjChildFile%Info%WorkSize3D%KUB = 1
+                                    
+                        if(Dimensions_child(1) .ne. ObjChildFile%Info%WorkSize3D%IUB) then
+                            write(*,*)'Fields size not consistent with grid size :'
+                            write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
+                            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR210'
+                        end if
+
+                        if(Dimensions_child(2) .ne. ObjChildFile%Info%WorkSize3D%JUB) then
+                            write(*,*)'Fields size not consistent with grid size :'
+                            write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
+                            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR220'
+                        end if
+                        
+                        select case (Rank)
+                        !Child field is 2D
+                        case(2)
+                            call UpscaleFather3D_Child2D (CurrentInstant, CurrentInstant_child, NewField, AuxField, &
+                                                          ObjChildFile, Me%Father%WorkSize3D%KUB, ChildPropertyName)
+                        !Child field is 3D
+                        case(3)
+                            if(Dimensions_child(3) .ne. ObjChildFile%Info%WorkSize3D%KUB) then
+                                write(*,*)'Fields size not consistent with grid size :'
+                                write(*,*)' '//trim(ObjChildFile%Info%InputFileName)
+                                stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR230'
+                            end if
+                            ILB_child = ObjChildFile%Info%Size3D%ILB
+                            IUB_child = ObjChildFile%Info%Size3D%IUB
+                            JLB_child = ObjChildFile%Info%Size3D%JLB
+                            JUB_child = ObjChildFile%Info%Size3D%JUB
+                            KLB_child = ObjChildFile%Info%Size3D%KLB
+                            KUB_child = ObjChildFile%Info%Size3D%KUB
+                                    
+                            if (ILB_child < 0) ILB_child = ObjChildFile%Info%Size2D%ILB
+                            if (JLB_child < 0) JLB_child = ObjChildFile%Info%Size2D%JLB
+                            if (KLB_child < 0) KLB_child = 0
+                            if (IUB_child < 0) IUB_child = ObjChildFile%Info%Size2D%IUB
+                            if (JUB_child < 0) JUB_child = ObjChildFile%Info%Size2D%JUB
+                            if (KUB_child < 0) KUB_child = 2
+                                    
+                            !allocate new field
+                            nullify (ObjChildFile%NewField%Values3D)
+                            allocate(ObjChildFile%NewField%Values3D(ILB_child:IUB_child, &
+                                                                    JLB_child:JUB_child, &
+                                                                    KLB_child:KUB_child))
+                    
+                            call HDF5SetLimits (ObjChildFile%Info%ObjHDF5,                 &
+                                            ObjChildFile%Info%WorkSize3D%ILB, ObjChildFile%Info%WorkSize3D%IUB, &
+                                            ObjChildFile%Info%WorkSize3D%JLB, ObjChildFile%Info%WorkSize3D%JUB, &
+                                            ObjChildFile%Info%WorkSize3D%KLB, ObjChildFile%Info%WorkSize3D%KUB, &
+                                            STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR240'
+
+                            !read father field and save it in newfield 3D matrix with just 1 layer
+                            call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                                            trim(ChildPropertyName), Array3D = ObjChildFile%NewField%Values3D, &
+                                            OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR250'
+                                    
+                            !AuxField is used only to account for the overlapped area between father and child domains
+                            AuxField%Values3D(:,:,:) = 0
+                                    
+                            do k = ObjChildFile%Info%WorkSize3D%KLB, ObjChildFile%Info%WorkSize3D%KUB
+                                        
+                                ObjChildFile%Info%nPointsInside(:,:) = 0
+                                        
+                                ILB_child = ObjChildFile%Info%WorkSize3D%ILB + ObjChildFile%Info%NRemoveFrame
+                                JLB_child = ObjChildFile%Info%WorkSize3D%JLB + ObjChildFile%Info%NRemoveFrame
+                                IUB_child = ObjChildFile%Info%WorkSize3D%IUB - ObjChildFile%Info%NRemoveFrame
+                                JUB_child = ObjChildFile%Info%WorkSize3D%JUB - ObjChildFile%Info%NRemoveFrame
+                                !Fill NodeZ array of child HDF5
+                                Count = 0
+                                do j = JLB_child, JUB_child
+                                do i = ILB_child, IUB_child
+                                    Count = Count + 1
+                                    ObjChildFile%Info%NodeZ(Count) = ObjChildFile%NewField%Values3D(i, j, k)
+                                enddo
+                                enddo
+                                    
+                                !Fill every Father grid cell with available child points
+                                do p = 1, size(ObjChildFile%Info%NodeZ)
+                                    i = ObjChildFile%Info%FatherPoint_ID_I(p)
+                                    j = ObjChildFile%Info%FatherPoint_ID_J(p)
+                                    if (i + j > 1) then
+                                        if (ObjChildFile%Info%NodeZ(p) > HalfFillValueReal) then
+                                            if (NewField%Values3D(i,j,k) > HalfFillValueReal) then
+                                                ObjChildFile%Info%nPointsInside(i,j) = &
+                                                    ObjChildFile%Info%nPointsInside(i,j) + 1
+                                                AuxField%Values3D(i,j,k) = AuxField%Values3D(i,j,k) &
+                                                                            + ObjChildFile%Info%NodeZ(p)
+                                            end if
+                                        end if
+                                    end if
+                                end do
+                
+                                do j = Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB
+                                do i = Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB
+                                    if (ObjChildFile%Info%nPointsInside(i, j) > 0) then
+                                        NewField%Values3D(i, j, k) = AuxField%Values3D(i, j, k) &
+                                                                    / ObjChildFile%Info%nPointsInside(i, j)
+                                    end if
+                                end do
+                                end do
+                            end do
+                            !Write into output HDF5 output file
+                            call OutputFields3D(NewField, CurrentInstant)
+                        case default
+                            stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR260'
+                        end select 
+
+                    end if
+                end do
+            end do
+                        
+            ObjChildFile => ObjChildFile%next
+        end do
+        
+    end subroutine UpscaleFather3D
+
+    !--------------------------------------------------------------------------
+    
+    subroutine UpscaleFather3D_Child2D (CurrentInstant, CurrentInstant_child, NewField, AuxField, ObjChildFile, KUB, &
+                                        ChildPropertyName)
+        !Arguments------------------------------------------------------------- 
+        integer, intent(in)                         :: CurrentInstant, KUB
+        integer, intent(in)                         :: CurrentInstant_child
+        type(T_Field), pointer, intent(in)          :: NewField, AuxField
+        type (T_Child),     pointer, intent(in)     :: ObjChildFile
+        character(len=StringLength),intent(in)      :: ChildPropertyName
+        integer                                     :: Count, STAT_CALL
+        integer                                     :: i, j, p
+        integer                                     :: ILB_child, IUB_child, JLB_child, JUB_child
+        
+        !Begin--------------------------------------------------------------------------------------
+        
+        ILB_child = ObjChildFile%Info%Size3D%ILB
+        IUB_child = ObjChildFile%Info%Size3D%IUB
+        JLB_child = ObjChildFile%Info%Size3D%JLB
+        JUB_child = ObjChildFile%Info%Size3D%JUB
+                                    
+        if (ILB_child < 0) ILB_child = ObjChildFile%Info%Size2D%ILB
+        if (JLB_child < 0) JLB_child = ObjChildFile%Info%Size2D%JLB
+        if (IUB_child < 0) IUB_child = ObjChildFile%Info%Size2D%IUB
+        if (JUB_child < 0) JUB_child = ObjChildFile%Info%Size2D%JUB
+                                    
+        !allocate new field
+        nullify (ObjChildFile%NewField%Values2D)
+        allocate(ObjChildFile%NewField%Values2D(ILB_child:IUB_child, &
+                                                JLB_child:JUB_child))
+                    
+        call HDF5SetLimits (ObjChildFile%Info%ObjHDF5,                 &
+                        ObjChildFile%Info%WorkSize3D%ILB, ObjChildFile%Info%WorkSize3D%IUB, &
+                        ObjChildFile%Info%WorkSize3D%JLB, ObjChildFile%Info%WorkSize3D%JUB, &
+                        STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR240'
+
+        !read child field and save it in newfield 2D matrix
+        call HDF5ReadData(ObjChildFile%Info%ObjHDF5, "/Results/"//trim(ChildPropertyName), &
+                        trim(ChildPropertyName), Array2D = ObjChildFile%NewField%Values2D, &
+                        OutputNumber = CurrentInstant_child, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'UpscaleFather3D - ModuleUpscaleHDF5 - ERR250'
+                                    
+        !AuxField is used only to account for the overlapped area between father and child domains
+        AuxField%Values3D(:,:,:) = 0
+                                                          
+        ObjChildFile%Info%nPointsInside(:,:) = 0
+                                        
+        ILB_child = ObjChildFile%Info%WorkSize3D%ILB + ObjChildFile%Info%NRemoveFrame
+        JLB_child = ObjChildFile%Info%WorkSize3D%JLB + ObjChildFile%Info%NRemoveFrame
+        IUB_child = ObjChildFile%Info%WorkSize3D%IUB - ObjChildFile%Info%NRemoveFrame
+        JUB_child = ObjChildFile%Info%WorkSize3D%JUB - ObjChildFile%Info%NRemoveFrame
+        !Fill NodeZ array of child HDF5
+        Count = 0
+        do j = JLB_child, JUB_child
+        do i = ILB_child, IUB_child
+            Count = Count + 1
+            ObjChildFile%Info%NodeZ(Count) = ObjChildFile%NewField%Values2D(i, j)
+        enddo
+        enddo
+                                    
+        !Fill every Father grid cell with available child points
+        do p = 1, size(ObjChildFile%Info%NodeZ)
+            i = ObjChildFile%Info%FatherPoint_ID_I(p)
+            j = ObjChildFile%Info%FatherPoint_ID_J(p)
+            if (i + j > 1) then
+                if (ObjChildFile%Info%NodeZ(p) > HalfFillValueReal) then
+                    if (NewField%Values3D(i,j,KUB) > HalfFillValueReal) then
+                        ObjChildFile%Info%nPointsInside(i,j) = &
+                            ObjChildFile%Info%nPointsInside(i,j) + 1
+                        AuxField%Values3D(i,j,KUB) = AuxField%Values3D(i,j,KUB) &
+                                                    + ObjChildFile%Info%NodeZ(p)
+                    end if
+                end if
+            end if
+        end do
+                
+        do j = Me%Father%WorkSize3D%JLB, Me%Father%WorkSize3D%JUB
+        do i = Me%Father%WorkSize3D%ILB, Me%Father%WorkSize3D%IUB
+            if (ObjChildFile%Info%nPointsInside(i, j) > 0) then
+                NewField%Values3D(i, j, KUB) = AuxField%Values3D(i, j, KUB) &
+                                            / ObjChildFile%Info%nPointsInside(i, j)
+            end if
+        end do
+        end do
+        !Write into output HDF5 output file
+        call OutputFields3D(NewField, CurrentInstant)
+        
+    end subroutine UpscaleFather3D_Child2D
+    
     !--------------------------------------------------------------------------
     
     subroutine set_module_time

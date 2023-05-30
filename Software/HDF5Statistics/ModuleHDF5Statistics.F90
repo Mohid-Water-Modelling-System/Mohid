@@ -2293,6 +2293,12 @@ do2 :       do while(associated(ObjParameter))
                     ObjParameter%CurrentField => ObjParameter%FirstField 
 
                 end if
+                
+                if (Me%ExistVerticalZ) then
+            
+                    call ReadVerticalZ(ObjHDF5File, CurrentInstant)
+
+                endif
 
                 do while(associated(ObjParameter))
             
@@ -2302,21 +2308,21 @@ do2 :       do while(associated(ObjParameter))
 
                         case(2)
 
-                        ObjParameter%CurrentField%Values2D => Values2D
+                            ObjParameter%CurrentField%Values2D => Values2D
                         
-                        call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)
+                            call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)
 
                             call CalculateHDF5Statistics2D(ObjParameter%            &
                                                            CurrentField%Values2D,   & 
                                                            ObjParameter%Statistics%ID)
  
-                        nullify(ObjParameter%CurrentField%Values2D)
+                            nullify(ObjParameter%CurrentField%Values2D)
  
                         case(3)
 
-                        ObjParameter%CurrentField%Values3D => Values3D
+                            ObjParameter%CurrentField%Values3D => Values3D
                         
-                        call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)                            
+                            call ReadOneParameterField(ObjHDF5File, ObjParameter, ObjParameter%CurrentField, CurrentInstant, Count)                            
 
                             call CalculateHDF5Statistics3D(ObjParameter%            &
                                                            CurrentField%Values3D,   & 
@@ -2396,6 +2402,54 @@ do2 :       do while(associated(ObjParameter))
     end subroutine ModifyHDF5Statistics
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadVerticalZ(HDF5FileX, CurrentInstant)
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type(T_HDF5File), pointer                   :: HDF5FileX
+        integer                                     :: CurrentInstant, i, j, k
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------    
+    
+                
+        call HDF5SetLimits(HDF5FileX%HDFID, Me%WorkSize%ILB, Me%WorkSize%IUB,           &
+                            Me%WorkSize%JLB, Me%WorkSize%JUB,                           &
+                            Me%WorkSize%KLB-1, Me%WorkSize%KUB,                         &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR160'
+        endif                    
+
+        call HDF5ReadWindow(HDF5ID          = HDF5FileX%HDFID,                          &
+                            GroupName       = "/Grid/VerticalZ",                        &
+                            Name            = "Vertical",                               &
+                            Array3D         = Me%VerticalZ,                             &
+                            OutputNumber    = CurrentInstant,                           &
+                            OffSet3         = 0,                                        &
+                            STAT            = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_)  then
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR170'
+        endif       
+                                  
+        do k =  Me%WorkSize%KLB, Me%WorkSize%KUB
+        do j =  Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i =  Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%Mapping%IntegerValues3D(i, j, k) == WaterPoint) then
+                Me%DZ3D  (i,j,k)  = Me%VerticalZ(i,j,k-1) - Me%VerticalZ(i,j,k)
+            endif
+        enddo
+        enddo
+        enddo
+
+    
+    end subroutine ReadVerticalZ
+            
+    !--------------------------------------------------------------------------
+           
 
     subroutine  OpenAndReadHDF5File(FirstFile, ObjHDF5File, LastDT, LastStartTime)
 
@@ -2563,14 +2617,14 @@ do2 :       do while(associated(ObjParameter))
                 case(2)
                 ! The HDF5 file contains 2D data
 
-                if (.not. associated(NewField%Values2D)) then
+                    if (.not. associated(NewField%Values2D)) then
                     
-                    !allocate field
-                    nullify (NewField%Values2D)
-                    allocate(NewField%Values2D(Me%Size%ILB:Me%Size%IUB,                 &
-                                               Me%Size%JLB:Me%Size%JUB))
+                        !allocate field
+                        nullify (NewField%Values2D)
+                        allocate(NewField%Values2D(Me%Size%ILB:Me%Size%IUB,             &
+                                                   Me%Size%JLB:Me%Size%JUB))
                        
-                endif
+                    endif
                        
                     call HDF5SetLimits (ObjHDF5File%HDFID, Me%WorkSize%ILB,             &
                                         Me%WorkSize%IUB, Me%WorkSize%JLB,               &
@@ -2888,6 +2942,11 @@ do2 :       do while(associated(ObjParameter))
         if (associated(Me%DZ3D)) then
             deallocate(Me%DZ3D)
         endif
+        
+        if (associated(Me%VerticalZ)) then
+            deallocate(Me%VerticalZ)
+        endif
+                      
 
         deallocate(Me)
         nullify(Me)

@@ -10668,8 +10668,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate (Species%FirstParticles)
                     nullify    (Species%FirstParticles)
 
-                    deallocate (Species%FirstPredator)
-                    nullify    (Species%FirstPredator)
+                    if (associated(Species%FirstPredator)) then
+                        deallocate (Species%FirstPredator)
+                        nullify    (Species%FirstPredator)
+                    end if
+                
 
                     deallocate (Species%SizeClasses)
                     deallocate (Species%SizeFrequency)

@@ -178,6 +178,7 @@ Module ModuleDDC
         integer                                     :: iTree        
         character(StringLength)                     :: Coment1      
         character(StringLength)                     :: Coment2      
+        character(PathLength)                       :: TreeFilename
 
         !------------------------------------------------------------------------
 
@@ -188,14 +189,27 @@ Module ModuleDDC
         Coment2      = NULL_STR
 
         !Verifies if Tree file exists and allocates the list of models
-        inquire(file='Tree.dat', EXIST = TreeExists)
+        inquire(file='tree.dat', EXIST = TreeExists)
+        
+        if (TreeExists) then
+            TreeFilename = 'tree.dat'
+        else
+            
+            inquire(file='Tree.dat', EXIST = TreeExists)            
+            
+            if (TreeExists) then
+                TreeFilename = 'Tree.dat'
+            endif
+            
+        endif
+        
         if (.NOT. TreeExists) STAT_ = FILE_NOT_FOUND_ERR_
 
 if1:    if (TreeExists) then
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR01'
 
-            open(UNIT = iTree, FILE = 'tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
+            open(UNIT = iTree, FILE = trim(TreeFilename), status = 'OLD', IOSTAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR02'
 
             read(unit=iTree, fmt=*) Coment1

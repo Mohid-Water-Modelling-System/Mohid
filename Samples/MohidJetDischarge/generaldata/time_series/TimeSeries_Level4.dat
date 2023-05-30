@@ -1,0 +1,50 @@
+DT_OUTPUT_TIME                : 300.
+
+<BeginTimeSerie>
+NAME                          : Molhe Sul de Sines
+COORD_X                       : -8.840349
+COORD_Y                       :  37.922746
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : Aproximacao CTS
+COORD_X                       : -8.812089
+COORD_Y                       :  37.92404
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : N1
+COORD_X                       : -8.837688
+COORD_Y                       :  37.93033
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : N2
+COORD_X                       : -8.822650
+COORD_Y                       :  37.92741
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : S1
+COORD_X                       : -8.809661
+COORD_Y                       :  37.91098
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : S2
+COORD_X                       : -8.807911
+COORD_Y                       :  37.89463
+LOCALIZATION_K                : 19
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                          : Bacia Adução
+COORD_X                       : -8.812077
+COORD_Y                       :  37.9294
+LOCALIZATION_K                : 19
+<EndTimeSerie>

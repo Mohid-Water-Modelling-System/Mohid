@@ -1,4 +1,5 @@
-#!/usr/bin/bash
+
+#!/bin/bash
 #==============================================================================
 #title        : install_req.sh
 #description  : This script is an attempt to compile all the necessary libraries
@@ -12,21 +13,21 @@
 #==============================================================================
 
 ### Make the changes to fit your setup ###
-source /opt/intel/bin/compilervars.sh intel64
-source /opt/intel/bin/ifortvars.sh intel64
-source /opt/intel/bin/icc.sh intel64 
+
+source /opt/intel/oneapi/setvars.sh
 
 ## default path to compiler
-export CC=/opt/intel/bin/icc
-export CXX=/opt/intel/bin/icpc
-export FC=/opt/intel/bin/ifort
-export F77=/opt/intel/bin/ifort
+export CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc
+export CXX=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icpc
+export FC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort
+export F77=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/ifort
+
 
 ## intel flags compiler
-export CFLAGS='-O3 -xHost -ip'
-export CXXFLAGS='-O3 -xHost -ip'
-export FCFLAGS='-O3 -xHost -ip'
-export FFLAGS='-O3 -xHost -ip'
+export CFLAGS='-O3 -xHost -ip -DIFORT'
+export CXXFLAGS='-O3 -xHost -ip -DIFORT'
+export FCFLAGS='-O3 -xHost -ip -DIFORT'
+export FFLAGS='-O3 -xHost -ip -DIFORT'
 
 ## install libraries path
 DIRINSTALL=$HOME/apps_intel
@@ -36,10 +37,12 @@ DIRINSTALL=$HOME/apps_intel
 sudo=          ## no
 
 ## libraries to intall
-zlib='zlib-1.2.11'
+zlib='zlib-1.2.13'
 hdf5='hdf5-1.8.17'
-netcdf='netcdf-4.4.1.1'
-netcdff='netcdf-fortran-4.4.4'
+#netcdf='netcdf-4.4.1.1'
+netcdf='netcdf-c-4.8.1'
+#netcdff='netcdf-fortran-4.4.4'
+netcdff='netcdf-fortran-4.5.4'
 proj='proj-4.9.3'
 proj4fortran='proj4-fortran'
 iphreeqc='iphreeqc-3.3.11-12535'
@@ -79,8 +82,8 @@ HELP(){
            echo "    -hdf5                   : install hdf5 library"
            echo "    -nc|netcdf              : install netcdf and netcdff library"
            echo "    -ncf|netcdff            : install netcdf fortran library"
-           echo "    -proj4                  : install proj4 library"
-           echo "    -proj4f|proj4fortran    : install proj4-fortran wrapper library"
+	   echo "    -proj4                  : install proj4 library (optional)"
+	   echo "    -proj4f|proj4fortran    : install proj4-fortran wrapper library (optional)"
            echo "    -phqc|iphreeqc          : install iphreeqc library               (optional)"
            echo "    -phqcrm|phreeqcrm       : install phreeqcrm library              (optional)"
            echo "    -mpich                  : install mpich                          (optional)"
@@ -222,7 +225,8 @@ OPT_NC(){
     export LDFLAGS="-L$DIRINSTALL/$hdf5/lib -L$DIRINSTALL/$zlib/lib"
     export CFLAGS="$CFLAGS -fPIC"
     if [ ! -e $TMPDIRINSTALL/$netcdf.tar.gz ]; then
-      wget "ftp://ftp.unidata.ucar.edu/pub/netcdf/$netcdf.tar.gz"
+     # wget "ftp://ftp.unidata.ucar.edu/pub/netcdf/$netcdf.tar.gz"
+     wget "https://downloads.unidata.ucar.edu/netcdf-c/4.8.1/$netcdf.tar.gz"
     fi
     tar -xf "$netcdf.tar.gz"
     cd $netcdf || exit 1
@@ -269,7 +273,8 @@ OPT_NCF(){
     export CPPFLAGS="$CPPFLAGS -I$NETCDF_INC"
     export LDFLAGS="$LDFLAGS -L$NETCDF_LIB"
     if [ ! -e $TMPDIRINSTALL/$netcdff.tar.gz ]; then
-      wget "ftp://ftp.unidata.ucar.edu/pub/netcdf/$netcdff.tar.gz"
+     # wget "ftp://ftp.unidata.ucar.edu/pub/netcdf/$netcdff.tar.gz"
+     wget "https://downloads.unidata.ucar.edu/netcdf-fortran/4.5.4/$netcdff.tar.gz"
     fi
     tar -xf "$netcdff.tar.gz"
     cd $netcdff || exit

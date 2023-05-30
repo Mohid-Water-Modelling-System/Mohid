@@ -907,7 +907,8 @@ i12:        if (Me%TimeSerie(iTimeSerie)%CoordON .and. Me%ModelDomainON) then
                 !if (Me%GhostCorners) then
                 !    Me%TimeSerie(iTimeSerie)%IgnoreON = .false. 
                 !else
-                if (.not. IsPointInsidePolygon(TimeSeriesXY, Me%ModelDomain)) then
+                if (.not. IsVisible(Me%ModelDomain, TimeSeriesXY)) then
+                    write(*,*) 
                     Me%TimeSerie(iTimeSerie)%IgnoreON = .true. 
                 endif
                 !endif

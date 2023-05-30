@@ -1,0 +1,57 @@
+
+IGNORE_ON               : 1
+TIME_SERIE              : 1
+DT_OUTPUT               : 300.
+
+<begindischarge>
+NAME                    : Start 1.a
+DESCRIPTION             : Average flow
+COORD_X                 : -8.99765
+COORD_Y                 : 38.00255
+DISCHARGE_UNIFORM       : 1
+DEFAULT_FLOW_VALUE      :  0.5
+!MohidJet  
+DISCHARGE_TYPE          : 6
+MOHID_JET_FILE          : ..\data\MohidJet_West.dat
+
+<<beginproperty>>
+NAME                    : temperature
+UNITS                   : celcius 
+DESCRIPTION             : temperature in the Douro estuary
+DEFAULTVALUE            : 24
+<<endproperty>>
+
+<<beginproperty>>
+NAME                    : salinity
+UNITS                   : psu
+DESCRIPTION             : salinity in the Douro estuary
+DEFAULTVALUE            : 36
+<<endproperty>>
+<enddischarge>
+
+<begindischarge>
+NAME                    : Start 1.b
+DESCRIPTION             : Average flow
+COORD_X                 : -8.99735
+COORD_Y                 : 38.00255
+DISCHARGE_UNIFORM       : 1
+DEFAULT_FLOW_VALUE      :  0.5
+!MohidJet  
+DISCHARGE_TYPE          : 6
+MOHID_JET_FILE          : ..\data\MohidJet_East.dat
+
+<<beginproperty>>
+NAME                    : temperature
+UNITS                   : celcius 
+DESCRIPTION             : temperature in the Douro estuary
+DEFAULTVALUE            : 24
+<<endproperty>>
+
+<<beginproperty>>
+NAME                    : salinity
+UNITS                   : psu
+DESCRIPTION             : salinity in the Douro estuary
+DEFAULTVALUE            : 36
+<<endproperty>>
+<enddischarge>
+

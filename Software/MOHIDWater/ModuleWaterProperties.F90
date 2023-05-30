@@ -196,7 +196,9 @@ Module ModuleWaterProperties
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
                                           GetDischargeON, GetByPassConcIncrease,                &
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
-                                          GetDistributionCoefMass, IsUpscaling, Kill_Discharges
+                                          GetDistributionCoefMass, IsUpscaling, Kill_Discharges,&
+                                          CorrectsBypassCellsDischarges, GetDischargesDTOutput, &
+                                          GetDischarges_MohidJetON, GetDischID_MohidJetON
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -218,10 +220,12 @@ Module ModuleWaterProperties
                                           GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
                                           GetGridOutBorderPolygon, GetDDecompWorkSize2D,        &
-                                          GetDDecompMapping2D, GetConnections
+                                          GetDDecompMapping2D, GetConnections,                  &
+                                          GetXYInsideDomain, GetDDecompMPI_ID_Master,           &
+                                          GetDDecompMPI_ID_XY, GetXY_Coord_InsideInnerDomain
 
 #ifdef _USE_MPI
-    use ModuleHorizontalGrid,       only: ReceiveSendProperitiesMPI
+    use ModuleHorizontalGrid,       only: ReceiveSendProperitiesMPI, IntMaster2Slaves
 #endif
 
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
@@ -265,7 +269,8 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer, DischargeIsAssociated, SetMatrixValueAllocatable
+                                          GetPointer, DischargeIsAssociated,                    &
+                                          SetMatrixValueAllocatable, FromDepth_2_layer
 
     use mpi
 #else _USE_MPI
@@ -280,7 +285,8 @@ Module ModuleWaterProperties
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
                                           SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
-                                          GetPointer, DischargeIsAssociated, SetMatrixValueAllocatable
+                                          GetPointer, DischargeIsAssociated,                    &
+                                          SetMatrixValueAllocatable, FromDepth_2_layer
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -289,7 +295,7 @@ Module ModuleWaterProperties
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
                                           GetVelocityModulus, GetPointDischargesState, CheckOfflineUpscalingDisch, &
-                                          GetUscalingMethod
+                                          GetUpscalingMethod
 
 
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
@@ -653,7 +659,9 @@ Module ModuleWaterProperties
         integer, dimension(:), pointer          :: i, j, k, nCells, kmin, kmax
         real,    dimension(:), pointer          :: Flow
         integer, dimension(:), pointer          :: Vert
-        logical, dimension(:), pointer          :: Ignore, ByPass
+        logical, dimension(:), pointer          :: Ignore, ByPass, OutPut
+        real                                    :: DT_Output
+        type (T_Time)                           :: NextOutPut
     end type   T_Discharge
 
 
@@ -983,6 +991,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:  )         :: BottomFlux
         real, pointer, dimension(:,:,:)         :: Filtration
         real, pointer, dimension(:    )         :: DischConc
+        real, pointer, dimension(:    )         :: DischByPassConc        
         real                                    :: MinValue             =   FillValueReal
         real                                    :: MaxValue             = - FillValueReal
         real                                    :: GFW = - FillValueReal !Gram formula weight
@@ -1212,11 +1221,14 @@ Module ModuleWaterProperties
     private :: T_DDecomp
     type       T_DDecomp
         integer                                 :: MPI_ID           = FillValueInt
-        logical                                 :: ON               = .true.
+        integer                                 :: MPI_ID_Master    = FillValueInt        
+        logical                                 :: ON               = .false.
         logical                                 :: MasterOrSlave    = .false.
         type (T_Size2D)                         :: HaloMap
         type (T_Size2D)                         :: Mapping
         type (T_Size2D)                         :: Global
+        integer,    dimension(:), pointer       :: Discharges_MPI_ID
+        integer,    dimension(:), pointer       :: ByPass_MPI_ID        
     end type T_DDecomp
 
     type      T_NoFlux
@@ -2054,6 +2066,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer :: STAT_CALL
 
         !----------------------------------------------------------------------
+        
+        Me%DDecomp%MPI_ID           = FillValueInt
+        Me%DDecomp%MPI_ID_Master    = FillValueInt   
+        Me%DDecomp%ON               = .false.
+        Me%DDecomp%MasterOrSlave    = .false.
+        
 
         call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
                                   MasterOrSlave    = Me%DDecomp%MasterOrSlave,          &
@@ -2075,9 +2093,11 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                                      STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ConstructDDecomp - ModuleWaterProperties - ERR30')
 
-            Me%DDecomp%MPI_ID = GetDDecompMPI_ID(Me%ObjHorizontalGrid)
+            Me%DDecomp%MPI_ID         = GetDDecompMPI_ID(Me%ObjHorizontalGrid)
 
-            Me%DDecomp%ON     = GetDDecompON    (Me%ObjHorizontalGrid)
+            Me%DDecomp%ON             = GetDDecompON    (Me%ObjHorizontalGrid)
+            
+            Me%DDecomp%MPI_ID_Master  = GetDDecompMPI_ID_Master(Me%ObjHorizontalGrid)            
 
         endif ifMS
 
@@ -4245,7 +4265,7 @@ i1:     if (OutputOk) then
             nProperties = nProperties + 2
         endif
 
-        if (nProperties > 0) then
+np:     if (nProperties > 0) then
 
             !Allocates PropertyList
             allocate(PropertyList(nProperties), STAT = STAT_CALL)
@@ -4401,12 +4421,17 @@ i1:     if (OutputOk) then
                     end do 
                 endif
             enddo
-            call SetBivalveTimeSeries(Me%ObjBivalve,                    &
-                                        Me%Output%BivalveTimeSeriesIndex, &
-                                        Me%Output%BivalveTimeSeriesNames, &
-                                        STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
-        endif
+            
+            if(Me%Coupled%Bivalve%Yes)then
+            
+                call SetBivalveTimeSeries(Me%ObjBivalve,                    &
+                                            Me%Output%BivalveTimeSeriesIndex, &
+                                            Me%Output%BivalveTimeSeriesNames, &
+                                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Time_Serie - ModuleWaterProperties - ERR130')
+                
+            endif
+        endif np
 
     end subroutine Construct_Time_Serie
 
@@ -4936,7 +4961,8 @@ do1 :   do while (associated(PropertyX))
 
                 allocate(Me%Discharge%Vert   (Me%Discharge%Number),                     &
                          Me%Discharge%Ignore (Me%Discharge%Number),                     &
-                         Me%Discharge%ByPass (Me%Discharge%Number))
+                         Me%Discharge%ByPass (Me%Discharge%Number),                     &
+                         Me%Discharge%Output (Me%Discharge%Number))
 
                 Me%Discharge%Flow   (:) = FillValueReal
                 Me%Discharge%i      (:) = FillValueInt
@@ -4949,6 +4975,7 @@ do1 :   do while (associated(PropertyX))
                 Me%Discharge%Vert   (:) = 0
                 Me%Discharge%Ignore (:) = .false.
                 Me%Discharge%ByPass (:) = .false.
+                Me%Discharge%Output (:) = .false.                
 
                 PropertyX   => Me%FirstProperty
                 do while (associated(PropertyX))
@@ -4957,6 +4984,10 @@ do1 :   do while (associated(PropertyX))
                         allocate(PropertyX%DischConc(TotalCells))
 
                         PropertyX%DischConc(1:TotalCells) = FillValueReal
+                        
+                        allocate(PropertyX%DischByPassConc(Me%Discharge%Number))
+                        
+                        PropertyX%DischByPassConc(1:Me%Discharge%Number) = FillValueReal                        
 
                     endif
                     PropertyX=>PropertyX%Next
@@ -4964,7 +4995,16 @@ do1 :   do while (associated(PropertyX))
 
 
                 !For every discharge with Track Discharge Information construct a new time serie
-                if (Me%Coupled%DischargesTracking%Yes) call Construct_Discharges_Tracking
+                if (Me%Coupled%DischargesTracking%Yes) then
+                    call Construct_Discharges_Tracking
+                endif
+
+                if (Me%DDecomp%ON) then
+
+                    call Construct_DDecompDischargeMap
+
+                endif
+                    
             endif
 
 
@@ -5083,11 +5123,139 @@ do1 :   do while (associated(PropertyX))
 
 
 
-    end subroutine Construct_Sub_Modules
+end subroutine Construct_Sub_Modules
 
 
     !--------------------------------------------------------------------------
+    ! For the particular case of domain decomposition parallelization maps the domain of each discharge (location and bypass)
 
+    subroutine Construct_DDecompDischargeMap
+
+#ifdef _USE_MPI
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dis
+        integer                                     :: STAT_CALL
+        integer                                     :: ib, jb, kb
+        logical                                     :: ByPassON
+        real                                        :: CoordinateX, CoordinateY, XByPass, YByPass
+        logical                                     :: CoordinatesON
+        integer                                     :: MPI_Master, MPI_ID
+     
+        !Begin------------------------------------------------------------
+
+
+        MPI_Master = Me%DDecomp%MPI_ID_Master
+        MPI_ID     = Me%DDecomp%MPI_ID
+        
+        allocate (Me%DDecomp%Discharges_MPI_ID(1:Me%Discharge%Number))
+        allocate (Me%DDecomp%ByPass_MPI_ID    (1:Me%Discharge%Number))        
+        
+        Me%DDecomp%Discharges_MPI_ID(:) = FillValueInt
+        Me%DDecomp%ByPass_MPI_ID    (:) = FillValueInt
+        
+if1:    if (MPI_Master == MPI_ID) then
+        
+        !For all Discharges
+    dd:     do dis = 1, Me%Discharge%Number
+
+                Me%DDecomp%Discharges_MPI_ID(dis) = FillValueInt
+                Me%DDecomp%ByPass_MPI_ID    (dis) = FillValueInt 
+
+
+                !Check if this is a bypass discharge.
+                call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischargesByPassConc - ModuleWaterProperties - ERR10')
+
+            
+     iby:       if (ByPassON) then            
+         
+                    call GetDischargesGridLocalization(Me%ObjDischarges,                &
+                                                       dis,                             &
+                                                       IByPass       = Ib,              &
+                                                       JByPass       = Jb,              &
+                                                       KByPass       = Kb,              &
+                                                       CoordinateX   = CoordinateX,     &
+                                                       CoordinateY   = CoordinateY,     &
+                                                       CoordinatesON = CoordinatesON,   &
+                                                       XByPass       = XByPass,         & 
+                                                       YByPass       = YByPass,         &           
+                                                       STAT          = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) then
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR20')
+                    endif        
+
+                    if (.not. CoordinatesON) then
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR30')
+                    endif
+            
+                    Me%DDecomp%Discharges_MPI_ID(dis) =                                 &
+                            GetDDecompMPI_ID_XY(Me%ObjHorizontalGrid, CoordinateX,      &
+                                                CoordinateY, STAT = STAT_CALL)                
+                    
+                    if (STAT_CALL /= SUCCESS_) then
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR40')
+                    endif         
+                    
+                    if (Me%DDecomp%Discharges_MPI_ID(dis) == -99) then
+                        write(*,*) 'MPI_ID=',Me%DDecomp%Discharges_MPI_ID(dis), 'Discharge origin =', dis, 'not valid'
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR50')
+                    endif                    
+
+                    Me%DDecomp%ByPass_MPI_ID(dis) =                                     &
+                            GetDDecompMPI_ID_XY(Me%ObjHorizontalGrid, XByPass, YByPass, &
+                                                STAT = STAT_CALL)
+                    
+                    if (STAT_CALL /= SUCCESS_) then
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR60')
+                    endif 
+
+                    if (Me%DDecomp%ByPass_MPI_ID(dis) == -99) then
+                        write(*,*) 'MPI_ID=',Me%DDecomp%ByPass_MPI_ID(dis), 'ByPass Discharge =', dis, 'not valid'
+                        call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR70')
+                    endif                    
+                    
+                endif iby
+     
+           enddo dd
+    
+        endif if1
+
+d2:     do dis = 1, Me%Discharge%Number
+
+
+            !Check if this is a bypass discharge.
+            call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR80')
+
+            if (ByPassON) then
+                                       
+                call IntMaster2Slaves(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      IntInOut         = Me%DDecomp%Discharges_MPI_ID(dis), &
+                                      STAT             = STAT_CALL)
+                        
+                if (STAT_CALL /= SUCCESS_) then
+                    call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR90')
+                endif             
+        
+                call IntMaster2Slaves(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      IntInOut         = Me%DDecomp%ByPass_MPI_ID(dis), &
+                                      STAT             = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    call CloseAllAndStop ('Construct_DDecompDischargeMap - ModuleWaterProperties - ERR100')
+                endif             
+
+            endif
+            
+        enddo d2
+
+#endif _USE_MPI
+
+    end subroutine Construct_DDecompDischargeMap
+
+    !--------------------------------------------------------------------------    
 
     subroutine CheckOptionsSolutionFromFile
 
@@ -6731,6 +6899,9 @@ subroutine Construct_Discharges_Tracking
         type (T_DischargeTimeSerie), pointer            :: PrevPointer
         type (T_DischargeTimeSerie), pointer            :: Aux_Pointer
         type (T_Property), pointer                      :: PropertyX
+        real                                            :: CoordinateX, CoordinateY
+        logical                                         :: CoordinatesON        
+        real                                            :: ModelDT     
 
         !Begin--------------------------------------------------------------------------
 
@@ -6745,8 +6916,9 @@ subroutine Construct_Discharges_Tracking
 
         !Allocates PropertyList
         allocate(PropertyList(nProperties), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)      &
-            call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR02')
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR10')
+        endif
 
         !Fills up PropertyList
         PropertyList(1) = "Flow"
@@ -6761,18 +6933,58 @@ subroutine Construct_Discharges_Tracking
         enddo
 
 
+        call GetDischargesDTOutput(Me%ObjDischarges, Me%Discharge%DT_Output, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR20')
+        endif
+        
+        if (Me%Discharge%DT_Output < 0) then
+            call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR30')
+            endif
+
+            Me%Discharge%DT_Output = ModelDT
+            
+        endif
+        
+        Me%Discharge%NextOutPut = Me%BeginTime
+        
         !Nullifies first
         nullify(Me%FirstDischargeTimeSerie)
 
 
         !For each discharge allocate a time serie
         do idis = 1, Me%Discharge%Number
-
+            
+            call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                                idis,                                   &
+                                                CoordinateX   = CoordinateX,            &
+                                                CoordinateY   = CoordinateY,            &
+                                                CoordinatesON = CoordinatesON,          &
+                                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR40')
+            endif
+            
+            if (CoordinatesON) then
+            
+                if (.not. GetXY_Coord_InsideInnerDomain(Me%OBjHorizontalGrid, CoordinateX, CoordinateY)) then
+                    
+                    Me%Discharge%Output(idis) = .false. 
+                    cycle
+                    
+                endif
+            
+            endif
+            
+            Me%Discharge%Output(idis) = .true.
+            
             call GetDischargesIDName(Me%ObjDischarges, idis, DischargeName, STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)      &
-                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR03')
-
+            if (STAT_CALL /= SUCCESS_) then
+                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR50')
+            endif
 
             !Starts a new Time Serie
             DischargeTrack = 0
@@ -6782,8 +6994,9 @@ subroutine Construct_Discharges_Tracking
                                 PropertyList, "srd",                                     &
                                 ResultFileName = trim(DischargeName),                    &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)      &
-                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR04')
+            if (STAT_CALL /= SUCCESS_) then
+                call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR60')
+            endif
 
             !Insert New Time Serie to List
             if (.not. associated(Me%FirstDischargeTimeSerie)) then
@@ -6803,12 +7016,14 @@ subroutine Construct_Discharges_Tracking
                 nullify(Aux_Pointer%Next)
             endif
 
+                    
         enddo
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)      &
-            call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR05')
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Construct_Discharges_Tracking - ModuleWaterProperties - ERR70')
+        endif
 
     end subroutine Construct_Discharges_Tracking
 
@@ -10735,7 +10950,7 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
                 
                 if (NumberOfFields_Upscaling > 0) then
                     Property%Evolution%Upscaling = .true.
-                    call GetUscalingMethod(Me%ObjHydrodynamic, Property%Evolution%UpscalingMethod, STAT = STAT_CALL)
+                    call GetUpscalingMethod(Me%ObjHydrodynamic, Property%Evolution%UpscalingMethod, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         call CloseAllAndStop ('CheckOfflineUpscaling - ModuleWaterProperties - ERR04.')
                 endif
@@ -11991,7 +12206,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'SIMPLE_WINDOW_OUTPUT',                             &
-                     Default      = .false.,                                             &
+                     Default      = .true.,                                             &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -12002,7 +12217,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'SIMPLE_OUTPUT',                                    &
-                     Default      = .false.,                                            &
+                     Default      = .true.,                                             &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -12326,8 +12541,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%Coupled%HydroIntegration%Yes)              &
                 call HydroIntegration_Processes
 
-            if (Me%Coupled%Discharges%Yes)                    &
+            if (Me%Coupled%Discharges%Yes) then
+                call CheckNeedReallocation
+                call WaterPropDischargesByPassConc
                 call WaterPropDischarges
+            endif
 
             if (Me%Coupled%HybridReferenceField)              &
                 call UpdateHybridReferenceField
@@ -13095,7 +13313,60 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine UpdateWaterMPI
+    
+    !--------------------------------------------------------------------------    
+                                
+    subroutine RecvRealMPI(RealNumber, Source, tag)
 
+
+        !Arguments-------------------------------------------------------------
+        real,       intent (OUT)                        :: RealNumber
+        integer                                         :: Source, tag
+        !Local-----------------------------------------------------------------
+        integer                                         :: status(MPI_STATUS_SIZE), STAT_CALL
+        integer, save                                   :: Precision
+
+
+        !Begin-----------------------------------------------------------------                            
+                                
+        Precision   = MPIKind(RealNumber)
+        
+        call MPI_Recv (RealNumber, 1, Precision, Source, tag,  MPI_COMM_WORLD, status, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('RecvRealMPI - ModuleWaterProperties - ERR10')
+        endif
+                                    
+    end subroutine RecvRealMPI          
+
+    !--------------------------------------------------------------------------    
+
+    subroutine SendRealMPI(RealNumber, Destination, tag)
+
+                                                    
+        !Arguments-------------------------------------------------------------
+        real,       intent (IN)                     :: RealNumber
+        integer                                     :: Destination, tag
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL    
+        integer, save                               :: Precision
+
+
+        !Begin-----------------------------------------------------------------      
+        
+        Precision   = MPIKind(RealNumber)
+        
+        call MPI_Send (RealNumber, 1, Precision, Destination, tag, MPI_COMM_WORLD, STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('SendRealMPI - ModuleWaterProperties - ERR150')
+        endif
+        
+    end subroutine SendRealMPI    
+
+    !--------------------------------------------------------------------------     
+                               
+    
 
 #endif _USE_MPI
 
@@ -19413,7 +19684,7 @@ do1 :   do while (associated(PropertyX))
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer, dimension(:,:  ), pointer      :: Connections
-        integer                                 :: STAT_CALL, UpscalingMethod
+        integer                                 :: STAT_CALL, UpscalingMethod_offline, UpscalingMethod_online
         logical                                 :: FirstTime
         type(T_Time)                            :: CurrentTime
         real, dimension(:,:,:), pointer         :: UpscaleDischConc
@@ -19471,10 +19742,13 @@ do1 :   do while (associated(PropertyX))
                         PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
                                                                 + PropertyFather%Concentration(:,:,:)
                     
-                    call GetUscalingMethod(FatherWaterPropertiesID, UpscalingMethod, STAT = STAT_CALL)
+                    call GetUpscalingMethod(FatherWaterPropertiesID, UpscalingMethod_offline, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR02.')
                     
-                    if (UpscalingMethod == 3) then
+                    call GetUpscalingMethod(SonWaterPropertiesID, UpscalingMethod_online, STAT = STAT_CALL, online = .true.)
+                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR03.')
+                    
+                    if ((UpscalingMethod_offline == 3) .or. (UpscalingMethod_online == 3)) then
                         if (.not. allocated(PropertyFather%UpscaleDischConc)) then
                             allocate(PropertyFather%UpscaleDischConc (  ObjFather%Size%ILB:ObjFather%Size%IUB, &
                                                                         ObjFather%Size%JLB:ObjFather%Size%JUB, &
@@ -19488,7 +19762,7 @@ do1 :   do while (associated(PropertyX))
                                             CallerID         = mWATERPROPERTIES_,                   &
                                             TD               = PropertyX%Submodel%TwoWayTimeDecay,  &
                                             STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR03.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
                     else
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                             FatherMatrix     = PropertyFather%Concentration,        &
@@ -19496,12 +19770,12 @@ do1 :   do while (associated(PropertyX))
                                             CallerID         = mWATERPROPERTIES_,                   &
                                             TD               = PropertyX%Submodel%TwoWayTimeDecay,  &
                                             STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR05.'
                     endif
                     if (ObjFather%Coupled%UpscalingDischarge%Yes) then
                         call GetConnections(Me%ObjHorizontalGrid, Connections_Z = Connections, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - Failed to get Connections matrix'
-                        if (UpscalingMethod == 3) then
+                        if ((UpscalingMethod_offline == 3) .or. (UpscalingMethod_online == 3)) then
                             call UpscaleDischarge_WP(FatherID = ObjFather%ObjDischarges, Connections_Z = Connections, &
                                         Prop = UpscaleDischConc, &
                                         PropVector = PropertyFather%DischConc, &
@@ -19540,7 +19814,7 @@ do1 :   do while (associated(PropertyX))
         nullify (PropertyX)
 
         call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR05.'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR06.'
 
         !if (ObjFather%Coupled%UpscalingDischarge%Yes) then
         !    call unGetHydrodynamic(ObjFather%ObjDischarges, FatherFlow, STAT = STAT_CALL)
@@ -20185,6 +20459,89 @@ do3:            do k = kbottom, KUB
 
     end subroutine ComputeSurfaceHeatFluxes
 
+    !--------------------------------------------------------------------------    
+    
+    subroutine CheckNeedReallocation
+        !Local-----------------------------------------------------------------
+        type (T_property), pointer          :: PropertyX
+        logical                             :: MohidJetON
+        integer                             :: STAT_CALL, dis, TotalCells
+        !Begin------------------------------------------------------------
+
+        call GetDischarges_MohidJetON(DischargesID  = Me%ObjDischarges,                 &
+                                      MohidJetON    = MohidJetON,                       &
+                                      STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'CheckNeedReallocation - ModuleWaterProperties - ERR10'
+        endif
+
+if1:    if (MohidJetON) then
+
+            TotalCells = 0
+
+d1:         do dis = 1, Me%Discharge%Number
+
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis,                &
+                                                  Me%Discharge%nCells(dis), STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'CheckNeedReallocation - ModuleWaterProperties - ERR20'
+                endif
+
+                TotalCells = TotalCells +  Me%Discharge%nCells(dis)
+
+            enddo d1
+
+            deallocate(Me%Discharge%Flow,                                               &
+                       Me%Discharge%i      ,                                            &
+                       Me%Discharge%j      ,                                            &
+                       Me%Discharge%k      ,                                            &
+                       Me%Discharge%kmin   ,                                            &
+                       Me%Discharge%kmax   )            
+
+            allocate(Me%Discharge%Flow   (TotalCells),                                  &
+                     Me%Discharge%i      (TotalCells),                                  &
+                     Me%Discharge%j      (TotalCells),                                  &
+                     Me%Discharge%k      (TotalCells),                                  &
+                     Me%Discharge%kmin   (TotalCells),                                  &
+                     Me%Discharge%kmax   (TotalCells))
+
+
+
+            Me%Discharge%Flow   (:) = FillValueReal
+            Me%Discharge%i      (:) = FillValueInt
+            Me%Discharge%j      (:) = FillValueInt
+            Me%Discharge%k      (:) = FillValueInt
+            Me%Discharge%kmin   (:) = FillValueInt
+            Me%Discharge%kmax   (:) = FillValueInt
+
+
+            PropertyX   => Me%FirstProperty
+
+d2:         do while (associated(PropertyX))
+
+if2:            if (PropertyX%Evolution%Discharges .and. Me%Discharge%Number > 0) then
+
+                    deallocate(PropertyX%DischConc)
+
+                    allocate  (PropertyX%DischConc(TotalCells))
+
+                    PropertyX%DischConc(1:TotalCells) = FillValueReal
+                    
+                    deallocate(PropertyX%DischByPassConc)
+
+                    allocate  (PropertyX%DischByPassConc(Me%Discharge%Number))
+                    
+                    PropertyX%DischByPassConc(1:Me%Discharge%Number) = FillValueReal                        
+
+                endif if2
+                PropertyX=>PropertyX%Next
+            enddo d2
+
+        endif if1
+
+    end subroutine CheckNeedReallocation
+
 
     !--------------------------------------------------------------------------
     !   Makes the connection between the
@@ -20201,7 +20558,7 @@ do3:            do k = kbottom, KUB
         type (T_Time)                               :: Actual
 !        real, dimension(:,:,:),pointer              :: SZZ
         real, dimension(:, :), pointer              :: WaterLevel, WaterColumnZ
-        integer                                     :: STAT_CALL, KUB
+        integer                                     :: STAT_CALL, KUB, KLB
         real                                        :: DischargeFlow
         integer                                     :: nProperties
         real, dimension(:), pointer                 :: DataBuffer
@@ -20215,15 +20572,17 @@ do3:            do k = kbottom, KUB
         real                                        :: AuxFlowIJ
         integer                                     :: nCells, n, AuxCell, Aux
         integer                                     :: FlowDistribution
-        real                                        :: ByPassConcIncrease
-        integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
+        real                                        :: ByPassConc
+        integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax, kaux
+        real                                        :: Depth_min, Depth_max        
 
 
         !Begin------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WaterPropDischarges")
-
+        
         KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
 
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
@@ -20266,6 +20625,9 @@ dd:     do dis = 1, Me%Discharge%Number
                 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
                                               VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                
+                
+                
                 if (STAT_CALL/=SUCCESS_)                                                     &
                 call CloseAllAndStop ('WaterPropDischarges - Failed GetDischargeFlowDistribuiton in upscaling')
                 ! skips adresses correspondent to upscaling discharges
@@ -20330,7 +20692,7 @@ dd:     do dis = 1, Me%Discharge%Number
 
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR70')
 
-            if (ByPassON) then
+            if (ByPassON .and. .not. Me%DDecomp%MasterOrSlave) then
                 WaterLevelByPass = WaterLevel(ib, jb)
             else
                 WaterLevelByPass = FillValueReal
@@ -20350,8 +20712,21 @@ dd:     do dis = 1, Me%Discharge%Number
                 DataBuffer(nProperties) = DischargeFlow
             endif
 
-            call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
-                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+            !call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
+            !                                  VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+            
+            call GetDischargeFlowDistribuiton(DischargesID          = Me%ObjDischarges, &
+                                              DischargeIDNumber     = dis,              &
+                                              nCells                = nCells,           &
+                                              FlowDistribution      = FlowDistribution, &
+                                              VectorI               = VectorI,          &
+                                              VectorJ               = VectorJ,          &
+                                              VectorK               = VectorK,          &
+                                              kmin                  = kmin,             &
+                                              kmax                  = kmax,             &
+                                              Depth_min             = Depth_min,        &
+                                              Depth_max             = Depth_max,        &
+                                              STAT                  = STAT_CALL)              
 
             if (STAT_CALL/=SUCCESS_)                                                     &
                 call CloseAllAndStop ('Sub. WaterPropDischarges - ModuleWaterProperties - ERR90')
@@ -20378,6 +20753,12 @@ i22:            if      (FlowDistribution == DischByCell_       ) then
             AuxFlowIJ = DischargeFlow
 
             if (nCells > 1) DischargeFlow = 0.
+
+            !Mohidjet discharge update only the VectorI, VectorJ and not the I,J original cell discharge
+            if (GetDischID_MohidJetON(Me%ObjDischarges, dis) .and. nCells == 1) then
+                i         = VectorI(1)
+                j         = VectorJ(1)
+            endif 
 
             Me%Discharge%Vert   (dis) = DischVertical
 
@@ -20413,14 +20794,40 @@ dn:         do n=1, nCells
                 Me%Discharge%i      (AuxCell) = i
                 Me%Discharge%j      (AuxCell) = j
                 Me%Discharge%k      (AuxCell) = k
-                Me%Discharge%kmin   (AuxCell) = kmin
-                Me%Discharge%kmax   (AuxCell) = kmax
+
 
                 if (DischVertical == DischUniform_) then
-                    if (kmin < 0) Me%Discharge%kmin(AuxCell) = KFloor_Z(i, j)
-                    if (kmax < 0) Me%Discharge%kmax(AuxCell) = KUB
-                    if (k    < 0) k = Me%Discharge%kmax(AuxCell)
+                                        
+                    if (kmin < 0) kmin = KFloor_Z(i, j)
+                    if (kmax < 0) kmax = KUB
+                        
+                    if (Depth_max > FillValueReal) then
+
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+
+                        if (kaux >= kmin .or. kaux <= kmax) then
+                            kmin = kaux
+                        endif
+
+                    endif                        
+
+
+                    if (Depth_min > FillValueReal) then
+
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+
+                        if (kaux >= kmin .or. kaux <= kmax) then
+                            kmax = kaux
+                        endif
+
+                    endif                     
+                        
+                    if (k    < 0) k = kmax                        
+                    
                 endif
+                
+                Me%Discharge%kmin   (AuxCell) = kmin
+                Me%Discharge%kmax   (AuxCell) = kmax                
 
                 nProperties = 1
                 PropertyX => Me%FirstProperty
@@ -20435,18 +20842,24 @@ dn:         do n=1, nCells
 
                             if (AuxFlowIJ >= 0.) then
 
-                                call GetByPassConcIncrease(Me%ObjDischarges, dis,       &
-                                                           PropertyX%ID%IDNumber,       &
-                                                           ByPassConcIncrease,          &
-                                                           STAT = STAT_CALL)
-                                if (STAT_CALL/=SUCCESS_)                                &
-                                    call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR130')
-
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, kb) + ByPassConcIncrease
+                                !call GetByPassConcIncrease(Me%ObjDischarges, dis,       &
+                                !                           PropertyX%ID%IDNumber,       &
+                                !                           ByPassConcIncrease,          &
+                                !                           STAT = STAT_CALL)
+                                !if (STAT_CALL/=SUCCESS_)                                &
+                                !    call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR130')
+                                
+                                !ByPassConc = PropertyX%Concentration(ib, jb, kb) + ByPassConcIncrease
+                                ByPassConc = PropertyX%DischByPassConc(dis) !+ ByPassConcIncrease
 
                             else
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k)
+                                
+                                ByPassConc = PropertyX%Concentration(i , j , k)
+                                
                             endif
+
+                            
+                            PropertyX%DischConc(AuxCell) = ByPassConc 
 
                         else iby
 
@@ -20480,7 +20893,7 @@ dn:         do n=1, nCells
                                             endif
                                         endif
                                     else
-                                        call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR140')
+                                        call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR160')
                                     endif
                                 endif
 
@@ -20490,7 +20903,7 @@ dn:         do n=1, nCells
                                                             IntakeI, IntakeJ, IntakeK,      &
                                                             STAT = STAT_CALL)
                                     if (STAT_CALL/=SUCCESS_)                            &
-                                        call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR150')
+                                        call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR170')
 
                                     !DischargeConc here is the concentration increment
                                     PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
@@ -20537,46 +20950,63 @@ dn:         do n=1, nCells
                 !deallocate(DistributionCoef)
                 call UnGetDischarges(Me%ObjDischarges, DistributionCoef, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)                                                &
-                    stop 'WaterPropDischarges - ModuleWaterProperties - ERR160'
+                    stop 'WaterPropDischarges - ModuleWaterProperties - ERR180'
 
             endif
 
 
             call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)                                                    &
-                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR170')
+                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR190')
 
             call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)                                                    &
-                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR180')
+                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR200')
 
             call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)                                                    &
-                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR190')
+                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR210')
 
             !Writes Discharges TimeSerie
             if (Me%Coupled%DischargesTracking%Yes) then
-                call WriteTimeSerieLine(DischargesTimeSerie%TimeSerie, DataBuffer, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR200')
 
-                DischargesTimeSerie => DischargesTimeSerie%Next
+                if (Me%Discharge%NextOutPut <= Actual) then
+                
+                    if (Me%Discharge%Output(dis)) then
+                    
+                        call WriteTimeSerieLine(DischargesTimeSerie%TimeSerie, DataBuffer, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR220')
+
+                        DischargesTimeSerie => DischargesTimeSerie%Next
+                    
+                    endif
+                endif
             endif
 
         enddo dd
+    
+        !Writes Discharges TimeSerie
+        if (Me%Coupled%DischargesTracking%Yes) then
+            if (Me%Discharge%NextOutPut <= Actual) then
+                
+                Me%Discharge%NextOutPut = Me%Discharge%NextOutPut + Me%Discharge%DT_Output
+            endif
+        endif
+        
 
         !Deallocates DataBuffer
         if (Me%Coupled%DischargesTracking%Yes) then
             deallocate(DataBuffer, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR210')
+                call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR230')
         endif
 
         call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR220')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR240')
 
         call UnGetHydrodynamic(Me%ObjHydrodynamic, WaterLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR230')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR250')
 
         nullify(KFloor_Z)
 
@@ -20586,6 +21016,143 @@ dn:         do n=1, nCells
     end subroutine WaterPropDischarges
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    !   For the discharges with a ByPass defines the concentration
+    subroutine WaterPropDischargesByPassConc
+
+
+        !Local-----------------------------------------------------------------
+        type (T_property), pointer                  :: PropertyX
+        integer                                     :: dis
+        type (T_Time)                               :: Actual
+        integer                                     :: STAT_CALL
+        integer                                     :: ib, jb, kb
+        logical                                     :: ByPassON
+        real                                        :: ByPassConcIncrease, PropConc
+        real                                        :: XByPass, YByPass
+        character(StringLength)                     :: DischargeName
+     
+        !Begin------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WaterPropDischargesByPassConc")
+
+        Actual =  Me%ExternalVar%Now
+
+        !For all Discharges
+dd:     do dis = 1, Me%Discharge%Number
+
+            !Check if this is a bypass discharge.
+            call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischargesByPassConc - ModuleWaterProperties - ERR10')
+            
+ iby:       if (ByPassON) then            
+     
+                call GetDischargesIDName(Me%ObjDischarges, dis, DischargeName, STAT = STAT_CALL)     
+     
+                !write(*,*) 'Check Discharge',Me%DDecomp%MPI_ID, DischargeName, dis  
+     
+                if (STAT_CALL /= SUCCESS_) then
+                    call CloseAllAndStop ('WaterPropDischargesByPassConc - ModuleWaterProperties - ERR20')
+                endif
+
+                call GetDischargesGridLocalization(Me%ObjDischarges,                        &
+                                                   dis,                                     &
+                                                   IByPass       = ib,                      &
+                                                   JByPass       = jb,                      &
+                                                   KByPass       = Kb,                      &
+                                                   XByPass       = XByPass,                 & 
+                                                   YByPass       = YByPass,                 &           
+                                                   STAT          = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) then
+                    call CloseAllAndStop ('WaterPropDischargesByPassConc - ModuleWaterProperties - ERR30')
+                endif
+                
+
+
+                PropertyX => Me%FirstProperty
+                
+dw:             do while (associated(PropertyX))
+
+cd1:                 if (PropertyX%Evolution%Discharges) then
+cd2:                    if (Actual.GE.PropertyX%Evolution%NextCompute) then
+
+                            call GetByPassConcIncrease(Me%ObjDischarges, dis,           &
+                                                        PropertyX%ID%IDNumber,          &
+                                                        ByPassConcIncrease,             &
+                                                        STAT = STAT_CALL)
+                            if (STAT_CALL/=SUCCESS_) then
+                                call CloseAllAndStop ('WaterPropDischargesByPassConc - ModuleWaterProperties - ERR40')
+                            endif
+                            
+DDC:                        if (Me%DDecomp%ON) then                            
+
+#ifdef _USE_MPI                                
+ifc:                            if (Me%DDecomp%MPI_ID == Me%DDecomp%Discharges_MPI_ID(dis) .or. &
+                                    Me%DDecomp%MPI_ID == Me%DDecomp%ByPass_MPI_ID    (dis)      ) then     
+
+ifdb:                               if (Me%DDecomp%Discharges_MPI_ID(dis) == Me%DDecomp%ByPass_MPI_ID(dis)) then
+
+                                        !call GetXYCellZ(Me%ObjHorizontalGrid, XByPass, YByPass, ib, jb, STAT = STAT_CALL)
+                                
+                                        PropConc = PropertyX%Concentration(ib, jb, kb) 
+                                    
+                                    else ifdb ! need to communicate between different domains
+                                        
+if2:                                    if (Me%DDecomp%MPI_ID == Me%DDecomp%Discharges_MPI_ID(dis)) then
+ 
+                                            call RecvRealMPI(RealNumber = PropConc,     &
+                                                Source = Me%DDecomp%ByPass_MPI_ID(dis), tag = 966)
+
+                                        else if2 !if (Me%DDecomp%MPI_ID == Me%DDecomp%ByPass_MPI_ID)) then
+
+
+                                            call GetXYCellZ(Me%ObjHorizontalGrid, XByPass, YByPass, ib, jb, STAT = STAT_CALL)
+
+
+                                            PropConc = PropertyX%Concentration(ib, jb, kb)                            
+
+
+                                            call SendRealMPI(RealNumber = PropConc,     &
+                                                Destination =  Me%DDecomp%Discharges_MPI_ID(dis), tag = 966)
+                                            
+                                        endif if2
+                                        
+                                    endif ifdb
+                                    
+                                endif ifc
+#endif _USE_MPI                                
+
+                            else DDC
+    
+                                PropConc = PropertyX%Concentration(ib, jb, kb)                            
+    
+                            endif DDC
+
+                            
+                            PropertyX%DischByPassConc(dis) = PropConc + ByPassConcIncrease
+
+                        endif cd2
+                    endif cd1
+                        
+                    PropertyX=>PropertyX%Next
+
+                enddo dw
+
+                nullify(PropertyX)
+ 
+            endif iby
+
+        enddo dd
+
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "WaterPropDischargesByPassConc")
+
+
+    end subroutine WaterPropDischargesByPassConc
+
+    !--------------------------------------------------------------------------
+    
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -20601,7 +21168,8 @@ dn:         do n=1, nCells
         !Local -----------------------------------------------------------------
         integer                                         :: PropertyID
         integer                                         :: NumberOfFields, NumberOfFields_Upscaling
-        real,    pointer, dimension(:,:,:)              :: PropAssimilation, DischargeFlow
+        real,    pointer, dimension(:,:,:)              :: PropAssimilation
+        real(8), pointer, dimension(:,:,:)              :: DischargeFlow
         integer                                         :: N_Field, STAT_CALL
         logical                                         :: SubModelON, FoundDomain
         real                                            :: CoefCold
@@ -22941,7 +23509,9 @@ sp3:                if (.not. SimpleOutPut) then
                         call OutPutHDF_AditionalFields (OutPutNumber, iW)
                     endif sp3
                 else
-                    call OutPutHDF_AditionalFields (OutPutNumber)
+                    if (.not. SimpleOutPut) then
+                        call OutPutHDF_AditionalFields (OutPutNumber)
+                    endif
                 endif
             endif
 
@@ -26530,7 +27100,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
                                Me%Discharge%nCells  ,                                   &
-                               Me%Discharge%ByPass)
+                               Me%Discharge%ByPass  ,                                   &
+                               Me%Discharge%Output)
 
                     nullify   (Me%Discharge%Flow    ,                                   &
                                Me%Discharge%i       ,                                   &
@@ -26541,7 +27112,16 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
                                Me%Discharge%nCells  ,                                   &
-                               Me%Discharge%ByPass)
+                               Me%Discharge%ByPass  ,                                   &
+                               Me%Discharge%Output)
+                    
+
+                    if (Me%DDecomp%ON) then
+
+                        deallocate (Me%DDecomp%Discharges_MPI_ID)
+                        deallocate (Me%DDecomp%ByPass_MPI_ID    )
+
+                    endif                    
 
                 end if
 
@@ -26695,12 +27275,18 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                             call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR370')
                     endif
 
-                    if (PropertyX%Evolution%Discharges .and.                            &
-                        associated(PropertyX%DischConc)) then
-
-                        deallocate(PropertyX%DischConc)
-                        nullify   (PropertyX%DischConc)
-
+                    if (PropertyX%Evolution%Discharges) then
+                        
+                        if (associated(PropertyX%DischConc)) then
+                            deallocate(PropertyX%DischConc)
+                            nullify   (PropertyX%DischConc)
+                        endif
+                        
+                        if (associated(PropertyX%DischByPassConc)) then
+                            deallocate(PropertyX%DischByPassConc)
+                            nullify   (PropertyX%DischByPassConc)
+                        endif
+                        
                     endif
 
 

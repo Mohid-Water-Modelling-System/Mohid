@@ -44,6 +44,7 @@ Module ModuleDrawing
     public  ::    Add
     public  ::    SetLimits
     public  ::    IsVisible
+    public  ::    PointXYInsidePolySet    
     public  ::    IsPointInsidePolygon
     public  ::    Intersect2D_SegPoly
     public  ::    IsPointInsideCircle
@@ -52,6 +53,8 @@ Module ModuleDrawing
     public  ::    InvertVerticesOrder
     public  ::    CheckPolygonClockwise
     public  ::    ConvexPolygon
+
+    public  ::    From2Points2Line
     
     public  ::    GetPolygonsNumber
     public  ::    GetSpecificPolygon 
@@ -520,6 +523,38 @@ if2 :               if (BlockFound) then
     end subroutine NewLine   
    
     !--------------------------------------------------------------------------
+
+!--------------------------------------------------------------------------
+   
+    subroutine From2Points2Line(X1, X2, Y1, Y2, Line)
+        
+        !Arguments-------------------------------------------------------------
+        real                                        :: X1, X2, Y1, Y2
+        type(T_Lines),                 pointer      :: Line
+
+        !Local-----------------------------------------------------------------
+        type(T_Lines), pointer                      :: CurrLine
+
+        nullify(CurrLine)
+
+        call AddLine (Line, CurrLine)
+
+        CurrLine%nNodes = 2
+    
+        allocate(CurrLine%X(1:2))
+        allocate(CurrLine%Y(1:2))
+
+        CurrLine%X(1) = X1
+        CurrLine%Y(1) = Y1
+        CurrLine%X(2) = X2
+        CurrLine%Y(2) = Y2
+
+        call SetLimits(CurrLine)                            
+
+    end subroutine From2Points2Line   
+   
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
     subroutine AddLine (Lines, ObjLine)
@@ -1454,7 +1489,35 @@ d1:     do i=1, Count
     end function IsVisible
     !--------------------------------------------------------------------------
     
-    
+    logical function PointXYInsidePolySet(Polygon, XPoint, YPoint)
+
+        !Arguments ---------------------------------------------------------
+        type(T_Polygon), pointer             :: Polygon
+        real   ,                 intent(IN ) :: XPoint, YPoint
+
+        !Local -------------------------------------------------------------
+        type(T_PointF ),          pointer    :: Point
+        !Begin -------------------------------------------------------------
+
+        allocate(Point)
+
+        Point%X = XPoint
+        Point%Y = YPoint
+
+        if (IsVisible(Polygon, Point)) then
+
+            PointXYInsidePolySet = .true.
+
+        else
+
+            PointXYInsidePolySet = .false.
+
+        endif
+
+        deallocate(Point)
+        nullify   (Point)
+
+    end function PointXYInsidePolySet
     
     !--------------------------------------------------------------------------
     !Description    :   The first action performed is an acceleration test. if 
@@ -1464,7 +1527,7 @@ d1:     do i=1, Count
     !                   possibility of being inside the polygon. Thus, it is 
     !                   drawn a "semi-recta" on the X axis to the right of the
     !                   point. If the "semi-recta" intersects the polygon an 
-    !                   odd ("ímpar") number of times then the point is 
+    !                   odd ("Ã­mpar") number of times then the point is 
     !                   inside the polygon. The intersection test is performed 
     !                   for every segment of the polygon. If the point belongs 
     !                   is a vertix of the polygon or belongs to one of the 
@@ -1625,7 +1688,7 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
 
         deallocate(Segment)
 
-        !if number of intersections is odd (odd = ímpar) then
+        !if number of intersections is odd (odd = Ã­mpar) then
         !point is inside the polygon
         IsPointInsidePolygon = IsOdd(NumberOfIntersections)
 
@@ -1646,9 +1709,9 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
 !         operators for:
 !             == to test equality
 !             != to test inequality
-!             Point  = Point ± Vector
+!             Point  = Point Â± Vector
 !             Vector = Point - Point
-!             Vector = Vector ± Vector
+!             Vector = Vector Â± Vector
 !             Vector = Scalar * Vector    (scalar product)
 !     Segment with defining endpoints {Point P0, P1;}
 ! ===================================================================
@@ -3466,7 +3529,7 @@ i6:                         if (DirectionX.ne.0.) then
         !Local------------------------------------------------------
         type (T_polygon), pointer            :: AuxPolygon, AuxPolygon1
         real(8)                              :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
-        real                                 :: dx, dy    
+        real(8)                              :: dx, dy    
         integer                              :: n    
         logical                              :: SearchSeg
         real                                 :: ymin, ymax, xmin, xmax
@@ -3551,7 +3614,7 @@ i6:                         if (DirectionX.ne.0.) then
                         if (present(LineAng)) then
                             dx = x4-x3
                             dy = y4-y3
-                            LineAng = atan2(dy, dx)
+                            LineAng = datan2(dy, dx)
                         endif                        
                         exit
                     endif
@@ -3602,43 +3665,36 @@ i6:                         if (DirectionX.ne.0.) then
         !Arguments--------------------------------------------------
         real(8)                      :: x1,y1,x2,y2, x3, y3, x4, y4
         !Local------------------------------------------------------
-        real(8)                      :: xi, yi, d
+        !real(8)                      :: xi, yi, d, dxy1, dxy2
+        real(dp15), dimension(2)     :: A, B, C, D
+        
         !Begin------------------------------------------------------
 
-        SegIntersectSegR8 = .true.
-
-        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-        if (d == 0) SegIntersectSegR8 = .false.
-        
-        if (SegIntersectSegR8) then
-        
-            xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
-            
-            if      (abs(x1-x2)>0) then
-                yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
-            else if (abs(x3-x4)>0) then
-                yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
-            else
-                SegIntersectSegR8 = .false.
-            endif
-            
-            if (SegIntersectSegR8) then
-            
-                if (abs(x1-x2) > abs(y1-y2)) then
-                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSegR8 = .false.
-                else
-                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSegR8 = .false.
-                endif 
-
-                if (abs(x3-x4) > abs(y3-y4)) then
-                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSegR8 = .false.        
-                else
-                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSegR8 = .false.
-                endif
-            endif
-        endif
+        A(1) = x1
+        A(2) = y1
+        B(1) = x2
+        B(2) = y2
+        C(1) = x3
+        C(2) = y3
+        D(1) = x4
+        D(2) = y4
     
+        SegIntersectSegR8 = do_segments_intersect(A, B, C, D)        
+        
     end function SegIntersectSegR8    
+    
+    
+    function ccw(A, B, C) result(res)
+        real(dp15), dimension(2) :: A, B, C
+        real(dp15) :: res
+        res = (C(2) - A(2)) * (B(1) - A(1)) - (B(2) - A(2)) * (C(1) - A(1))
+    end function ccw
+
+    function do_segments_intersect(A, B, C, D) result(intersects)
+        real(dp15), dimension(2) :: A, B, C, D
+        logical :: intersects
+        intersects = (ccw(A, C, D) * ccw(B, C, D) <= 0.0_dp15) .and. (ccw(A, B, C) * ccw(A, B, D) <= 0.0_dp15)
+    end function do_segments_intersect    
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                       !
@@ -3646,7 +3702,7 @@ i6:                         if (DirectionX.ne.0.) then
 !                   the intersection of a polygon B (ref) and a                         !
 !                   polygon C (clip)using the Sutherl and Hodgman algorithm             !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -3700,7 +3756,7 @@ d1:     do i=1,ref%count-1 ! for each edge i of the polygon ref
 !                                                                                       !
 ! Subroutine goal : make the clipping  of the polygon by the line (x1x2)                !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -3778,7 +3834,7 @@ i4:     if (c .gt. 0) then
 ! Subroutine goal : computes the intersection between segment [x1x2]                    ! 
 !                   and line (y1y2)                                            !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -3835,7 +3891,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
 !                                                                                       !
 ! Subroutine goal :  function that tells is the point p is at left of the line (y1y2)   !
 !                                                                                       !
-! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+! Author : Paulo LeitÃ£o adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -4197,5 +4253,5 @@ end module ModuleDrawing
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------

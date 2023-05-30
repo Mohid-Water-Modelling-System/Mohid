@@ -322,6 +322,7 @@ Module ModuleHDF5
                 
             elseif  (Access == HDF5_READ_) then
                 
+                !write(*,*)'HDF5 file :'//trim(FileName)
                 inquire(FILE = trim(FileName), EXIST = Exist)
                 if (.not. Exist) then
                     write(*,*)'HDF5 file does not exist:'//trim(FileName)
@@ -696,7 +697,7 @@ Module ModuleHDF5
         integer(HID_T)                              :: attr_id
         integer(HID_T)                              :: STAT_CALL
         integer(HSIZE_T), dimension(7)              :: dims
-        real                                        :: OldValue = 0
+        real(4)                                     :: OldValue = 0
 
         !Opens Minimum attribute
         call h5aopen_name_f (ID, "Minimum", attr_id, STAT_CALL)
@@ -4287,7 +4288,9 @@ Module ModuleHDF5
 
             !Opens the Dataset
             call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5ReadWindowR8_2D - ModuleHDF5 - ERR20'
+            endif
 
                 !Gets the data type id
             call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
@@ -7172,7 +7175,9 @@ Module ModuleHDF5
                     
             call h5gget_obj_info_idx_f(Me%FileID, adjustl(trim(FatherGroupName)), GroupPosition-1, &   
                                        GroupName, GroupType, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR02'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'GetHDF5DataTypeID - ModuleHDF5 - ERR02'
+            endif
             
             if (GroupType == H5G_DATASET_F) then
 
