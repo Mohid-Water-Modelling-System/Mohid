@@ -7374,8 +7374,12 @@ cd0:    if (Exist) then
             if (Me%ComputeOptions%HarvestKill) then
 
                 allocate (PlantHarvestKillInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
-                
+                allocate (PlantKillInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
+                allocate (PlantHarvestOnlyInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
+
                 PlantHarvestKillInteger (:,:) = 0
+                PlantKillInteger (:,:) = 0
+                PlantHarvestOnlyInteger (:,:) = 0
                 
                 call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantHarvestKilled",                 &
                                      "IsPlantHarvestKilled",                                       &
@@ -7384,13 +7388,29 @@ cd0:    if (Exist) then
                 if (STAT_CALL /= SUCCESS_)                                                   &
                     stop 'ReadInitialHDF - ModuleVegetation - ERR04.1'
 
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantKilled",                 &
+                                     "IsPlantKilled",                                       &
+                                     Array2D = PlantKillInteger,                          &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR04.2'
+                
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantHarvestOnly",                 &
+                                     "IsPlantHarvestOnly",                                       &
+                                     Array2D = PlantHarvestOnlyInteger,                          &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR04.3'
 
                 ConvertType = "IntegerToLogical"
                 call ConvertLogicalInteger (Me%HarvestKillOccurred, PlantHarvestKillInteger, ConvertType)
+                call ConvertLogicalInteger (Me%KillOccurred, PlantKillInteger, ConvertType)
+                call ConvertLogicalInteger (Me%HarvestOnlyOccurred, PlantHarvestOnlyInteger, ConvertType)
                 
-                deallocate (PlantHarvestKillInteger)
-            
-            endif
+                deallocate (PlantHarvestKillInteger)                
+                deallocate (PlantKillInteger)
+                deallocate (PlantHarvestOnlyInteger)
+            endif          
 
             if (Me%ComputeOptions%Evolution%ModelSWAT) then 
                 allocate (PlantGrowingInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))                
