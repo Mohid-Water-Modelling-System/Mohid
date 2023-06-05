@@ -7286,7 +7286,8 @@ do4:        do GlobalUniquePest = 1,  Me%Fluxes%Pesticides%UniquePesticides
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: ObjHDF5
         integer                                     :: HDF5_READ
-        integer, dimension(:,:), pointer            :: PlantGrowingInteger, PlantDormantInteger, PlantHarvestKillInteger
+        integer, dimension(:,:), pointer            :: PlantGrowingInteger, PlantDormantInteger
+        integer, dimension(:,:), pointer            :: PlantHarvestKillInteger, PlantKillInteger, PlantHarvestOnlyInteger
         character (Len = StringLength)              :: ConvertType 
         logical                                     :: datasetExists
 
@@ -7381,6 +7382,7 @@ cd0:    if (Exist) then
                 PlantKillInteger (:,:) = 0
                 PlantHarvestOnlyInteger (:,:) = 0
                 
+                ConvertType = "IntegerToLogical"                
                 call HDF5ReadData   (ObjHDF5, "/Results/"//"IsPlantHarvestKilled",                 &
                                      "IsPlantHarvestKilled",                                       &
                                      Array2D = PlantHarvestKillInteger,                          &
@@ -15640,7 +15642,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         real, dimension(6), target              :: AuxTime
         real, dimension(:), pointer             :: TimePtr
         type (T_Time)                           :: Actual
-        integer, dimension(:,:), pointer        :: PlantGrowingInteger, PlantDormantInteger, PlantHarvestKillInteger
+        integer, dimension(:,:), pointer        :: PlantGrowingInteger, PlantDormantInteger
+        integer, dimension(:,:), pointer        :: PlantHarvestKillInteger, PlantKillInteger, PlantHarvestOnlyInteger
         character (Len = StringLength)          :: ConvertType 
         
         !----------------------------------------------------------------------
@@ -15808,11 +15811,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (Me%ComputeOptions%HarvestKill) then            
 
                 allocate (PlantHarvestKillInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
-                
+                allocate (PlantKillInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
+                allocate (PlantHarvestOnlyInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
+
                 PlantHarvestKillInteger (:,:) = 0
+                PlantKillInteger (:,:) = 0    
+                PlantHarvestOnlyInteger (:,:) = 0
                 
                 ConvertType = "LogicalToInteger"
                 call ConvertLogicalInteger (Me%HarvestKillOccurred, PlantHarvestKillInteger, ConvertType)
+                call ConvertLogicalInteger (Me%KillOccurred, PlantKillInteger, ConvertType) 
+                call ConvertLogicalInteger (Me%HarvestOnlyOccurred, PlantHarvestOnlyInteger, ConvertType)
                 
                 !Final value
                 call HDF5WriteData  (ObjHDF5, "/Results/"//"IsPlantHarvestKilled",                &
@@ -15823,7 +15832,26 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_)                                                  &
                     stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR142.1'
                 
+                !Final value
+                call HDF5WriteData  (ObjHDF5, "/Results/"//"IsPlantKilled",                &
+                                     "IsPlantKilled",                                       &
+                                     "-",                                                  &
+                                     Array2D = PlantKillInteger,                        &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR142.2'
+                
+                call HDF5WriteData  (ObjHDF5, "/Results/"//"IsPlantHarvestOnly",                &
+                                     "IsPlantHarvestOnly",                                       &
+                                     "-",                                                  &
+                                     Array2D = PlantHarvestOnlyInteger,                        &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR142.3'
+                
                 deallocate (PlantHarvestKillInteger)
+                deallocate (PlantKillInteger)
+                deallocate (PlantHarvestOnlyInteger)
             
             endif
 
