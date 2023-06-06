@@ -207,6 +207,7 @@ program DigitalTerrainCreator
         real                                        :: Tolerance                    = null_real
         logical                                     :: OutputTriangles              = .false.
         character(len=PathLength)                   :: File
+        logical                                     :: OutputEnvelope               = .false.
     end type T_Triang
 
 
@@ -1281,11 +1282,11 @@ i2:         if      (trim(AuxChar) == 'j') then
         jAux        = ncolumns / Me%DD%nJX
         
         if (iAux < 10) then
-            stop 'Construct_DD - DigitalTerrainCreator - ERR050'
+            stop 'Construct_DD - DigitalTerrainCreator - ERR070'
         endif
         
         if (jAux < 10) then
-            stop 'Construct_DD - DigitalTerrainCreator - ERR060'
+            stop 'Construct_DD - DigitalTerrainCreator - ERR080'
         endif        
         
         n = 1
@@ -1469,7 +1470,6 @@ i2:         if      (trim(AuxChar) == 'j') then
         if (STAT_CALL /= SUCCESS_) stop 'ReadTriangulationOptions - DigitalTerrainCreator - ERR20'
 
 
-        !Reads the tolerance distance between nodes
         call GetData (Me%Triang%OutputTriangles, Me%ObjEnterData, flag,             &
                       SearchType   = FromFile_,                                     &
                       keyword      ='WRITE_TRIANGLES',                              &
@@ -1479,13 +1479,21 @@ i2:         if      (trim(AuxChar) == 'j') then
         if (STAT_CALL /= SUCCESS_) stop 'ReadTriangulationOptions - DigitalTerrainCreator - ERR30'
 
 
-        !Reads the tolerance distance between nodes
         call GetData (Me%Triang%File, Me%ObjEnterData, flag,                        &
                       SearchType   = FromFile_,                                     &
                       keyword      ='TRIANGLES_FILE',                               &
                       ClientModule ='DigitalTerrainCreator',                        &
                       STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadTriangulationOptions - DigitalTerrainCreator - ERR40'
+        
+        
+        call GetData (Me%Triang%OutputEnvelope, Me%ObjEnterData, flag,              &
+                      SearchType   = FromFile_,                                     &
+                      keyword      ='WRITE_TRIANGLES_ENVELOPE',                     &
+                      default      = .false.,                                       &
+                      ClientModule ='DigitalTerrainCreator',                        &
+                      STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadTriangulationOptions - DigitalTerrainCreator - ERR50'        
 
     end subroutine ReadTriangulationOptions
     
@@ -3845,11 +3853,15 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
         !Local------------------------------------------------------------------
         real, dimension(:), pointer         :: NodeX, NodeY, NodeZ
-        integer                             :: i, j, STAT_CALL, Count, nNodes
+        real(8),   dimension(:), pointer    :: Envelope1DX, Envelope1DY
+        integer,   dimension(:), pointer    :: BoundaryNodes    
+        integer                             :: NumberOfBoundaryNodes
+        integer                             :: i, j, STAT_CALL, Count, nNodes, n
         integer                             :: UnitNumber, iT, nTriangles
         real,    dimension(:), pointer      :: XT, YT, ZT
         integer, dimension(:), pointer      :: V1, V2, V3
         real,    dimension(:), allocatable  :: Aux2
+        type (T_Polygon), pointer           :: Envelope 
 
         !Begin------------------------------------------------------------------
 
@@ -3867,6 +3879,41 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         call ConstructTriangulation (Me%ObjTriangulation, Me%TotalWithData, NodeX, NodeY, NodeZ,   &
                                      Me%Triang%Tolerance, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR10'
+        
+        
+        if (Me%Triang%OutputEnvelope) then
+        
+            call GetNumberOfBoundaryNodes(Me%ObjTriangulation, NumberOfBoundaryNodes, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR20'
+            
+            if (NumberOfBoundaryNodes > 2) then
+                allocate(BoundaryNodes(NumberOfBoundaryNodes))
+                allocate(Envelope1DX  (NumberOfBoundaryNodes))
+                allocate(Envelope1DY  (NumberOfBoundaryNodes))
+                
+                call GetBoundaryNodes(Me%ObjTriangulation, BoundaryNodes, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR30'          
+
+                do n = 1, NumberOfBoundaryNodes
+                
+                    i = BoundaryNodes(n)
+                    Envelope1DX (n) = NodeX(i) / Me%TriangScale  
+                    Envelope1DY (n) = NodeY(i) / Me%TriangScale
+                
+                enddo
+            
+                call new (Envelope, Envelope1DX, Envelope1DY)
+            
+                call writeItem (Envelope, 'Triang_Envelope.xy')
+            
+                deallocate(BoundaryNodes)
+                deallocate(Envelope1DX  )
+                deallocate(Envelope1DY  )
+                deallocate(Envelope     )
+                
+            endif
+        
+        endif        
 
         Count = 1
 
@@ -3894,7 +3941,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
                                                Me%Triang%FillOutsidePoints, &
                                                Default  = Me%NoDataPoint,   &
                                                STAT     = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR20'
+                if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR40'
 
                 Me%PointsNoData(Count,3) = Me%Depth(i, j)
 
@@ -3923,19 +3970,19 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
             allocate(V3(nTriangles))
 
             call GetTriangleList (Me%ObjTriangulation, v1, v2, v3, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR21'
+            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR50'
 
 
             !Gets nodes effictive used and the reordered nodes 
             call GetNumberOfNodes (Me%ObjTriangulation, nNodes, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR60'
 
             allocate(XT(nNodes))
             allocate(YT(nNodes))
             allocate(ZT(nNodes))
 
             call GetNodesList   (Me%ObjTriangulation, XT, YT, ZT, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunTriangulation - ERR14b'   
+            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR70'
             
             XT = XT / Me%TriangScale
             YT = YT / Me%TriangScale
@@ -3958,7 +4005,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         endif
 
         call KillTriangulation (Me%ObjTriangulation, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR80'
 
     end subroutine Triangulator
 
@@ -3970,7 +4017,12 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
         !Local------------------------------------------------------------------
         real, dimension(:), pointer         :: NodeX, NodeY, NodeZ
-        real, dimension(:), pointer         :: Aux_NodeX, Aux_NodeY, Aux_NodeZ        
+        real, dimension(:), pointer         :: Aux_NodeX, Aux_NodeY, Aux_NodeZ
+        real(8),   dimension(:), pointer    :: Envelope1DX, Envelope1DY
+        integer,   dimension(:), pointer    :: BoundaryNodes    
+        integer                             :: NumberOfBoundaryNodes, nb
+        type (T_Polygon), pointer           :: Envelope 
+
         integer                             :: i, j, STAT_CALL, icount, nNodes
         integer                             :: n, nD, DomainNodes
         integer                             :: ILB, IUB, JLB, JUB
@@ -3992,7 +4044,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         else
             LandArea = .false.
         endif
-        
+                    
 d1:     do n = 1, Me%DD%nD
     
             InterpolOk = .true.
@@ -4071,6 +4123,36 @@ d1:     do n = 1, Me%DD%nD
                     call ConstructTriangulation (Me%ObjTriangulation, DomainNodes, NodeX, NodeY, NodeZ,   &
                                                     Me%Triang%Tolerance, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Triangulator_DD - Digital Terrain Creator - ERR10'
+                    
+                    if (Me%Triang%OutputEnvelope) then
+        
+                        call GetNumberOfBoundaryNodes(Me%ObjTriangulation, NumberOfBoundaryNodes, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR20'
+                        
+                        if (NumberOfBoundaryNodes > 2) then
+                
+                            allocate(BoundaryNodes(NumberOfBoundaryNodes))
+                            allocate(Envelope1DX  (NumberOfBoundaryNodes))
+                            allocate(Envelope1DY  (NumberOfBoundaryNodes))
+                
+                            call GetBoundaryNodes(Me%ObjTriangulation, BoundaryNodes, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Triangulator - Digital Terrain Creator - ERR30'          
+
+                            do nb = 1, NumberOfBoundaryNodes
+                
+                                i = BoundaryNodes(nb)
+                                Envelope1DX (nb) = NodeX(i) / Me%TriangScale  
+                                Envelope1DY (nb) = NodeY(i) / Me%TriangScale
+                
+                            enddo
+            
+                            call new (Envelope, Envelope1DX, Envelope1DY)
+            
+                            deallocate(BoundaryNodes)
+                            deallocate(Envelope1DX  )
+                            deallocate(Envelope1DY  )
+                        endif        
+                    endif 
         
                     ILB = Me%DD%BorderLimits(n)%ILB
                     IUB = Me%DD%BorderLimits(n)%IUB 
@@ -4117,6 +4199,14 @@ d1:     do n = 1, Me%DD%nD
 
         deallocate (Aux_NodeX, Aux_NodeY, Aux_NodeZ)
 
+        if (Me%Triang%OutputEnvelope) then
+            
+            if (associated(Envelope)) then
+                call writeItem (Envelope, 'Triang_Envelope.xy')
+                deallocate(Envelope     )
+            endif
+        endif 
+        
     end subroutine Triangulator_DD
 
 

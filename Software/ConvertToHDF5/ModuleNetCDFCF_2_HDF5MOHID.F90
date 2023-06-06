@@ -216,6 +216,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: VectorX
         character(len=StringLength)             :: VectorY        
         logical                                 :: CenterX, CenterY
+        integer                                 :: di, dj
         logical                                 :: ComputeRH
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
         logical                                 :: ComputeRH_V2
@@ -4009,6 +4010,24 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                  STAT         = STAT_CALL)       
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR290'
+                    
+                    call GetData(Me%Field(ip)%dj,                                   &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'DJ',                               &
+                                 default      = 1,                                  &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR292'
+
+                    call GetData(Me%Field(ip)%di,                                   &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'DI',                               &
+                                 default      =  1,                                 &                                 
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR294'                    
                                         
 
                     call GetData(Me%Field(ip)%Limit,                                &
@@ -5717,8 +5736,11 @@ i5:         if (Me%OutHDF5) then
         !Local-----------------------------------------------------------------
         real(8), dimension(:), pointer                  :: DepthAux, ValueAux
         real(8)                                         :: Depthx
-        integer                                         :: i, j, k, mask, l, kin, ic
+        integer                                         :: i, j, k, mask, l, kin, ic, di, dj
         !Begin-----------------------------------------------------------------
+        
+        di = Me%Field(iP)%di
+        dj = Me%Field(iP)%dj
         
         
         if      (Me%Field(iP)%Dim==3) then 
@@ -5750,8 +5772,8 @@ i5:         if (Me%OutHDF5) then
                             kin = k
                         endif    
                 
-                        Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
-                                                                            Dim2 = i+1, Dim3 = kin, Dim4 = 1)
+                        Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+dj, &
+                                                                            Dim2 = i+di, Dim3 = kin, Dim4 = 1)
                     else
                         ic  = Me%Depth%kmax + 1
                         do l= Me%Depth%kmax,1,-1
@@ -5768,8 +5790,8 @@ i5:         if (Me%OutHDF5) then
                                     
                                 ic = l
                                     
-                                ValueAux(l)= GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
-                                                            Dim2 = i+1, Dim3 = kin, Dim4 = 1)
+                                ValueAux(l)= GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+dj, &
+                                                            Dim2 = i+di, Dim3 = kin, Dim4 = 1)
                                                                 
                                 DepthAux(l)= Depthx
                             else
@@ -5867,10 +5889,10 @@ i5:         if (Me%OutHDF5) then
                 if (mask == 1) then
                     if (Me%Field(iP)%ValueIn%Dim == 3) then
                         Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
-                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = 1)
+                                                            Dim1 = j+dj, Dim2 = i+di, Dim3 = 1)
                     else
                         Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
-                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
+                                                            Dim1 = j+dj, Dim2 = i+di, Dim3 = 1, Dim4 = 1)
                     endif
                     Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
                         
@@ -7093,9 +7115,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         !Build HDF5 MOHID Grid
         Me%WorkSize%ILB = Me%LongLat%dij
-        Me%WorkSize%IUB = Me%LongLat%imax - 1 - Me%LongLat%dij
+        Me%WorkSize%IUB = Me%LongLat%imax - Me%LongLat%dij - 1
         Me%WorkSize%JLB = Me%LongLat%dij
-        Me%WorkSize%JUB = Me%LongLat%jmax - 1 - Me%LongLat%dij
+        Me%WorkSize%JUB = Me%LongLat%jmax - Me%LongLat%dij - 1
         
         !to warn the user before the model crashes
         !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
@@ -7116,8 +7138,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
         
         
-        do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
-        do i=Me%WorkSize%ILB, Me%WorkSize%IUB+1
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB + 1
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB + 1
         
             X1 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j,   Dim2 = i  )
             X2 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j+1, Dim2 = i  )
@@ -7168,6 +7190,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         write(*,*)
         write(*,*)'Read Grid 3D NetCDF file...'
+        
+        
 
   
 

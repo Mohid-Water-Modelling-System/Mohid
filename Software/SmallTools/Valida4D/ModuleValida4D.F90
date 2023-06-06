@@ -3238,7 +3238,11 @@ iN2:                if (NewFields) then
         write(AuxC,*) "Seconds ",   trim(adjustl(Me%OutSpace))," ",  trim(adjustl(Me%OutProp)), " StationName"
         write(unit,'(A)') trim(adjustl(AuxC))
         
+        AuxC =""
+        
         write(unit,*) "<BeginTable>"
+        
+        
         
 diV:    do iV = 1, Me%TableValues       
 
@@ -3248,6 +3252,8 @@ diV:    do iV = 1, Me%TableValues
                 write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV)
             else if (Me%Dcolumn > FillValueInt .or. Me%ComputeD) then
                 write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%D(iV)
+            else
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV)
             endif        
 
             if (Me%NullValue(iV)) then
@@ -3257,6 +3263,8 @@ diV:    do iV = 1, Me%TableValues
             endif
             
             write(unit,'(A)') trim(adjustl(AuxC))
+            
+            AuxC =""
             
         enddo diV
         
