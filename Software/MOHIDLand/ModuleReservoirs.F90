@@ -87,6 +87,9 @@ Module ModuleReservoirs
     integer,    parameter                             :: Operation_PercVol_PercInflow_   = 4
     integer,    parameter                             :: Operation_PercVol_PercMaxOutflow_   = 5
     
+	!Options for maximum volume definition
+    integer,    parameter                             :: UniqueValue_                    = 1
+    integer,    parameter                             :: MonthlyValues_                  = 2   
     !Initial Conditions
     integer,    parameter                             :: StartPercentageFull_            = 1
     !integer,    parameter                             :: StartMinimumVolume_             = 2
@@ -286,6 +289,7 @@ Module ModuleReservoirs
         real                                          :: Outflow              = null_real
         real                                          :: Discharges           = null_real
         real                                          :: SurfaceFluxes        = null_real    
+		real                                          :: ExtraOutflow         = null_real
         
         !Management
         type(T_Management)                            :: Management
@@ -294,8 +298,10 @@ Module ModuleReservoirs
         logical                                       :: IsWeir              = .false.
         
         !volumes
+		integer                                       :: MaxVolumeType        = null_int    !Added by Ana Oliveira
         real                                          :: MinVolume            = null_real
         real                                          :: MaxVolume            = null_real
+		real, dimension (12)                          :: MaxVolume_Monthly    = null_real   !Added by Ana Oliveira
         real                                          :: InitialVolume        = null_real
         logical                                       :: InitialVolumeDefined = .false.
         !Geometry
@@ -313,6 +319,8 @@ Module ModuleReservoirs
         type (T_Reservoir), pointer                   :: Next                 => null()
         type (T_Reservoir), pointer                   :: Prev                 => null()       
         type (T_TimeSerieImposed)                     :: TimeSeries           
+        
+        integer                                       :: ConstructionYear     = null_int    !Added by Ana Oliveira
     end type T_Reservoir    
     
     private :: T_Reservoirs
@@ -807,15 +815,38 @@ if2:            if (BlockFound) then
                      ClientModule = 'ModuleReservoirs',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR060'         
+		
+		!Choose if the maximum value of reservoir varies every month or if it is constant - by Ana Oliveira
+        call GetData(NewReservoir%MaxVolumeType,                                        &
+                     Me%ObjEnterDataReservoirFile, iflag,                               &
+                     SearchType     = FromBlock,                                        &
+                     Keyword        = 'MAX_VOLUME_TYPE',                                &
+                     default        = 1,                                                &
+                     ClientModule   = 'ModuleReservoirs',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleReservoirs - ERR70'  
         
-        !Total Capacity (at full suply level)
-        call GetData(NewReservoir%MaxVolume,                                            &
-                     Me%ObjEnterDataReservoirFile, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      ='MAX_VOLUME',                                        &
-                     ClientModule = 'ModuleReservoirs',                                 &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR060' 
+        !Total Capacity (at full supply level)
+        if (NewReservoir%MaxVolumeType == UniqueValue_) then
+            call GetData(NewReservoir%MaxVolume,                                            &
+                         Me%ObjEnterDataReservoirFile, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      ='MAX_VOLUME',                                        &
+                         ClientModule = 'ModuleReservoirs',                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR070.1'
+        endif
+        
+        if (NewReservoir%MaxVolumeType == MonthlyValues_) then
+            call GetData(NewReservoir%MaxVolume_Monthly,                                    &
+                         Me%ObjEnterDataReservoirFile, iflag,                               &
+                         SearchType   = FromBlock,                                          &
+                         keyword      ='MAX_VOLUME',                                        &
+                         ClientModule = 'ModuleReservoirs',                                 &
+                         STAT         = STAT_CALL)
+            NewReservoir%MaxVolume = maxval(NewReservoir%MaxVolume_Monthly)
+            if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR070.2'
+        endif
         if (iflag == 0) then
             write(*,*) 'Not Found Reservoir maximum volume [MAX_VOLUME]'
             stop 'ConstructReservoirValues - ModuleReservoirs - ERR061'
@@ -923,7 +954,16 @@ if2:            if (BlockFound) then
             endif
         endif
         
-
+        ! Added by Ana Oliveira
+        call GetData(NewReservoir%ConstructionYear,                                     &
+                     Me%ObjEnterDataReservoirFile, iflag,                               &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'CONSTRUCTION_YEAR',                                &
+                     default      = 0,                                                  &
+                     ClientModule = 'ModuleReservoirs',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR150'
+        
 
     end subroutine ConstructReservoir
 
@@ -2811,11 +2851,16 @@ cd0:    if (Exist) then
         !Arguments------------------------------------------------------------
         !Local-----------------------------------------------------------------        
         type(T_Reservoir),           pointer    :: CurrentReservoir
+        real, dimension(6), target              :: AuxTime
 
         !Begin----------------------------------------------------------------
 
         CurrentReservoir => Me%FirstReservoir
             
+        !To get the first year of the simulation - Ana Oliveira
+        call ExtractDate   (Me%ExtVar%BeginTime , AuxTime(1), AuxTime(2),         &
+                            AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
+        
         do while (associated(CurrentReservoir))
                 
             !if value defined in reservoir file or in timeseries, aplly it
@@ -2832,7 +2877,12 @@ cd0:    if (Exist) then
                 endif 
             endif
             
-            CurrentReservoir%VolumeNew = CurrentReservoir%VolumeOld
+            !If the year of construction is bigger than the current year the percentage full must be 0 - Ana Oliveira
+            if (CurrentReservoir%ConstructionYear <= AuxTime(1)) then
+                CurrentReservoir%VolumeNew = CurrentReservoir%VolumeOld
+            else
+                CurrentReservoir%VolumeNew = 0.0
+            endif
             
             if (associated(CurrentReservoir%Management%AccVolumeCurve)) then
                 CurrentReservoir%WaterLevel = ComputeReservoirLevel(CurrentReservoir)
@@ -4372,14 +4422,57 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         type(T_Reservoir),           pointer    :: CurrentReservoir
-        real                                   :: Outflow
+        real                                    :: Outflow
+		logical	                                :: GetOutflowFromOperation_
+        real, dimension(6)  , target            :: AuxTime
+        integer                                 :: NextMonth
+        integer                                 :: SecondsUntilNextMonth
+        real                                    :: CurrReservoir_MaxVol, CurrReservoir_NextMaxVol
         !Begin----------------------------------------------------------------
 
+		! To get the year, month, day, hours, minutes and seconds of the date - Ana Oliveira
+        call ExtractDate   (Me%ExtVar%ActualTime , AuxTime(1), AuxTime(2),         &
+                                                   AuxTime(3), AuxTime(4),         &
+                                                   AuxTime(5), AuxTime(6))
+		
+		if (int(AuxTime(2)) == 12) then
+		 NextMonth = 1
+		else
+		 NextMonth = int(AuxTime(2)) + 1
+		end if
+        
+        SecondsUntilNextMonth = NumberOfDaysInMonth(int(AuxTime(1)), int(AuxTime(2))) * 86400 - int(AuxTime(3)) * &
+						    86400 + int(AuxTime(4)) * 3600 + int(AuxTime(5)) * 60 + int(AuxTime(6)) + 86400
+        
         CurrentReservoir => Me%FirstReservoir
         
-
         do while (associated(CurrentReservoir))
+            CurrReservoir_MaxVol = CurrentReservoir%MaxVolume_Monthly(int(AuxTime(2)))
+            CurrReservoir_NextMaxVol = CurrentReservoir%MaxVolume_Monthly(NextMonth)
             
+            ! If user defines one max volume per month a correction between consecutive months needs to be performed - Ana Oliveira
+			if (CurrentReservoir%MaxVolumeType == MonthlyValues_) then
+                if (CurrentReservoir%VolumeNew > CurrReservoir_NextMaxVol .and. &
+                    CurrReservoir_NextMaxVol < CurrReservoir_MaxVol) then
+
+                        CurrentReservoir%ExtraOutflow = (CurrReservoir_MaxVol - CurrReservoir_NextMaxVol) / SecondsUntilNextMonth
+							
+						GetOutflowFromOperation_ = .true.
+                        
+                else if (CurrentReservoir%VolumeNew < CurrentReservoir%MaxVolume .and. &
+                            CurrentReservoir%VolumeNew > CurrReservoir_NextMaxVol .and. &
+                            CurrReservoir_NextMaxVol < CurrReservoir_MaxVol) then
+
+                            CurrentReservoir%ExtraOutflow = (CurrentReservoir%VolumeNew - CurrReservoir_NextMaxVol) / SecondsUntilNextMonth + Me%ReservoirInflows(CurrentReservoir%Position)
+                                
+                            GetOutflowFromOperation_ = .false.
+                        
+                else
+                    CurrentReservoir%ExtraOutflow = 0.0
+                endif
+            else
+                CurrentReservoir%ExtraOutflow = 0.0
+            endif            
             
             !since reservoirs never go below (associated to discharger location) limit. 
             !in undefined MinVolume is zero
@@ -4407,8 +4500,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             !operation
             else if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedOperation) then            
                                     
-                !Compute outflow. uses environmental flow if curves defined above curr volume
-                Outflow = GetOutflowFromOperation(CurrentReservoir)                                                     
+                if (GetOutflowFromOperation_) then
+					!Compute outflow. uses environmental flow if curves defined above curr volume
+					Outflow = GetOutflowFromOperation(CurrentReservoir)
+				end if                                                     
                                 
             !only minimum flow defined
             else if (CurrentReservoir%Management%ON) then
@@ -4446,14 +4541,20 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 Outflow = CurrentReservoir%Management%MaxOutflow
             endif
             
-            CurrentReservoir%Outflow = Outflow
-            
+            !If the year of construction is bigger than the current year the outflow will be calculate 
+            !by the operational curve, otherwise the outflow will bu equal the inflow and there is not 
+            !accumulated volume - Ana Oliveira
+            if (AuxTime(1) >= CurrentReservoir%ConstructionYear) then
+                CurrentReservoir%Outflow = Outflow
+            else
+                CurrentReservoir%Outflow = Me%ReservoirInflows(CurrentReservoir%Position)
+            endif
 
-            !update outflows to DN - includes the ones from imposed discharge
+             !update outflows to DN - includes the ones from imposed discharge
+            CurrentReservoir%Outflow = CurrentReservoir%Outflow + CurrentReservoir%ExtraOutflow
             Me%ReservoirOutflows(CurrentReservoir%Position) = Me%ReservoirOutflows(CurrentReservoir%Position)   &
-                                                                + CurrentReservoir%Outflow
-                                                         
-            
+                                                                + CurrentReservoir%Outflow + CurrentReservoir%ExtraOutflow
+                                                                   
             CurrentReservoir => CurrentReservoir%Next
         enddo
                     

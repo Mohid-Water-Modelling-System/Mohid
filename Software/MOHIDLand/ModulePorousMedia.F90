@@ -8785,7 +8785,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                                                   (con      = ConductivityFace,           &
                                                    hinf     = BoundaryFinalHead,          &
                                                    hsup     = Me%FinalHead (i  ,  j,k),   &
-                                                   delta    = Me%ExtVar%DUX(i,j)       )
+                                                   delta    = Me%ExtVar%DUX(i,j)/2       )		!Division by 2 added by Ana Oliveira because the distance with soil is just half a cell
                             endif
                         enddo
 
@@ -8798,7 +8798,7 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                                                   (con      = ConductivityFace,           &
                                                    hinf     = BoundaryFinalHead,          &
                                                    hsup     = Me%FinalHead (i  ,  j,k),   &
-                                                   delta    = Me%ExtVar%DVY(i,j)       )
+                                                   delta    = Me%ExtVar%DVY(i,j)/2       )		!Division by 2 added by Ana Oliveira because the distance with soil is just half a cell
                             endif
                         enddo
                                                
