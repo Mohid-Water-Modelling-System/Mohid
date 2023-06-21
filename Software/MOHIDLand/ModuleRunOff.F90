@@ -5243,6 +5243,7 @@ do2:        do
         
         !--------------------------------------------------------------------------
         integer                                         :: STAT_CALL, n, m, i, c, dpos, SaveResults, nodeType
+        integer                                         :: InletNumber, Aux
         integer                                         :: ObjStormWaterEnterData = 0, iflag, xn
         character(len = :, kind = c_char), allocatable  :: inpFile, rptFile, outFile
         character(len = 99, kind = c_char)              :: nodeName
@@ -5637,12 +5638,14 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         enddo
 
         !Check for more than one inlet per grid cell
-        do n = 1, Me%NumberOfInlets
-            Me%Inlets(n)%nInletsInGridCell = 1
-            do m = 1, Me%NumberOfInlets
-                if(n .ne. m)then
-                    if(Me%Inlets(n)%CellID == Me%Inlets(n)%CellID)then
-                        Me%Inlets(n)%nInletsInGridCell = Me%Inlets(n)%nInletsInGridCell + 1
+        do InletNumber = 1, Me%NumberOfInlets
+            Me%Inlets(InletNumber)%nInletsInGridCell = 1
+            do Aux = 1, Me%NumberOfInlets
+                if(InletNumber .ne. Aux)then
+                    !if(Me%Inlets(n)%CellID == Me%Inlets(n)%CellID)then
+                    if((Me%Inlets(InletNumber)%I == Me%Inlets(Aux)%I) .and. &
+                       (Me%Inlets(InletNumber)%J == Me%Inlets(Aux)%J)) then
+                        Me%Inlets(InletNumber)%nInletsInGridCell = Me%Inlets(InletNumber)%nInletsInGridCell + 1
                     endif
                 endif
             enddo
@@ -10535,9 +10538,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%Inlets(n)%FlowEnteringCell= FlowEnteringCell
             Me%Inlets(n)%PotentialFlow = Min(InletInflow, (Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
                                                            Me%Inlets(n)%nInletsInGridCell)
+            
 
         enddo
-            
 
     end subroutine ComputeInletsPotentialFlow
         

@@ -26,7 +26,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-
 2 TEXTINCLUDE 
 BEGIN
     "#include ""winres.h""\r\n"
@@ -40,6 +39,11 @@ BEGIN
     "\0"
 END
 
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
 #endif    // APSTUDIO_INVOKED
 
 
@@ -49,8 +53,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,1
- PRODUCTVERSION 1,0,0,1
+ FILEVERSION 1,0,0,2
+ PRODUCTVERSION 1,0,0,2
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -67,10 +71,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Instituto Superior Tecnico - Universidade de Lisboa"
             VALUE "FileDescription", "MOHID Land"
-            VALUE "FileVersion", "1.0.0.1"
+            VALUE "FileVersion", "1.0.0.2"
             VALUE "LegalCopyright", "Copyright (C) 2022 Instituto Superior Tecnico - Universidade de Lisboa"
             VALUE "ProductName", "MOHID Land "
-            VALUE "ProductVersion", "1.0.0.1"
+            VALUE "ProductVersion", "1.0.0.2"
         END
     END
     BLOCK "VarFileInfo"
