@@ -215,6 +215,7 @@ Module ModuleDischarges
         real                                    :: WeirLength           = null_real
         real                                    :: DischargeCoeficient  = null_real
         real                                    :: CrestHeigth          = null_real
+        real                                    :: MaxFlow              = null_real
     end  type T_FlowOver
 
     type       T_RatingCurve
@@ -1420,6 +1421,16 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             if (Me%ReferentialZ == Hydrographic_) then
                 NewDischarge%FlowOver%CrestHeigth =  - NewDischarge%FlowOver%CrestHeigth
             endif
+            
+            call GetData(NewDischarge%FlowOver%MaxFlow,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='MAX_WEIR_FLOW',                                 &
+                         default      = 1e6,                                            &  
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR85'            
 
         else if (NewDischarge%DischargeType == Valve) then i2
 
@@ -3786,6 +3797,12 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                                          DischargeX%FlowOver%WeirLength  * H ** 1.5
                 else
                     Flow = 0.
+                endif
+                
+                if (abs(Flow) > DischargeX%FlowOver%MaxFlow) then
+                    
+                    Flow = - DischargeX%FlowOver%MaxFlow
+                    
                 endif
 
 
