@@ -227,6 +227,8 @@ Module ModuleSand
         real,    pointer, dimension(:,:)        :: WaveHeight       => null()
         real,    pointer, dimension(:,:)        :: WavePeriod       => null()
         real                                    :: MinWaterColumn   = FillValueReal 
+        
+        real,    pointer, dimension(:,:)        :: CohesiveMass     => null()
     end type T_External
 
     private :: T_Residual
@@ -278,8 +280,8 @@ Module ModuleSand
         real                                    :: DZDT         = FillValueReal        
         real                                    :: BathymDT     = FillValueReal
         type (T_Time)                           :: NextSand, NextBatim, NextDZ
-        logical                                 :: Bathym       = .false. 
-        !Selma
+        logical                                 :: Bathym           = .false. 
+        logical                                 :: BathymCohesive   = .false.      
         integer                                 :: BathymType   = Time_
         real                                    :: Gama         = FillValueReal
         integer                                 :: NumericMethod= FillValueInt
@@ -354,7 +356,7 @@ Module ModuleSand
         real(8), dimension(:),   pointer        :: ResidualCrossShoreVel    => null()        
         real,    dimension(:,:), pointer        :: BathymetryNext           => null()
         real,    dimension(:,:), pointer        :: BathymetryPrevious       => null()
-        !Difference between reference bathymetry and bathymetry at instant X (negative - erosion)
+        !Difference between reference bathymetry and bathymetry at instant X (negative - erosion) of sand
         type (T_Property)                       :: DZ_Residual
         !Distance of the cell centers to the domain side that corresponds to the coast boundary
         real(8), dimension(:,:), pointer        :: DistanceToCoastRef       => null()
@@ -383,7 +385,11 @@ Module ModuleSand
         type (T_Evolution )                        :: Evolution
         type (T_Filter    )                        :: Filter
         type (T_SmoothSlope)                       :: SmoothSlope
-        type (T_Property)                          :: BedRock, DZ, BatimIncrement, DZ_Residual
+        type (T_Property)                          :: BedRock, DZ, BatimIncrement
+        !Difference between reference bathymetry and bathymetry at instant X (negative - erosion) of sand
+        type (T_Property)                          :: DZ_Residual
+        !Difference between reference bathymetry and bathymetry at instant X (negative - erosion) of cohesive sediments
+        type (T_Property)                          :: DZ_Residual_Cohesive           
         type (T_Aceleration)                       :: Aceleration
         type (T_Property)                          :: D35, D50, D90
         type (T_Property)                          :: Uaverage, Vaverage
@@ -392,7 +398,9 @@ Module ModuleSand
         logical                                    :: ResidualCurrent
         real                                       :: SandMin               = FillValueReal
         real                                       :: Porosity              = FillValueReal
-        real                                       :: Density               = FillValueReal
+        real                                       :: Density               = FillValueReal        
+        real                                       :: Porosity_Cohesive     = FillValueReal
+        real                                       :: Density_Cohesive      = FillValueReal
         real                                       :: RelativeDensity       = FillValueReal
         real                                       :: RhoSl                 = FillValueReal
         integer                                    :: Boundary              = FillValueInt
@@ -1900,6 +1908,33 @@ cd2 :               if (BlockFound) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR05'
         
+        
+        if (Me%Evolution%Bathym) then
+        
+        
+            !<BeginKeyword>
+                !Keyword          : BATHYM_EVOLUTION
+                !<BeginDescription>       
+                   ! Check if the user wants to let the bathymetry evolve due to cohesive transport
+                   !
+                !<EndDescription>
+                !Type             : logical
+                !Default          : .true.
+                !File keyword     : SAND_DATA
+                !Search Type      : FromFile
+            !<EndKeyword>
+
+            call GetData(Me%Evolution%BathymCohesive,                                        &
+                         Me%ObjEnterData,iflag,                                              &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'BATHYM_EVOLUTION_COHESIVE',                         &
+                         default      = .false.,                                             &
+                         ClientModule = 'ModuleSand',                                        &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+        
+        endif
+        
         !<BeginKeyword>
             !Keyword          : ADD_BEDROCK_2_BATHYM
             !<BeginDescription>       
@@ -2046,7 +2081,7 @@ cd2 :               if (BlockFound) then
 
 
         allocate(Me%DZ_Residual%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
+        
         Me%DZ_Residual%ID%Name  = 'DZ_Residual'
         Me%DZ_Residual%ID%Units = 'm'
 
@@ -2058,6 +2093,18 @@ cd2 :               if (BlockFound) then
 
             Me%DZ_Residual%Field2D(:,:) = 0.
 
+        endif
+        
+        if (Me%Evolution%BathymCohesive) then
+        
+            allocate(Me%DZ_Residual_Cohesive%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        
+            Me%DZ_Residual_Cohesive%ID%Name  = 'DZ_Residual_Cohesive'
+            Me%DZ_Residual_Cohesive%ID%Units = 'm'
+
+            Me%DZ_Residual_Cohesive%Field2D(:,:) = 0.
+
+        
         endif
 
         !<BeginKeyword>
@@ -2106,6 +2153,32 @@ cd2 :               if (BlockFound) then
         if (Me%Porosity < 0. .or. Me%Porosity > 1.) then
             stop 'ConstructGlobalParameters - ModuleSand - ERR210' 
         endif
+        
+        !<BeginKeyword>
+            !Keyword          : POROSITY_COHESIVE
+            !<BeginDescription>       
+               ! The minimum sand thickness
+               !
+            !<EndDescription>
+            !Type             : real
+            !Default          : 0.1
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%Porosity_Cohesive,                                               &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'POROSITY_COHESIVE',                                 &
+                     default      = 0.8,                                                 &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR200'
+        
+        if (Me%Porosity_Cohesive < 0. .or. Me%Porosity_Cohesive > 1.) then
+            stop 'ConstructGlobalParameters - ModuleSand - ERR212' 
+        endif
+        
 
 
         !<BeginKeyword>
@@ -2132,6 +2205,30 @@ cd2 :               if (BlockFound) then
         Me%RhoSl           = Me%Density - Me%ExternalVar%WaterDensity
 
         Me%RelativeDensity = Me%RhoSl / Me%ExternalVar%WaterDensity
+        
+        
+
+        !<BeginKeyword>
+            !Keyword          : DENS_COHESIVE
+            !<BeginDescription>       
+               ! Sand density in kg/m^3
+               !
+            !<EndDescription>
+            !Type             : real
+            !Default          : 2650. 
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%Density_Cohesive,                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'DENS_COHESIVE',                                     &
+                     default      = 2650.,                                               &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR225'
+        
 
         !Allocate fluxes
         allocate(Me%FluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -2999,21 +3096,23 @@ ifMS:   if (MasterOrSlave) then
     subroutine ModifySand(ObjSandID, TauTotal, CurrentRugosity, WaveRugosity,   &
                           WaterColumn, VelU, VelV, VelMod, TauWave, TauCurrent, &
                           ShearVelocity, MinWaterColumn, VelU_Face, VelV_Face,  &
-                          VelResidualU, VelResidualV, STAT)
+                          VelResidualU, VelResidualV, CohesiveMass, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSandID
         real, dimension(:,:), pointer               :: TauTotal, CurrentRugosity, WaveRugosity, &
                                                        WaterColumn, VelU, VelV, VelMod,         &
                                                        TauWave, TauCurrent, ShearVelocity,      &
-                                                       VelU_Face, VelV_Face, VelResidualU, VelResidualV
+                                                       VelU_Face, VelV_Face, VelResidualU,      & 
+                                                       VelResidualV
         real,    intent(IN )                        :: MinWaterColumn      
+        real, dimension(:,:), pointer, optional     :: CohesiveMass
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_, STAT_CALL
         logical                                     :: ChangeBathym
-                                                       
+        real, dimension(:,:), pointer               :: DZ_Residual_Aux                                                       
 
         !----------------------------------------------------------------------
 
@@ -3068,6 +3167,10 @@ ifMS:   if (MasterOrSlave) then
                     Me%ExternalVar%ShearVelocity   => ShearVelocity
 
                     Me%ExternalVar%MinWaterColumn  =  MinWaterColumn
+                    
+                    if (present(CohesiveMass)) then
+                        Me%ExternalVar%CohesiveMass    =>  CohesiveMass
+                    endif
                     
                     call ComputeFluxes
                     
@@ -3169,9 +3272,28 @@ ifMS:   if (MasterOrSlave) then
                                 if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR25.'
                             else                                
     !                            call ModifyGridData(Me%ObjBathym, Me%BatimIncrement%Field2D, Add = .false.,  &
-                                call ModifyGridData(Me%ObjBathym, Me%DZ_Residual%Field2D, Add = .false.,  &
+                                
+                                allocate (DZ_Residual_Aux(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                                DZ_Residual_Aux =  Me%DZ_Residual%Field2D
+                                
+                                if (Me%Evolution%BathymCohesive) then
+                                
+                                    if (.not.associated(Me%ExternalVar%CohesiveMass)) then
+                                        write(*,*) "The bathymetry to evolve due to cohesive sediments need to"
+                                        write(*,*) "have connect the cohesive sediment property in the modules:"
+                                        write(*,*)  "interfacesedimentwater and WaterProperties" 
+                                        stop 'ModifySand - ModuleSand - ERR28.'
+                                    endif
+                                    
+                                    call AddCohesiveMassToBathym(DZ_Residual_Aux)
+                                    
+                                endif                                
+                                
+                                call ModifyGridData(Me%ObjBathym, DZ_Residual_Aux, Add = .false.,  &
                                                     ResidualIncrement = .true., STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR30.'
+                                
+                                deallocate (DZ_Residual_Aux)
                                 
                             endif                                
 
@@ -3241,6 +3363,41 @@ ifMS:   if (MasterOrSlave) then
     
     !--------------------------------------------------------------------------
 
+        !--------------------------------------------------------------------------
+
+    subroutine AddCohesiveMassToBathym(DZ_Residual_Aux)
+
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:), pointer      :: DZ_Residual_Aux
+        !Local-----------------------------------------------------------------
+        real                               :: Cohesive_porosity, Cohesive_density, DZ_Cohesive
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+
+
+      
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                Cohesive_porosity     = Me%Porosity_Cohesive
+                Cohesive_density      = Me%Density_Cohesive
+                DZ_Cohesive           = Me%ExternalVar%CohesiveMass(i,j) / (1 -  Cohesive_porosity) / Cohesive_density
+                DZ_Residual_Aux(i, j) = DZ_Residual_Aux(i, j) + DZ_Cohesive
+                Me%DZ_Residual_Cohesive%Field2D(i, j) = DZ_Cohesive
+
+            endif
+                                   
+        enddo
+        enddo
+
+
+
+    end subroutine AddCohesiveMassToBathym
+    
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
@@ -6751,8 +6908,8 @@ d1:         do DischargeID = 1, DischargesNumber
 
                 if (Me%Evolution%Bathym) then
 
-            dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
-                    Me%ExternalVar%DZX(i,j-1)
+                    dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
+                            Me%ExternalVar%DZX(i,j-1)
 
                     dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
                             Me%ExternalVar%DZY(i-1,j)                
@@ -7036,7 +7193,7 @@ d1:         do DischargeID = 1, DischargesNumber
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
                 
                 Me%DZ_Residual%Field2D(i, j)    = Me%DZ_Residual%Field2D(i, j) + Me%DZ%Field2D(i, j)
-
+                
             endif
 
         enddo
@@ -7160,6 +7317,16 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      trim(Me%DZ_Residual%ID%Units), Array2D = Me%DZ_Residual%Field2D,   &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR70'
+
+                
+                if (Me%Evolution%BathymCohesive) then
+                
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ_Residual_Cohesive%ID%Name), trim(Me%DZ_Residual_Cohesive%ID%Name),  &
+                                         trim(Me%DZ_Residual_Cohesive%ID%Units), Array2D = Me%DZ_Residual_Cohesive%Field2D,   &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR72'
+                
+                endif
 
                 do j = WorkJLB, Me%WorkSize%JUB
                 do i = WorkILB, Me%WorkSize%IUB
@@ -7575,6 +7742,10 @@ if1:            if (Me%Classes%Number > 0) then
 !                endif
 
                 deallocate(Me%DZ_Residual%Field2D)
+                
+                if (Me%Evolution%BathymCohesive) then
+                    deallocate(Me%DZ_Residual_Cohesive%Field2D)
+                endif
 
                 if (Me%Filter%ON) deallocate (Me%Filter%Field2D)
 
