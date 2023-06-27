@@ -10420,7 +10420,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
      !--------------------------------------------------------------------------
 
     subroutine ComputeInletsPotentialFlow
-    
+#ifdef _SEWERGEMSENGINECOUPLER_    
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
@@ -10541,12 +10541,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
 
         enddo
-
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine ComputeInletsPotentialFlow
         
     !--------------------------------------------------------------------------
     
     subroutine setInlets_SewerGems
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10563,11 +10564,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Inlets(n)%SWMM_ID, Me%myWaterColumn (i, j))
             if (STAT_CALL /= SUCCESS_) stop 'setInlets_SewerGems - ModuleRunOff - ERR20'
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine setInlets_SewerGems
     
     !--------------------------------------------------------------------------
     
     subroutine setManholes_SewerGems
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10578,11 +10581,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setNodeSurchargeDepth(Me%Manholes(n)%SWMM_ID, Me%myWaterColumn (i, j))
             if (STAT_CALL /= SUCCESS_) stop 'setManholes_SewerGems - ModuleRunOff - ERR30'
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine setManholes_SewerGems
     
     !--------------------------------------------------------------------------
     
     subroutine setOutFalls_SewerGems
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10596,11 +10601,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setOutfallWaterLevel(Me%Outfalls(n)%SWMM_ID, Me%myWaterLevel(i,j))
             if (STAT_CALL /= SUCCESS_) stop 'setOutFalls_SewerGems - ModuleRunOff - ERR10'
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine setOutFalls_SewerGems
     
     !--------------------------------------------------------------------------
     
     subroutine setHeadWalls_SewerGems
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10625,11 +10632,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             STAT_CALL = SewerGEMSEngine_setHeadwallWaterDepth(Me%Headwalls(n)%SWMM_ID, Me%myWaterColumn (i, j))
             if (STAT_CALL /= SUCCESS_) stop 'setHeadWalls_SewerGems - ModuleRunOff - ERR20'
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine setHeadWalls_SewerGems
     
     !--------------------------------------------------------------------------
     
     subroutine FlowFromManholes
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10659,11 +10668,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'FlowFromManholes - ModuleRunOff - ERR20'
 
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine FlowFromManholes
     
     !--------------------------------------------------------------------------
 
     subroutine FlowFromToInlets
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         real                        :: Overflow
@@ -10718,12 +10729,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'FlowFromToInlets - ModuleRunOff - ERR20'
         enddo
 
-        500 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+500     format(1x, f13.2, 1x, 3(1x, e20.12e3))
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine FlowFromToInlets
     
     !--------------------------------------------------------------------------
     
     subroutine FlowFromToOutfalls
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n
         !Begin---------------------------------------------------------------------
@@ -10734,11 +10747,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             Me%TotalStormWaterVolume = Me%TotalStormWaterVolume + Me%Outfalls(n)%Flow * Me%ExtVar%DT
             Me%TotalOutfallsVolume   = Me%TotalOutfallsVolume   + Me%Outfalls(n)%Flow * Me%ExtVar%DT
         enddo
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine FlowFromToOutfalls
     
     !--------------------------------------------------------------------------
     
     subroutine FlowFromHeadWalls
+#ifdef _SEWERGEMSENGINECOUPLER_
         !--------------------------------------------------------------------------
         integer                     :: STAT_CALL, n, i, j
         !Begin---------------------------------------------------------------------
@@ -10780,7 +10795,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         enddo
 
-        600 format(1x, f13.2, 1x, 3(1x, e20.12e3))
+600     format(1x, f13.2, 1x, 3(1x, e20.12e3))
+#endif _SEWERGEMSENGINECOUPLER_
     end subroutine FlowFromHeadWalls
     
     !--------------------------------------------------------------------------
