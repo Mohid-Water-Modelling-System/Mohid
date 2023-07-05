@@ -7192,7 +7192,6 @@ i0:     if(Me%Dim == Dim2D)then
                     CurrentHDF%HasAddingFactor = .true.
                 end if
 
-
                 call GetData(LastGroupEqualField,                                               &
                              Me%ObjEnterData , iflag,                                           &
                              SearchType   = ExtractType,                                        &

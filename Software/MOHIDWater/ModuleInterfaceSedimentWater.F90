@@ -7729,12 +7729,18 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     subroutine ModifySandTransport
 
         !External--------------------------------------------------------------
+        type(T_Property), pointer               :: CohesiveSediment
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
 
         call UnGetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR01'
+        
+ 
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModifyErosionCoefficient - ModuleInterfaceSedimentWater - ERR01'       
+        
 
         call ModifySand(Me%ObjSand, Me%Shear_Stress%Tension,                     &
                         Me%Rugosity%Field,                                       &
@@ -7751,7 +7757,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         Me%Shear_Stress%VFace,                                   &
                         Me%Shear_Stress%CurrentResidualU,                        &
                         Me%Shear_Stress%CurrentResidualV,                        &
-                        STAT = STAT_CALL)
+                        CohesiveMass = CohesiveSediment%Mass_Available,          &
+                        STAT         = STAT_CALL)
         if(STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
 
         call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)

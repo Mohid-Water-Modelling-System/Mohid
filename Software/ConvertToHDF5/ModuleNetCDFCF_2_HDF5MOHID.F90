@@ -6622,6 +6622,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         logical                                 :: ReadTime
         type (T_Time)                           :: CurrentTime
         real                                    :: AuxOffSet
+        integer                                 :: numDims
+        integer, dimension(nf90_max_var_dims)   :: DimidArray        
+        logical                                 :: ReadTimeInStringFormat, ReadTimeNumericV2
         
         !Begin-----------------------------------------------------------------
         
@@ -6629,15 +6632,51 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         write(*,*)'Read Time NetCDF file...'
 
         write(*,*)'Reading ', trim(Me%Date%NetCDFDimName)
+        
+        ReadTimeNumericV2       = .false.
+        ReadTimeInStringFormat  = .false.
 
         status=NF90_INQ_DIMID(ncid,trim(Me%Date%NetCDFDimName),dimid)
-        if (status /= nf90_noerr) then
-            !Try to rea in String format - WRF model format
+        
+        if (status /= nf90_noerr) then 
+            
+            ReadTimeNumericV2 = .true.
+        
+            status=nf90_inq_varid(ncid,trim(Me%Date%NetCDFDimName),dimid)
+            if (status /= nf90_noerr) then 
+
+                ReadTimeInStringFormat = .true. 
+                
+            endif
+            
+        endif
+        
+        
+        if (ReadTimeInStringFormat) then
+            
+          
+            !Try to read in String format - WRF model format
             call ReadTimeNetCDFString(ncid)            
         else
+            
+
+            if (ReadTimeNumericV2) then
+            
+                status = nf90_inquire_variable(ncid, dimid, ndims = numDims)
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+                status = nf90_inquire_variable(ncid, dimid, dimids = DimidArray(:numDims))
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+
+                status=NF90_INQUIRE_DIMENSION(ncid, DimidArray(1), len = Me%Date%NumberInst)
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR50'      
+            
+            else                
         
-            status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
-            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                
+            endif
             
             call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
 

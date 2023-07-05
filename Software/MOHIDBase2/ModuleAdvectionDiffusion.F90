@@ -4027,7 +4027,7 @@ cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
         real(8)                                     :: DT_V
         real                                        :: Flow
         integer                                     :: i, j, k, kd, n, dis, nc, kmin, kmax
-        real                                        :: WaterColumn
+        real                                        :: WaterColumn, Aux_Conc
 
         !----------------------------------------------------------------------
 
@@ -4080,17 +4080,19 @@ dk:             do k=kmin, kmax
                     endif
 
 cd1:                if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
+    
+                        Aux_Conc = Me%ExternalVar%DischConc(n)
 
                         if (Me%ExternalVar%ByPass(dis)) then
                         
                             Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)           +           &
-                                                Flow * DT_V * Me%ExternalVar%DischConc(n)  
+                                                Flow * DT_V * Aux_Conc   
                         else
                         
 fl:                         if (Flow > 0.) then
                     
                                 Me%TICOEF3(i,j,k) = Me%TICOEF3(i,j,k)       +           &
-                                                    Flow * DT_V * Me%ExternalVar%DischConc(n)
+                                                    Flow * DT_V * Aux_Conc
                             else fl
                     
                                 Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k)       -           &
