@@ -3392,6 +3392,7 @@ i1:         if (CoordON) then
                                          GeometryID         = Me%ObjGeometry,                &
                                          BasinGeometryID    = Me%ObjBasinGeometry,           &
                                          CoupledAtmosphere  = Me%Coupled%Atmosphere,         &
+										 KcThresholds       = Me%UseKCThresholds,            &      !Added by Ana Oliveira to compute Kc according to FAO56. See vegetation module
                                          UsePotLAI          = Me%UsePotLAI,                  &
                                          STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR090'
