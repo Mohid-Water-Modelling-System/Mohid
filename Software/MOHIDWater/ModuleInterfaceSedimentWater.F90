@@ -7730,6 +7730,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !External--------------------------------------------------------------
         type(T_Property), pointer               :: CohesiveSediment
+        real,   dimension(:,:), pointer         :: Cohesive_Mass_Available
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -7739,25 +7740,30 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         
  
         call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModifyErosionCoefficient - ModuleInterfaceSedimentWater - ERR01'       
+        if (STAT_CALL /= SUCCESS_) then
+            nullify(Cohesive_Mass_Available)
+        else
+            Cohesive_Mass_Available => CohesiveSediment%Mass_Available
+        endif
+            
         
 
-        call ModifySand(Me%ObjSand, Me%Shear_Stress%Tension,                     &
-                        Me%Rugosity%Field,                                       &
-                        Me%WaveShear_Stress%Rugosity%Field,                      &
-                        Me%ExtWater%WaterColumn,                                 &
-                        Me%Shear_Stress%CurrentU,                                &
-                        Me%Shear_Stress%CurrentV,                                &
-                        Me%Shear_Stress%CurrentVel,                              &
-                        Me%WaveShear_Stress%Tension,                             &
-                        Me%WaveShear_Stress%TensionCurrents,                     &
-                        Me%Shear_Stress%Velocity,                                &
-                        Me%ExtWater%MinWaterColumn,                              &
-                        Me%Shear_Stress%UFace,                                   &
-                        Me%Shear_Stress%VFace,                                   &
-                        Me%Shear_Stress%CurrentResidualU,                        &
-                        Me%Shear_Stress%CurrentResidualV,                        &
-                        CohesiveMass = CohesiveSediment%Mass_Available,          &
+        call ModifySand(Me%ObjSand, Me%Shear_Stress%Tension,                            &
+                        Me%Rugosity%Field,                                              &
+                        Me%WaveShear_Stress%Rugosity%Field,                             &
+                        Me%ExtWater%WaterColumn,                                        &
+                        Me%Shear_Stress%CurrentU,                                       &
+                        Me%Shear_Stress%CurrentV,                                       &
+                        Me%Shear_Stress%CurrentVel,                                     &
+                        Me%WaveShear_Stress%Tension,                                    &
+                        Me%WaveShear_Stress%TensionCurrents,                            &
+                        Me%Shear_Stress%Velocity,                                       &
+                        Me%ExtWater%MinWaterColumn,                                     &
+                        Me%Shear_Stress%UFace,                                          &
+                        Me%Shear_Stress%VFace,                                          &
+                        Me%Shear_Stress%CurrentResidualU,                               &
+                        Me%Shear_Stress%CurrentResidualV,                               &
+                        CohesiveMass = Cohesive_Mass_Available,                         &
                         STAT         = STAT_CALL)
         if(STAT_CALL /= SUCCESS_) stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
 

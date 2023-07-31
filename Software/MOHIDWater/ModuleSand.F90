@@ -3168,8 +3168,12 @@ ifMS:   if (MasterOrSlave) then
 
                     Me%ExternalVar%MinWaterColumn  =  MinWaterColumn
                     
+                    nullify(Me%ExternalVar%CohesiveMass)
+                    
                     if (present(CohesiveMass)) then
-                        Me%ExternalVar%CohesiveMass    =>  CohesiveMass
+                        if (associated(CohesiveMass)) then
+                            Me%ExternalVar%CohesiveMass    =>  CohesiveMass
+                        endif
                     endif
                     
                     call ComputeFluxes
@@ -6858,9 +6862,8 @@ d1:         do DischargeID = 1, DischargesNumber
 
                 call GetDischargeConcentration (Me%ObjDischarges,                       &
                                                 Me%ExternalVar%Now,                     &
-                                                DischargeID, DischargeConc,                     &
+                                                DischargeID, DischargeConc,             &
                                                 PropertyIDNumber    = Sand_,            &
-                                                PropertyFromIntake  = PropFromIntake,   &
                                                 STAT                = STAT_CALL)                                                
                                                 
                 if (STAT_CALL/=SUCCESS_)                                                &

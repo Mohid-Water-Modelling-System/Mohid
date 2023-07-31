@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  101
+    integer, parameter  :: MaxModules           =  105
 
 #if   defined(_INCREASE_MAXINSTANCES)
     integer, parameter  :: MaxInstances         = 2000
@@ -1994,6 +1994,10 @@ Module ModuleGlobalData
     integer, parameter ::  mMeshGlue_               = 99
     integer, parameter ::  mDelftFM_2_MOHID_        = 100
     integer, parameter ::  mGeneric_                = 101
+    integer, parameter ::  m_TS_Synch_              = 102
+    integer, parameter ::  m_TS_Operator_           = 103
+    integer, parameter ::  m_TS_Alerts_             = 104
+    integer, parameter ::  m_TS_OpWindow_           = 105
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2123,7 +2127,9 @@ Module ModuleGlobalData
         T_Module(mIrrigation_            , "Irrigation"         ),   T_Module(mTURBINE_                , "Turbine"       ),        &
         T_Module(mLitter_                , "Litter"             ),   T_Module(mTwoWay_                 , "TwoWay"        ),        &
         T_Module(mOutputGrid_            , "OutputGrid"         ),   T_Module(mMeshGlue_               , "MeshGlue"      ),        &
-        T_Module(mDelftFM_2_MOHID_       , "DelftFM_2_MOHID"    ),   T_Module(mGeneric_                , "GenericModule" )/)
+        T_Module(mDelftFM_2_MOHID_       , "DelftFM_2_MOHID"    ),   T_Module(mGeneric_                , "GenericModule" ),        &
+        T_Module(m_TS_Synch_             , "TS_Synch"           ),   T_Module(m_TS_Operator_           , "TS_Operator"   ),        & 
+        T_Module(m_TS_Alerts_            , "TS_Alerts"          ),   T_Module(m_TS_OpWindow_           , "TS_OpWindow"   ) /)
         
 
     !Variables

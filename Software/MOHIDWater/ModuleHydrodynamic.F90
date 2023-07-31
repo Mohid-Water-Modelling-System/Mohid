@@ -36949,6 +36949,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: InterceptionRatio
         integer                            :: kmin, kmax, kaux
         real                               :: Depth_min, Depth_max
+        logical                            :: FixReferential
         real                               :: DischargeVelocityX, DischargeVelocityY, VectorGridX, VectorGridY
         integer                            :: djx, diy 
         integer                            :: IUB, ILB, JUB, JLB
@@ -37124,6 +37125,7 @@ iup:        if (UpscalingDischarge )then
                                                   kmax                  = kmax,             &
                                                   Depth_min             = Depth_min,        &
                                                   Depth_max             = Depth_max,        &
+                                                  FixReferential        = FixReferential,   &    
                                                   STAT                  = STAT_CALL)                
 
                 if (STAT_CALL/=SUCCESS_)                                                     &
@@ -37253,7 +37255,8 @@ ifn:                if (nCells > 1) then
 
                         if (Depth_max > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_max, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmin = kaux
@@ -37264,7 +37267,8 @@ ifn:                if (nCells > 1) then
 
                         if (Depth_min > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_min, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmax = kaux
@@ -49683,6 +49687,7 @@ subroutine ModifyWaterDischarges(ModifyPhase)
         real                               :: InterceptionRatio
         integer                            :: kmin, kmax, kaux
         real                               :: Depth_min, Depth_max
+        logical                            :: FixReferential 
 
 
         integer                            :: CHUNK
@@ -49826,6 +49831,7 @@ do1:        do DischargeID = 1, DischargesNumber
                                                   kmax                  = kmax,             &
                                                   Depth_min             = Depth_min,        &
                                                   Depth_max             = Depth_max,        &
+                                                  FixReferential        = FixReferential,   & 
                                                   STAT                  = STAT_CALL)   
 
                 if (STAT_CALL/=SUCCESS_)                                                &
@@ -49914,7 +49920,8 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (Depth_max > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_max, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmin = kaux
@@ -49925,7 +49932,8 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (Depth_min > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_min, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmax = kaux

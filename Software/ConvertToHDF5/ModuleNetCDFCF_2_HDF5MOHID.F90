@@ -3747,11 +3747,22 @@ BF:         if (BlockFound) then
                         call GetData(Me%Field(ip)%LayerNumber,                              &
                                      Me%ObjEnterData, iflag,                                &
                                      SearchType   = FromBlockInBlock,                       &
-                                     keyword      = 'lAYER_number',                         &
+                                     keyword      = 'LAYER_NUMBER',                         &
                                      default      = 1,                                      &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                      STAT         = STAT_CALL)        
                         if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+                        
+                        if (iflag == 0) then
+                            call GetData(Me%Field(ip)%LayerNumber,                          &
+                                         Me%ObjEnterData, iflag,                            &
+                                         SearchType   = FromBlockInBlock,                   &
+                                         keyword      = 'lAYER_number',                     &
+                                         default      = 1,                                  &
+                                         ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                         STAT         = STAT_CALL)        
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'                            
+                        endif
                         
                         call GetData(Me%Field(ip)%LayerDim,                                 &
                                      Me%ObjEnterData, iflag,                                &

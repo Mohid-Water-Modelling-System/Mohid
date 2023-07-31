@@ -15557,27 +15557,43 @@ D2:     do I=imax-1,2,-1
 
     end function ReadEsriGridData
 
-    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth)
+    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth, FixReferential)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:,:,:), pointer, intent(IN) :: SZZ
         integer,    dimension(:,:,:), pointer, intent(IN) :: OpenPoints        
         integer,                               intent(IN) :: i, j, KLB, KUB
         real,                                  intent(IN) :: Depth
+        logical, optional                                 :: FixReferential
         !Local-----------------------------------------------------------------
         real                                              :: Depth_u, Depth_l
         integer                                           :: k, k_depth
+        logical                                           :: FixReferential_  
 
         !Begin-----------------------------------------------------------------
 
         k_depth = FillValueInt
 
+        if (present(FixReferential)) then
+            FixReferential_ = FixReferential
+        else
+            FixReferential_ = .false.
+        endif
+
         do k = KUB, KLB, -1
 
             if (OpenPoints(i, j, k) == OpenPoint) then
-                Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
-                Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+
+                if (FixReferential_) then
+                    Depth_u = SZZ(i, j, k  ) 
+                    Depth_l = SZZ(i, j, k-1) 
+                else
+                    Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
+                    Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+                endif
+
                 k_depth = k
+
                 if (Depth_u <= Depth .and. Depth_l >= Depth) then
                     exit
                 endif

@@ -198,7 +198,8 @@ Module ModuleWaterProperties
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
                                           GetDistributionCoefMass, IsUpscaling, Kill_Discharges,&
                                           CorrectsBypassCellsDischarges, GetDischargesDTOutput, &
-                                          GetDischarges_MohidJetON, GetDischID_MohidJetON
+                                          GetDischarges_MohidJetON, GetDischID_MohidJetON,      &
+                                          GetDischargeConcMultiplyFactor
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -991,6 +992,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:  )         :: BottomFlux
         real, pointer, dimension(:,:,:)         :: Filtration
         real, pointer, dimension(:    )         :: DischConc
+        real, pointer, dimension(:    )         :: DischConcMF        
         real, pointer, dimension(:    )         :: DischByPassConc        
         real                                    :: MinValue             =   FillValueReal
         real                                    :: MaxValue             = - FillValueReal
@@ -4987,7 +4989,11 @@ do1 :   do while (associated(PropertyX))
                         
                         allocate(PropertyX%DischByPassConc(Me%Discharge%Number))
                         
-                        PropertyX%DischByPassConc(1:Me%Discharge%Number) = FillValueReal                        
+                        PropertyX%DischByPassConc(1:Me%Discharge%Number) = FillValueReal       
+                        
+                        allocate(PropertyX%DischConcMF(TotalCells))
+
+                        PropertyX%DischConcMF(1:TotalCells) = 1.
 
                     endif
                     PropertyX=>PropertyX%Next
@@ -14605,7 +14611,8 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                                                 Me%Discharge%kmin,    Me%Discharge%kmax,    &
                                                 Me%Discharge%Vert,    Me%Discharge%Number,  &
                                                 Me%Discharge%Ignore,  Me%Discharge%nCells,  &
-                                                Me%Discharge%ByPass,  STAT = STAT_CALL)
+                                                Me%Discharge%ByPass,  Property%DischConcMF, & 
+                                                STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                            &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR100')
                     endif
@@ -20574,7 +20581,9 @@ if2:            if (PropertyX%Evolution%Discharges .and. Me%Discharge%Number > 0
         integer                                     :: FlowDistribution
         real                                        :: ByPassConc
         integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax, kaux
-        real                                        :: Depth_min, Depth_max        
+        real                                        :: Depth_min, Depth_max
+        logical                                     :: FixReferential 
+        real                                        :: MultiplyFactor
 
 
         !Begin------------------------------------------------------------
@@ -20726,6 +20735,7 @@ dd:     do dis = 1, Me%Discharge%Number
                                               kmax                  = kmax,             &
                                               Depth_min             = Depth_min,        &
                                               Depth_max             = Depth_max,        &
+                                              FixReferential        = FixReferential,   &
                                               STAT                  = STAT_CALL)              
 
             if (STAT_CALL/=SUCCESS_)                                                     &
@@ -20803,7 +20813,8 @@ dn:         do n=1, nCells
                         
                     if (Depth_max > FillValueReal) then
 
-                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, &
+                                                 i, j, KLB, KUB, Depth_max, FixReferential)
 
                         if (kaux >= kmin .or. kaux <= kmax) then
                             kmin = kaux
@@ -20814,7 +20825,8 @@ dn:         do n=1, nCells
 
                     if (Depth_min > FillValueReal) then
 
-                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+                        kaux = FromDepth_2_layer(Me%ExternalVar%SZZ, Me%ExternalVar%OpenPoints3D, &
+                                                 i, j, KLB, KUB, Depth_min, FixReferential)
 
                         if (kaux >= kmin .or. kaux <= kmax) then
                             kmax = kaux
@@ -20914,8 +20926,17 @@ dn:         do n=1, nCells
 
                             !
                             else
+     
+                                call GetDischargeConcMultiplyFactor(Me%ObjDischarges,                       &
+                                                                    dis, MultiplyFactor,                    &
+                                                                    PropertyIDNumber=PropertyX%ID%IDNumber, &
+                                                                    STAT = STAT_CALL)     
+                                
+                                if (STAT_CALL/=SUCCESS_)                                                    &
+                                    call CloseAllAndStop ('Sub. WaterPropDischarges - ModuleWaterProperties - ERR175')
 
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k)
+                                PropertyX%DischConc  (AuxCell) = PropertyX%Concentration(i , j , k) 
+                                PropertyX%DischConcMF(AuxCell) = MultiplyFactor
 
                             endif i1
 

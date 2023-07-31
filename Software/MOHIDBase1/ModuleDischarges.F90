@@ -78,6 +78,7 @@ Module ModuleDischarges
     public  :: GetDischargeFlowVelocity
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
+    public  :: GetDischargeConcMultiplyFactor
     public  :: GetByPassON
     public  :: GetByPassConcIncrease
     public  :: GetDischargeFromIntakeON
@@ -185,6 +186,7 @@ Module ModuleDischarges
         logical                                 :: PropTimeSerie    = .false.
         logical                                 :: FromIntake       = .false.
         real                                    :: IncreaseValue    = FillValueReal
+        real                                    :: MultiplyFactor   = 1.
         type (T_Property), pointer              :: Next => null(), &
                                                    Prev => null()
     end type T_Property
@@ -290,6 +292,7 @@ Module ModuleDischarges
          integer                                :: kmax                             = FillValueInt
          real                                   :: Depth_min                        = FillValueReal
          real                                   :: Depth_max                        = FillValueReal
+         logical                                :: FixReferential                   = .false.
 
          !Important for the domain decomposition approach
          !is the ratio of the XYZPoints or Line or Polygon that intercepts the model domain
@@ -982,7 +985,24 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                      STAT         = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR78.'                        
-                    endif                    
+                    endif        
+
+                    if (NewDischarge%Localization%kmax == FillValueInt .or.             &
+                        NewDischarge%Localization%kmin == FillValueInt) then
+                        
+                        call GetData(NewDischarge%Localization%FixReferential,          &
+                                     Me%ObjEnterData,                                   &
+                                     flag,                                              &
+                                     FromBlock,                                         &
+                                     keyword      ='DEPTH_FIX',                         &
+                                     default      = .false.,                            &
+                                     ClientModule = 'ModuleDischarges',                 &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR79.'                        
+                    endif                      
+                    
+                    
 
                 case (DischBottom_, DischSurf_)
                     !do not do nothing
@@ -2318,6 +2338,15 @@ ifvar:  if (NewProperty%Variable) then
             stop 'Construct_PropertyValues - ModuleDischarges -  ERR90'
 
         end if
+        
+        !Check if the user want to multiply the input concentration by a factor
+        call GetData(NewProperty%MultiplyFactor,                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromBlockinBlock,                                                  &
+                     keyword      ='MULTIPLY_FACTOR',                                   &
+                     ClientModule ='ModuleDischarges',                                  &
+                     default      = 1.)        
 
         !----------------------------------------------------------------------
 
@@ -3537,7 +3566,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     Subroutine GetDischargeFlowDistribuiton(DischargesID, DischargeIDNumber,            &
                                             nCells, FlowDistribution,                   &
                                             VectorI, VectorJ, VectorK,                  &
-                                            kmin, kmax, Depth_min, Depth_max, STAT)
+                                            kmin, kmax, Depth_min, Depth_max,           &
+                                            FixReferential, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3548,6 +3578,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer, dimension(:), pointer, optional    :: VectorI, VectorJ, VectorK
         integer,                        optional    :: kmin, kmax
         real,                           optional    :: Depth_min, Depth_max
+        logical, optional,              intent(OUT) :: FixReferential
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3564,8 +3595,6 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
@@ -3627,6 +3656,12 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 Depth_max = DischargeX%Localization%Depth_max
 
             endif            
+            
+            if (present(FixReferential)) then
+
+                FixReferential = DischargeX%Localization%FixReferential
+
+            endif              
 
             nullify(DischargeX)
 
@@ -4637,6 +4672,8 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                     Concentration = PropertyX%Scalar
 
                 endif
+                
+                Concentration = Concentration * PropertyX%MultiplyFactor
 
                 if (present(PropertyFromIntake)) then
                     if(PropertyFromIntake) then
@@ -4678,6 +4715,88 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     end Subroutine GetDischargeConcentration
 
     !--------------------------------------------------------------------------
+    
+                                         
+    !--------------------------------------------------------------------------
+
+    subroutine GetDischargeConcMultiplyFactor(DischargesID, DischargeIDNumber,          &
+                                              MultiplyFactor, PropertyIDNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,           intent(IN)               :: DischargeIDNumber
+        real,              intent(OUT)              :: MultiplyFactor
+        integer,           intent(IN)               :: PropertyIDNumber
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        type(T_Property),            pointer        :: PropertyX
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        integer                                     :: STAT_CALL
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
+            endif
+
+            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+            if (STAT_CALL/=SUCCESS_) then
+                !If the proeprty is not found the program don't stop is return a error
+                !not found
+                if (STAT_CALL /= NOT_FOUND_ERR_) then
+                    stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
+                endif
+            endif
+
+cd2 :       if (STAT_CALL == SUCCESS_) then
+
+                MultiplyFactor = PropertyX%MultiplyFactor
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = SUCCESS_
+
+            else if (STAT_CALL == NOT_FOUND_ERR_) then cd2
+
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = NOT_FOUND_ERR_
+
+
+            end if cd2
+
+
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischargeConcMultiplyFactor
+
+    !--------------------------------------------------------------------------                                         
 
     subroutine GetIntakePosition(DischargesID, DischargeIDNumber, IntakeI, IntakeJ, IntakeK, STAT)
 
