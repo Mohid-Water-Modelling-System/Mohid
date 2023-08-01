@@ -6528,7 +6528,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     !$OMP END PARALLEL
 
                     if (MonitorPerformance) then
-                        call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToSediment")
+                        !call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToSediment")
                     endif
 
                 end if
