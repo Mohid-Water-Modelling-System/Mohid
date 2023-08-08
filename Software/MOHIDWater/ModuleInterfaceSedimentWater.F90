@@ -926,8 +926,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call Construct_PropertyList
 
             call Construct_BenthicRateList
-
-            call ConstructConsolidation
+            
+#ifndef _SEDIMENT_
+            if(Me%RunsSediments.or.Me%RunSedimentModule) call ConstructConsolidation
+#endif
 
             call Construct_Sub_Modules
 
@@ -1627,7 +1629,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL, iflag
         integer                             :: ILB, IUB, JLB, JUB
-
+        type(T_Property), pointer           :: CohesiveSediment
         !Begin-----------------------------------------------------------------
 
         ILB = Me%Size2D%ILB
@@ -1635,19 +1637,25 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        call GetData(Me%Consolidation%Yes,                                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromFile,                                           &
-                     Keyword      = 'CONSOLIDATION',                                    &
-                     ClientModule = 'ModuleInterfaceSedimentWater',                     &
-                     Default      = .false.,                                            &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR10'
+        !call GetData(Me%Consolidation%Yes,                                              &
+        !             Me%ObjEnterData, iflag,                                            &
+        !             SearchType   = FromFile,                                           &
+        !             Keyword      = 'CONSOLIDATION',                                    &
+        !             ClientModule = 'ModuleInterfaceSedimentWater',                     &
+        !             Default      = .false.,                                            &
+        !             STAT         = STAT_CALL)
+        !if(STAT_CALL .ne. SUCCESS_)&
+        !    stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR10'
 
-
+        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+        if (STAT_CALL .EQ. SUCCESS_) then
+            Me%Consolidation%Yes = .true.
+        else
+            Me%Consolidation%Yes = .false.
+        endif
+        
         if(Me%Consolidation%Yes)then
-
+        
             allocate(Me%Consolidation%Flux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR20'
@@ -1658,12 +1666,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
                 !Dewatering rate (kg/m2/s)
                 call GetData(Me%Dewatering_Rate,                                            &
-                             Me%ObjEnterData, iflag,                                        &
-                             SearchType   = FromFile,                                       &
-                             Keyword      = 'DEWATERING_RATE',                              &
-                             ClientModule = 'ModuleInterfaceSedimentWater',                 &
-                             Default      = 10E-3,                                          &
-                             STAT         = STAT_CALL)
+                                Me%ObjEnterData, iflag,                                        &
+                                SearchType   = FromFile,                                       &
+                                Keyword      = 'DEWATERING_RATE',                              &
+                                ClientModule = 'ModuleInterfaceSedimentWater',                 &
+                                Default      = 1e-3,                                           &
+                                STAT         = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                     stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR30'
 
@@ -1673,10 +1681,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                 !Me%Coupled%SedimentWaterFluxes%Yes = ON  !review this
 
                 call Read_Property_2D (Me%Consolidation%Rate, FromBlock, &
-                                       consolidation_begin, consolidation_end)
+                                        consolidation_begin, consolidation_end)
 
                 call GetConsolidationMinThickness(Me%ObjConsolidation, Me%ExtSed%MinLayerThickness, &
-                                                      STAT = STAT_CALL)
+                                                        STAT = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_)&
                         stop 'ConstructConsolidation - ModuleInterfaceSedimentWater - ERR40'
             endif

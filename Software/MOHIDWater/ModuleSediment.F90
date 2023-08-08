@@ -908,6 +908,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
                      keyword      = 'GEOMETRY_EVOLUTION',                                &
+                     default      = .true.,                                              &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR95'
@@ -1038,7 +1039,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR200'
         
         if (Me%ConsolidationOn) then
-            if (Me%Evolution%Geometry) then
+            if (Me%Evolution%Geometry == .false.) then
                 write(*,*) 'GEOMETRY_EVOLUTION must be activated to run with CONSOLIDATION'
                 stop 'ConstructGlobalParameters - ModuleSediment - ERR205'
             endif
@@ -6430,31 +6431,25 @@ if5:                if (aux < SandClass%Mass_Min) then
         
         Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density
         
-        if(Me%SandD50(i,j) > 0)then
         
-            !Volume fraction of the cohesive class based on total volume        
-            c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%Porosity (i,j,k))        
-                
-            if (c < Me%PorositySand) then
+        !Volume fraction of the cohesive class      
+        c = Me%CohesiveClass%Field3D(i,j,k)
+            
+        if (c < Me%PorositySand) then
                     
-                y = c * (ymin - 1) / Me%PorositySand + 1
+            y = c * (ymin - 1) / Me%PorositySand + 1
                 
-                Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                            (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
-                
-            else
-                    
-                y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
-                    
-                Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
-                
-            endif
+            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
                 
         else
-            
-            Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)
+                    
+            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                    
+            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
                 
-        endif        
+        endif
+                     
        
     end subroutine ComputePorosity
     
