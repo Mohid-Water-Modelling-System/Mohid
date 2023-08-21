@@ -2412,8 +2412,8 @@ cd2 :           if (BlockFound) then
                      
                     if(Me%SandD50(i,j) > 0)then
         
-                        !Volume fraction of the cohesive class based on total volume        
-                        c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%PorositySand)       
+                        !Volume fraction of the cohesive class   
+                        c = Me%CohesiveClass%Field3D(i,j,k)      
                                
                 
                         if (c < Me%PorositySand) then
