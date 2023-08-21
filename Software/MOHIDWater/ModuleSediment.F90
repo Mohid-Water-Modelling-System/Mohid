@@ -2409,30 +2409,25 @@ cd2 :           if (BlockFound) then
                 if (Me%CohesiveClass%Run) then
                      
                     Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density 
-                     
-                    if(Me%SandD50(i,j) > 0)then
         
-                        !Volume fraction of the cohesive class   
-                        c = Me%CohesiveClass%Field3D(i,j,k)      
+                    !Volume fraction of the cohesive class   
+                    c = Me%CohesiveClass%Field3D(i,j,k)      
                                
                 
-                        if (c < Me%PorositySand) then
+                    if (c < Me%PorositySand) then
                     
-                            y = c * (ymin - 1) / Me%PorositySand + 1
+                        y = c * (ymin - 1) / Me%PorositySand + 1
                 
-                            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
+                        Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                                    (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
                 
-                        else
+                    else
                     
-                            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                        y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
                     
-                            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
+                        Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
                 
-                        endif                    
-                    else                        
-                        Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)                        
-                    endif                        
+                    endif                    
                 else                
                     Me%Porosity(i,j,k) = Me%PorositySand 
                 endif
