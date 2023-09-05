@@ -12080,7 +12080,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%CenterFlowX(i, j) = FlowX * Me%GridCosAngleX + FlowY * Me%GridCosAngleY
                     Me%CenterFlowY(i, j) = FlowX * Me%GridSinAngleX + FlowY * Me%GridSinAngleY
                 
-                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                    if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                         Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j) )
                         Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j) )
                     else
@@ -12116,7 +12116,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%CenterFlowX(i, j) = FlowX * cos(Me%ExtVar%RotationX(i, j)) + FlowY * cos(Me%ExtVar%RotationY(i, j))
                     Me%CenterFlowY(i, j) = FlowX * sin(Me%ExtVar%RotationX(i, j)) + FlowY * sin(Me%ExtVar%RotationY(i, j))
                 
-                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                    if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                         Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j))
                         Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j))
                     else
@@ -12152,7 +12152,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     
                 Me%FlowModulus(i, j) = sqrt (Me%CenterFlowX(i, j)**2. + Me%CenterFlowY(i, j)**2.)
                 
-                if (Me%myWaterColumn (i,j) > AllmostZero) then
+                if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                     Me%VelocityModulus (i, j) = sqrt (Me%CenterVelocityX(i, j)**2.0 + Me%CenterVelocityY(i, j)**2.0)
                 else
                     Me%VelocityModulus(i,j) = 0.0
