@@ -1891,6 +1891,7 @@ Module ModuleGlobalData
     integer, parameter  :: UserDefined_             = 1
     integer, parameter  :: Computed_Half_D50_       = 2
     integer, parameter  :: Computed_Classes_Random_ = 3
+	integer, parameter  :: Computed_Johansen_       = 4												
 
     !Module IDs
     integer, parameter ::  mGLOBALDATA_             =  1        
