@@ -1777,17 +1777,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine GetGridDataEvolution
 
     !--------------------------------------------------------------------------    
-    subroutine SetGridDataEvolution(GridDataID, Evolution, SedimentInitialFile, STAT)     
+    subroutine SetGridDataEvolution(GridDataID, Evolution, SedimentInitialFile, ResetBathym, STAT)     
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GridDataID
         logical                                     :: Evolution
         character(LEN = PathLength)                 :: SedimentInitialFile
+        logical, optional                           :: ResetBathym
         integer, optional                           :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
         integer                                     :: STAT_
+        logical                                     :: ResetBathym_
 
         !----------------------------------------------------------------------
 
@@ -1797,6 +1799,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+            if (present(ResetBathym)) then
+                ResetBathym_ = ResetBathym
+            else
+                ResetBathym_ = .false.
+            endif
 
             Me%Evolution%Yes = Evolution
             
@@ -1806,12 +1814,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             
                 !get the reference
                 allocate(Me%GridData2Dreference(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                Me%GridData2Dreference(:,:) = Me%DefaultValue      
+                Me%GridData2Dreference(:,:) = Me%DefaultValue     
+                
+                if (.not. ResetBathym_) then
             
-                if (Me%SedimentModule) then 
-                    call ReadFileEvolutionSediment 
-                else
-                    call ReadFileEvolution
+                    if (Me%SedimentModule) then 
+                        call ReadFileEvolutionSediment 
+                    else
+                        call ReadFileEvolution
+                    endif
+                    
                 endif
             endif
 

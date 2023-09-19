@@ -286,6 +286,7 @@ Module ModuleSediment
         type (T_Time)                           :: NextSediment, NextBatim
         logical                                 :: Bathym       = .false.
         logical                                 :: Geometry     = .false. 
+        logical                                 :: ResetBathym  = .false.
     end type T_Evolution
      
     private :: T_Property
@@ -613,7 +614,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !read in nomfich by ModuleModel will be overitten by the ones in Me%Files%Initial
             call SetGridDataEvolution(GridDataID          = Me%ObjBathym,              &
                                       Evolution           = Me%Evolution%Bathym,       &
-                                      SedimentInitialFile = Me%Files%Initial, STAT = STAT_CALL) 
+                                      SedimentInitialFile = Me%Files%Initial,          &
+                                      ResetBathym         = Me%Evolution%ResetBathym,  &
+                                      STAT                = STAT_CALL) 
             
             call AllocateVariables      
             
@@ -1383,6 +1386,7 @@ i1:     if (Me%Boxes%Yes) then
         real    :: ModelDT
         integer :: STAT_CALL, iflag
         real(8) :: ErrorAux, auxFactor, DTaux
+        logical :: VariableDT
 
 
 
@@ -1391,113 +1395,150 @@ i1:     if (Me%Boxes%Yes) then
         call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                 &
             stop 'ConstructEvolution - ModuleSediment - ERR10'
-
-
-        call GetData(Me%Evolution%SedimentDT,                                            &
-                     Me%ObjEnterData,iflag,                                              &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'SEDIMENT_DT',                                       &
-                     default      = ModelDT,                                             &
-                     ClientModule = 'ModuleSediment',                                    &
-                     STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20' 
+        
+        call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+            stop 'ConstructEvolution - ModuleSediment - ERR20'
+        
 
         call GetComputeTimeLimits(Me%ObjTime,                                            &
-                                  EndTime   = Me%EndTime,                                &
-                                  BeginTime = Me%BeginTime,                              &
-                                  STAT = STAT_CALL)
+                                    EndTime   = Me%EndTime,                                &
+                                    BeginTime = Me%BeginTime,                              &
+                                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'ConstructEvolution - ModuleSediment - ERR30'
-
-        if (Me%Evolution%SedimentDT < (ModelDT)) then
-
-            !Sediment DT  must be a submultiple of the ModelDT
-            auxFactor = ModelDT / Me%Evolution%SedimentDT
-
-            Erroraux = auxFactor - int(auxFactor)
-            if (Erroraux /= 0) then
-                write(*,*) 
-                write(*,*) 'Sediment DT  must be a submultiple of the ModelDT'
-                stop 'ConstructEvolution - ModuleSediment - ERR40'
-            endif
-
-        elseif (Me%Evolution%SedimentDT > (ModelDT)) then
-
-            !Sediment DT  must be a multiple of the ModelDT
-            auxFactor = Me%Evolution%SedimentDT  / ModelDT
-
-            Erroraux = auxFactor - int(auxFactor)
-            if (Erroraux /= 0) then
-                write(*,*) 
-                write(*,*) 'Sediment DT  must be a multiple of the ModelDT'
-                stop 'ConstructEvolution - ModuleSediment - ERR50'
-            endif
-
-        endif
-
-        ! Run period in seconds
-        DTaux = Me%EndTime - Me%BeginTime
-
-        !The run period   must be a multiple of the Sediment DT
-        auxFactor = DTaux / Me%Evolution%SedimentDT
-
-        ErrorAux = auxFactor - int(auxFactor)
-        if (ErrorAux /= 0) then
-            write(*,*) 
-            write(*,*) ' Time step error.'
-            stop 'ConstructEvolution - ModuleSediment - ERR60'
-        endif
+            stop 'ConstructEvolution - ModuleSediment - ERR30'        
 
 
-        Me%Evolution%NextSediment = Me%BeginTime + Me%Evolution%SedimentDT
+i1:     if (VariableDT) then
 
-        if (Me%Evolution%Bathym) then
+            Me%Evolution%SedimentDT = ModelDT
             
-            call GetData(Me%Evolution%BathymDT,                                              &
+            if (Me%Evolution%Bathym) then
+            
+                Me%Evolution%BathymDT  = ModelDT
+                
+            endif
+
+        else i1
+
+
+            call GetData(Me%Evolution%SedimentDT,                                            &
                          Me%ObjEnterData,iflag,                                              &
                          SearchType   = FromFile,                                            &
-                         keyword      = 'EVOLUTION_DT',                                          &
-                         default      = Me%Evolution%SedimentDT,                                 &
-                         ClientModule = 'ModuleSediment',                                        &
+                         keyword      = 'SEDIMENT_DT',                                       &
+                         default      = ModelDT,                                             &
+                         ClientModule = 'ModuleSediment',                                    &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR70'
-        
-        
-            if (Me%Evolution%BathymDT < Me%Evolution%SedimentDT) then                
-                write(*,*) 
-                write(*,*) 'Batim DT must be a multiple of the Sediment DT'
-                stop 'ConstructEvolution - ModuleSediment - ERR90'
-        
-            elseif (Me%Evolution%BathymDT > Me%Evolution%SedimentDT) then
-        
-                !Batim DT  must be a multiple of the Sediment DT
-                auxFactor = Me%Evolution%BathymDT / Me%Evolution%SedimentDT
-        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20' 
+
+
+            if (Me%Evolution%SedimentDT < (ModelDT)) then
+
+                !Sediment DT  must be a submultiple of the ModelDT
+                auxFactor = ModelDT / Me%Evolution%SedimentDT
+
                 Erroraux = auxFactor - int(auxFactor)
                 if (Erroraux /= 0) then
                     write(*,*) 
-                    write(*,*) 'Batim DT must be a multiple of the Sediment DT'
-                    stop 'ConstructEvolution - ModuleSediment - ERR100'
+                    write(*,*) 'Sediment DT  must be a submultiple of the ModelDT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR40'
                 endif
-        
+
+            elseif (Me%Evolution%SedimentDT > (ModelDT)) then
+
+                !Sediment DT  must be a multiple of the ModelDT
+                auxFactor = Me%Evolution%SedimentDT  / ModelDT
+
+                Erroraux = auxFactor - int(auxFactor)
+                if (Erroraux /= 0) then
+                    write(*,*) 
+                    write(*,*) 'Sediment DT  must be a multiple of the ModelDT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR50'
+                endif
+                
+
+
             endif
 
             ! Run period in seconds
             DTaux = Me%EndTime - Me%BeginTime
-        
-            !The run period   must be a multiple of the BATIM DT
-            auxFactor = DTaux / Me%Evolution%BathymDT
-        
+
+            !The run period   must be a multiple of the Sediment DT
+            auxFactor = DTaux / Me%Evolution%SedimentDT
+
             ErrorAux = auxFactor - int(auxFactor)
             if (ErrorAux /= 0) then
                 write(*,*) 
                 write(*,*) ' Time step error.'
-                stop 'ConstructEvolution - ModuleSediment - ERR120'
+                stop 'ConstructEvolution - ModuleSediment - ERR60'
             endif
+
+
+            if (Me%Evolution%Bathym) then
+            
+                call GetData(Me%Evolution%BathymDT,                                              &
+                             Me%ObjEnterData,iflag,                                              &
+                             SearchType   = FromFile,                                            &
+                             keyword      = 'EVOLUTION_DT',                                          &
+                             default      = Me%Evolution%SedimentDT,                                 &
+                             ClientModule = 'ModuleSediment',                                        &
+                             STAT         = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR70'
         
+        
+                if (Me%Evolution%BathymDT < Me%Evolution%SedimentDT) then                
+                    write(*,*) 
+                    write(*,*) 'Batim DT must be a multiple of the Sediment DT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR90'
+        
+                elseif (Me%Evolution%BathymDT > Me%Evolution%SedimentDT) then
+        
+                    !Batim DT  must be a multiple of the Sediment DT
+                    auxFactor = Me%Evolution%BathymDT / Me%Evolution%SedimentDT
+        
+                    Erroraux = auxFactor - int(auxFactor)
+                    if (Erroraux /= 0) then
+                        write(*,*) 
+                        write(*,*) 'Batim DT must be a multiple of the Sediment DT'
+                        stop 'ConstructEvolution - ModuleSediment - ERR100'
+                    endif
+                    
+                endif
+
+                ! Run period in seconds
+                DTaux = Me%EndTime - Me%BeginTime
+        
+                !The run period   must be a multiple of the BATIM DT
+                auxFactor = DTaux / Me%Evolution%BathymDT
+        
+                ErrorAux = auxFactor - int(auxFactor)
+                if (ErrorAux /= 0) then
+                    write(*,*) 
+                    write(*,*) ' Time step error.'
+                    stop 'ConstructEvolution - ModuleSediment - ERR120'
+                endif
+                
+                call GetData(Me%Evolution%ResetBathym,                                  &
+                             Me%ObjEnterData,iflag,                                     &
+                             SearchType   = FromFile,                                   &
+                             keyword      = 'RESET_BATHYM',                             &
+                             default      = .false.,                                    &
+                             ClientModule = 'ModuleSediment',                           &
+                             STAT         = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20'                 
+                
+            endif
+            
+        endif i1
+        
+        Me%Evolution%NextSediment = Me%BeginTime + Me%Evolution%SedimentDT
+
+        if (Me%Evolution%Bathym) then
+            
             Me%Evolution%NextBatim = Me%BeginTime + Me%Evolution%BathymDT
             
         endif
+        
         
         if (Me%Residual%ON) then
             Me%Residual%StartTime = Me%BeginTime
@@ -4211,6 +4252,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             call ReadLockExternalVar 
+            
+            call TimeStepActualization
 
 do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment) 
 
@@ -4352,6 +4395,43 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
     end subroutine ModifySediment
 
     !--------------------------------------------------------------------------
+                              
+    subroutine TimeStepActualization
+
+        !Local-----------------------------------------------------------------
+        real                             :: NewDT
+        integer                          :: STAT_CALL
+        logical                          :: VariableDT
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'TimeStepActualization - ModuleSediment - ERR10'
+
+cd1:    if (VariableDT) then
+
+            call GetComputeTimeStep(Me%ObjTime, NewDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'TimeStepActualization - ModuleSediment - ERR20'
+
+            Me%Evolution%SedimentDT = NewDT
+
+            if (Me%Evolution%Bathym) then
+            
+                Me%Evolution%BathymDT = NewDT
+            
+            endif
+
+        endif cd1
+
+
+    end subroutine TimeStepActualization
+
+    !------------------------------------------------------------------------
+
+                              
     
     subroutine ComputeOpenSediment
        !Local-----------------------------------------------------------------

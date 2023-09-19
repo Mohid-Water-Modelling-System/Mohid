@@ -238,7 +238,7 @@ Module ModuleModel
         
         logical                                 :: VariableDT   = .false. 
         
-        real                                    :: InitialDT    = null_real 
+        real                                    :: MinDT    = null_real 
         real                                    :: GmtReference = null_real 
         real                                    :: DTPredictionInterval = null_real 
 
@@ -424,8 +424,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ReadTimeKeyWords(ObjEnterData, FromFile, Me%BeginTime, Me%EndTime,      &
                                   Me%DT, Me%VariableDT, "Model", Me%MaxDT,               &
-                                  Me%GmtReference, Me%DTPredictionInterval)
-            Me%InitialDT = Me%DT
+                                  Me%GmtReference, Me%DTPredictionInterval, MinDT = Me%MinDT)
+            !Me%InitialDT = Me%DT
             Me%Iteration = 0
             
             if (present(MPI_ID)) then
@@ -1804,8 +1804,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                 endif
 
                 !Dont allow DT below Initial DT
-                if (NewDT < Me%InitialDT) then
-                    NewDT = Me%InitialDT
+                if (NewDT < Me%MinDT) then
+                    NewDT = Me%MinDT
                 endif
 
                 !Fit DT so model will stop at the right time

@@ -8110,7 +8110,7 @@ d5:     do k = klast + 1,KUB
 
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
-                                DTPredictionInterval)
+                                DTPredictionInterval, MinDT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjEnterData
@@ -8122,6 +8122,7 @@ d5:     do k = klast + 1,KUB
         real, optional                              :: MaxDT
         real, optional                              :: GmtReference
         real, optional                              :: DTPredictionInterval
+        real, optional                              :: MinDT
 
         !Local-----------------------------------------------------------------
         real(8)                                     :: aux, aux1, DTD
@@ -8181,6 +8182,22 @@ d5:     do k = klast + 1,KUB
             else
                 !MAXDT will be read somewhere else...
             endif
+            
+            if (present(MinDT)) then
+                call GetData(MinDT,   ObjEnterData, iflag, keyword = 'MINDT',                    &
+                             SearchType   = ExtractTime,                                         &
+                             ClientModule = ClientModule,                                   &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ ) stop 'ReadTimeKeyWords - ModuleFunctions - ERR03b'
+                if (iflag == 0) MinDT = DT
+                if (MinDT == 0) then
+                    write (*,*) 'Time Interval can not be zero'
+                    write (*,*) 'Module :',ClientModule
+                    stop 'ReadTimeKeyWords - ModuleFunctions - ERR04b'
+                endif
+            else
+                !MINDT will be read somewhere else...
+            endif            
 
         endif
 

@@ -500,7 +500,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR70'
 
             if (Me%SlowStart > Me%EndTime - Me%BeginTime) then
-                stop 'Construct_Discharges - ModuleDischarges - ERR90'
+                stop 'Construct_Discharges - ModuleDischarges - ERR75'
             endif
 
 
