@@ -205,6 +205,8 @@ Module ModuleOil_0D
     public  :: GetOilViscCin
     public  :: GetOWInterfacialTension
     public  :: GetOilThicknessLimit
+    public  :: GetOilPNEC
+    public  :: GetOilLC50 !LLP
     public  :: UngetOil
 
 
@@ -225,7 +227,8 @@ Module ModuleOil_0D
     private ::      AreaTeoric
     public  ::      GetDropletDiameterParameters
     public  ::      GetEntrainedClasses
-    public  ::      GetDropletDiameterOrQdTotal     
+    public  ::      GetDropletDiameterOrQdTotal    
+    public  ::      GetDropletDiameterJohansen
     private ::      F_CVisc_E               !Function
     private ::      F_ThicknessLimit        !Function
     public  ::      F_FayArea               !Function
@@ -359,6 +362,13 @@ Module ModuleOil_0D
     integer, parameter :: Entrained           = 2
     integer, parameter :: Mesostable          = 3
     integer, parameter :: Stable              = 4
+
+    character(LEN = StringLength), parameter    :: LC50_begin         = '<<<BeginLC50>>>'
+    character(LEN = StringLength), parameter    :: LC50_end           = '<<<EndLC50>>>'
+
+    integer, parameter :: LC50Surface_        = 1
+    integer, parameter :: LC50WaterColumn_    = 2
+    integer, parameter :: LC50Bottom_         = 3
     
 
     !Types---------------------------------------------------------------------
@@ -566,7 +576,18 @@ Module ModuleOil_0D
         real                                :: VOilRecovered        = null_real
         real                                :: FMOilRecovered       = null_real
 
-     end type T_Var
+        !compute PNEC 
+        real                                                 :: PNEC               = null_real
+        
+        !compute LC50 
+        logical                                               :: LC50               = OFF
+        integer                                              :: LC50Number           = null_int
+        character(LEN = StringLength), dimension(:), pointer  :: listLC50Specie      => null()        
+        real, dimension(:), pointer                           :: listLC50Value       => null()        
+        real, dimension(:), pointer                           :: listLC50Hours       => null()        
+        integer, dimension(:), pointer                        :: listLC50Type        => null()        
+
+    end type T_Var
 
 
     type      T_Oil
@@ -621,6 +642,7 @@ Module ModuleOil_0D
                          EnterDataID,                                           &
                          DT,                                                    &
                          ContCalc,                                              &
+                         ClientNumber,                                          &
                          PropertyListIN,                                        &
                          ExtractType,                                           &
                          STAT)
@@ -629,6 +651,7 @@ Module ModuleOil_0D
         integer                                     :: OilID
         integer                                     :: TimeID
         integer                                     :: EnterDataID
+        integer,           intent(IN )              :: ClientNumber    
         integer, optional, intent(IN )              :: ExtractType    
         integer, optional, intent(OUT)              :: STAT 
         real,              intent(IN )              :: DT
@@ -700,7 +723,7 @@ cd2 :       if (present(ExtractType)) then
             end if cd2
                 
 
-            call OilOptions       (DT, ContCalc, ExtractType_)
+            call OilOptions       (DT, ContCalc, ClientNumber, ExtractType_)
 
 cd3 :       if (present(PropertyListIN)) then
                 call ReadTimeSerieFile(ExtractType_, PropertyListIN)
@@ -737,6 +760,11 @@ ifContCalc: if (.NOT. ContCalc ) then
                 Me%State%FirstStepIP     = ON
                 Me%State%FirstStepAP     = ON
                 Me%Var%StabilityIndex    = 0
+                Me%Var%MDispersedDT      = 0.0
+                Me%Var%MEvaporatedDT     = 0.0
+                Me%Var%MSedimentedDT     = 0.0
+                Me%Var%MDissolvedDT      = 0.0
+                
 
                 !initialization of some properties
 !                if (Me%Var%OilEmulsification) Me%Var%MaxVWaterContent = F_MaxVWaterContent()
@@ -856,11 +884,12 @@ cd10:               if (Me%Var%Recovery_DataForm .EQ. Rate) then
     
     !----------------------------------------------------------------------------
 
-    subroutine OilOptions(DT, ContCalc, ExtractType) 
+    subroutine OilOptions(DT, ContCalc, ClientNumber, ExtractType) 
 
         !Arguments---------------------------------------------------------------
         real   , intent(IN)     :: DT
         logical, intent(IN)     :: ContCalc
+        integer, intent(IN)     :: ClientNumber
 
         !External----------------------------------------------------------------
         integer                 :: flag
@@ -1734,7 +1763,20 @@ case6 :         select case(trim(adjustl(String)))
                              "Subroutine OilOptions - ModuleOil_0D. ERR540") 
             end if cd14
 
-        end if ifmcle
+            end if ifmcle
+
+            call GetData(Me%Var%PNEC,                                                   &
+                            Me%ObjEnterData,                                            &
+                            flag,                                                          &
+                            SearchType   = FromBlock,                                      &
+                            keyword      ='PNEC',                                          &
+                            ClientModule ='ModuleOil',                                     &
+                            Default      = FillValueReal,                                  &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine OilOptions - ModuleOil_0D. ERR550"'
+
+
+            Call CountLC50(ClientNumber)
 
         end if 
         
@@ -1751,6 +1793,8 @@ case6 :         select case(trim(adjustl(String)))
             write(*,*) "Backtracking option is ON all oil processes were disconnected"
             write(*,*) "Subroutine OilOptions - ModuleOil_0D. WRN010"  
         endif
+        
+
     !------------------------------------------------------------------------
 
     end subroutine OilOptions 
@@ -1793,6 +1837,142 @@ case6 :         select case(trim(adjustl(String)))
 
     !----------------------------------------------------------------------------
 
+    subroutine CountLC50(ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, nLC50
+        logical                                         :: LC50Found
+
+
+        !Begin-----------------------------------------------------------------
+
+        Me%Var%LC50 = .false.
+
+        nLC50 = 0
+
+DOLC50: do 
+
+            call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
+                                       LC50_begin, LC50_end,                            &
+                                       LC50Found, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CountLC50 - ModuleOil_0D - ERR10'
+            
+i1:         if (LC50Found) then
+                Me%Var%LC50 = .true.
+
+                nLC50 = nLC50 + 1
+ 
+            else i1
+                call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+                if (STAT_CALL /= SUCCESS_) stop 'CountLC50 - ModuleOil_0D - ERR20'
+                exit
+            endif i1
+
+        enddo DOLC50
+        
+        Me%Var%LC50Number = nLC50
+
+        allocate(Me%Var%listLC50Specie(nLC50))
+        allocate(Me%Var%listLC50Value(nLC50))
+        allocate(Me%Var%listLC50Hours(nLC50))
+        allocate(Me%Var%listLC50Type(nLC50))
+        
+
+        if (Me%Var%LC50) then
+            
+            call ReadLC50s(ClientNumber)
+        endif
+
+    end subroutine CountLC50
+    !--------------------------------------------------------------------------    
+    
+    subroutine ReadLC50s(ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, nLC50, flag
+        logical                                         :: LC50Found
+        character(len=StringLength)                     :: AuxChar
+        
+
+        !Begin-----------------------------------------------------------------
+
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'CountLC50 - ModuleOil_0D - ERR20'
+
+DOLC50: do nLC50 = 1, Me%Var%LC50Number
+
+            call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,          &
+                                       LC50_begin, LC50_end,                            &
+                                       LC50Found, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR10'
+            
+i1:         if (LC50Found) then
+ 
+                call GetData(AuxChar,                                                       &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType     = FromBlockInBlockInBlock,                      & 
+                             keyword        = 'LC50_SPECIE',                                &
+                             ClientModule   ='ModuleOil_0D',                                   &
+                             STAT           = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR30'
+                Me%Var%listLC50Specie(nLC50) = trim(adjustl(AuxChar))
+                
+                call GetData(Me%Var%listLC50Value(nLC50),                                   &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType     = FromBlockInBlockInBlock,                      & 
+                             keyword        = 'LC50_VALUE',                                 &
+                             ClientModule   ='ModuleOil_0D',                                   &
+                             STAT           = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR40'
+
+                call GetData(Me%Var%listLC50Hours(nLC50),                                   &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType     = FromBlockInBlockInBlock,                      & 
+                             keyword        = 'LC50_HOURS',                                 &
+                             ClientModule   ='ModuleOil_0D',                                   &
+                             STAT           = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR50'
+                call GetData(AuxChar,                                                       &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             SearchType     = FromBlockInBlockInBlock,                      & 
+                             keyword        = 'LC50_TYPE',                                  &
+                             ClientModule   ='ModuleOil_0D',                                   &
+                             STAT           = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR60'
+                select case (AuxChar)
+                case("Surface", "surface", "SURFACE")
+                    Me%Var%listLC50Type(nLC50) = LC50Surface_
+                case("WaterColumn", "watercolumn", "WATERCOLUMN")
+                    Me%Var%listLC50Type(nLC50) = LC50WaterColumn_
+                case("Bottom", "bottom", "BOTTOM")
+                    Me%Var%listLC50Type(nLC50) = LC50Bottom_
+                case default
+                    Me%Var%listLC50Type(nLC50) = LC50Surface_
+                end select
+            else i1
+            
+                stop 'ReadLC50s - ModuleOil_0D - ERR40'
+
+            endif i1
+
+        enddo DOLC50
+
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLC50s - ModuleOil_0D - ERR70'
+
+    end subroutine ReadLC50s
+
+    !--------------------------------------------------------------------------    
 
     !----------------------------------------------------------------------------
 
@@ -2107,12 +2287,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
-    subroutine GetOWInterfacialTension(OilID, OWInterfacialTension, STAT)
+    subroutine GetOWInterfacialTension(OilID, OWInterfacialTension, Purpose, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: OilID
         real,              intent(OUT)              :: OWInterfacialTension
+        integer,            intent(IN)              :: Purpose
         integer, optional, intent(OUT)              :: STAT
+        integer, parameter                          :: MethodFloatVel_           = 1
+        integer, parameter                          :: MethodBWDropletsDiameter_ = 2
+        
 
         !Local-----------------------------------------------------------------
         integer                                     :: ready_, STAT_
@@ -2127,7 +2311,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
             OWInterfacialTension = Me%Var%OWInterfacialTension
             if (OWInterfacialTension .EQ. -9999.) then
-                write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Zheng method for rising velocity)'
+                if (Purpose .EQ. MethodFloatVel_) then
+                  write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Zheng method - METHOD_BW_DROPLETS_DIAMETER : 3)'
+                elseif (Purpose .EQ. MethodBWDropletsDiameter_) then
+                  write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Johansen method-METHOD_BW_DROPLETS_DIAMETER: 4)'
+                end if
                 stop 'GetOWInterfacialTension - ModuleOil_0D - ERR01'
             end if
             STAT_ = SUCCESS_
@@ -2299,6 +2487,101 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !----------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetOilPNEC(OilID, PNEC, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                       :: OilID
+        real,                   intent(OUT)           :: PNEC
+        integer, optional,      intent(OUT)           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            PNEC  = Me%Var%PNEC          
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetOilPNEC
+
+        !----------------------------------------------------------------------
+
+    subroutine GetOilLC50(OilID, LC50, LC50Number, LC50Species, LC50Values, LC50Types, LC50Hours, STAT)
+
+  !      !Arguments-------------------------------------------------------------
+        integer                                             :: OilID
+        logical,              intent(OUT)                   :: LC50
+        integer,              intent(OUT)                   :: LC50Number
+        character(LEN = StringLength), pointer, dimension(:) :: LC50Species 
+        real, pointer, dimension(:)                         :: LC50Values 
+        integer, pointer, dimension(:)                      :: LC50Types 
+        real, pointer, dimension(:)                         :: LC50Hours
+        integer, optional,    intent(OUT)                   :: STAT
+!        integer                                             :: nLC50
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        nullify (LC50Species)
+        nullify (LC50Values)
+        nullify (LC50Types)
+        nullify (LC50Hours)
+        
+        call Ready(OilID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+            !allocate(LC50Species(1:LC50Number))
+            !allocate(LC50Values(1:LC50Number))
+            !allocate(LC50Types(1:LC50Number))
+            !allocate(LC50Hours(1:LC50Number))
+
+            LC50               = Me%Var%LC50
+            LC50Number         = Me%Var%LC50Number
+            LC50Values(1:LC50Number)  => Me%Var%listLC50Value         
+            LC50Species(1:LC50Number) => Me%Var%listLC50Specie         
+            LC50Types(1:LC50Number)   => Me%Var%listLC50Type
+            LC50Hours(1:LC50Number)   => Me%Var%listLC50Hours         
+
+            !nLC50 = 0
+            !do nLC50 = 1, Me%Var%LC50Number 
+            !    LC50Values(nLC50)  = Me%Var%listLC50Value(nLC50)         
+            !    LC50Species(nLC50) = Me%Var%listLC50Specie(nLC50)         
+            !    LC50Types(nLC50)   = Me%Var%listLC50Type(nLC50)         
+            !    LC50Hours(nLC50)   = Me%Var%listLC50Hours(nLC50)         
+            !enddo            
+            STAT_ = SUCCESS_
+        else cd1
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+!        ----------------------------------------------------------------------
+
+    end subroutine GetOilLC50
+    
+        !----------------------------------------------------------------------
+
     subroutine UngetOil0D(OilID, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -2386,11 +2669,16 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                     VWaterContent,                                       & 
                                     MWaterContent,                                       & 
                                     MDispersed,                                          &
+                                    MEvaporatedDT,                                       &
+                                    MDispersedDT,                                        &
                                     MDissolvedDT,                                        &
+                                    MSedimentedDT,                                       &
                                     OilDensity,                                          &
                                     MassINI,                                             &
                                     OilViscosity,                                        &
                                     FMDispersed,                                         &
+                                    FMDissolved,                                         &
+                                    FMSedimented,                                        &
                                     FMEvaporated,                                        & 
                                     VolTotOilBeached,                                    &
                                     VolTotBeached,                                       &
@@ -2420,11 +2708,16 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real,              intent(OUT)              :: VWaterContent
         real,              intent(OUT)              :: MWaterContent
         real,              intent(OUT)              :: MDispersed
+        real,              intent(OUT)              :: MEvaporatedDT
+        real,              intent(OUT)              :: MDispersedDT
         real,              intent(OUT)              :: MDissolvedDT
+        real,              intent(OUT)              :: MSedimentedDT
         real,              intent(OUT)              :: OilDensity
         real,              intent(OUT)              :: MassINI
         real,              intent(OUT)              :: OilViscosity      
         real,              intent(OUT)              :: FMDispersed      
+        real,              intent(OUT)              :: FMDissolved      
+        real,              intent(OUT)              :: FMSedimented      
         real,              intent(OUT)              :: FMEvaporated      
         real,              intent(OUT)              :: AreaTotalOUT
         real,              intent(IN )              :: AreaTotal
@@ -2447,7 +2740,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
 
                 VolumeTotalOUT                  = null_real
-                MDissolvedDT                    = 0.0
                 Me%Var%VolumeOil                = VolumeTotalIN
 
                 do while (LagrangianTime .GE. Me%NextInternalComputeTime) 
@@ -2560,8 +2852,13 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
                     OilViscosity                    = Me%Var%Viscosity        
                     FMEvaporated                    = Me%Var%FMEvaporated        
                     FMDispersed                     = Me%Var%FMDispersed    
-                    MDissolvedDT                    = Me%Var%MDissolvedDT
+                    FMDissolved                     = Me%Var%FMDissolved        
+                    FMSedimented                    = Me%Var%FMSedimented        
 
+                    MDispersedDT                    = Me%Var%MDispersedDT
+                    MEvaporatedDT                   = Me%Var%MEvaporatedDT
+                    MDissolvedDT                    = Me%Var%MDissolvedDT
+                    MSedimentedDT                   = Me%Var%MSedimentedDT
                 enddo 
 
             else cd2
@@ -2579,7 +2876,8 @@ cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
                 OilViscosity                    = Me%Var%Viscosity        
                 FMEvaporated                    = Me%Var%FMEvaporated        
                 FMDispersed                     = Me%Var%FMDispersed    
-                MDissolvedDT                    = Me%Var%MDissolvedDT            
+                FMDissolved                     = Me%Var%FMDissolved        
+                FMSedimented                    = Me%Var%FMSedimented        
 
             end if cd2
            
@@ -2727,7 +3025,7 @@ cd3:           if (Me%Var%VolPC(n)-(Me%Var%VEvaporatedPCDT(n))                  
 
         else if (Me%Var%EvaporationMethod  .EQ. EvaporativeExposure) then  cd1
         
-            KTransfMass                       = 1.5e-3 * Me%ExternalVar%Wind **0.78
+            KTransfMass                       = 2.5e-3 * Me%ExternalVar%Wind **0.78
 
             Me%Var%VEvaporatedDT          = (1-Me%Var%VWaterContent)                        &
                                                 *(KTransfMass*Me%ExternalVar%Area)* exp(CEvap_A &
@@ -2977,6 +3275,38 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
     end subroutine Dispersion
 
     !--------------------------------------------------------------------------
+    subroutine GetDropletDiameterJohansen(ParticleDensity,                             &
+                                          ParticleViscosity,                           &
+                                          WaveHeight,                                  &
+                                          InterfacialTension,                          &
+                                          Thickness,                                   &
+                                           DropletDiameter)
+    
+        !Arguments----------------------------------------------------------------------
+        real,    intent(IN)            :: ParticleDensity, ParticleViscosity
+        real,    intent(IN)            :: WaveHeight, InterfacialTension, Thickness
+        real,    intent(OUT)           :: DropletDiameter
+        
+
+        !Local--------------------------------------------------------------------------
+        real,    parameter             :: Coef_A = 2.251
+        real,    parameter             :: Coef_B = 0.027
+        real,    parameter             :: Exp_a  = 0.6
+        real                           :: WaveAmplitude, FreeFallVelocity, WeberNumber, ViscosityNumber, Viscosity_SI
+        !Begin--------------------------------------------------------------------------
+
+        WaveAmplitude                   = 2 * WaveHeight
+        FreeFallVelocity                = sqrt(2 * Gravity * WaveAmplitude)
+        Viscosity_SI                    = 0.001 * ParticleViscosity 
+        ViscosityNumber                 = Viscosity_SI * FreeFallVelocity / InterfacialTension
+        WeberNumber                     = ParticleDensity * (FreeFallVelocity**2) * Thickness / InterfacialTension
+        DropletDiameter                 = Thickness * Coef_A * (WeberNumber **(-1 * Exp_a)) * & 
+                                          (1 + Coef_B * (ViscosityNumber**Exp_a)) 
+            
+    end subroutine GetDropletDiameterJohansen
+
+
+    !--------------------------------------------------------------------------
     subroutine GetDropletDiameterOrQdTotal(MethodBWDropletsDiameter,                    &
                                            D50,                                         &
                                            ParticleViscCin,                             &
@@ -3016,53 +3346,59 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
             DropletDiameter  = 0.5 * ComputedD50 
                   
         case (Computed_Classes_Random_)
-          
-            call GetEntrainedClasses(ParticleViscCin,                                   &
-                                     WaveHeight,                                        &
-                                     WaterDensity,                                      &
-                                     Wind,                                              &
-                                     WavePeriod,                                        &
-                                     5,                                                 &
-                                     QdTotal_,                                          &
-                                     Qd,                                                &
-                                     DropletDiameterList)
-                                  
-            if (QdTotal_ .EQ. 0.0) then
-                !no diameter class (minimum diameter = maximum diameter)
-                ! in this case, half computed D50 will be used as alternative
+            if ((WaveHeight .LT. AlmostZero) .OR. (WavePeriod .LT. AlmostZero) .OR. (Wind .LT. AlmostZero)) then
+                !can't use this method for submerged particles (when wind and waves are not present; 
+                ! uses Computed_Half_D50_ instead)
                 call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
                                                   ComputedD50          = ComputedD50)
                 DropletDiameter  = 0.5 * ComputedD50 
+            else            
+          
+                call GetEntrainedClasses(ParticleViscCin,                                   &
+                                         WaveHeight,                                        &
+                                         WaterDensity,                                      &
+                                         Wind,                                              &
+                                         WavePeriod,                                        &
+                                         5,                                                 &
+                                         QdTotal_,                                          &
+                                         Qd,                                                &
+                                         DropletDiameterList)
+                                  
+                if (QdTotal_ .EQ. 0.0) then
+                    !no diameter class (minimum diameter = maximum diameter)
+                    ! in this case, half computed D50 will be used as alternative
+                    call GetDropletDiameterParameters(ParticleViscCin      = ParticleViscCin, &
+                                                      ComputedD50          = ComputedD50)
+                    DropletDiameter  = 0.5 * ComputedD50 
                 
-            else
-                call random_number(RandVal)
-
-                CumulativeFraction(1) = (Qd(1) / QdTotal_)
-                do i = 2,5
-                    CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal_)
-                end do
-
-                If (RandVal <= CumulativeFraction(1)) then
-                        DropletDiameter = DropletDiameterList(1)
                 else
-                    do i = 2,5 
-                        if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
-                            DropletDiameter = DropletDiameterList(i)
-                            exit
-                        endif        
-                    end do             
-                Endif
-            endif
+                    call random_number(RandVal)
+
+                    CumulativeFraction(1) = (Qd(1) / QdTotal_)
+                    do i = 2,5
+                        CumulativeFraction(i) =  CumulativeFraction(i-1) + (Qd(i) / QdTotal_)
+                    end do
+
+                    If (RandVal <= CumulativeFraction(1)) then
+                            DropletDiameter = DropletDiameterList(1)
+                    else
+                        do i = 2,5 
+                            if ((RandVal <= CumulativeFraction(i)) .and. (RandVal > CumulativeFraction(i-1))) then
+                                DropletDiameter = DropletDiameterList(i)
+                                exit
+                            endif        
+                        end do             
+                    Endif
+                endif
             
-            if (present(QdTotal)) QdTotal = QdTotal_ 
-        
+                if (present(QdTotal)) QdTotal = QdTotal_ 
+            endif        
         end select       
        
         
     end subroutine GetDropletDiameterOrQdTotal
 
-
-        !------------------------------------------------------------------------
+    !------------------------------------------------------------------------
 
     subroutine GetDropletDiameterParameters(ParticleViscCin, ComputedD50, MinDropletDiameter, MaxDropletDiameter)
         !Arguments---------------------------------------------------------------
@@ -3089,7 +3425,7 @@ cd4:    if (Me%Var%MassOil - (Me%Var%MDispersedDT) * Me%Var%DTOilInternalProcess
         if (present(MinDropletDiameter))                                                      &
             MinDropletDiameter = MinDropletDiameter_
 
-            MaxDropletDiameter_  = min(ComputedD502_, 70.E-06)
+            MaxDropletDiameter_  = min(2*ComputedD502_, 70.E-06)
         if (present(MaxDropletDiameter))                                                      &
             MaxDropletDiameter = MaxDropletDiameter_
 
@@ -3406,9 +3742,9 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
                                                shape(ViscIncreaseMatrix))
                                                                
                                               !Unstable, Entrained, Mesostable, Stable
-                WaterContentMatrix       = reshape((/0.06,  0.42, 0.64,  0.77,   &       ! First Day
-                                                     0.07,  0.38, 0.32,  0.75,   &       ! Week
-                                                     0.05,  0.40,  0.2,  0.70/), &       ! Year
+                WaterContentMatrix       = reshape((/0.061,  0.42, 0.643,  0.81,   &       ! First Day
+                                                     0.06,  0.275, 0.30,  0.78,   &       ! Week
+                                                     0.05,  0.06,  0.06,  0.70/), &       ! Year
                                                      shape(WaterContentMatrix))
                 
                 AR                  = Me%Var%AsphalteneContent / Me%Var%ResinContent
@@ -3873,7 +4209,8 @@ cd2 :       if (Me%Var%OilType .EQ. refined) then
         if (Me%Var%OilType .EQ. Refined) then
            F_IBP = 654.45 - 4.6588 * Me%Var%API
         else
-            F_IBP = 532.98 - 3.1295 * Me%Var%API
+            !F_IBP = 532.98 - 3.1295 * Me%Var%API
+            F_IBP = 457.16 - 3.3447 * Me%Var%API
         end if            
 
         !como as equações anteriores dao resultados mto baixos, usa-se uma 
@@ -4896,12 +5233,14 @@ cd3 :           if (Me%State%TimeSerie) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             write (UnitID) Me%Var%Time
+            write (UnitID) Me%Var%DTOilInternalProcesses
             write (UnitID) Me%Var%OilType
             write (UnitID) Me%Var%API
             write (UnitID) Me%Var%PourPoint
 
             write (UnitID) Me%State%FirstStepAP
             write (UnitID) Me%State%FirstStepIP
+            write (UnitID) Me%Var%DTOilInternalProcesses
 
             !Mass
             write (UnitID) Me%Var%MassOil
@@ -5111,13 +5450,14 @@ ifdiss:     if (Me%Var%OilDissolution) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            read (UnitID) Me%Var%Time
+            read (UnitID)  Me%Var%Time
             read (UnitID) Me%Var%OilType
             read (UnitID) Me%Var%API
             read (UnitID) Me%Var%PourPoint
 
             read (UnitID) Me%State%FirstStepAP
             read (UnitID) Me%State%FirstStepIP
+            read (UnitID) Me%Var%DTOilInternalProcesses
 
             !Mass
             read (UnitID) Me%Var%MassOil

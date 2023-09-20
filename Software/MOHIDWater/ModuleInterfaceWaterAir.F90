@@ -68,7 +68,7 @@ Module ModuleInterfaceWaterAir
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
     use ModuleLagrangianGlobal,     only: SetLagrangianShearGlobal, GetLagrangianAirOptionsGlobal,   &
                                           SetLagrangianWindGlobal, SetLagrangianAirTemperature,      &
-                                          SetLagSolarRadiationGlobal,  &
+                                          SetLagSolarRadiationGlobal, SetLagrangianCloudCover,  &
                                           SetLagrangianAtmPressureGlobal   
 #else
     use ModuleLagrangian,           only: SetLagrangianShear, GetLagrangianAirOptions,          &
@@ -261,6 +261,7 @@ Module ModuleInterfaceWaterAir
         logical                                     :: HydrodynamicAtmPressureYes   = .false.
         logical                                     :: OilYes                       = .false.
         logical                                     :: HNSYes                       = .false.
+        logical                                     :: HNSRadiationYes              = .false.
         logical                                     :: WavesWindYes                 = .false.
         logical                                     :: GOTMWindShearVelocityYes     = .false.
         logical                                     :: Irrigation                   = .false.
@@ -2290,7 +2291,8 @@ do1 :   do while (associated(PropertyX))
             call GetLagrangianAirOptionsGlobal(LagrangianID  = Me%ObjLagrangian,         &
                                          Oil           = Me%ExtOptions%OilYes,           &
                                          HNS           = Me%ExtOptions%HNSYes,           &
-                                         Wind          = Me%ExtOptions%LagrangianWindYes,&
+                                         HNSRadiation  = Me%ExtOptions%HNSRadiationYes,  &
+                                         Wind          = Me%ExtOptions%LagrangianWindYes, &
                                          WaterQuality  = Me%ExtOptions%LagrangianWQMYes, &
                                          T90Variable   = Me%ExtOptions%LagrangianT90Yes, &
                                          STAT = STAT_CALL)
@@ -2475,7 +2477,8 @@ do1 :   do while (associated(PropertyX))
         endif
 
         if (Me%ExtOptions%WQMYes           .or. Me%ExtOptions%T90VariableYes .or.       &
-            Me%ExtOptions%LagrangianWQMYes .or. Me%ExtOptions%LagrangianT90Yes) then
+            Me%ExtOptions%LagrangianWQMYes .or. Me%ExtOptions%LagrangianT90Yes .or.     &
+            Me%ExtOptions%HNSRadiationYes) then
             
             call Search_Property(PropertyX, SurfaceRadiation_, .true., STAT = STAT_CALL) 
             if (STAT_CALL .ne. SUCCESS_)then
@@ -2489,6 +2492,12 @@ do1 :   do while (associated(PropertyX))
 
         endif
         
+        if (Me%ExtOptions%HNSRadiationYes) then
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, CloudCover_))then
+                write(*,*) 'Missing CloudCover in Module Atmosphere '
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR251'
+            endif
+        endif
         Me%IntOptions%WindShearVelAllocate = .false.
         
         if (Me%ExtOptions%GOTMWindShearVelocityYes .and. Me%IntOptions%WindStress       &
@@ -6457,6 +6466,7 @@ i22:    if (Me%ObjLagrangian /= 0) then
             call GetLagrangianAirOptionsGlobal(LagrangianID  = Me%ObjLagrangian,                &
                                          Oil           = Me%ExtOptions%OilYes,                  &
                                          HNS           = Me%ExtOptions%HNSYes,                  &
+                                         HNSRadiation  = Me%ExtOptions%HNSRadiationYes,         &
                                          Wind          = Me%ExtOptions%LagrangianWindYes,       &
                                          WaterQuality  = Me%ExtOptions%LagrangianWQMYes,        &
                                          T90Variable   = Me%ExtOptions%LagrangianT90Yes,        &
@@ -6506,7 +6516,7 @@ i22:    if (Me%ObjLagrangian /= 0) then
 #endif                
         endif
 
-        if(Me%ExtOptions%LagrangianWQMYes  .or. Me%ExtOptions%LagrangianT90Yes)then
+        if(Me%ExtOptions%LagrangianWQMYes  .or. Me%ExtOptions%LagrangianT90Yes  .or. Me%ExtOptions%HNSRadiationYes)then
             call Search_Property(PropertyX, SurfaceRadiation_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_)then        
 #ifdef  _LAGRANGIAN_GLOBAL_ 
@@ -6527,6 +6537,29 @@ i22:    if (Me%ObjLagrangian /= 0) then
         
         endif
 
+        if(Me%ExtOptions%HNSRadiationYes)then
+
+#ifdef  _LAGRANGIAN_GLOBAL_ 
+            call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
+                                        Scalar       = Me%ExtAtm%CloudCover%Field,       &
+                                        ID           = CloudCover_,                      &
+                                        STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR161'
+
+            call SetLagrangianCloudCover( LagrangianID = Me%ObjLagrangian,                  &
+                                                ModelName      = Me%ModelName,                 &
+                                                CloudCover     = Me%ExtAtm%CloudCover%Field,   &
+                                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR151'
+
+            call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%CloudCover%Field, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR162'
+                
+#endif
+            !endif        
+
+        endif
         if(Me%ExtOptions%OilYes .or. Me%ExtOptions%HNSYes)then
 
             !In this situation, if both Atmospheric Pressure and Mean Sea
