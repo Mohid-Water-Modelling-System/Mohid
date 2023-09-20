@@ -2314,7 +2314,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 if (Purpose .EQ. MethodFloatVel_) then
                   write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Zheng method - METHOD_BW_DROPLETS_DIAMETER : 3)'
                 elseif (Purpose .EQ. MethodBWDropletsDiameter_) then
-                  write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Johansen method - METHOD_BW_DROPLETS_DIAMETER : 4))'
+                  write(*,*) 'Oil-Water Interfacial Tension not defined (needed in Johansen method-METHOD_BW_DROPLETS_DIAMETER: 4)'
                 end if
                 stop 'GetOWInterfacialTension - ModuleOil_0D - ERR01'
             end if

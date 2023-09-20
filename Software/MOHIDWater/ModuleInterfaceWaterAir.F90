@@ -261,7 +261,7 @@ Module ModuleInterfaceWaterAir
         logical                                     :: HydrodynamicAtmPressureYes   = .false.
         logical                                     :: OilYes                       = .false.
         logical                                     :: HNSYes                       = .false.
-        logical                                     :: HNSRadiationYes																							 
+        logical                                     :: HNSRadiationYes              = .false.
         logical                                     :: WavesWindYes                 = .false.
         logical                                     :: GOTMWindShearVelocityYes     = .false.
         logical                                     :: Irrigation                   = .false.
@@ -2478,7 +2478,7 @@ do1 :   do while (associated(PropertyX))
 
         if (Me%ExtOptions%WQMYes           .or. Me%ExtOptions%T90VariableYes .or.       &
             Me%ExtOptions%LagrangianWQMYes .or. Me%ExtOptions%LagrangianT90Yes .or.     &
-			Me%ExtOptions%HNSRadiationYes) then
+            Me%ExtOptions%HNSRadiationYes) then
             
             call Search_Property(PropertyX, SurfaceRadiation_, .true., STAT = STAT_CALL) 
             if (STAT_CALL .ne. SUCCESS_)then
@@ -2492,7 +2492,7 @@ do1 :   do while (associated(PropertyX))
 
         endif
         
-		if (Me%ExtOptions%HNSRadiationYes) then
+        if (Me%ExtOptions%HNSRadiationYes) then
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, CloudCover_))then
                 write(*,*) 'Missing CloudCover in Module Atmosphere '
                 stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR251'
@@ -6466,7 +6466,7 @@ i22:    if (Me%ObjLagrangian /= 0) then
             call GetLagrangianAirOptionsGlobal(LagrangianID  = Me%ObjLagrangian,                &
                                          Oil           = Me%ExtOptions%OilYes,                  &
                                          HNS           = Me%ExtOptions%HNSYes,                  &
-										 HNSRadiation  = Me%ExtOptions%HNSRadiationYes,         &														 
+                                         HNSRadiation  = Me%ExtOptions%HNSRadiationYes,         &
                                          Wind          = Me%ExtOptions%LagrangianWindYes,       &
                                          WaterQuality  = Me%ExtOptions%LagrangianWQMYes,        &
                                          T90Variable   = Me%ExtOptions%LagrangianT90Yes,        &
