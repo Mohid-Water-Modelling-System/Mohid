@@ -5982,7 +5982,7 @@ do8:   do i = ILB, IUB + 1
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: i, j
-        real(8)                             :: AuxDble
+        real(8)                             :: AuxDble, x1, y1, x2, y2
 
         !----------------------------------------------------------------------
 
@@ -6021,6 +6021,38 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
                 Me%DYY(i, j) = real (AuxDble)
             enddo
             enddo
+            
+            !DUX
+            do j = JLB, JUB
+            do i = ILB, IUB
+                x1      =   dble(Me%XX_IE(i, j  ) + Me%XX_IE(i+1, j  )) / 2.
+                y1      =   dble(Me%YY_IE(i, j  ) + Me%YY_IE(i+1, j  )) / 2.  
+                
+                x2      =   dble(Me%XX_IE(i, j+1) + Me%XX_IE(i+1, j+1)) / 2.
+                y2      =   dble(Me%YY_IE(i, j+1) + Me%YY_IE(i+1, j+1)) / 2.                  
+                
+                AuxDble =   sqrt((x2-x1)**2 + (y2-y1)**2)
+                
+
+                Me%DUX(i, j) = real (AuxDble)
+            enddo
+            enddo
+            
+            !DVY
+            do j = JLB, JUB
+            do i = ILB, IUB
+                x1      =   dble(Me%XX_IE(i  , j) + Me%XX_IE(i  , j+1)) / 2.
+                y1      =   dble(Me%YY_IE(i  , j) + Me%YY_IE(i  , j+1)) / 2.  
+                
+                x2      =   dble(Me%XX_IE(i+1, j) + Me%XX_IE(i+1, j+1)) / 2.
+                y2      =   dble(Me%YY_IE(i+1, j) + Me%YY_IE(i+1, j+1)) / 2.                  
+                
+                AuxDble =   sqrt((x2-x1)**2 + (y2-y1)**2)
+                
+
+                Me%DVY(i, j) = real (AuxDble)
+            enddo
+            enddo            
 
         else  cd1 !Grid_Angle = 0. No grid rotation. Or coordinate type not circular
 
@@ -6040,26 +6072,28 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
             enddo
             enddo
 
+            
+            !DUX, DVY
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Me%DUX(i, j) = (Me%DXX(i, j) +       &
+                                               Me%DXX(i+1, j)) / 2.
+                Me%DVY(i, j) = (Me%DYY(i, j) +       &
+                                               Me%DYY(i, j+1)) / 2.
+            enddo
+            enddo
+
+            !DVX
+            do j = JLB, JUB - 1
+            do i = ILB, IUB + 1
+               Me%DVX(i, j) = (Me%DXX(i, j) +        &
+                                              Me%DXX(i, j+1)) / 2.
+            enddo
+            enddo            
 
         endif cd1
 
-        !DUX, DVY
-        do j = JLB, JUB
-        do i = ILB, IUB
-            Me%DUX(i, j) = (Me%DXX(i, j) +       &
-                                           Me%DXX(i+1, j)) / 2.
-            Me%DVY(i, j) = (Me%DYY(i, j) +       &
-                                           Me%DYY(i, j+1)) / 2.
-        enddo
-        enddo
 
-        !DVX
-        do j = JLB, JUB - 1
-        do i = ILB, IUB + 1
-           Me%DVX(i, j) = (Me%DXX(i, j) +        &
-                                          Me%DXX(i, j+1)) / 2.
-        enddo
-        enddo
 
         !DZX
         do j = JLB, JUB - 1
@@ -14467,6 +14501,16 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR130'
                     
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "DUX", "m",                     &
+                                          Array2D = Me%DUX,                                 &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR140'                    
+                    
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "DVY", "m",                     &
+                                          Array2D = Me%DVY,                                 &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR150'                    
+
                     
                 endif
 
@@ -14491,12 +14535,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_x", "-",    &
                                               Array2D = XX_aux,                         &
                                               STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR140'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR160'
 
                         call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_y", "-",&
                                               Array2D = YY_aux,                         &
                                               STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR150'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR170'
 
                         deallocate(XX_aux,YY_Aux)
 
@@ -14510,7 +14554,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     !Sets limits for next write operations
                     call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR160'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR180'
 
 
                     if (WindowGrid_) then
@@ -14528,7 +14572,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR170'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR190'
 
                     AuxInt4(1) = Me%DDecomp%HaloMap%ILB + WorkILB - 1
                     AuxInt4(2) = Me%DDecomp%HaloMap%ILB + WorkIUB - 1
@@ -14537,7 +14581,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR180'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR200'
 
                     if (AuxInt4(1) == Me%DDecomp%HaloMap%ILB) then
                         AuxInt4(1) =  Me%DDecomp%Mapping%ILB
@@ -14557,7 +14601,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/InnerMapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR190'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR210'
 
                     deallocate(AuxInt4)
 
@@ -14565,7 +14609,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                         call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL)
 
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR200'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR220'
 
                         write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
 
@@ -14597,7 +14641,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                  form   = "formatted",                                  &
                                  IOSTAT = STAT_CALL)
 
-                            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR210'
+                            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR230'
                         endif
 
                         Me%DDecomp%FilesListOpen = .true.
@@ -14607,7 +14651,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     if (Me%DDecomp%FilesListOpen) then
 
                         call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR220'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR240'
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1
