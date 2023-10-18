@@ -454,7 +454,6 @@ Module ModuleRunOff
     type T_SewerGEMSPond
         integer                                     :: ID                   = null_int !1 to ponds
         integer                                     :: SWMM_ID              = null_int !SWMM node id
-        !character(Stringlength)                     :: SewerGemsID          = "" !Sewergems ID to avoid weird names. Sobrinho
         character(Stringlength)                     :: Name                 = null_str
         real                                        :: WaterLevel           = null_real
         real                                        :: Flow                 = null_real
@@ -479,7 +478,6 @@ Module ModuleRunOff
     type T_SewerGEMSOutfall
         integer                                     :: ID                   = null_int !1 to number of outfalls
         integer                                     :: SWMM_ID              = null_int !SWMM node id
-        !character(Stringlength)                     :: SewerGemsID          = "" !Sewergems ID to avoid weird names. Sobrinho
         character(Stringlength)                     :: Name                 = null_str
         integer                                     :: I                    = null_int
         integer                                     :: J                    = null_int
@@ -490,7 +488,6 @@ Module ModuleRunOff
     type T_SewerGEMSManhole
         integer                                     :: ID                   = null_int !1 to number of manholes
         integer                                     :: SWMM_ID              = null_int !SWMM node id
-        !character(Stringlength)                     :: SewerGemsID          = "" !Sewergems ID to avoid weird names. Sobrinho
         character(Stringlength)                     :: Name                 = null_str
         integer                                     :: I                    = null_int
         integer                                     :: J                    = null_int
@@ -500,7 +497,6 @@ Module ModuleRunOff
     type T_SewerGEMSInlet
         integer                                     :: ID                   = null_int !1 to number of inlets
         integer                                     :: SWMM_ID              = null_int !SWMM node id
-        !character(Stringlength)                     :: SewerGemsID          = "" !Sewergems ID to avoid weird names. Sobrinho       
         character(Stringlength)                     :: Name                 = null_str
         integer                                     :: I                    = null_int
         integer                                     :: J                    = null_int
@@ -3024,8 +3020,9 @@ do2:    do
                 if(iflag == 0)then
                     write(*,*)"Please define NAME for headwall"
                     write(*,*)"ID = ", n
-                    stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR40'
+                    stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR31'
                 endif
+                
 
                 call GetData(Me%Headwalls(n)%OutputResults,                                     &
                              HeadwallsObjEnterData, iflag,                                      &
@@ -3181,17 +3178,9 @@ do2:    do
                 if(iflag == 0)then
                     write(*,*)"Please define NAME for inlet"
                     write(*,*)"ID = ", n
-                    stop 'ReadInletsFromFile - ModuleRunOff - ERR05'
+                    stop 'ReadInletsFromFile - ModuleRunOff - ERR35'
                 endif
                 
-                !Get ID for when users set weird names. SOBRINHO
-                !call GetData(Me%Inlets(n)%SewerGemsID,                                                 &
-                !             InletsObjEnterData, iflag,                                         &
-                !             Keyword        = 'ID',                                           &
-                !             SearchType     = FromBlock,                                        &
-                !             ClientModule   ='ModuleRunoff',                                    &
-                !             STAT           = STAT_CALL)                                      
-                !if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR35'
                 
                 call GetData(Me%Inlets(n)%TypeOf,                                               &
                              InletsObjEnterData, iflag,                                         &
@@ -3232,25 +3221,15 @@ do2:    do
                 
                     call UnitsManager(Me%Inlets(n)%OutputUnit, OPEN_FILE, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR48'
-
+                    
                     InletOutputFilename = trim(adjustl(RootSRT))//trim(adjustl(Me%Inlets(n)%Name))//".sri"
                 
                     open(Unit = Me%Inlets(n)%OutputUnit,                                        &
                          File = trim(adjustl(InletOutputFilename)),                             &
                          STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR49'
-                    !if (STAT_CALL .NE. SUCCESS_) then SOBRINHO
-                        !Try using IDs to avoid weird naming like x/f/3.sri
-                        !InletOutputFilename = trim(adjustl(RootSRT))//trim(adjustl(Me%Inlets(n)%SewerGemsID))//".sri"
-                        !
-                        !open(Unit = Me%Inlets(n)%OutputUnit,                                        &
-                        !    File = trim(adjustl(InletOutputFilename)),                             &
-                        !    STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
-                        !if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR49'
-                    !endif
 
                     call WriteDataLine(Me%Inlets(n)%OutputUnit, "NAME", Me%Inlets(n)%Name)
-                    !call WriteDataLine(Me%Inlets(n)%OutputUnit, "ID", Me%Inlets(n)%SewerGemsID)
                     call WriteDataLine(Me%Inlets(n)%OutputUnit, 'SERIE_INITIAL_DATA', Me%BeginTime)
                     call WriteDataLine(Me%Inlets(n)%OutputUnit, 'TIME_UNITS', 'SECONDS')
                     
@@ -5915,6 +5894,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         enddo
     
     end function ValidateInlet
+    
 
     !--------------------------------------------------------------------------
     
@@ -5956,7 +5936,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
 
     !--------------------------------------------------------------------------
     
-    integer function ValidatePond(Name, NodeID) !Sobrinho
+    integer function ValidatePond(Name, NodeID)
     
         character(len = 99), intent(in) :: Name
         integer,             intent(in) :: NodeID
@@ -5974,25 +5954,6 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
     end function ValidatePond
     
     !--------------------------------------------------------------------------
-    
-    !integer function ValidatePond(Name, ID, NodeID)
-    !
-    !    character(len = 99), intent(in) :: Name
-    !    integer,             intent(in) :: ID
-    !    integer,             intent(in) :: NodeID
-    !    integer                         :: n
-    !    
-    !    ValidatePond = null_int
-    !    do n = 1, Me%NumberOfPonds
-    !        if((trim(adjustl(Name)) == trim(adjustl(Me%Ponds(n)%Name))) .OR.
-    !           (ID == Me%Ponds(n)%SewerGemsID))then
-    !            ValidatePond           = Me%Ponds(n)%ID
-    !            Me%Ponds(n)%SWMM_ID    = NodeID
-    !            exit 
-    !        end if 
-    !    enddo
-    !
-    !end function ValidatePond
 
 
 #endif _SEWERGEMSENGINECOUPLER_
