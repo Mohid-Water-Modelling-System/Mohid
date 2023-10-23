@@ -24,6 +24,7 @@ Program HDF5_2_EsriGridData
     use ModuleHorizontalGrid
     use ModuleGridData
     use ModuleDrawing 
+    use RasterFunctions !new
 
     implicit none
 
@@ -90,6 +91,8 @@ Program HDF5_2_EsriGridData
         logical                                             :: VectorON
         character(len=StringLength)                         :: Vector_X, Vector_Y
         logical                                             :: ExportGridData
+        logical                                             :: WriteAsGeoTiff
+        integer                                             :: EPSG
         
         type(T_Time)                                        :: StartTime, EndTime
         integer                                             :: ComputeOption
@@ -490,7 +493,28 @@ d2:     do l= 1, Me%FieldNumber
                      ClientModule = 'HDF5ToASCIIandBIN',                                &
                      default      = .false.,                                            &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR250'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR250'
+        
+        ! New -> Write output as GeoTiff instead of ASC file        
+        call GetData(Me%WriteAsGeoTiff,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'WRITE_AS_GEOTIFF',                                 &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR260'
+        
+        if (Me%WriteAsGeoTiff) then
+            call GetData(Me%EPSG,                                                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EPSG',                                             &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         default      = 4326,                                               &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR261'
+        end if
         
     end subroutine ReadGlobalOptions
 
@@ -700,7 +724,214 @@ d2:     do l= 1, Me%InstantNumber
     end subroutine ReadESRIFields 
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetOutgridTransferProperties(Aux2DOut, Aux3DOut, ILBout, IUBout, JLBout, JUBout, CoordXout, CoordYout)
+        !Arguments---------------------------------------------------------------
+        real, dimension(:,:  ), pointer, intent(out)    :: Aux2DOut
+        real, dimension(:,:,:), pointer, intent(out)    :: Aux3DOut
+        integer                        , intent(out)    :: ILBout, IUBout, JLBout, JUBout
+        real,  dimension(:,:), pointer , intent(out)    :: CoordXout, CoordYout
+        !Local-------------------------------------------------------------------
+        integer                                         :: i, j
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY
+        type (T_PointF)      , pointer                  :: Point
+        !Body--------------------------------------------------------------------        
+        
+        ! Initiatialize out matrixes
+        allocate(Aux3DOut   (Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB,1: Me%KUB))
+        allocate(Aux2DOut   (Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB          ))
+        
+        ! Initialize Masks
+        allocate(Me%InPutMap  (Me%Size%ILB   :Me%Size%IUB    , Me%Size%JLB   :Me%Size%JUB   ,1: Me%KUB))
+        allocate(Me%OutPutMap (Me%SizeOut%ILB:Me%SizeOut%IUB , Me%SizeOut%JLB:Me%SizeOut%JUB          ))
+        
+        ! Set out dimensions
+        ILBout = Me%WorkSizeOut%ILB
+        IUBout = Me%WorkSizeOut%IUB
+        JLBout = Me%WorkSizeOut%JLB
+        JUBout = Me%WorkSizeOut%JUB
+    
+        ! CoordX and CoordY for every cell of hdf and out matrixes
+        call GetZCoordinates(Me%ObjHorizontalGrid   , CoordX   , CoordY)    ! Module HorizontalGrid
+        call GetZCoordinates(Me%ObjHorizontalGridOut, CoordXout, CoordYout) ! Module HorizontalGrid
+        
+        ! Point variable (X, Y)
+        allocate(Point)
+        
+        ! Apply mask to InputMap and OutputMap
+        if (Me%LandMaskON) then
+        
+            ! Checks every point of HDF Grid to see if it exists in LandMask polygons. If so, map = 0
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                Point%X = CoordX(i, j)
+                Point%Y = CoordY(i, j)
+                if (IsVisible(Me%LandMask, Point)) then ! from Module Drawing
+                    Me%InPutMap(i, j,:) = 0
+                else
+                    Me%InPutMap(i, j,:) = 1
+                endif
+            
+            enddo
+            enddo
+        
+            ! Checks every point of Out Grid to see if it exists in LandMask polygons. If so, map = 0
+            do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
+            do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
+            
+                Point%X = CoordXout(i, j)
+                Point%Y = CoordYout(i, j)
+                if (IsVisible(Me%LandMask, Point)) then ! from Module Drawing
+                    Me%OutPutMap(i, j) = 0
+                else
+                    Me%OutPutMap(i, j) = 1
+                endif
+            
+            enddo
+            enddo
+        else
+            
+            Me%InPutMap  (:,:,:)  = 1 
+            Me%OutPutMap (:,:  )  = 1
+            
+        endif
+    
+    end subroutine GetOutgridTransferProperties
 
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteAsASCFile(field_id, ILBout, IUBout, JLBout, JUBout, k_layer, DataMatrix3D)
+        !Arguments---------------------------------------------------------------
+        integer ,                            intent(in   ) :: field_id
+        integer ,                            intent(in   ) :: ILBout, IUBout, JLBout, JUBout
+        integer ,                            intent(in   ) :: k_layer
+        real    , dimension(:,:,:), pointer, intent(inout) :: DataMatrix3D
+        !Local-------------------------------------------------------------------
+        integer                                            :: Unit, STAT_CALL
+        integer                                            :: i, j
+        integer                                            :: a, bt, ba
+        character(len=50000)                               :: Line
+        !Body--------------------------------------------------------------------
+    
+        ! Write as ASC file
+        call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR60'
+        
+        ! Open file to write
+        open(Unit   = Unit,                                                     &
+             File   = trim(Me%OutputESRI(field_id)),                            &
+             Form   = 'FORMATTED',                                              &
+             STATUS = 'UNKNOWN',                                                &
+             Action = 'WRITE',                                                  &
+             IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR70'
+            
+        ! Write header
+        write(Unit,'(A14,I6)'   ) 'ncols         ', JUBout - JLBout + 1
+        write(Unit,'(A14,I6)'   ) 'nrows         ', IUBout - ILBout + 1
+        write(Unit,'(A14,A30)')     'xllcorner     ', trim(adjustl(Me%Origin(1)))
+        write(Unit,'(A14,A30)')     'yllcorner     ', trim(adjustl(Me%Origin(2)))
+        write(Unit,'(A14,A30)')     'cellsize      ', trim(adjustl(Me%DX))
+        write(Unit,'(A14,f12.6)') 'nodata_value  ', Me%FillValue
+        
+        do i = IUBout, ILBout, -1
+            
+            do j = JLBout, JUBout
+                ! Assure fill values
+                if (DataMatrix3D(i,j,k_layer) <=Me%FillValue) DataMatrix3D(i,j,k_layer) = Me%FillValue
+            enddo
+            
+            ! Write entire i array as line
+            write(Line,'(4000(e12.6,1x))') DataMatrix3D(i, JLBout:JUBout, k_layer)
+            Line = adjustl(Line)
+
+            bt = len_Trim(Line)
+            ba = bt
+            do a = 1, bt-1
+                do while (Line(a:a+1)=='  ') 
+                    Line(a:ba)=Line(a+1:ba+1)
+                    ba = ba - 1
+                    if (ba == a) exit
+                enddo
+                if (ba == a) exit
+            enddo
+            ! Write line in file
+            write(Unit,'(A)') trim(Line)
+        enddo
+        
+        call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR90'
+    
+    end subroutine WriteAsASCFile
+
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteAsGeoTiff (DataMatrix3D, CoordXout, CoordYout, ILBout, IUBout, JLBout, JUBout, k_layer, field_id)
+        !Arguments---------------------------------------------------------------
+        real, dimension(:,:,:), pointer , intent(inout) :: DataMatrix3D
+        real, dimension(:,:)  , pointer , intent(in)    :: CoordXout, CoordYout
+        integer                         , intent(in)    :: ILBout, IUBout, JLBout, JUBout
+        integer                         , intent(in)    :: k_layer
+        integer                         , intent(in)    :: field_id
+        !Local-------------------------------------------------------------------
+        !type(T_Raster), pointer :: raster
+        character(len=1000)                             :: projref
+        real(kind=c_double)                             :: geotrans(6)
+        real, dimension(:,:,:), pointer                 :: TranspMatrix3D
+        integer                                         :: i, j 
+        !Body--------------------------------------------------------------------
+        ! call OpenRaster("output_example_4326.tif", "GTiff", raster)
+        ! Get Projection - Mapping
+        select case (Me%EPSG)
+            case (4326)
+                projref = 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]'
+            case default
+                write (*,*) 'Unknown projection for GeoTiff'
+                stop      'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR100'
+        end select
+
+
+        ! Change origin to top left
+        geotrans(1) = CoordXout(1,1) - (CoordXout(1,2) - CoordXout(1,1))/2 ! origin x (bottom left)
+        geotrans(2) = CoordXout(1,2) - CoordXout(1,1) ! dx
+        geotrans(3) = 0.0
+        geotrans(4) = CoordYout(1,1) - (CoordYout(2,1) - CoordYout(1,1))/2 ! origin y (bottom left)
+        geotrans(5) = 0.0
+        geotrans(6) = CoordYout(2,1) - CoordYout(1,1) ! dy
+
+        ! Check if file is geotiff
+        ! Apply mask
+        do i = IUBout, ILBout, -1
+            do j = JLBout, JUBout
+                ! Assure fill values
+                if (DataMatrix3D(i,j,k_layer) <= Me%FillValue) DataMatrix3D(i,j,k_layer) = Me%FillValue
+            enddo
+        enddo
+        
+        ! Raster and hdf matrix i and j are switched -> transpose matrix
+        allocate(TranspMatrix3D   (1:Me%SizeOut%JUB, 1:Me%SizeOut%IUB, 1: Me%KUB))
+        do i=1, size(DataMatrix3D, 1) - 2 
+        do j=1, size(DataMatrix3D, 2) - 2 
+            TranspMatrix3D (j, i, k_layer) = DataMatrix3D (i, j, k_layer)
+        enddo
+        enddo
+        
+        ! Create GeoTiff
+        call CreateRaster   (FileName = trim(Me%OutputESRI(field_id)) , &
+                             DriverName     = "GTiff"                 , &
+                             RasterWidth    = size(TranspMatrix3D, 1) , &
+                             RasterHeight   = size(TranspMatrix3D, 2) , &
+                             DataType       = GDT_Float32             , &
+                             NumberBands    = k_layer                 , &
+                             Projection     = projref                 , &
+                             GeoTrans       = geotrans                , &
+                             DataMatrix3D   = TranspMatrix3D)
+        
+    end subroutine WriteAsGeoTiff
+    
+    !--------------------------------------------------------------------------
+    
     subroutine ModifyHDF5_2_EsriGridData
 
         !Arguments---------------------------------------------------------------
@@ -708,17 +939,13 @@ d2:     do l= 1, Me%InstantNumber
         !Local-------------------------------------------------------------------
         real, dimension(:,:,:), pointer                 :: Aux3D, Aux3DOut
         real, dimension(:,:), pointer                   :: Aux2DOut, Aux2D
-        character(len=50000)                            :: Line
         character(len=PathLength)                       :: VGroup, Field, AuxChar
-        integer                                         :: l, i, j, k, STAT_CALL, Unit
-        integer                                         :: ILB, IUB, JLB, JUB, HDF5_READ, a, ba, bt
+        integer                                         :: l, i, j, k, STAT_CALL
+        integer                                         :: ILB, IUB, JLB, JUB, HDF5_READ
         integer                                         :: ILBout, IUBout, JLBout, JUBout, iout, jout
-        logical                                         :: Found2Blanks
-        real,  dimension(:,:), pointer                  :: CoordX, CoordY
         real,  dimension(:,:), pointer                  :: CoordXout, CoordYout
         integer, dimension(:,:), pointer                :: InPutMap2D
-        logical                                         :: Exist
-        type (T_PointF),                pointer         :: Point
+        logical                                         :: Exist, InSideDomain
         
         !------------------------------------------------------------------------
 
@@ -731,86 +958,38 @@ d2:     do l= 1, Me%InstantNumber
         call ConstructHDF5(Me%ObjHDF5, Me%InPutFileName, HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR10'
 
+        ! Initialize matrixes
         allocate(Aux3D     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))  
-        allocate(Aux2D     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB          ))  
-        
-        allocate(Point)
+        allocate(Aux2D     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB          ))
         
         call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
                            Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR20'
 
-
+        ! Define window of data transfer. 
         if (Me%WindowON) then
-
-            ILB = Me%Window(1); IUB = Me%Window(2);        
-            JLB = Me%Window(3); JUB = Me%Window(4);                    
-
+            ILB = Me%Window(1); IUB = Me%Window(2);
+            JLB = Me%Window(3); JUB = Me%Window(4);
         else
-
-            ILB = Me%WorkSize%ILB; IUB = Me%WorkSize%IUB;        
-            JLB = Me%WorkSize%JLB; JUB = Me%WorkSize%JUB;                    
-        
+            ! Entire window is processed
+            ILB = Me%WorkSize%ILB; IUB = Me%WorkSize%IUB;
+            JLB = Me%WorkSize%JLB; JUB = Me%WorkSize%JUB;
         endif
         
+        allocate(InPutMap2D (Me%Size%ILB   :Me%Size%IUB   , Me%Size%JLB   :Me%Size%JUB             )) ! not in new subroutine
+        
         if (Me%TransferToOutGrid) then
-            
-            allocate(Aux3DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB,1: Me%KUB))
-            allocate(Aux2DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB))
-            
-            allocate(Me%InPutMap (Me%Size%ILB   :Me%Size%IUB   , Me%Size%JLB   :Me%Size%JUB,1: Me%KUB))
-            allocate(   InPutMap2D (Me%Size%ILB   :Me%Size%IUB   , Me%Size%JLB   :Me%Size%JUB   ))            
-            allocate(Me%OutPutMap(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB))
-            
-            
-            ILBout = Me%WorkSizeOut%ILB
-            IUBout = Me%WorkSizeOut%IUB
-            JLBout = Me%WorkSizeOut%JLB
-            JUBout = Me%WorkSizeOut%JUB            
-
-            call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY)
-            call GetZCoordinates(Me%ObjHorizontalGridOut, CoordXout, CoordYout)
-            
-            if (Me%LandMaskON) then
-            
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                    Point%X = CoordX(i, j)
-                    Point%Y = CoordY(i, j)
-                    if (IsVisible(Me%LandMask, Point)) then
-                        Me%InPutMap(i, j,:) = 0
-        else
-                        Me%InPutMap(i, j,:) = 1
-                    endif
-                
-                enddo
-                enddo
-            
-                do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
-                do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
-                
-                    Point%X = CoordXout(i, j)
-                    Point%Y = CoordYout(i, j)
-                    if (IsVisible(Me%LandMask, Point)) then
-                        Me%OutPutMap(i, j) = 0
-                    else
-                        Me%OutPutMap(i, j) = 1
-                    endif
-                
-                enddo
-                enddo
-                
-            endif
+            call GetOutgridTransferProperties(Aux2DOut, Aux3DOut, ILBout, IUBout, JLBout, JUBout, &
+                                              CoordXout, CoordYout)
         else
             Aux2DOut => Aux2D
             Aux3DOut => Aux3D
-            Me%ObjHorizontalGridOut = Me%ObjHorizontalGrid
             ILBout = ILB
             IUBout = IUB
             JLBout = JLB
             JUBout = JUB
             
+            Me%ObjHorizontalGridOut = Me%ObjHorizontalGrid
         endif            
                 
         
@@ -819,82 +998,66 @@ d2:     do l= 1, Me%InstantNumber
 
 d11:    do l = 1, Me%FieldNumber
 
-                i = scan(Me%FieldName(l),'/',Back = .true.)
+            i = scan(Me%FieldName(l),'/',Back = .true.)
 
-                AuxChar = trim(Me%FieldName(l))
+            AuxChar = trim(Me%FieldName(l))
                 
-                VGroup  = AuxChar(1:i-1)
+            VGroup  = AuxChar(1:i-1)
                 
-                j = len_trim(Me%FieldName(l))
+            j = len_trim(Me%FieldName(l))
                 
-                Field  = AuxChar(i+1:j)
+            Field  = AuxChar(i+1:j)
 
-                if (Me%ComputeOption == InstField_) then
-                    
-                    call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName =trim(Me%FieldName(l)),&
-                                              Exist = Exist, STAT= STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
+            if (Me%ComputeOption == InstField_) then ! Get immediate field from HDF5
+                
+                ! Check if field exists
+                call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName =trim(Me%FieldName(l)),&
+                                          Exist = Exist, STAT= STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
 
-                    if (.not.Exist) then
-                        write(*,*) 'The field'
-                        write(*,*) trim(Me%FieldName(l))
-                        write(*,*) 'does not exist'
-                        stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
-                    endif      
+                if (.not.Exist) then
+                    write(*,*) 'The field'
+                    write(*,*) trim(Me%FieldName(l))
+                    write(*,*) 'does not exist'
+                    stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
+                endif      
                 
-                    call HDF5ReadData(Me%ObjHDF5,                                           &
-                                       trim(Vgroup),                                        &
-                                       trim(Field),                                         &
-                                       Array3D      = Aux3D,                                &
-                                       STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
+                ! Get 3D HDF Matrix for field
+                call HDF5ReadData(Me%ObjHDF5,                                           &
+                                   trim(Vgroup),                                        &
+                                   trim(Field),                                         &
+                                   Array3D      = Aux3D,                                &
+                                   STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
+            
+            else ! AverageField_ or SumField_
                 
-                else
-                    
-                    call ReadHDF5_FieldInTime (Aux3D, Vgroup, Field)                    
-                    
-                endif
+                call ReadHDF5_FieldInTime (Aux3D, Vgroup, Field)                    
                 
-                where (Aux3D < Me%MinValue) Aux3D = Me%FillValue
+            endif
+            
+            ! Set limits
+            where (Aux3D < Me%MinValue ) Aux3D = Me%FillValue
+            where (Aux3D > Me%MaxValue ) Aux3D = Me%FillValue
+            where (Aux3D > Me%FillValue) Aux3D = Aux3D * Me%MultiplyFactor + Me%AddFactor
                 
-                where (Aux3D > Me%MaxValue) Aux3D = Me%FillValue
+            
                 
+            if (Me%TransferToOutGrid) then
                 
+                ! Nullify out Matrixes
+                Aux2DOut(:,:  ) = Me%FillValue
+                Aux3DOut(:,:,:) = Me%FillValue
                 
-                where (Aux3D > Me%FillValue) Aux3D = Aux3D * Me%MultiplyFactor + Me%AddFactor
-                    
-                call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR60'
-
-                open(Unit   = Unit,                                                     &
-                     File   = trim(Me%OutputESRI(l)),                                   &
-                     Form   = 'FORMATTED',                                              &
-                     STATUS = 'UNKNOWN',                                                &
-                     Action = 'WRITE',                                                  &
-                     IOSTAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR70'
-                
-
-                write(Unit,'(A14,I6)'   ) 'ncols         ', JUBout - JLBout + 1
-                write(Unit,'(A14,I6)'   ) 'nrows         ', IUBout - ILBout + 1
-                write(Unit,'(A14,A30)')     'xllcorner     ', trim(adjustl(Me%Origin(1)))
-                write(Unit,'(A14,A30)')     'yllcorner     ', trim(adjustl(Me%Origin(2)))
-                write(Unit,'(A14,A30)')     'cellsize      ', trim(adjustl(Me%DX))
-                write(Unit,'(A14,f12.6)') 'nodata_value  ', Me%FillValue
-                
-                if (Me%TransferToOutGrid) then
-                
-                    Aux2DOut(:,:) = Me%FillValue
-                    Aux3DOut(:,:,:) = Me%FillValue
-     
+                ! Set 2D based on hdf 3D
                 Aux2D   (:,:  ) = Aux3D(:,:,k)
+                
+                ! Get 2D mask
                 if (Me%LandMaskON) then
-                    InPutMap2D   (:,:)  = Me%InPutMap(:,:,k)                
+                    InPutMap2D   (:,:)  = Me%InPutMap(:,:,k)
                 else
                     InPutMap2D   (:,:)  = 1
-                    Me%OutPutMap (:,:)  = 1
-                endif
-                
+                endif                
                 where (Aux2D == Me%FillValue) InPutMap2D = 0
                     
                 if (Me%InterpolOut) then
@@ -912,26 +1075,24 @@ d11:    do l = 1, Me%FieldNumber
                     !
                     !else
                     
-
-                        
+                    ! Interpolate out matrix from hdf matrix
                     do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
                     do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
 
                         Aux2DOut(i,j) = InterpolXYPoint(HorizontalGridID = Me%ObjHorizontalGrid,    &
-                                             Field2DFather            = Aux2D,                  & 
+                                                        Field2DFather    = Aux2D,           & 
                                                         ComputeFather    = InPutMap2D,      &
                                                         XInput           = CoordXout(i, j), &
                                                         YInput           = CoordYout(i, j), &
-                                             STAT                     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR80'
+                                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR80'
                     
                     enddo
                     enddo
-                
-                    !endif
                     
                     Aux3DOut(:,:,k) = Aux2DOut(:,:)
                     
+                    !Apply mask to out matrixes
                     do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
                     do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
                         
@@ -939,62 +1100,70 @@ d11:    do l = 1, Me%FieldNumber
                             Aux2DOut(i,j  ) = Me%FillValue
                             Aux3DOut(i,j,:) = Me%FillValue
                         endif
-                
+                    
                     enddo
                     enddo                    
                     
                 else
                         
-                    do i = ILB, IUB
-                        do j = JLB, JUB
-                            call GetXYCellZ(Me%ObjHorizontalGridOut, CoordX(i, j), CoordY(i, j), iout,jout)
-                            if (iout > 0 .and. jout>0) then
-                            Aux2DOut(iout,jout)   = Aux3D(i,j,k)
-                            Aux3DOut(iout,jout,k) = Aux3D(i,j,k)
+                    ! Just Set 3D Value based on original cell values
+                    do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
+                    do i = Me%WorkSizeOut%ILB, Me%WorkSizeOut%IUB
+                        
+                        InSideDomain = GetXYInsideDomain(HorizontalGridID = Me%ObjHorizontalGrid, & 
+                                                         XPoint           = CoordXout(i, j),      &    
+                                                         YPoint           = CoordYout(i, j))
+                        
+                        if(.not. InSideDomain) then
+                            cycle
+                        endif
+                                                
+                        call GetXYCellZ(HorizontalGridID    = Me%ObjHorizontalGrid, & 
+                                        XPoint              = CoordXout(i, j),      &    
+                                        YPoint              = CoordYout(i, j),      &
+                                        I                   = iout,                 &
+                                        J                   = jout)
+                        
+                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                            stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR90'
+                        endif
+                        
+                        if (STAT_CALL == OUT_OF_BOUNDS_ERR_) cycle
+
+                        if (iout > 0 .and. jout>0) then
+                            if (InPutMap2D(iout, jout) > 0) then
+                                Aux2DOut(i,j)   = Aux3D(iout,jout,k)
+                                Aux3DOut(i,j,k) = Aux3D(iout,jout,k)
                             endif
-                        enddo
+                        endif
+                        
+                    enddo
                     enddo
                     
                 endif
                
             endif
 
-                if (Me%ExportGridData) then
-                
-                    call WriteHDF5_To_GridData(Aux2DOut, Me%OutputESRI(l))            
-                
-                endif    
-                
-                if (Me%ExportXYZ) then
-                
-                    call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
-                
-                endif 
-                
-                do i = IUBout, ILBout, -1
-                    do j = JLBout, JUBout
-                        if (Aux3DOut(i,j,k) <=Me%FillValue) Aux3DOut(i,j,k) = Me%FillValue
-                    enddo
-                    write(Line,'(4000(e12.6,1x))') Aux3Dout(i,JLBout:JUBout,k)
-                    Line = adjustl(Line)
-                    Found2Blanks = .true.
-
-                    bt = len_Trim(Line)
-                    ba = bt
-                    do a = 1, bt-1
-                        do while (Line(a:a+1)=='  ') 
-                            Line(a:ba)=Line(a+1:ba+1)
-                            ba = ba - 1
-                            if (ba == a) exit
-                        enddo
-                        if (ba == a) exit
-                    enddo
-                    write(Unit,'(A)') trim(Line)
-                enddo
-                
-                call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR90'
-
+            if (Me%ExportGridData) then
+            
+                call WriteHDF5_To_GridData(Aux2DOut, Me%OutputESRI(l))            
+            
+            endif    
+            
+            if (Me%ExportXYZ) then
+            
+                call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
+            
+            endif 
+            
+            if (.not. Me%WriteAsGeoTiff) then
+                ! Write as ASC file
+                call WriteAsASCFile (l, ILBout, IUBout, JLBout, JUBout, k, Aux3DOut)
+            else
+                ! Write as GeoTiff file
+                call WriteAsGeoTiff(Aux3DOut, CoordXout, CoordYout, ILBout, IUBout, JLBout, JUBout, k, l)
+            endif
+            
         enddo d11
         
         deallocate(Aux2D)  
@@ -1003,9 +1172,9 @@ d11:    do l = 1, Me%FieldNumber
         if (Me%TransferToOutGrid) then
             deallocate(Aux3DOut)
             deallocate(Aux2DOut)
-            deallocate(InPutMap2D)
         endif            
         
+        deallocate(InPutMap2D)
 
     end subroutine ModifyHDF5_2_EsriGridData
  

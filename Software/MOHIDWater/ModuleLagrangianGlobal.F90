@@ -451,7 +451,7 @@ Module ModuleLagrangianGlobal
                                        CorrectsCellsTimeSerie, GetTimeSerieIntegral,        &
                                        WriteTimeSerieLine, GetTimeSerieValue, KillTimeSerie,&
                                        TryIgnoreTimeSerie, GetTimeSerieTimeFrameIndexes,    &
-                                       GetTimeSerieDataMatrix
+                                       GetTimeSerieDataMatrix, SetIgnoreTimeSerie
                                        
     use ModuleLightExtinction,  only : ConstructLightExtinction, ModifyLightExtinctionField,&
                                        GetLightExtinctionOptions, KillLightExtinction,      &
@@ -10844,7 +10844,22 @@ d1:     do em = 1, Me%EulerModelNumber
 
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                         stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR80'
-                    endif                            
+                    endif                
+                    
+                    if (Id < 0 .or. Jd < 0) then
+                        call SetIgnoreTimeSerie(TimeSerieID = Me%EulerModel(em)%ObjTimeSerie,   &
+                                                Number      = dn,                               &
+                                                IgnoreOK    = .true.,                           &
+                                                STAT        = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                            stop 'ConstructTimeSerie - ModuleLagrangianGlobal - ERR90'
+                        endif  
+                        
+                        cycle
+                        
+                    endif
+                    
                     !
                     !if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                     !
@@ -12130,7 +12145,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         real                                        :: Value1, Value2, TotalVolume
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
-        real                                        :: ParticleVolume_
+        real                                        :: ParticleVolume_, Aux
 
         !Begin-----------------------------------------------------------------
 
@@ -12178,10 +12193,11 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                         if (CurrentOrigin%NbrParticlesIteration < 1) CurrentOrigin%NbrParticlesIteration = 1
                         
 						if (CurrentOrigin%Stochastic) then                         
-                            ParticleVolume                      = TotalVolume / &
+                            ParticleVolume_                      = TotalVolume / &
                                 (real(CurrentOrigin%NbrParticlesIteration) / real(CurrentOrigin%NbrScenarios))
                         else
-                            ParticleVolume                      = TotalVolume / real(CurrentOrigin%NbrParticlesIteration)
+                            Aux = real(CurrentOrigin%NbrParticlesIteration)
+                            ParticleVolume_                      = TotalVolume / Aux
                         endif
                         
                     if (ParticleVolume_ > CurrentOrigin%MaxVol) then
@@ -31510,6 +31526,8 @@ d1:     do em =1, Me%EulerModelNumber
                 !    endif
                 !
                 !endif
+                
+                if (Id < 0 .or. Jd < 0) cycle
 
                 kd = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, id, jd, DepthLevel, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleLagrangianGlobal - ERR50'

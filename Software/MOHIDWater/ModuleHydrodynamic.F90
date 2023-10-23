@@ -11028,7 +11028,8 @@ if1:    if (Me%MohidJet%ON) then
 
             Me%MohidJet%DischargesNumber = DischargesNumber
 
-            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Me%MohidJet%LatitudeRef, Me%MohidJet%LongitudeRef, STAT= STAT_CALL)       
+            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Me%MohidJet%LatitudeRef,    &
+                                      Me%MohidJet%LongitudeRef, STAT= STAT_CALL)       
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR40'
             endif        
@@ -50369,15 +50370,6 @@ iIn:                    if (InterceptionRatio <= 0.) then
                                 stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR270'
                             endif
                             
- !                           write(AuxString,'(A25,A75)') "The mohidjet discharge = ", trim(adjustl(Me%MohidJet%Jetx(dis)%DischargeName))
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A)') "section is outside of the domain for that reason was reposition over the port location"
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A45,f5.1)') "The interception ratio in % of the domain is = ",InterceptionRatio*100.  
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A44,f12.7,f12.7)') "The dlong and dlat = ", AuxCenterX, AuxCenterY 
- !                           write(*,'(A)') trim(adjustl(AuxString))
-                                        
                         endif iIn
 
                         !It allways assumed that the entire discharge is done in the one domain

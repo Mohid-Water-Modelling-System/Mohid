@@ -158,6 +158,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Interpolate
         integer                                 :: N_ZLevels
         real(8), dimension(:),       pointer    :: Zlevels
+        real(8), dimension(:),       pointer    :: ZlevelsFaces
         logical                                 :: InvertLayers
         logical                                 :: NetCDFNameFaceOff = .false.
         integer                                 :: RemoveNsurfLayers = 0
@@ -3441,8 +3442,33 @@ BF:         if (BlockFound) then
                     Me%Depth%Zlevels(1:Me%Depth%N_ZLevels) = Aux1D(1:Me%Depth%N_ZLevels)
                     
                     deallocate(Aux1D)
-
+                    
+                    allocate(Aux1D(200))
+                    
+                    call GetData(Aux1D,                                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'GEO_ZLEVEL_INTERPOL_FACES',            &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)  
+                                       
+                    if (iflag > 0) then
+                    
+                        if (Me%Depth%N_ZLevels +1 /= iflag) then
+                            stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR155'   
+                        endif
+                    
+                        allocate(Me%Depth%ZlevelsFaces(Me%Depth%N_ZLevels+1))
+                    
+                        Me%Depth%ZlevelsFaces(1:Me%Depth%N_ZLevels+1) = Aux1D(1:Me%Depth%N_ZLevels+1)
+                    
+                    endif
+                    
                 endif
+                
+                deallocate(Aux1D)                
+                
+                
 
                 !down or up
                 call GetData(Me%Depth%Positive,                                         &
@@ -5518,6 +5544,11 @@ d3:                 do k= Me%WorkSize%KUB, Me%WorkSize%KLB,-1
                     enddo d3
                 
 
+                    if (associated(Me%Depth%ZlevelsFaces)) then
+                        DepthOutStag(:)  = Me%Depth%ZlevelsFaces (:)
+                        
+                    endif
+
 
                     if (Me%Depth%GeoVert == sigma_) then
                         SigmaIn = .true. 
@@ -5545,6 +5576,19 @@ if23:       if (Me%Depth%GeoVert == sigma_) then
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
                 
+    
+                if (associated(Me%Depth%ZlevelsFaces)) then
+                    do k= Me%WorkSize%KUB, Me%WorkSize%KLB-1, -1
+                        if (Me%Mapping%Value3DOut(i,j,k) == 1 .or. Me%Mapping%Value3DOut(i,j,k+1) == 1) then
+                            Me%Depth%Value3DOut(i, j, k) = Me%Depth%ZlevelsFaces (k+1)
+                        else
+                            Me%Depth%Value3DOut(i, j, k) = FillValueReal
+                        endif
+                    enddo
+                    cycle
+                endif
+                
+                
                 SumDepth = 0.
                 Method2 = .false.
 dk1:            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
@@ -5553,6 +5597,7 @@ dk1:            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 if12:           if (Me%Mapping%Value3DOut(i,j,k) == 1) then
 
 if13:               if (Me%Depth%GeoVert == sigma_) then
+   
 
                         TopDepth = - GetNetCDFValue(Me%Depth%WLValueIn, Dim1 = j+1, Dim2 = i+1, Dim3 = 1) 
 

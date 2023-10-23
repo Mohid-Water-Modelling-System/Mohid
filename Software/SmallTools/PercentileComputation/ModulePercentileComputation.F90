@@ -22,6 +22,7 @@ Module ModulePercentileComputation
                                         GetData, ExtractBlockFromBuffer, Block_Unlock
     use ModuleFunctions         
     use ModuleHDF5
+    use RasterFunctions !new
     !use ModuleHorizontalGrid
     !use ModuleGridData
     
@@ -68,7 +69,7 @@ Module ModulePercentileComputation
     end type  T_Parameter
     
     
-    private :: T_PercentileComputation
+    !private :: T_PercentileComputation
     type       T_PercentileComputation
         integer                                     :: InstanceID
         integer                                     :: ObjEnterData     = 0
@@ -80,6 +81,7 @@ Module ModulePercentileComputation
         real                                        :: FillValueIn
         real                                        :: FillValueOut = -99
         character(Len=PathLength)                   :: OutputESRI
+        character(Len=PathLength)                   :: OutputGeoTiff
         character(Len=PathLength)                   :: BathymFile        
         real, dimension(:, :),     pointer          :: OutMatrix2D
         real, dimension(:, :),     pointer          :: Bathym2D
@@ -88,6 +90,10 @@ Module ModulePercentileComputation
         integer                                     :: ParameterNumber        
         type (T_Conditions),  dimension(:), pointer :: Conditions 
         integer                                     :: NumberCond        
+        logical                                     :: WriteAsGeoTiff = .false.
+        logical                                     :: WriteAsAsc     = .false.
+        logical                                     :: WriteCorners   = .false.
+        integer                                     :: EPSG
         type(T_PercentileComputation), pointer      :: Next
     end type  T_PercentileComputation
 
@@ -97,6 +103,7 @@ Module ModulePercentileComputation
 
 
     !--------------------------------------------------------------------------
+    !allocate(Me) 
     
     contains
 
@@ -123,8 +130,9 @@ Module ModulePercentileComputation
 
         !------------------------------------------------------------------------
 
-        STAT_ = UNKNOWN_
-
+        STAT_ = UNKNOWN_        
+        
+        
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mGeneric_)) then
             nullify (FirstObjPercentileComputation)
@@ -170,8 +178,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         type (T_PercentileComputation), pointer                         :: NewObjPercentileComputation
         type (T_PercentileComputation), pointer                         :: PreviousObjPercentileComputation
-
-
+        
         !Allocates new instance
         allocate (NewObjPercentileComputation)
         nullify  (NewObjPercentileComputation%Next)
@@ -267,7 +274,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                         :: iFile, i, j
         integer                                         :: STAT_CALL
-        character(Len=1000)                             :: AuxString
+        !character(Len=1000)                             :: AuxString
 
         !----------------------------------------------------------------------
         call UnitsManager(iFile, OPEN_FILE, STAT = STAT_CALL) 
@@ -398,8 +405,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      ClientModule = 'ModulePercentileComputation',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-            stop 'ReadGlobalData - ModulePercentileComputation - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalData - ModulePercentileComputation - ERR70'
+        if (iflag /= 0) Me%WriteAsAsc = .true.
+                
+        call GetData(Me%OutputGeoTiff, Me%ObjEnterData, iflag,                          &
+                     keyword      = 'OUTPUT_TIFF',                                      &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalData - ModulePercentileComputation - ERR71'
+        if (iflag /= 0) Me%WriteAsGeoTiff = .true.
+        
+        if (Me%WriteAsGeoTiff) then
+            call GetData(Me%EPSG,                                                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EPSG',                                             &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         default      = 4326,                                               &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePercentileComputation - ERR71.1'
+        end if
+        
+        if (.not. Me%WriteAsGeoTiff .and. .not. Me%WriteAsAsc) then
+            write(*,*) 'No output file provided, ASC or GEOTIFF'
+            stop 'ReadGlobalData - ModulePercentileComputation - ERR72'
+        endif
+        
+        if (Me%WriteAsGeoTiff) then
+            call GetData(Me%WriteCorners, Me%ObjEnterData, iflag,                       &
+                     keyword      = 'WRITE_CORNERS',                                    &
+                     Default      = .false.,                                            &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePercentileComputation - ERR73'
+        end if
+        
         
         call GetData(Me%FillValueIn, Me%ObjEnterData, iflag,                            &
                      keyword      = 'FILLVALUE_IN',                                     &
@@ -448,10 +490,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_CALL, ClientNumber, i
+        integer                                         :: STAT_CALL, ClientNumber!, i
         type (T_Parameter),       pointer               :: NewParameter
         logical                                         :: BlockFound
-        logical                                         :: AtLeastOneBlock = .false.
+        !logical                                         :: AtLeastOneBlock = .false.
 
         !Begin-----------------------------------------------------------------
         
@@ -716,8 +758,13 @@ cd2 :           if (BlockFound) then
             call ReadFileCheckCondition(ParameterX, n)
             
         enddo
+        if (Me%WriteAsAsc) then
+            call WriteESRI_GridData
+        end if
         
-        call WriteESRI_GridData
+        if (Me%WriteAsGeoTiff) then
+            call WriteESRI_GeoTiff
+        end if
         
         deallocate(Me%OutMatrix2D)
         
@@ -904,7 +951,7 @@ cd2 :           if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         real                                :: Sum, dP2, dPx, LimitX, PercentX
-        integer                             :: STAT_CALL, IUB, JUB, KUB, ni, i, j
+        integer                             :: IUB, JUB, ni, i, j !,STAT_CALL, KUB
         
         !Begin-----------------------------------------------------------------
         
@@ -987,6 +1034,184 @@ cd2 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------  
     
+    function subtract_with_precision(x, y) result(res)
+        real(kind=c_double), intent(in) :: x, y
+        real(kind=c_double) :: res
+        integer :: max_decimals
+
+        ! Determine max number of decimals
+        max_decimals = max(num_decimals(x), num_decimals(y))
+
+        ! Perform subtraction with appropriate scaling
+        res = (x * 10.0_c_double**max_decimals - y * 10.0_c_double**max_decimals) &
+              / 10.0_c_double**max_decimals
+    end function subtract_with_precision
+    
+    !function num_decimals(val) result(ndec)
+    !    real(kind=c_double), intent(in) :: val
+    !    integer :: ndec
+    !    real(kind=c_double) :: temp
+    !    integer, parameter :: max_iterations = 15
+    !
+    !    ndec = 0
+    !    temp = val
+    !
+    !    do while (ndec < max_iterations)
+    !        if (abs(temp - nint(temp)) < 1.0_c_double * 1.0e-14) exit
+    !        temp = temp * 10.0_c_double
+    !        ndec = ndec + 1
+    !    end do
+    !end function num_decimals
+    
+    function num_decimals(val) result(ndec)
+        real(kind=c_double), intent(in) :: val
+        integer :: ndec, pos
+        character(len=100) :: tempStr
+    
+        ! Convert the number to a string
+        write(tempStr, '(f0.15)') val
+    
+        ! Search for the decimal point
+        pos = index(tempStr, '.')
+    
+        ! If no decimal point is found, number of decimals is zero
+        if (pos == 0) then
+            ndec = 0
+            return
+        end if
+    
+        ! Determine the length of the decimal part
+        ! And make sure to exclude trailing zeros after the decimal point
+        ndec = len_trim(tempStr) - pos
+        do while(tempStr(pos + ndec:len_trim(tempStr)) == '0' .and. ndec > 0)
+            ndec = ndec - 1
+        end do
+    
+    end function num_decimals
+
+
+    
+    subroutine WriteESRI_GeoTiff
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                             :: i, j, STAT_CALL
+        integer                             :: ObjHDF5
+        real, dimension(:,:  ), pointer     :: TranspMatrix2D
+        real, dimension(:,:  ), pointer     :: CoordsX, CoordsY
+        real, dimension(:,:,:), allocatable :: Aux3D
+        type (T_Parameter)    , pointer     :: ParameterX
+        real(kind=c_double)                 :: geotrans(6) = 0.0
+        character(len=1000)                 :: projref
+        integer                             :: Unit ! to write 4 corners
+        !Body------------------------------------------------------------------
+                
+        ! Get one HDF (the first) to check for conditions
+        nullify(ParameterX)
+        call Search_Parameter(ParameterX, Me%Conditions(1)%PropName, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ComputePercentile - ModulePercentileComputation - ERR10'
+        
+        ObjHDF5     = ParameterX%ObjHDF5
+        
+        ! Is and Js from HDF instead of 
+        
+        ! Read Coordinates from HDF5
+        allocate(CoordsX(0:Me%IUB+2,0:Me%JUB+2)); CoordsX = 0.0
+        allocate(CoordsY(0:Me%IUB+2,0:Me%JUB+2)); CoordsY = 0.0
+        
+        ! CoordX and CoordY have one extra size because its the corners of the HDF cells
+        call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = Me%IUB + 1, JLB = 1, JUB = Me%JUB + 1, STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR20'
+        
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Longitude',                        &
+                            Array2D       = CoordsX,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR30'
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Latitude',                         &
+                            Array2D       = CoordsY,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR31'
+        
+        ! Get GeoTransform from HDF5 (Convert the floating-point resolution to integers by scaling)
+        geotrans(1) = CoordsX  (1,1) ! origin x (bottom left)
+        geotrans(2) = subtract_with_precision(CoordsX(1,Me%JUB + 1), CoordsX(1,1)) / Me%JUB ! dx
+        geotrans(3) = 0.0 ! offsetx
+        geotrans(4) = CoordsY  (1,1) ! origin y (bottom left)
+        geotrans(5) = 0.0 ! offsety
+        geotrans(6) = subtract_with_precision(CoordsY(Me%IUB + 1,1), CoordsY(1,1)) / Me%IUB ! dy
+        
+        ! Get projection - ideally from HDF5 - does it only work in 4326?
+        select case (Me%EPSG)
+            case (4326)
+                projref = 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]'
+            case default
+                write (*,*) 'Unknown projection for GeoTiff'
+                stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR40'
+            end select
+            
+        ! Apply mask when value below fillval
+        do i = Me%IUB, 1, -1
+            do j = 1, Me%JUB
+                ! Assure fill values
+                if (Me%OutMatrix2D(i,j) <= Me%FillValueOut) Me%OutMatrix2D(i,j) = Me%FillValueOut
+            enddo
+        enddo
+        
+        ! Transpose Matrix
+        allocate(TranspMatrix2D   (1:Me%JUB, 1:Me%IUB))
+        do i=1, size(TranspMatrix2D, 2)
+        do j=1, size(TranspMatrix2D, 1)
+            TranspMatrix2D (j, i) = Me%OutMatrix2D (i, j)
+        enddo
+        enddo
+        
+        ! Set to 3D Matrix
+        allocate(Aux3D(1:Me%JUB, 1:Me%IUB, 1)); Aux3D = 0
+        Aux3D(:,:,1) = TranspMatrix2D(:,:)
+        
+        ! Create GeoTiff
+        call CreateRaster   (FileName       = trim(Me%OutputGeoTiff)  , &
+                             DriverName     = "GTiff"                 , &
+                             RasterWidth    = size(TranspMatrix2D, 1) , &
+                             RasterHeight   = size(TranspMatrix2D, 2) , &
+                             DataType       = GDT_Float64             , &
+                             NumberBands    = 1                       , &
+                             Projection     = projref                 , &
+                             GeoTrans       = geotrans                , &
+                             DataMatrix3D   = Aux3D )
+        deallocate(Aux3D)
+        deallocate(TranspMatrix2D)
+        
+        ! Write corners of file in RasterCorners.txt
+        if (Me%WriteCorners) then
+            call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR100'
+            
+            open(Unit   = Unit,                                                             &
+                 File   = 'RasterCorners.txt',                                              &
+                 Form   = 'FORMATTED',                                                      &
+                 STATUS = 'UNKNOWN',                                                        &
+                 Action = 'WRITE',                                                          &
+                 IOSTAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR110'
+            
+            write(Unit,'(A14,f12.6,A,f12.6)') 'topright:     ', CoordsX(1,Me%JUB + 1),' ', CoordsY(Me%IUB + 1,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'bottomright:  ', CoordsX(1,Me%JUB + 1),' ', CoordsY(1         ,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'topleft:      ', CoordsX(1,1         ),' ', CoordsY(Me%IUB + 1,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'bottomleft:   ', CoordsX(1,1         ),' ', CoordsY(1,1         )
+            
+            call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR120'
+            
+        end if 
+    
+    end subroutine WriteESRI_GeoTiff
+    
+    !--------------------------------------------------------------------------  
+    
     subroutine WriteESRI_GridData
     
         !Arguments-------------------------------------------------------------
@@ -1066,7 +1291,7 @@ cd2 :           if (BlockFound) then
         integer                             :: ready_              
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_, nUsers, STAT_CALL        
+        integer                             :: STAT_, nUsers!, STAT_CALL        
 
         !------------------------------------------------------------------------
 
