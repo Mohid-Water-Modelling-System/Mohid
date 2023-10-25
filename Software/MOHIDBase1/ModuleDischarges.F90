@@ -3910,7 +3910,8 @@ cd31:           if (STAT_CALL/=SUCCESS_) then
             end if
 
 
-cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Variable) then
+cd2:        if ((DischargeX%DischargeType == Normal .or. DischargeX%DischargeType == MohidJet_)    &
+                .and. DischargeX%WaterFlow%Variable) then
 
 
                 Flow = TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues, &
