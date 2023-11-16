@@ -503,7 +503,7 @@ Module ModuleWaterQuality
         real :: PON_CNratio                                 = null_real
         real :: PON_CPratio                                 = null_real
         
-
+        logical :: MohidLagr                                = .false.
 
         !aqui_10
         integer                                     :: WQConfiguration =0
@@ -541,12 +541,13 @@ Module ModuleWaterQuality
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-    subroutine StartWaterQuality(WaterQualityID, FileName, STAT)
+    subroutine StartWaterQuality(WaterQualityID, FileName, STAT, MohidLagr)
 
         !Arguments-------------------------------------------------------------
         integer                         :: WaterQualityID
         character(LEN = *)              :: FileName    
-        integer, optional, intent(OUT)  :: STAT     
+        integer, optional, intent(OUT)  :: STAT
+        logical, optional, intent(IN)   :: MohidLagr
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -558,16 +559,25 @@ Module ModuleWaterQuality
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-
-        !Assures nullification of the global variable
-        if (.not. ModuleIsRegistered(mWaterQuality_)) then
-            nullify (FirstObjWaterQuality)
-            call RegisterModule (mWaterQuality_) 
+        if (present(MohidLagr)) then
+            Me%MohidLagr = MohidLagr
+        else
+            Me%MohidLagr = .false.
         endif
         
-        call Ready(WaterQualityID, ready_)    
+        if (.not. MohidLagr) then
+            !Standard MOHID simulation allocating modules. If MOHIDLagrangian model calls this module, use it only as
+            !a system of functions and not inserted in the modules system.
+            !Assures nullification of the global variable
+            if (.not. ModuleIsRegistered(mWaterQuality_)) then
+                nullify (FirstObjWaterQuality)
+                call RegisterModule (mWaterQuality_) 
+            endif
+        endif
+        
+        call Ready(WaterQualityID, ready_)
 
-cd0 :   if (ready_ .EQ. OFF_ERR_) then
+cd0 :   if (ready_ .EQ. OFF_ERR_ .OR. Me%MohidLagr) then
             
             call AllocateInstance           
 
@@ -4634,7 +4644,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         call Ready(WaterQualityID, ready_)    
 
-cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+cd1 :   if (ready_ .EQ. IDLE_ERR_ .OR. Me%MohidLagr) then
 
             Me%ExternalVar%Salinity                   => Salinity
             if (.NOT. associated(Me%ExternalVar%Salinity))         &
@@ -9042,7 +9052,7 @@ end subroutine WQInorganicPhosphorus
 
         call Ready(WaterQualityID, ready_)    
 
-cd1 :   if (ready_ .NE. OFF_ERR_) then
+cd1 :   if (ready_ .NE. OFF_ERR_ .OR. Me%MohidLagr) then
 
             nUsers = DeassociateInstance(mWATERQUALITY_,  Me%InstanceID)
   
