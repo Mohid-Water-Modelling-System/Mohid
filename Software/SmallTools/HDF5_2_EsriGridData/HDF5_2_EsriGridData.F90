@@ -93,6 +93,7 @@ Program HDF5_2_EsriGridData
         logical                                             :: ExportGridData
         logical                                             :: WriteAsGeoTiff
         integer                                             :: EPSG
+        real                                                :: ModMin, ModMax
         
         type(T_Time)                                        :: StartTime, EndTime
         integer                                             :: ComputeOption
@@ -386,36 +387,32 @@ d2:     do l= 1, Me%FieldNumber
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR120'
         
  
-        call GetData(Me%VectorON,                                                       &
+        call GetData(Me%ExportXY_Vector,                                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'VECTOR_ON',                                        &
+                     keyword      = 'EXPORT_XYZ_VECTOR',                                &
                      ClientModule = 'HDF5_2_EsriGridData',                              &
                      default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR130'
         
-        if (Me%VectorON) then
-
-            call GetData(Me%Vector_X,                                                   &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromFile,                                       &
-                         keyword      = 'VECTOR_X',                                     &
-                         ClientModule = 'HDF5_2_EsriGridData',                          &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR140'        
-            if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR150'        
-
-            call GetData(Me%Vector_Y,                                                   &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromFile,                                       &
-                         keyword      = 'VECTOR_Y',                                     &
-                         ClientModule = 'HDF5_2_EsriGridData',                          &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR160'   
-            if (iflag     == 0       ) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR170'        
-            
-        endif
+        call GetData(Me%ModMin,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MOD_MIN',                                          &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
+                     default      = 0.01,                                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR140'        
+        
+        call GetData(Me%ModMax,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MOD_MAX',                                          &
+                     ClientModule = 'HDF5_2_EsriGridData',                              &
+                     default      = 10.0,                                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR150'                
         
         call GetData(Me%ComputeOption,                                                  &
                      Me%ObjEnterData, iflag,                                            &
@@ -762,19 +759,21 @@ d2:     do l= 1, Me%InstantNumber
         if (Me%LandMaskON) then
         
             ! Checks every point of HDF Grid to see if it exists in LandMask polygons. If so, map = 0
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                Point%X = CoordX(i, j)
-                Point%Y = CoordY(i, j)
-                if (IsVisible(Me%LandMask, Point)) then ! from Module Drawing
-                    Me%InPutMap(i, j,:) = 0
-                else
-                    Me%InPutMap(i, j,:) = 1
-                endif
+!           do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!           do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+!               
+!               Point%X = CoordX(i, j)
+!               Point%Y = CoordY(i, j)
+!               if (IsVisible(Me%LandMask, Point)) then ! from Module Drawing
+!                   Me%InPutMap(i, j,:) = 0
+!               else
+!                   Me%InPutMap(i, j,:) = 1
+!               endif
+!           
+!           enddo
+!           enddo
             
-            enddo
-            enddo
+            Me%InPutMap  (:,:,:)  = 1            
         
             ! Checks every point of Out Grid to see if it exists in LandMask polygons. If so, map = 0
             do j = Me%WorkSizeOut%JLB, Me%WorkSizeOut%JUB
@@ -946,8 +945,11 @@ d2:     do l= 1, Me%InstantNumber
         real,  dimension(:,:), pointer                  :: CoordXout, CoordYout
         integer, dimension(:,:), pointer                :: InPutMap2D
         logical                                         :: Exist, InSideDomain
+        integer                                         :: flag
         
         !------------------------------------------------------------------------
+        
+        flag = 1
 
         call ReadHDF5Fields
 
@@ -1155,6 +1157,15 @@ d11:    do l = 1, Me%FieldNumber
                 call Export_To_XYZ(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l))
             
             endif 
+
+            if (Me%ExportXY_Vector) then
+                call Export_To_XYZ_Vector(Aux3DOut, k, ILBout, IUBout, JLBout, JUBout, Me%OutputESRI(l),flag)
+                if (flag == 2) then
+                    flag = 1                
+                else
+                    flag = 2
+                endif
+            endif
             
             if (.not. Me%WriteAsGeoTiff) then
                 ! Write as ASC file
@@ -1500,6 +1511,9 @@ do2:    do l  = 1, Me%PropNumber
         character(len=PathLength)                       :: Filename
         
         !------------------------------------------------------------------------
+        
+        call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR10'        
 
         write(*,*)"Writing MOHID .xyz file..."
 
@@ -1513,7 +1527,7 @@ do2:    do l  = 1, Me%PropNumber
          STATUS = 'UNKNOWN',                                                &
          Action = 'WRITE',                                                  &
          IOSTAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR20'
                     
         write(Unit,*)'<begin_xyz>'
         
@@ -1530,11 +1544,120 @@ do2:    do l  = 1, Me%PropNumber
         write(Unit,*)'<end_xyz>'
                         
         call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR30'
         
     end subroutine Export_To_XYZ
  
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine Export_To_XYZ_Vector(Aux3D, k, ILB, IUB, JLB, JUB, Filename,flag)
+
+        !Arguments---------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D
+        integer                                         :: k, ILB, IUB, JLB, JUB
+        character(len=PathLength)                       :: Filename
+        integer                                         :: flag
+
+        !Local-------------------------------------------------------------------
+        integer                                         :: i, j, STAT_CALL, Unit, SplitByExtension
+        real,  dimension(:,:), allocatable, save        :: VectorX
+        real,  dimension(:,:), allocatable              :: VectorY
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY        
+        real                                            :: Mod, Angle
+        
+        !------------------------------------------------------------------------
+        
+        if (flag==1) then
+            
+            allocate(VectorX(ILB:IUB,JLB:JUB))
+
+            do i = ILB, IUB
+            do j = JLB, JUB
+                if (Aux3D(i,j,k) <= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue) then
+                    VectorX(i,j) = Me%FillValue
+                else
+                    VectorX(i,j) = Aux3D(i,j,k)
+                endif
+            enddo
+            enddo
+            
+        elseif (flag==2) then
+
+            allocate(VectorY(ILB:IUB,JLB:JUB))
+
+            do i = ILB, IUB
+            do j = JLB, JUB
+                if (Aux3D(i,j,k) <= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue) then
+                    VectorY(i,j) = Me%FillValue
+                else
+                    VectorY(i,j) = Aux3D(i,j,k)
+                endif
+            enddo
+            enddo
+            
+            
+        endif
+            
+        if (flag==2) then        
+
+            write(*,*)"Writing MOHID _vector.xyz file..."
+
+            call GetZCoordinates(Me%ObjHorizontalGridOut, CoordX, CoordY)
+              
+            SplitByExtension = scan(trim(Filename),'.',Back = .true.)
+            
+            call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ_Vector - HDF5_2_EsriGridData - ERR10'                
+                    
+            open(Unit   = Unit,                                                 &
+             File   = trim(Filename(1:SplitByExtension-1)//'_Vector.xyz'),      &
+             Form   = 'FORMATTED',                                              &
+             STATUS = 'UNKNOWN',                                                &
+             Action = 'WRITE',                                                  &
+             IOSTAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ_Vector - HDF5_2_EsriGridData - ERR20'
+                    
+            write(Unit,*)'X, Y, MOD, ANGLE, Vx, Vy'
+        
+            do i = ILB, IUB
+                do j = JLB, JUB
+                    if (.not.(Aux3D(i,j,k) <= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue)) then
+                                                
+                        Mod = sqrt(VectorX(i,J)**2+VectorY(i,j)**2)
+                        if (Mod < Me%ModMin .or. Mod > Me%ModMax) cycle
+
+                            if (VectorY(i,j)==0) then
+                                Angle=0
+                            else
+                                Angle = Pi/2-ATAN2(VectorY(i,j),VectorX(i,j))
+                              
+                                if (Angle<0) then
+                                    Angle = Angle+2*Pi
+                                endif
+                            endif
+                          
+                            Angle = Angle * 180 / Pi
+                        
+                            write(Unit,'(6(f12.3,A1))') CoordX(i, j), ",",CoordY(i, j), ",", Mod, ",", Angle, ",", VectorX(i,J), ",", VectorY(i,j), ""
+                    endif
+                enddo
+            enddo
+        
+                        
+            call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ_Vector - HDF5_2_EsriGridData - ERR30'
+        
+            deallocate(VectorX)
+            deallocate(VectorY)
+            
+        endif        
+        
+    end subroutine Export_To_XYZ_Vector
+ 
+    !--------------------------------------------------------------------------
+    
     
     subroutine WriteHDF5_To_GridData (Aux2DOut, Filename)
         
