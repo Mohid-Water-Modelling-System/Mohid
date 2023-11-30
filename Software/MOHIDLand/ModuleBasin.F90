@@ -1454,7 +1454,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CI_DORM_THRESHOLD',                           &
-                         default      = 12.7,                                                &
+                         default      = 0.00,                                                &
+                         !default      = 12.7,                                                &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.1' 
@@ -1463,7 +1464,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CIII_DORM_THRESHOLD',                         &
-                         default      = 27.94,                                               &
+                         default      = 100000.0,                                               &
+                         !default      = 27.94,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.2'
@@ -1472,7 +1474,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CI_GROWTH_THRESHOLD',                         &
-                         default      = 35.56,                                               &
+                         default      = 00.00,                                               &
+                         !default      = 35.56,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.3' 
@@ -1481,7 +1484,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CIII_GROWTH_THRESHOLD',                       &
-                         default      = 53.34,                                               &
+                         default      = 100000.0,                                               &
+                         !default      = 53.34,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
@@ -6261,7 +6265,8 @@ cd0:    if (Exist) then
                     !    Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
                     !endif 
                     
-                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
+                    !sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
+                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / (Me%EndTime - Me%BeginTime)
                     if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
                         
                         !mm         = (mm - mm)**2 / (mm + mm)
