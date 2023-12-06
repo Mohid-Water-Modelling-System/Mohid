@@ -6151,7 +6151,7 @@ cd0:    if (Exist) then
         integer                                     :: Chunk
         
         real                                        :: previousInDayRain, rain !, accRain
-        real                                        :: qInTimeStep, sInTimeStep
+        real                                        :: qInTimeStep, sInTimeStep, FractionOfSimTime
         
         integer                                     :: STAT_CALL
         
@@ -6214,6 +6214,8 @@ cd0:    if (Exist) then
             !$OMP END PARALLEL            
         endif
         
+        FractionOfSimTime = Me%CurrentDT / (Me%EndTime - Me%BeginTime)
+        
         !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qInTimeStep, sInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6266,8 +6268,9 @@ cd0:    if (Exist) then
                     !endif 
                     
                     !sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
-                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / (Me%EndTime - Me%BeginTime)
-                    if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
+                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * FractionOfSimTime
+                    !if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
+                    if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
                         
                         !mm         = (mm - mm)**2 / (mm + mm)
                         qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
