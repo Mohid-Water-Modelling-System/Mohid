@@ -615,7 +615,8 @@ Module ModuleBasin
         
         type (T_Time)                               :: CurrentTime
         type (T_Time)                               :: BeginTime
-        type (T_Time)                               :: EndTime       
+        type (T_Time)                               :: EndTime
+        real                                        :: SimulationTime
         type (T_OutPut)                             :: OutPut
         type (T_OutPut)                             :: EVTPOutPut
         type (T_OutPut)                             :: EVTPOutPut2
@@ -763,6 +764,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetComputeTimeLimits   (Me%ObjTime, BeginTime = Me%BeginTime,           &
                                          EndTime = Me%EndTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR03'
+            
+            !Simulation time in seconds
+            Me%SimulationTime = Me%EndTime - Me%BeginTime
 
             call ReadFileNames        
         
@@ -1433,6 +1437,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311'
 
         if (Me%Coupled%SCSCNRunOffModel) then
+            
+            if (Me%SimulationTime > 432000) then
+                write(*,*)  
+                write(*,*) 'Using Curve number method for a simulation longer than 5 days'
+                write(*,*) 'This is not advised as may produce wrong results'
+            endif
+            
             call GetData(Me%SCSCNRunOffModel%IAFactor,                                       &
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
@@ -6214,7 +6225,7 @@ cd0:    if (Exist) then
             !$OMP END PARALLEL            
         endif
         
-        FractionOfSimTime = Me%CurrentDT / (Me%EndTime - Me%BeginTime)
+        FractionOfSimTime = Me%CurrentDT / Me%SimulationTime
         
         !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qInTimeStep, sInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
