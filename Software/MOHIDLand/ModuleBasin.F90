@@ -400,6 +400,7 @@ Module ModuleBasin
         real(8), dimension (:,:), pointer           :: Current5DayAccRain => null ()
         real(8), dimension (:,:), pointer           :: ActualCurveNumber => null ()
         real, dimension (:,:), pointer              :: S => null ()
+        real, dimension (:,:), pointer              :: Q_Previous => null ()
         type (T_Time)                               :: NextRainAccStart 
         real                                        :: CIDormThreshold = 12.70,         &
                                                        CIIIDormThreshold = 27.94,       &
@@ -1441,7 +1442,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%SimulationTime > 432000) then
                 write(*,*)  
                 write(*,*) 'Using Curve number method for a simulation longer than 5 days'
-                write(*,*) 'This is not advised as may produce wrong results'
+                write(*,*) 'This will produce wrong results'
+                stop
             endif
             
             call GetData(Me%SCSCNRunOffModel%IAFactor,                                       &
@@ -2176,6 +2178,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate (Me%SCSCNRunOffModel%S (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%S = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%Q_Previous (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%Q_Previous = 0.0
         
     end subroutine ConstructSCSCNRunOffModel
     
@@ -6161,8 +6166,8 @@ cd0:    if (Exist) then
         integer, parameter                          :: ChunkSize = 10
         integer                                     :: Chunk
         
-        real                                        :: previousInDayRain, rain !, accRain
-        real                                        :: qInTimeStep, sInTimeStep, FractionOfSimTime
+        real                                        :: previousInDayRain, rain, qNew
+        real                                        :: qInTimeStep, FractionOfSimTime
         
         integer                                     :: STAT_CALL
         
@@ -6227,7 +6232,7 @@ cd0:    if (Exist) then
         
         FractionOfSimTime = Me%CurrentDT / Me%SimulationTime
         
-        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qInTimeStep, sInTimeStep)
+        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6278,34 +6283,21 @@ cd0:    if (Exist) then
                     !    Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
                     !endif 
                     
-                    !sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
-                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * FractionOfSimTime
-                    !if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
-                    if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
+                    if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S(i,j)) then
                         
                         !mm         = (mm - mm)**2 / (mm + mm)
-                        qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
-                                      (rain + (1.0-Me%SCSCNRunOffModel%IAFactor)*sInTimeStep)
+                        qNew = (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2.0 / &
+                                      (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) + (1.0-Me%SCSCNRunOffModel%IAFactor)*Me%SCSCNRunOffModel%S (i, j))
                         
+                        qInTimeStep = qNew - Me%SCSCNRunOffModel%Q_Previous (i, j)
+                        
+                        Me%SCSCNRunOffModel%Q_Previous (i, j) = qNew
                         !m/s = mm * 1E-3 m/mm / s
                         Me%SCSCNRunOffModel%InfRate%Field(i,j) = ((rain - qInTimeStep) * 1E-3) / Me%CurrentDT
                         
-                        !mm/hour                   = mm / s  * s/hour
-                        !Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
-                        
-                        !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
-!                        Me%InfiltrationRate (i, j) = (rain -                                                                   &
-!                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                          &
-!                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
-                        
                     else
-                        
                         !m/s
                         Me%SCSCNRunOffModel%InfRate%Field(i,j) = (rain * 1E-3) / Me%CurrentDT
-                        
-                        !mm /hour
-                        !Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
-                        
                     endif
                     
                     
@@ -6315,7 +6307,6 @@ cd0:    if (Exist) then
                     
                     !mm /hour
                     !Me%InfiltrationRate (i, j) = 0.0
-
                 endif
                 
                 !! do not update now if using porus media - it will be updated after porous media finished
@@ -10431,6 +10422,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate (Me%SCSCNRunOffModel%Current5DayAccRain)
                     deallocate (Me%SCSCNRunOffModel%ActualCurveNumber)
                     deallocate (Me%SCSCNRunOffModel%S)
+                    deallocate (Me%SCSCNRunOffModel%Q_Previous)
                 endif
                
                 PropertyX => Me%FirstProperty
