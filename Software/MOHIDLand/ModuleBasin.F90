@@ -6232,7 +6232,7 @@ cd0:    if (Exist) then
         
         FractionOfSimTime = Me%CurrentDT / Me%SimulationTime
         
-        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain)
+        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qNew, qInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
