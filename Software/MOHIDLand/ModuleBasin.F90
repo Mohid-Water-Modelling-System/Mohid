@@ -1443,7 +1443,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*)  
                 write(*,*) 'Using Curve number method for a simulation longer than 5 days'
                 write(*,*) 'This will produce wrong results'
-                stop
+                stop 'ReadDataFile - ModuleBasin - ERR311.01'
             endif
             
             call GetData(Me%SCSCNRunOffModel%IAFactor,                                       &
@@ -1453,7 +1453,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 0.2,                                                 &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.0'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.02'
             
             if (Me%SCSCNRunOffModel%IAFactor == 0.05) then
                 Me%SCSCNRunOffModel%ConvertIAFactor = .true.
