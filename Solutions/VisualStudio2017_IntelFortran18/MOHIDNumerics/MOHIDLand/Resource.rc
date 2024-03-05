@@ -53,8 +53,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,7
- PRODUCTVERSION 1,0,0,7
+ FILEVERSION 1,0,0,10
+ PRODUCTVERSION 1,0,0,10
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -71,10 +71,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Instituto Superior Tecnico - Universidade de Lisboa"
             VALUE "FileDescription", "MOHID Land"
-            VALUE "FileVersion", "1.0.0.7"
+            VALUE "FileVersion", "1.0.0.10"
             VALUE "LegalCopyright", "Copyright (C) 2022 Instituto Superior Tecnico - Universidade de Lisboa"
             VALUE "ProductName", "MOHID Land "
-            VALUE "ProductVersion", "1.0.0.7"
+            VALUE "ProductVersion", "1.0.0.10"
         END
     END
     BLOCK "VarFileInfo"
