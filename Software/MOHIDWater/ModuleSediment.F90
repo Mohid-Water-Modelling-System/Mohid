@@ -382,7 +382,7 @@ Module ModuleSediment
 
     private :: T_Sediment
     type       T_Sediment
-        character(PathLength)                      ::  SedGeometryFile     = null_str
+        character(PathLength)                      :: SedGeometryFile       = null_str
         integer                                    :: InstanceID            = FillValueInt
         type (T_Size2D)                            :: Size, WorkSize
         type (T_Time)                              :: BeginTime, EndTime
@@ -457,11 +457,19 @@ Module ModuleSediment
         integer                                    :: BedloadMethod        = FillValueInt
         integer                                    :: RefConcMethod        = FillValueInt
         logical                                    :: BedSlopeEffects      = .false.
+        real                                       :: BedSlopeEffectsSpeedUp = null_real
         logical                                    :: SwashZoneTransport   = .false.
         real                                       :: SwashFactor          = null_real
         logical                                    :: WavesOn              = .false.
         logical                                    :: ConsolidationOn      = .false.
         logical                                    :: DepositionIntertidalZones = .false.
+        
+        character(PathLength)                      :: MappDZFile            = null_str
+        logical                                    :: MappDZON              = .false.
+        logical                                    :: MappDZPressureSluicing = .false.
+        real, pointer, dimension(:,:)              :: MappDZ                => null()
+        
+        integer                                    :: ObjMappDZ             = 0 
         
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
@@ -625,7 +633,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call Construct_Initial_Geometry
                         
             call ConstructClasses
-
+            
+            if (Me%MappDZON) then
+                call ConstructMappDZ
+            endif
+            
             call ConstructOutputTime
 
             call ConstructD50Cell
@@ -869,6 +881,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR80'
+        
+         call GetData(Me%BedSlopeEffectsSpeedUp,                                         &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'BEDSLOPE_SPEED_UP',                                 &
+                     default      = 1.,                                                  &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR82'        
         
         call GetData(Me%SwashZoneTransport,                                               &
                      Me%ObjEnterData,iflag,                                              &
@@ -1132,7 +1153,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR270'
         
+        call GetData(Me%MappDZON,                                                       &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MAPP_DZ_ON',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleSediment',                                   &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR280'
+        
+        if (Me%MappDZON) then
 
+            call GetData(Me%MappDZFile,                                                     &
+                         Me%ObjEnterData,iflag,                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'MAPP_DZ_FILE',                                     &
+                         ClientModule = 'ModuleSediment',                                   &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR290'
+            if (iflag == 0) then
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR300'
+            endif
+            
+            call GetData(Me%MappDZPressureSluicing,                                     &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'MAPP_DZ_PRESSURE_SLUICING',                    &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleSediment',                               &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR310'
+        
+        endif
+        
     end subroutine ConstructGlobalParameters
 
     !----------------------------------------------------------------------------
@@ -1252,6 +1305,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             endif
             
+        endif
+        
+        if (Me%MappDZOn) then
+            allocate(Me%MappDZ(ILB:IUB, JLB:JUB))
+            Me%MappDZ(:,:) = 0
         endif
             
     end subroutine AllocateVariables
@@ -1861,6 +1919,47 @@ do1:    do n=1,Me%NumberOfClasses
         if (Me%TimeSerie) call ConstructTimeSerie
 
     end subroutine ConstructOutputTime
+
+    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
+    
+    subroutine ConstructMappDZ
+    
+        !Local----------------------------------------------------------------
+        real,   dimension(:,:), pointer     :: MappDZ  
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL
+        logical                             :: BlockFound
+
+
+        !------------------------------------------------------------------------    
+        
+
+        
+        !Horizontal Grid Data - Cells with no bottom evolution
+        call ConstructGridData      (GridDataID       = Me%ObjMappDZ,                   &
+                                     HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     FileName         = Me%MappDZFile,                  &
+                                     STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR10'        
+    
+        
+        !MappDZ
+        call GetGridData(Me%ObjMappDZ, MappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR20'
+                            
+        Me%MappDZ(:,:) = MappDZ(:,:)
+                            
+                            
+        !MappDZ 
+        call UnGetGridData(Me%ObjMappDZ, MappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR30'
+        
+        call KillGridData(Me%ObjMappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR40'                            
+
+
+    end subroutine ConstructMappDZ
 
     !--------------------------------------------------------------------------
 
@@ -4356,7 +4455,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                             !Bathymetry 
                             call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR10'
-
+                            
                             call ModifyGridData(Me%ObjBathym,Me%BatimIncrement, Add = .false.,  &
                                                 STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR20.'
@@ -5458,9 +5557,9 @@ do1:    do n=1,Me%NumberOfClasses
                         FluxV = alfa_s * (SandClass%FluxV(i, j) +   &
                                                 alfa_n * SandClass%FluxU(i, j))   
                         
-                        SandClass%FluxU(i, j) = FluxU
+                        SandClass%FluxU(i, j) = Me%BedSlopeEffectsSpeedUp * FluxU
                         
-                        SandClass%FluxV(i, j) = FluxV
+                        SandClass%FluxV(i, j) = Me%BedSlopeEffectsSpeedUp * FluxV
                         
                     endif
                 endif               
@@ -7148,6 +7247,15 @@ if9:        if (Me%CohesiveClass%Run) then
                 if (Me%ConsolidationOn) then
                     Me%DZ(i, j) = Me%DZ(i, j) + Me%DZ_Consolidation(i,j)
                 endif
+                
+                if (Me%MappDZON) then
+                    if (Me%MappDZ(i,j) < 0.5) then
+                        Me%DZ(i, j) = 0. 
+                        if (Me%MappDZPressureSluicing) then
+                            Me%DZ_Residual(i, j) = 0.
+                        endif
+                    endif
+                endif
                     
                 if (Me%Evolution%Bathym) then
                     Me%BatimIncrement(i,j) = Me%BatimIncrement(i,j) + Me%DZ(i, j)
@@ -7839,6 +7947,10 @@ do1 :               do i=1, Me%NumberOfClasses
                     nullify(Me%Residual%BedloadU)
                     deallocate(Me%Residual%BedloadV)
                     nullify(Me%Residual%BedloadV)
+                endif
+
+                if (Me%MappDZOn) then
+                    deallocate(Me%MappDZ)
                 endif
                 
                 if (Me%Boxes%Yes) then
