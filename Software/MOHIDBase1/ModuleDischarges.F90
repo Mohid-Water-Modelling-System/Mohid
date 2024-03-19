@@ -239,6 +239,7 @@ Module ModuleDischarges
         real                                    :: PipeLength           = null_real
         real                                    :: PipeManning          = null_real
         real                                    :: AreaInTime           = null_real
+        real                                    :: DH_Min               = null_real
     end  type T_Valve
     
     type       T_MohidJet
@@ -340,6 +341,9 @@ Module ModuleDischarges
          logical                                :: TimeSerieON      = .false.
          integer                                :: TimeSerie        = 0
          integer                                :: TimeSerieMaxCol  = 0
+         logical                                :: SwitchON         = .false.
+         integer                                :: SwitchTS         = 0 
+         integer                                :: SwitchColumn     = FillValueInt
          logical                                :: UseOriginalValues    = .false.
          type(T_WaterFlow          )            :: WaterFlow
          type(T_WaterVelocity      )            :: VelocityFlow
@@ -687,6 +691,9 @@ cd2 :           if (BlockFound) then
 
         !Read_DataBaseFile
         call Read_DataBaseFile                (NewDischarge)
+        
+        !Read Switch file
+        call Read_SwitchFile                  (NewDischarge)
 
         !Construct Discharge Flow values
         call Construct_FlowValues             (NewDischarge)
@@ -1306,6 +1313,70 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine Read_SwitchFile(NewDischarge)
+
+        !Arguments-------------------------------------------------------------
+        type(T_IndividualDischarge), pointer                :: NewDischarge
+
+        !External--------------------------------------------------------------
+        character (len = PathLength)                        :: SwitchFile
+        integer                                             :: flag, STAT_CALL, TimeSerieMaxCol
+        !----------------------------------------------------------------------
+
+
+        !Looks for a definition of the data base file. If there is one, this module assumes
+        !that the discharge can be switch ON and switch OFF in time
+        call GetData(SwitchFile,                                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromBlock,                                                         &
+                     keyword      = 'SWITCH_FILE',                                      &
+                     ClientModule = 'ModuleDischarges',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR10'
+
+        if (flag == 1) then
+            NewDischarge%SwitchON = .true.
+        else
+            NewDischarge%SwitchON = .false.
+        endif
+        
+        if (NewDischarge%SwitchON) then
+            
+            call StartTimeSerieInput(NewDischarge%SwitchTS, SwitchFile, Me%ObjTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR20'            
+        
+        
+            call GetData(NewDischarge%SwitchColumn,                                     &
+                            Me%ObjEnterData,                                            &
+                            flag,                                                       &
+                            FromFile,                                                   &
+                            keyword      = 'SWITCH_COLUMN',                             &
+                            default      = 2,                                           &
+                            ClientModule = 'ModuleDischarges',                          &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR30'
+
+            call GetTimeSerieDataColumns (TimeSerieID = NewDischarge%SwitchTS,          &
+                                          DataColumns = TimeSerieMaxCol,                &
+                                          STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR40'
+
+        
+            if (NewDischarge%SwitchColumn > TimeSerieMaxCol) then
+                stop 'Read_SwitchFile - ModuleDischarges - ERR50'
+            endif
+
+        endif
+
+        !----------------------------------------------------------------------
+
+    end subroutine Read_SwitchFile
+
+    !--------------------------------------------------------------------------
+    
 
     !--------------------------------------------------------------------------
 
@@ -1612,10 +1683,20 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                 stop 'Construct_FlowValues - ModuleDischarges - ERR240'
             endif
 
+            call GetData(NewDischarge%Valve%DH_Min,                                     &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='VALVE_DH_MIN',                                  &
+                         default      = 0.,                                             & 
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR245'
+            
         else if (NewDischarge%DischargeType == RatingCurve) then i2
             
             !get rating curve file name
-            call GetData(NewDischarge%RatingCurve%File,                                &
+            call GetData(NewDischarge%RatingCurve%File,                                 &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
@@ -3872,7 +3953,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: dQ1, dQ2
         integer                                     :: iAux
         real                                        :: DT_RunPeriod
-        real                                        :: RefLevel
+        real                                        :: RefLevel, Aux
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3948,6 +4029,8 @@ cd2:        if ((DischargeX%DischargeType == Normal .or. DischargeX%DischargeTyp
                 if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
                     Flow = - Flow
                 endif
+                
+                
 
             elseif (DischargeX%DischargeType == RatingCurve) then
 
@@ -4084,6 +4167,10 @@ cd2:        if ((DischargeX%DischargeType == Normal .or. DischargeX%DischargeTyp
                     Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
 
                     if (present(FlowArea)) FlowArea = A
+                    
+                    if (H < DischargeX%Valve%DH_Min) then
+                        Flow = 0
+                    endif
 
                     Flow = Flow * FlowDir
 
@@ -4151,6 +4238,22 @@ cd2:        if ((DischargeX%DischargeType == Normal .or. DischargeX%DischargeTyp
                     Flow = Flow * DT_RunPeriod / Me%SlowStart
                 endif
 
+            endif
+            
+            if (DischargeX%SwitchON) then
+                Aux = TimeSerieValue(TimeSerieID         = DischargeX%SwitchTS,          &
+                                     UseOriginalValues   = .true.,                       &
+                                     TimeX               = TimeX,                        &
+                                     XColumn             = DischargeX%SwitchColumn)
+                if      (Aux == 0) then
+                    Flow =  0
+                elseif  (Aux == 1) then
+                    !Do not change flow
+                else
+                    write (*,*) 'SWITCH ON/OFF discharge can only be 0 (OFF) or 1 (ON)'
+                    stop 'GetDischargeWaterFlow - ModuleDischarges - ERR40'
+                endif
+                
             endif
 
             nullify(DischargeX)
@@ -5792,6 +5895,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillTimeSerie(DischargeToDelete%MaintainLevel%ObjTimeSerie, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR15.'
                 endif                         
+                
+                if (DischargeToDelete%SwitchTS /= 0) then
+                    call KillTimeSerie(DischargeToDelete%SwitchTS, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR15.'
+                endif                    
                 
 
                 PropertyX => DischargeToDelete%FirstProperty
