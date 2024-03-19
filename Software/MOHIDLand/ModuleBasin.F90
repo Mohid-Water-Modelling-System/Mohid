@@ -400,6 +400,7 @@ Module ModuleBasin
         real(8), dimension (:,:), pointer           :: Current5DayAccRain => null ()
         real(8), dimension (:,:), pointer           :: ActualCurveNumber => null ()
         real, dimension (:,:), pointer              :: S => null ()
+        real, dimension (:,:), pointer              :: Q_Previous => null ()
         type (T_Time)                               :: NextRainAccStart 
         real                                        :: CIDormThreshold = 12.70,         &
                                                        CIIIDormThreshold = 27.94,       &
@@ -615,7 +616,8 @@ Module ModuleBasin
         
         type (T_Time)                               :: CurrentTime
         type (T_Time)                               :: BeginTime
-        type (T_Time)                               :: EndTime       
+        type (T_Time)                               :: EndTime
+        real                                        :: SimulationTime
         type (T_OutPut)                             :: OutPut
         type (T_OutPut)                             :: EVTPOutPut
         type (T_OutPut)                             :: EVTPOutPut2
@@ -763,6 +765,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetComputeTimeLimits   (Me%ObjTime, BeginTime = Me%BeginTime,           &
                                          EndTime = Me%EndTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR03'
+            
+            !Simulation time in seconds
+            Me%SimulationTime = Me%EndTime - Me%BeginTime
 
             call ReadFileNames        
         
@@ -1433,6 +1438,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311'
 
         if (Me%Coupled%SCSCNRunOffModel) then
+            
+            if (Me%SimulationTime > 432000) then
+                write(*,*)  
+                write(*,*) 'Using Curve number method for a simulation longer than 5 days'
+                write(*,*) 'This will produce wrong results'
+                stop 'ReadDataFile - ModuleBasin - ERR311.01'
+            endif
+            
             call GetData(Me%SCSCNRunOffModel%IAFactor,                                       &
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
@@ -1440,7 +1453,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 0.2,                                                 &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.0'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.02'
             
             if (Me%SCSCNRunOffModel%IAFactor == 0.05) then
                 Me%SCSCNRunOffModel%ConvertIAFactor = .true.
@@ -1454,7 +1467,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CI_DORM_THRESHOLD',                           &
-                         default      = 12.7,                                                &
+                         default      = 0.00,                                                &
+                         !default      = 12.7,                                                &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.1' 
@@ -1463,7 +1477,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CIII_DORM_THRESHOLD',                         &
-                         default      = 27.94,                                               &
+                         default      = 100000.0,                                               &
+                         !default      = 27.94,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.2'
@@ -1472,7 +1487,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CI_GROWTH_THRESHOLD',                         &
-                         default      = 35.56,                                               &
+                         default      = 00.00,                                               &
+                         !default      = 35.56,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.3' 
@@ -1481,7 +1497,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'SCSCN_CIII_GROWTH_THRESHOLD',                       &
-                         default      = 53.34,                                               &
+                         default      = 100000.0,                                               &
+                         !default      = 53.34,                                               &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
@@ -2161,6 +2178,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate (Me%SCSCNRunOffModel%S (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%S = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%Q_Previous (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%Q_Previous = 0.0
         
     end subroutine ConstructSCSCNRunOffModel
     
@@ -6146,8 +6166,8 @@ cd0:    if (Exist) then
         integer, parameter                          :: ChunkSize = 10
         integer                                     :: Chunk
         
-        real                                        :: previousInDayRain, rain !, accRain
-        real                                        :: qInTimeStep, sInTimeStep
+        real                                        :: previousInDayRain, rain, qNew
+        real                                        :: qInTimeStep, FractionOfSimTime
         
         integer                                     :: STAT_CALL
         
@@ -6210,7 +6230,9 @@ cd0:    if (Exist) then
             !$OMP END PARALLEL            
         endif
         
-        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qInTimeStep, sInTimeStep)
+        FractionOfSimTime = Me%CurrentDT / Me%SimulationTime
+        
+        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qNew, qInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6261,32 +6283,21 @@ cd0:    if (Exist) then
                     !    Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
                     !endif 
                     
-                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
-                    if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
+                    if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S(i,j)) then
                         
                         !mm         = (mm - mm)**2 / (mm + mm)
-                        qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
-                                      (rain + (1.0-Me%SCSCNRunOffModel%IAFactor)*sInTimeStep)
+                        qNew = (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2.0 / &
+                                      (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) + (1.0-Me%SCSCNRunOffModel%IAFactor)*Me%SCSCNRunOffModel%S (i, j))
                         
+                        qInTimeStep = qNew - Me%SCSCNRunOffModel%Q_Previous (i, j)
+                        
+                        Me%SCSCNRunOffModel%Q_Previous (i, j) = qNew
                         !m/s = mm * 1E-3 m/mm / s
                         Me%SCSCNRunOffModel%InfRate%Field(i,j) = ((rain - qInTimeStep) * 1E-3) / Me%CurrentDT
                         
-                        !mm/hour                   = mm / s  * s/hour
-                        !Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
-                        
-                        !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
-!                        Me%InfiltrationRate (i, j) = (rain -                                                                   &
-!                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                          &
-!                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
-                        
                     else
-                        
                         !m/s
                         Me%SCSCNRunOffModel%InfRate%Field(i,j) = (rain * 1E-3) / Me%CurrentDT
-                        
-                        !mm /hour
-                        !Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
-                        
                     endif
                     
                     
@@ -6296,7 +6307,6 @@ cd0:    if (Exist) then
                     
                     !mm /hour
                     !Me%InfiltrationRate (i, j) = 0.0
-
                 endif
                 
                 !! do not update now if using porus media - it will be updated after porous media finished
@@ -10412,6 +10422,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate (Me%SCSCNRunOffModel%Current5DayAccRain)
                     deallocate (Me%SCSCNRunOffModel%ActualCurveNumber)
                     deallocate (Me%SCSCNRunOffModel%S)
+                    deallocate (Me%SCSCNRunOffModel%Q_Previous)
                 endif
                
                 PropertyX => Me%FirstProperty

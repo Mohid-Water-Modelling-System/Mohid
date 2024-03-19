@@ -30,6 +30,7 @@
 
 Module ModuleGlobalData
     use, intrinsic      :: Iso_C_Binding
+    use kernel32, only : GetCurrentDirectory
 
     implicit none
     
@@ -4024,6 +4025,10 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         integer                             :: N
 
         integer, dimension(:), allocatable  :: Seed
+#ifdef _SEWERGEMSENGINECOUPLER_
+        character(len=256) :: CurrentDir
+        integer :: ilen
+#endif _SEWERGEMSENGINECOUPLER_
 
         !Begin-----------------------------------------------------------------
 
@@ -4055,8 +4060,7 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         !Gets a unit for the Error File    
         call UnitsManager(ErrorFileID, OPEN_FILE, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'StartupMohid - GlobalData - ERR01'
-
-         
+        
         Counter  = 1
 do1:    do
             Number = '    '
@@ -4066,14 +4070,29 @@ do1:    do
                  FILE   = 'Error_and_Messages_'//trim(adjustl(Number))//'.log',  &
                  STATUS = "REPLACE",                                      &
                  IOSTAT = STAT_CALL)
+#ifdef _SEWERGEMSENGINECOUPLER_    
+            if (STAT_CALL == SUCCESS_) then
+                exit do1
+
+            elseif (Counter > 200) then
+                ilen = GetCurrentDirectory( len(CurrentDir), CurrentDir )
+                CurrentDir = removenuls(CurrentDir)
+                write(*,*) "Current working folder has an unsupported character"
+                write(*,*) "Please check if your SewerGems project name contains any symbol or foreing character and rename it if that is the case: ", trim(adjustl(CurrentDir))
+                write(*,*) "Be advidsed that this printed path may have removed the existing symbol or foreing character"
+                stop 'StartupMohid - GlobalData - ERR010 - SewerGEMS project name contains characters not supported. Try using a project name without ASCII characters'
+
+            else
+                Counter = Counter + 1
+            end if
+#else _SEWERGEMSENGINECOUPLER_
             if (STAT_CALL == SUCCESS_) then
                 exit do1
             else
                 Counter = Counter + 1
             end if
+#endif _SEWERGEMSENGINECOUPLER_
         enddo do1
-
-
         !Gets a unit for the UsedKeyWordFile
         call UnitsManager(UsedKeyFileID, OPEN_FILE, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'StartupMohid - GlobalData - ERR02'
@@ -4171,7 +4190,24 @@ do2:    do
         !----------------------------------------------------------------------
 
     end subroutine ShutdownMohid
+    !---------------------------------------------------------------------------------
+    
+                              
+#ifdef _SEWERGEMSENGINECOUPLER_
+    function removenuls( string) 
+        character(len=*) :: string
+        character(len=len(string)) :: removenuls
 
+        integer :: pos
+
+        pos = index( string, achar(0) )
+        if ( pos > 0 ) then
+            removenuls = string(1:pos-1)
+        else 
+            removenuls = string
+        endif
+    end function removenuls
+#endif _SEWERGEMSENGINECOUPLER_
     !--------------------------------------------------------------------------
 
     subroutine SaveRunInfo (ModelName, ElapsedSeconds, TotalCPUTime, OutputFile, &
