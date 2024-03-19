@@ -11335,10 +11335,11 @@ temp:          if (STAT_CALL == SUCCESS_)then
                     if (PropertyX%Non_Cohesive) then
 
                         if (PropertyX%Evolution%Variable) aux = aux + 1
-
-                        PropertyX=>PropertyX%Next
-
+                        
                     endif
+                    
+                    
+                    PropertyX=>PropertyX%Next
 
                 end do
 
@@ -12308,14 +12309,15 @@ case1 :     select case(Property%ID%IDNumber)
                     call Search_Property(PropAux, PropertyXID = Temperature_, STAT = STAT_CALL)
                     if (STAT_CALL == SUCCESS_) then
 
-                        !Search the salinity
-                        call Search_Property(PropAux, PropertyXID = Salinity_, STAT = STAT_CALL)
-                        if (STAT_CALL == SUCCESS_ .AND. Property%evolution%O2_Sat_Output) then
+                    !Search the salinity
+                    call Search_Property(PropAux, PropertyXID = Salinity_, STAT = STAT_CALL)
 
-                            Me%OutPut%DO_PercentSat   = .true.
-                            Me%OutPut%AditionalFields = .true.
+                    if (STAT_CALL == SUCCESS_ .AND. Property%evolution%O2_Sat_Output) then
 
-                        endif
+                        Me%OutPut%DO_PercentSat   = .true.
+                        Me%OutPut%AditionalFields = .true.
+
+                    endif
 
                     endif
 
@@ -22649,10 +22651,10 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                         enddo
                         !$OMP END PARALLEL
 
-                        PropertyX=>PropertyX%Next
-
                     endif
-
+                    
+                    PropertyX=>PropertyX%Next
+                    
                 end do
             endif
 

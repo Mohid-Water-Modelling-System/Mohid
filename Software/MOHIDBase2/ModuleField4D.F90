@@ -2646,7 +2646,8 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             Me%File%Form = NetCDF_
 #endif
         else
-            stop 'ConstructFile - ModuleField4D - ERR20'
+            !stop 'ConstructFile - ModuleField4D - ERR20'
+            Me%File%Form = HDF5_
         endif
 
         if (Me%File%Form == HDF5_) then
@@ -3069,7 +3070,7 @@ it:     if (NewPropField%ChangeInTime) then
 
                     FoundSecondInstant        = .true.
                     NewPropField%NextInstant  = NewPropField%PreviousInstant - 1
-                    if (NewPropField%NextInstant >= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then                    
+                    if (NewPropField%NextInstant >= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then
                         NewPropField%NextTime     = Me%File%InstantsDates(NewPropField%NextInstant)
                     endif
                 end if
@@ -3157,7 +3158,7 @@ it:     if (NewPropField%ChangeInTime) then
                else
                     NewPropField%NextInstant      = NewPropField%NextInstant + 1
 
-                    if (NewPropField%NextInstant>= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then                    
+                    if (NewPropField%NextInstant>= 1 .and. NewPropField%NextInstant <= Me%File%NumberOfInstants) then
                         NewPropField%NextTime         = Me%File%InstantsDates(NewPropField%NextInstant)
                     endif
 
