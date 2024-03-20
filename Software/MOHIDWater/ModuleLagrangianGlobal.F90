@@ -21083,7 +21083,8 @@ cd2:        if (TauStress < CurrentOrigin%Deposition%TauDeposition) then
         real                                        :: SedVel, dS
         real                                        :: DiffusionCoefV
         real                                        :: TauCritic, dx1, dx2
-        real                                        :: Latitude, Longitude, CloudCover
+        real(8)                                     :: Latitude, Longitude
+        real                                        :: CloudCover
         !------------------------------------------------------------------------
 
         i       = CurrentPartic%Position%I

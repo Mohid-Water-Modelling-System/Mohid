@@ -2482,8 +2482,8 @@ if1:    If ( H < 30.3975) then
        !Arguments---------------------------------------------------------------
         real, intent(IN) :: WindSpeed
         real, intent(IN) :: Radiation
-        real, intent(IN) :: Latitude
-        real, intent(IN) :: Longitude
+        real(8), intent(IN) :: Latitude
+        real(8), intent(IN) :: Longitude
         real, intent(IN) :: CloudCover
         real, intent(IN) :: DT
         real, intent(OUT) :: HNSAirTurbHorizontalVel
@@ -2535,8 +2535,8 @@ if1:    If ( H < 30.3975) then
        !Arguments---------------------------------------------------------------
         real, intent(IN) :: WindSpeed
         real, intent(IN) :: Radiation
-        real, intent(IN) :: Latitude
-        real, intent(IN) :: Longitude
+        real(8), intent(IN) :: Latitude
+        real(8), intent(IN) :: Longitude
         real, intent(IN) :: CloudCover
         real, intent(IN) :: DT
         real, intent(OUT) :: HNSAirTurbVerticalVel
@@ -2593,7 +2593,7 @@ if1:    If ( H < 30.3975) then
         real                                        :: Declination
         real                                        :: Hour, Minute, Second
         real                                        :: LatitudePI, LongitudePI
-        real                                        :: Latitude, Longitude
+        real(8)                                     :: Latitude, Longitude
         integer                                     :: JulDay, STAT_CALL
         real                                        :: GmtReference, RacingWithTheSun
 
