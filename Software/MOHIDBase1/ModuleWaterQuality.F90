@@ -551,7 +551,9 @@ Module ModuleWaterQuality
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
-        integer                         :: ready_         
+        integer                         :: ready_   
+        logical                         :: MohidLagr_
+
 
         !Local-----------------------------------------------------------------
         integer                         :: STAT_
@@ -560,12 +562,12 @@ Module ModuleWaterQuality
 
         STAT_ = UNKNOWN_
         if (present(MohidLagr)) then
-            Me%MohidLagr = MohidLagr
+            MohidLagr_ = MohidLagr
         else
-            Me%MohidLagr = .false.
+            MohidLagr_ = .false.
         endif
         
-        if (.not. MohidLagr) then
+        if (.not. MohidLagr_) then
             !Standard MOHID simulation allocating modules. If MOHIDLagrangian model calls this module, use it only as
             !a system of functions and not inserted in the modules system.
             !Assures nullification of the global variable
@@ -576,10 +578,12 @@ Module ModuleWaterQuality
         endif
         
         call Ready(WaterQualityID, ready_)
-
-cd0 :   if (ready_ .EQ. OFF_ERR_ .OR. Me%MohidLagr) then
+        
+cd0 :   if (ready_ .EQ. OFF_ERR_ .OR. MohidLagr_) then
             
             call AllocateInstance           
+            
+            Me%MohidLagr = MohidLagr_            
 
             call Nullify_all_Sub_Type_Pointers
 
