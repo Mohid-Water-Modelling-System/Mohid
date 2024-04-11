@@ -97,6 +97,7 @@ Module Module_TS_Operator
 	    real                                                    :: DT_Synch         = null_real
         real                                                    :: FillValue        = null_real
         type (T_Time)                                           :: BeginTime
+        character(len=30)                                       :: BeginName        = null_str
         type (T_Time)                                           :: EndTime
 	    integer                                                 :: NValues          = null_int    
         
@@ -358,6 +359,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                 :: flag, STAT_CALL
         integer                 :: EnterAux = 0, ExtractAux
         logical                 :: Exist
+        integer                 :: ti
         
         !Begin--------------------------------------------------------------
         
@@ -404,7 +406,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'Module_TS_Operator - Read_TS_Operator - ERR50'
         if (flag == 0) then
             stop 'Module_TS_Operator - Read_TS_Operator - ERR60'
-        endif        
+        endif 
+        
+        Me%TS_Operation(i)%BeginName = ConvertTimeToString(Me%TS_Operation(i)%BeginTime, ":")
+            
+        do ti = 1, len(Me%TS_Operation(i)%BeginName)
+            if (Me%TS_Operation(i)%BeginName(ti:ti) == ':')  Me%TS_Operation(i)%BeginName(ti:ti) = ' ' 
+        enddo
+        
         
         !Reads End Time
         call GetData(Me%TS_Operation(i)%EndTime,                                        &
@@ -1272,6 +1281,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(variables(1:Nvar))
         allocate(variablesvalues(1:Nvar,1:Me%TS_Operation(i)%NValues))
         
+        
         !Synchronise all input times series
         
         do j = 1, Me%TS_Operation(i)%N_TS_Input 
@@ -1392,9 +1402,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(Me%TS_Operation(i)%iOut,*         ) "LOCALIZATION_J          : -999999"
         write(Me%TS_Operation(i)%iOut,*         ) "LOCALIZATION_K          : -999999"
         
-        call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
+
+        write(Me%TS_Operation(i)%iOut,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)        
         
-        write(Me%TS_Operation(i)%iOut,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        !write(Me%TS_Operation(i)%iOut,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
         write(Me%TS_Operation(i)%iOut,*) "TIME_UNITS              : SECONDS"
         write(Me%TS_Operation(i)%iOut,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
         write(Me%TS_Operation(i)%iOut,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
@@ -1422,9 +1433,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(Me%TS_Operation(i)%iOut_v2,*         ) "LOCALIZATION_J          : -999999"
             write(Me%TS_Operation(i)%iOut_v2,*         ) "LOCALIZATION_K          : -999999"
         
-            call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
+            !call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
         
-            write(Me%TS_Operation(i)%iOut_v2,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+            write(Me%TS_Operation(i)%iOut_v2,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)
+            
+            !write(Me%TS_Operation(i)%iOut_v2,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second    
+            
             write(Me%TS_Operation(i)%iOut_v2,*) "TIME_UNITS              : SECONDS"
             write(Me%TS_Operation(i)%iOut_v2,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
             write(Me%TS_Operation(i)%iOut_v2,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
@@ -1515,9 +1529,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(Me%TS_Operation(i)%iW,*          ) "LOCALIZATION_J          : -999999"
         write(Me%TS_Operation(i)%iW,*          ) "LOCALIZATION_K          : -999999"
         
-        call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
+        !call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
         
-        write(Me%TS_Operation(i)%iW,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        write(Me%TS_Operation(i)%iW,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)
+        
+        !write(Me%TS_Operation(i)%iW,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
         write(Me%TS_Operation(i)%iW,*) "TIME_UNITS              : SECONDS"
         write(Me%TS_Operation(i)%iW,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
         write(Me%TS_Operation(i)%iW,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
@@ -1540,13 +1557,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call UnitsManager(Me%TS_Operation(i)%iW, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop "Module_TS_Operator - ModifyTimeSeriesOperation - ERR40"
 
-        call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
-           
+        !call ExtractDate(Me%TS_Operation(i)%BeginTime, Year, Month, Day, hour, minute, second)
+        
         write(Me%TS_Operation(i)%iW_v2,'(A25,A50)') "NAME                    : ", "Operation_Window_"//trim(Me%TS_Operation(i)%Name)
+        
         write(Me%TS_Operation(i)%iW_v2,*          ) "LOCALIZATION_I          : -999999"
         write(Me%TS_Operation(i)%iW_v2,*          ) "LOCALIZATION_J          : -999999"
         write(Me%TS_Operation(i)%iW_v2,*          ) "LOCALIZATION_K          : -999999"
-        write(Me%TS_Operation(i)%iW_v2,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
+        write(Me%TS_Operation(i)%iW_v2,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)                
+        !write(Me%TS_Operation(i)%iW_v2,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
         write(Me%TS_Operation(i)%iW_v2,*) "TIME_UNITS              : SECONDS"
         write(Me%TS_Operation(i)%iW_v2,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
         write(Me%TS_Operation(i)%iW_v2,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
@@ -1558,7 +1579,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(Me%TS_Operation(i)%iW_v3,*          ) "LOCALIZATION_I          : -999999"
         write(Me%TS_Operation(i)%iW_v3,*          ) "LOCALIZATION_J          : -999999"
         write(Me%TS_Operation(i)%iW_v3,*          ) "LOCALIZATION_K          : -999999"
-        write(Me%TS_Operation(i)%iW_v3,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
+        write(Me%TS_Operation(i)%iW_v3,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)        
+        !write(Me%TS_Operation(i)%iW_v3,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
         write(Me%TS_Operation(i)%iW_v3,*) "TIME_UNITS              : SECONDS"
         write(Me%TS_Operation(i)%iW_v3,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
         write(Me%TS_Operation(i)%iW_v3,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
@@ -1570,7 +1594,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(Me%TS_Operation(i)%iW_v4,*          ) "LOCALIZATION_I          : -999999"
         write(Me%TS_Operation(i)%iW_v4,*          ) "LOCALIZATION_J          : -999999"
         write(Me%TS_Operation(i)%iW_v4,*          ) "LOCALIZATION_K          : -999999"
-        write(Me%TS_Operation(i)%iW_v4,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+        
+        write(Me%TS_Operation(i)%iW_v4,'(A26,A30)') "SERIE_INITIAL_DATA      : ", Me%TS_Operation(i)%BeginName(1:20)                
+        !write(Me%TS_Operation(i)%iW_v4,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second        
+        
         write(Me%TS_Operation(i)%iW_v4,*) "TIME_UNITS              : SECONDS"
         write(Me%TS_Operation(i)%iW_v4,*) "COORD_X                 : ", Me%TS_Operation(i)%CoordX
         write(Me%TS_Operation(i)%iW_v4,*) "COORD_Y                 : ", Me%TS_Operation(i)%CoordY
