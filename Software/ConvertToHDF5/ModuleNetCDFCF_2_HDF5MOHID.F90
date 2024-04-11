@@ -3463,12 +3463,10 @@ BF:         if (BlockFound) then
                         Me%Depth%ZlevelsFaces(1:Me%Depth%N_ZLevels+1) = Aux1D(1:Me%Depth%N_ZLevels+1)
                     
                     endif
+                
+                    deallocate(Aux1D)  
                     
-                endif
-                
-                deallocate(Aux1D)                
-                
-                
+                endif     
 
                 !down or up
                 call GetData(Me%Depth%Positive,                                         &
@@ -6758,7 +6756,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                 Me%Date%UnitsFactor = 3600.
 
                 do i=1,tmax-5
-                    if (ref_date(i:i+5)== "second") then
+                    if (ref_date(i:i+5)== "second" .or. ref_date(i:i+2)== "seconds" .or.    &
+                        ref_date(i:i+2)== "Second" .or. ref_date(i:i+2)== "Seconds") then
                         ReadTime =.true.
                         Me%Date%UnitsFactor = 1.
                         exit

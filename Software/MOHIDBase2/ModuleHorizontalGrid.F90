@@ -156,6 +156,8 @@ Module ModuleHorizontalGrid
     public  :: GetGhostCorners
 
     public  :: GetSonWindow
+    
+    public  :: GetConstDX_NoRot
 
     public  :: GetConnections
     public  :: UnGetConnections
@@ -346,6 +348,7 @@ Module ModuleHorizontalGrid
     public :: ReceiveSendIntMinMPI
     
     public :: IntMaster2Slaves
+    
 
 #endif _USE_MPI
 
@@ -638,6 +641,11 @@ Module ModuleHorizontalGrid
 
         type(T_DDecomp)                         :: DDecomp
         type (T_BorderLimits)                   :: BorderLimits
+        
+        logical                                 :: ConstantSpacingX = .false.
+        real(8)                                 :: DX               = null_real
+        logical                                 :: ConstantSpacingY = .false.
+        real(8)                                 :: DY               = null_real
 
         !Instances
         integer                                 :: ObjHDF5       = 0
@@ -3104,10 +3112,10 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: STAT_CALL, ZoneLong
         integer, dimension(2)               :: AuxInt
         real,    dimension(2)               :: AuxReal
-        real                                :: DX, DY, Aux, XY_Aux
+        real                                :: Aux, XY_Aux
         integer                             :: flag, flag1, flag2
         integer                             :: ClientNumber
-        logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
+        logical                             :: BlockFound
         integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
         logical                             :: CornersOverlap
 
@@ -3701,27 +3709,27 @@ BF:     if (BlockFound) then
             endif
 
            !Check if the spacing in Y is constant
-            call GetData(ConstantSpacingY,                                              &
+            call GetData(Me%ConstantSpacingY,                                           &
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_Y',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR250'
 
-iconY:      if (ConstantSpacingY) Then
+iconY:      if (Me%ConstantSpacingY) Then
                 !Get grid origin
-                call GetData(DY,                                                        &
+                call GetData(Me%DY,                                                     &
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DY',                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR260'
 
-                XY_Aux   = -DY
+                XY_Aux   = -Me%DY
                 ii       = 0
                 do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1
 
-                    XY_Aux   = XY_Aux + DY
+                    XY_Aux   = XY_Aux + Me%DY
 
                     if (Me%DDecomp%Master) then
 
@@ -3809,27 +3817,27 @@ iconY:      if (ConstantSpacingY) Then
             end if iconY
 
            !Check if the spacing in X is constant
-            call GetData(ConstantSpacingX,                                              &
+            call GetData(Me%ConstantSpacingX,                                           &
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_X',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR320'
 
-iconX:      if (ConstantSpacingX) Then
+iconX:      if (Me%ConstantSpacingX) Then
                 !Get grid spacing dx
-                call GetData(DX,                                                        &
+                call GetData(Me%DX,                                                     &
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DX',                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR330'
 
-                XY_Aux   = -DX
+                XY_Aux   = -Me%DX
                 jj       = 0
                 do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1
 
-                    XY_Aux = XY_Aux + DX
+                    XY_Aux = XY_Aux + Me%DX
 
 
                     if (Me%DDecomp%Master) then
@@ -12628,6 +12636,64 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !--------------------------------------------------------------------------
 
 
+    logical function GetConstDX_NoRot(HorizontalGridID, Xorig, YOrig, DX, DY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        real(8)                                     :: Xorig, YOrig, DX, DY
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetConstDX_NoRot = .false.
+
+        Xorig   = null_real
+        YOrig   = null_real
+        DX      = null_real
+        DY      = null_real
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+    
+                if (.not. Me%Distortion .and. .not. Me%RegularRotation) then
+                    if (Me%ConstantSpacingX .and. Me%ConstantSpacingY) then
+
+                        GetConstDX_NoRot  = .true.
+                        Xorig             = Me%Xorig
+                        YOrig             = Me%YOrig
+                        DX                = Me%DX   
+                        DY                = Me%DY   
+
+                    endif               
+                endif
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetConstDX_NoRot
+
+    !--------------------------------------------------------------------------
+    
     logical function GetGhostCorners(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -12709,6 +12775,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
+    
 
     !--------------------------------------------------------------------------
 

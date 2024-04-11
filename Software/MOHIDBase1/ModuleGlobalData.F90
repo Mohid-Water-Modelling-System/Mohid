@@ -30,8 +30,9 @@
 
 Module ModuleGlobalData
     use, intrinsic      :: Iso_C_Binding
+#ifdef _SEWERGEMSENGINECOUPLER_       
     use kernel32, only : GetCurrentDirectory
-
+#endif _SEWERGEMSENGINECOUPLER_
     implicit none
     
 

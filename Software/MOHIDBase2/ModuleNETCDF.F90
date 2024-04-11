@@ -50,7 +50,9 @@ Module ModuleNETCDF
     public  :: NETCDFSet1D_Dimension
     public  :: NETCDFGetDimensions    
     public  :: NETCDFWriteLatLon
-    public  :: NETCDFWriteLatLon1D    
+    private :: NETCDFWriteLatLon1D_R4    
+    private :: NETCDFWriteLatLon1D_R8        
+    public  :: NETCDFWriteLatLon1D
     public  :: NETCDFWriteVert
     public  :: NETCDFWriteVertStag    
     public  :: NETCDFReadVert    
@@ -89,6 +91,16 @@ Module ModuleNETCDF
         module procedure NETCDFReadDataI4_2D
         module procedure NETCDFReadDataI4_3D
     end interface
+    
+    interface NETCDFWriteLatLon1D
+        module procedure NETCDFWriteLatLon1D_R4
+        module procedure NETCDFWriteLatLon1D_R8
+    end interface    
+    
+    interface NETCDFWriteLatLon
+        module procedure NETCDFWriteLatLon2D_R4
+        module procedure NETCDFWriteLatLon2D_R8
+    end interface        
     
     !Parameters----------------------------------------------------------------
     integer, parameter                              :: NCDF_CREATE_     = 1
@@ -2193,13 +2205,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteLatLon(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag,                  &
+    subroutine NETCDFWriteLatLon2D_R4(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag,                  &
                                  SphericX, SphericY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
-        real, dimension(:,:), pointer                   :: Lat, Lon
-        real, dimension(:,:), pointer                   :: Lat_Stag, Lon_Stag
+        real(4), dimension(:,:), pointer                :: Lat, Lon
+        real(4), dimension(:,:), pointer                :: Lat_Stag, Lon_Stag
         real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY     
         integer, optional                               :: STAT
         
@@ -2224,7 +2236,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             !enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR10'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR10'
             
             Dims2ID(1) = Me%Dims(1)%ID%Number  !x
             Dims2ID(2) = Me%Dims(2)%ID%Number  !y
@@ -2234,25 +2246,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !define latitude as variable
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Dims2ID, Me%Dims(2)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR20'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR20'
 
             !define longitude as variable 
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Dims2ID, Me%Dims(1)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR30'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR30'
             
             !define latitude staggered as variable
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Stag_Name), NF90_FLOAT, Dims3IDStag, LatStagID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR40'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR40'
 
             !define longitude staggered as variable 
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Stag_Name), NF90_FLOAT, Dims3IDStag, LonStagID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR50'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR50'
 
             !define spherical mercator coordinates adopted by Google and Bing X staggered as variable 
             if (present(SphericX)) then
                 if (associated(SphericX)) then
                     STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_x_Name), NF90_FLOAT, Dims3IDStag, SphericXVarID)
-                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR60'
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR60'
                 endif                    
             endif
 
@@ -2260,7 +2272,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(SphericY)) then
                 if (associated(SphericY)) then
                     STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_y_Name), NF90_FLOAT, Dims3IDStag, SphericYVarID)
-                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR70'
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR70'
                 endif                    
             endif
             
@@ -2314,15 +2326,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !exit definition mode
             STAT_CALL = nf90_enddef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR80'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR80'
 
             !write lat
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR90'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR90'
 
             !write lon
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR100'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR100'
             
             allocate(AuxStag(Me%Dims(5)%LB:Me%Dims(5)%UB,Me%Dims(1)%LB:Me%Dims(1)%UB,Me%Dims(2)%LB:Me%Dims(2)%UB))
             
@@ -2348,7 +2360,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !write lat staggered
             STAT_CALL = nf90_put_var(Me%ncid, LatStagID, AuxStag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR110'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR110'
 
             do j = Me%Dims(1)%LB,Me%Dims(1)%UB
             do i = Me%Dims(2)%LB,Me%Dims(2)%UB
@@ -2372,7 +2384,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !write lon staggered
             STAT_CALL = nf90_put_var(Me%ncid, LonStagID, AuxStag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR120'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR120'
             
             !write spheric X staggered
             if (present   (SphericX)) then
@@ -2399,7 +2411,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 enddo
             
                 STAT_CALL = nf90_put_var(Me%ncid, SphericXVarID, AuxStag)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR130'
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR130'
             endif
             endif
             
@@ -2428,7 +2440,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 enddo            
             
                 STAT_CALL = nf90_put_var(Me%ncid, SphericYVarID, AuxStag)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR140'
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R4 - ModuleNETCDF - ERR140'
             
             endif    
             endif
@@ -2447,21 +2459,279 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFWriteLatLon
+    end subroutine NETCDFWriteLatLon2D_R4
 
     !--------------------------------------------------------------------------    
-
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteLatLon1D(NCDFID, Lat, Lon, STAT)
+    subroutine NETCDFWriteLatLon2D_R8(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag,                  &
+                                 SphericX, SphericY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
-        real, dimension(:,:), pointer                   :: Lat, Lon
+        real(8), dimension(:,:), pointer                :: Lat, Lon
+        real(8), dimension(:,:), pointer                :: Lat_Stag, Lon_Stag
+        real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY     
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
-        real, dimension(:), pointer                     :: Lat1D, Lon1D
+        real,    dimension(:,:,:), pointer              :: AuxStag
+        integer, dimension(2)                           :: Dims2ID
+        integer, dimension(3)                           :: Dims3IDStag
+        real                                            :: FillValue, MissingValue        
+        integer                                         :: LatStagID, LonStagID
+        integer                                         :: SphericXVarID, SphericYVarID
+        integer                                         :: i, j, nv, di, dj
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            !enter definition mode
+            STAT_CALL = nf90_redef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR10'
+            
+            Dims2ID(1) = Me%Dims(1)%ID%Number  !x
+            Dims2ID(2) = Me%Dims(2)%ID%Number  !y
+            
+            Dims3IDStag(1)  = Me%Dims(5)%ID%Number  ! nvh
+            Dims3IDStag(2:3)= Dims2ID(1:2)  
+
+            !define latitude as variable
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Dims2ID, Me%Dims(2)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR20'
+
+            !define longitude as variable 
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Dims2ID, Me%Dims(1)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR30'
+            
+            !define latitude staggered as variable
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Stag_Name), NF90_FLOAT, Dims3IDStag, LatStagID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR40'
+
+            !define longitude staggered as variable 
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Stag_Name), NF90_FLOAT, Dims3IDStag, LonStagID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR50'
+
+            !define spherical mercator coordinates adopted by Google and Bing X staggered as variable 
+            if (present(SphericX)) then
+                if (associated(SphericX)) then
+                    STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_x_Name), NF90_FLOAT, Dims3IDStag, SphericXVarID)
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR60'
+                endif                    
+            endif
+
+            !define spherical mercator Y staggered as variable 
+            if (present(SphericY)) then
+                if (associated(SphericY)) then
+                    STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_y_Name), NF90_FLOAT, Dims3IDStag, SphericYVarID)
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR70'
+                endif                    
+            endif
+            
+            FillValue       = FillValueReal
+            MissingValue    = FillValueReal
+
+
+            call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
+                                                         StandardName = "latitude",             &
+                                                         Units        = "degrees_north",        &
+!                                                         FillValue    = FillValue,              &
+                                                         ValidMin     = -90.,                   &
+                                                         ValidMax     = 90.,                    &
+                                                         bounds       = trim(Lat_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
+           
+            call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
+                                                         StandardName = "longitude",            &
+                                                         Units        = "degrees_east",         &
+!                                                         FillValue    = FillValue,              &
+                                                         ValidMin     = -180.,                  &
+                                                         ValidMax     = 180.,                   &
+                                                         bounds       = trim(Lon_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
+
+            if (present(SphericX)) then
+                if (associated(SphericX)) then
+                                                         
+                    call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
+                                                                 !StandardName = "spherical mercator - google maps - x",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              &
+                                                                 ValidMin     = -20037508.34,           &
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
+                endif                    
+            endif
+            
+            if (present(SphericY)) then
+                if (associated(SphericY)) then
+
+                    call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
+                                                                 !StandardName = "spherical mercator - google maps - y",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              & 
+                                                                 ValidMin     = -20037508.34,           &
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
+                endif
+            endif                
+            
+            !exit definition mode
+            STAT_CALL = nf90_enddef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR80'
+
+            !write lat
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR90'
+
+            !write lon
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR100'
+            
+            allocate(AuxStag(Me%Dims(5)%LB:Me%Dims(5)%UB,Me%Dims(1)%LB:Me%Dims(1)%UB,Me%Dims(2)%LB:Me%Dims(2)%UB))
+            
+            do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    if (nv==1) then
+                        di=0;dj=0
+                    endif
+                    if (nv==2) then
+                        di=0;dj=1
+                    endif
+                    if (nv==3) then
+                        di=1;dj=1
+                    endif
+                    if (nv==4) then
+                        di=1;dj=0
+                    endif
+                    AuxStag(nv,j,i) = Lat_Stag(j+dj,i+di)
+                enddo
+            enddo
+            enddo
+
+            !write lat staggered
+            STAT_CALL = nf90_put_var(Me%ncid, LatStagID, AuxStag)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR110'
+
+            do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    if (nv==1) then
+                        di=0;dj=0
+                    endif
+                    if (nv==2) then
+                        di=0;dj=1
+                    endif
+                    if (nv==3) then
+                        di=1;dj=1
+                    endif
+                    if (nv==4) then
+                        di=1;dj=0
+                    endif
+                    AuxStag(nv,j,i) = Lon_Stag(j+dj,i+di)
+                enddo
+            enddo
+            enddo
+
+            !write lon staggered
+            STAT_CALL = nf90_put_var(Me%ncid, LonStagID, AuxStag)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR120'
+            
+            !write spheric X staggered
+            if (present   (SphericX)) then
+            if (associated(SphericX)) then
+            
+                do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                    do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                        if (nv==1) then
+                            di=0;dj=0
+                        endif
+                        if (nv==2) then
+                            di=0;dj=1
+                        endif
+                        if (nv==3) then
+                            di=1;dj=1
+                        endif
+                        if (nv==4) then
+                            di=1;dj=0
+                        endif
+                        AuxStag(nv,j,i) = SphericX(j+dj,i+di)
+                    enddo
+                enddo
+                enddo
+            
+                STAT_CALL = nf90_put_var(Me%ncid, SphericXVarID, AuxStag)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR130'
+            endif
+            endif
+            
+            !write spheric Y staggered
+            if (present   (SphericY)) then
+            if (associated(SphericY)) then
+
+                do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                    do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                        if (nv==1) then
+                            di=0;dj=0
+                        endif
+                        if (nv==2) then
+                            di=0;dj=1
+                        endif
+                        if (nv==3) then
+                            di=1;dj=1
+                        endif
+                        if (nv==4) then
+                            di=1;dj=0
+                        endif
+                        AuxStag(nv,j,i) = SphericY(j+dj,i+di)
+                    enddo
+                enddo
+                enddo            
+            
+                STAT_CALL = nf90_put_var(Me%ncid, SphericYVarID, AuxStag)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon2D_R8 - ModuleNETCDF - ERR140'
+            
+            endif    
+            endif
+            
+
+            call NETCDFWriteLineColumn            
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFWriteLatLon2D_R8
+
+    !--------------------------------------------------------------------------   
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteLatLon1D_R4(NCDFID, Lat, Lon, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(4), dimension(:,:), pointer                :: Lat, Lon
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real(8), dimension(:), pointer                  :: Lat1D, Lon1D
         real                                            :: FillValue, MissingValue
         !real                                            :: Scale, Aux1, Aux2, Aux3, Dif  
         integer                                         :: i, j !, nv, di, dj
@@ -2478,15 +2748,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             !enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR10'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR10'
 
             !define matrix lines as variable
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Me%Dims(2)%ID%Number, Me%Dims(2)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR20'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR20'
 
             !define longitude as variable 
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Me%Dims(1)%ID%Number, Me%Dims(1)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR30'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR30'
 
             FillValue    = FillValueReal
             MissingValue = FillValueReal
@@ -2516,7 +2786,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                Scale = int(log10(100. / Scale))
 !                Scale = 10**(Scale +1)
 !            else
-!                stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+!                stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR40'
 !            endif
 !            
 !            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
@@ -2542,7 +2812,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                Scale = int(log10(100. / Scale))
 !                Scale = 10**(Scale +1)
 !            else
-!                stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+!                stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR40'
 !            endif                   
 !            
 !            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
@@ -2568,15 +2838,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !exit definition mode
             STAT_CALL = nf90_enddef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR40'
 
             !write column indexes
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon1D)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR50'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR50'
 
             !write line indexes
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat1D)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR60'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R4 - ModuleNETCDF - ERR60'
 
             deallocate(Lon1D)
             deallocate(Lat1D) 
@@ -2592,7 +2862,152 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFWriteLatLon1D
+    end subroutine NETCDFWriteLatLon1D_R4
+
+    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteLatLon1D_R8(NCDFID, Lat, Lon, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(8), dimension(:,:), pointer                :: Lat, Lon
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:), pointer                     :: Lat1D, Lon1D
+        real                                            :: FillValue, MissingValue
+        !real                                            :: Scale, Aux1, Aux2, Aux3, Dif  
+        integer                                         :: i, j !, nv, di, dj
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            !enter definition mode
+            STAT_CALL = nf90_redef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR10'
+
+            !define matrix lines as variable
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Me%Dims(2)%ID%Number, Me%Dims(2)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR20'
+
+            !define longitude as variable 
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Me%Dims(1)%ID%Number, Me%Dims(1)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR30'
+
+            FillValue    = FillValueReal
+            MissingValue = FillValueReal
+            
+            call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",    &
+                                                         StandardName = "longitude",    &
+                                                         Units        = "degrees_east", &
+                                                         ValidMin    = -180.,           &
+                                                         ValidMax    =  180.,           &
+                                                         axis           ="X",           &
+                                                         reference    = "geographical coordinates, WGS84 projection")
+
+            call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",     &
+                                                         StandardName = "latitude",     &
+                                                         Units        = "degrees_north",&
+                                                         ValidMin    = -90.,            &
+                                                         ValidMax    =  90.,            &
+                                                         axis           ="Y",           &
+                                                         reference    = "geographical coordinates, WGS84 projection")
+                                                         
+            allocate(Lon1D(Me%Dims(1)%LB:Me%Dims(1)%UB))
+            allocate(Lat1D(Me%Dims(2)%LB:Me%Dims(2)%UB))  
+            
+!            Scale = Lon(2,1) - Lon(1,1)
+!            
+!            if (Scale > 0.) then
+!                Scale = int(log10(100. / Scale))
+!                Scale = 10**(Scale +1)
+!            else
+!                stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR40'
+!            endif
+!            
+!            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+!                Aux1 = Lon(j,1) * Scale
+!                Aux2 = FLOAT (INT(Aux1))
+!                Dif  = Aux1 - Aux2
+!                if (abs(Dif) > 0.5) then
+!                    if (Aux2>0) then
+!                        Aux3 = (Aux2 + 1.)/Scale
+!                    else
+!                        Aux3 = (Aux2 - 1.)/Scale
+!                    endif                        
+!                else                    
+!                    Aux3 = (Aux2     )/Scale
+!                endif
+!                                    
+!                Lon1D  (j)= Aux3
+!            enddo 
+!            
+!            Scale = Lat(1,2) - Lat(1,1)
+!            
+!            if (Scale > 0.) then
+!                Scale = int(log10(100. / Scale))
+!                Scale = 10**(Scale +1)
+!            else
+!                stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR40'
+!            endif                   
+!            
+!            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+!                Aux1 = Lat(1,i) * Scale
+!                Aux2 = FLOAT (INT(Aux1))
+!                Dif  = Aux1 - Aux2
+!                if (Dif > 0.5) then
+!                    Aux3 = (Aux2 + 1.)/Scale
+!                else                    
+!                    Aux3 = (Aux2     )/Scale
+!                endif
+!                                    
+!                Lat1D  (i)= Aux3
+!            enddo        
+
+            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                Lon1D  (j)= Lon(j,1)
+            enddo   
+            
+            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                Lat1D  (i)= Lat(1,i)
+            enddo                   
+
+            !exit definition mode
+            STAT_CALL = nf90_enddef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR40'
+
+            !write column indexes
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR50'
+
+            !write line indexes
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D_R8 - ModuleNETCDF - ERR60'
+
+            deallocate(Lon1D)
+            deallocate(Lat1D) 
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFWriteLatLon1D_R8
 
     !--------------------------------------------------------------------------    
 
