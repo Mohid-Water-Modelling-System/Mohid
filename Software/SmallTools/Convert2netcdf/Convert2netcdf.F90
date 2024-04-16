@@ -2999,8 +2999,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
         integer                                     :: i, j, k, KUBout, kfloor
         real                                        :: DecimalPlaces, Z
-        real(8),    dimension(:), pointer           :: Depth1D, Matrix1D
-        
+        real(8),    dimension(:    ), pointer       :: Depth1D, Matrix1D
+        real(4),    dimension(:,:  ), pointer       :: Aux2D_R4
+        real(4),    dimension(:,:,:), pointer       :: Aux3D_R4        
         
         
         
@@ -3053,15 +3054,22 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         select case(rank) 
 
             case(2)
+            
+                allocate(Aux2D_R4(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
+                                  Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB))
 
-                call h5dread_f   (dset_id, NumType,                                         &
-                                  Me%Float2DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
-                                               Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),    &
+                call h5dread_f   (dset_id, NumType,                                     &
+                                  Aux2D_R4(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
+                                           Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),    &
                                   dims, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
                     stop 'ReadDataSet - Convert2netcdf - ERR50'
                 endif
 
+                Me%Float2DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,                   &
+                             Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB) =  Aux2D_R4
+                
+                 deallocate(Aux2D_R4)
 
                 if (Me%DecimalPlaces > FillValueInt) then
                 
@@ -3149,15 +3157,27 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
 
             case(3)
-
+                
+                
+                allocate(Aux3D_R4(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,                  &
+                                  Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,                  &
+                                  Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB))
+                
                 call h5dread_f   (dset_id, NumType,                                         &
-                                  Me%Float3DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
+                                  Aux3D_R4    (Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
                                                Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,     &
                                                Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB),    &
                                   dims, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
                     stop 'ReadDataSet - Convert2netcdf - ERR80'
                 endif
+                
+                
+                Me%Float3DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,    &
+                            Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,     &
+                            Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB)  =   Aux3D_R4 
+                
+                deallocate(Aux3D_R4)
 
                 if (Me%HDFFile%OutputIs2D) then                    
 
