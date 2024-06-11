@@ -105,6 +105,8 @@ Module ModuleFunctions
 
     !Linear tridiagonal sytems solvers tridiagonal system with cyclic boundaries
     public  :: tridag_cyclic
+    !solve linear equations with 5 diagonals using the Gauss method
+    public  :: gauss_5diagonals
 
     !Linear iterative solver
     public  :: CGS2D
@@ -367,6 +369,10 @@ Module ModuleFunctions
 
     !wind waves lnear theory
     public :: WaveLengthHuntsApproximation
+
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
+    public :: WaveRunUpHunt1959
+    public :: WaveRunUpStockdon2006
 
     public :: THOMASZ_NewType2
 
@@ -8891,6 +8897,63 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     !--------------------------------------------------------------------------
 
+    !Fortran function to solve a system of linear equations with 
+    !5 main principle diagonals using the Gauss method:    
+    
+    subroutine gauss_5diagonals(A, b, x, n)
+        ! Input parameters
+        real(8), dimension(:,:), pointer, intent(in) :: A  ! Coefficient matrix with 5 diagonals
+        real(8), dimension(:  ), pointer, intent(in) :: b   ! Right-hand side vector
+        integer, intent(in) :: n                 ! Dimension of the system
+
+        ! Output parameter
+        real(8), dimension(:), pointer, intent(out) :: x  ! Solution vector
+
+        ! Local variables
+        real(8), dimension(:,:), pointer :: Ab            ! Augmented matrix
+        integer :: i, k
+        real(8) :: factor
+
+        ! Check the size of A
+        if (size(A, 1) /= n .or. size(A, 2) /= n) then
+            print *, "Matrix A must be nxn"
+            stop
+        end if
+
+        ! Augment matrix A with vector b
+        allocate(Ab(n, n+1))
+        Ab(:, 1:n) = A
+        Ab(:, n+1) = b
+
+        ! Forward elimination process
+        do k = 1, n-1
+            ! Partial pivoting
+            do i = k+1, n
+                if (abs(Ab(i, k)) > abs(Ab(k, k))) then
+                    Ab([k, i], :) = Ab([i, k], :)
+                end if
+            end do
+
+            ! Elimination
+            do i = k+1, n
+                factor = Ab(i, k) / Ab(k, k)
+                Ab(i, k:n+1) = Ab(i, k:n+1) - factor * Ab(k, k:n+1)
+            end do
+        end do
+
+        ! Back substitution process
+        x(n) = Ab(n, n+1) / Ab(n, n)
+        do i = n-1, 1, -1
+            x(i) = (Ab(i, n+1) - sum(Ab(i, i+1:n) * x(i+1:n))) / Ab(i, i)
+        end do
+        
+        deallocate(Ab)
+
+
+    end subroutine gauss_5diagonals
+
+    !-----------    
+
     !Computes de value for a depth based in a profile.
     real function InterpolateProfile (CellDepth, NDEPTHS, Depth, Values)
 
@@ -14853,6 +14916,53 @@ D2:     do I=imax-1,2,-1
 
     !------------------------------------------------------------------------------
 
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
+        !Hs - Significant wave height
+        !Tp - Peak period
+        !m  - Beach slope 
+    real function WaveRunUpHunt1959(Hs,Tp,m)    
+        !Arguments-------------------------------------------------------------
+        real , intent(IN)        :: Hs,Tp,m
+        !Local-----------------------------------------------------------------
+
+        !Begin-----------------------------------------------------------------   
+        if (Hs > 0.001) then 
+            WaveRunUpHunt1959 = Hs * (0.2 + Tp*m*sqrt(Gravity/(2*Pi*Hs)))
+        else
+            WaveRunUpHunt1959 = 0.
+        endif
+    
+    end function WaveRunUpHunt1959
+
+    !------------------------------------------------------------------------------
+
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Stockdon2006 et al. (2006)
+        !Hs - Significant wave height
+        !Tp - Peak period
+        !m  - Beach slope 
+    real function WaveRunUpStockdon2006(Hs,Tp,m)    
+        !Arguments-------------------------------------------------------------
+        real , intent(IN)        :: Hs,Tp,m
+        !Local-----------------------------------------------------------------
+        real                     :: L, E, Sw, Sig
+        !Begin-----------------------------------------------------------------   
+        if (Hs > 0.001) then 
+            L = Gravity * Tp**2 / (2*Pi) 
+            E = m / sqrt(Hs/L)
+            if (E >= 0.3) then
+                Sw  = 0.75 * Hs * E
+                Sig = 0.06 * sqrt(Hs * L)
+                WaveRunUpStockdon2006 = 1.1 * (0.35*Hs*E + 0.5*sqrt(Sw**2+Sig**2))
+            else
+                WaveRunUpStockdon2006 = 0.043 * sqrt(Hs * L)
+            endif
+        else
+            WaveRunUpStockdon2006 = 0.
+        endif
+    
+    end function WaveRunUpStockdon2006
+
+    !------------------------------------------------------------------------------
 
     subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
 
