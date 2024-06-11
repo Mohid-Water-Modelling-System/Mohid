@@ -1194,6 +1194,7 @@ Module ModuleLagrangianGlobal
         real,    pointer, dimension(:,:,:)      :: DiffusionV                           => null()        
 
         !ObjHydrodynamic
+        real,    pointer, dimension(:,:  )      :: WaterLevel                           => null()
         real,    pointer, dimension(:,:,:)      :: Velocity_U                           => null()
         real,    pointer, dimension(:,:,:)      :: Velocity_V                           => null()
         real,    pointer, dimension(:,:,:)      :: Velocity_W                           => null()
@@ -1635,6 +1636,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: KillPartic               = OFF
         logical                                 :: Freezed                  = OFF
         logical                                 :: Beached                  = OFF
+        real                                    :: BeachedWL                = null_real        
+        real                                    :: BeachedPeriod            = null_real                
         logical                                 :: Deposited                = OFF        
         logical                                 :: AtTheBottom              = OFF        
         real                                    :: HumanBodySinkingVel      = null_real
@@ -1715,6 +1718,14 @@ Module ModuleLagrangianGlobal
         real                                    :: DistanceToCoast          = null_real
         real                                    :: MinDistanceToCoast       = - null_real
         integer                                 :: ScenarioID               = null_int																					  
+        
+        real                                    :: WaterLevel               = null_real
+        real                                    :: Bathym                   = null_real
+        integer                                 :: SolutionWLe              = FillValueInt 
+        integer                                 :: SolutionBat              = FillValueInt         
+
+        real                                    :: WaterColumn              = null_real        
+        
     end type T_Partic
 
     !Particle deposition
@@ -2032,6 +2043,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: MaxNbrScenarios             = null_int        
         logical                                 :: LitterON                    = .false. 
         logical                                 :: OutputGridON                = .false.         
+        logical                                 :: SmoothConcON                = .false.  
 
         type(T_Statistic)                       :: Statistic
         type(T_MeteoOcean)                      :: MeteoOcean
@@ -4322,11 +4334,11 @@ i1:     if (BlockInBlockFound) then
             enddo
 
         else i1
-            if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
-                Me%MeteoOcean%Prop(nProp)%FieldNumber = 0.
-            else
+            !if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
+            !    Me%MeteoOcean%Prop(nProp)%FieldNumber = 0.
+            !else
                 stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR40'
-            endif
+            !endif
         endif i1
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
@@ -4372,11 +4384,11 @@ i1:     if (BlockInBlockFound) then
                 FieldNumber = FieldNumber + 1
 
             elseif (FieldNumber == 0) then i1
-                if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
-                    exit
-                else
+                !if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
+                !    exit
+                !else
                     stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR30'
-                endif
+                !endif
             else i1
                 exit                                 
             endif i1
@@ -5589,6 +5601,15 @@ em4:        do em =1, Me%EulerModelNumber
             stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR425' 
         endif
         
+        call GetData(Me%SmoothConcON,                                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='SMOOTH_CONC_ON',                                    &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = OFF,                                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR430'    
 
         
         !Number of times it read the lagrangian data looking for origins
@@ -15641,6 +15662,12 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%SolutionAP    = FillValueInt
                     CurrentPartic%SolutionWDy   = FillValueInt
 					
+                    CurrentPartic%WaterLevel    = FillValueReal
+                    CurrentPartic%Bathym        = FillValueReal                                        
+                    CurrentPartic%WaterColumn   = FillValueReal
+                    CurrentPartic%SolutionWLe   = FillValueInt
+                    CurrentPartic%SolutionBat   = FillValueInt                    
+                    
                     CurrentProperty => CurrentOrigin%FirstProperty
                     iP = 1
                     do while (associated(CurrentProperty))
@@ -15706,7 +15733,7 @@ d1:     do while (associated(CurrentOrigin))
                 
             
     do3:    do nMOP = 1, nMOPtotal
-                if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == bathymetry_) cycle 
+                !if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == bathymetry_) cycle 
                 
                 nFiles_total = Me%MeteoOcean%Prop(nMOP)%FieldNumber
                 
@@ -15722,6 +15749,19 @@ d1:     do while (associated(CurrentOrigin))
 
                     if (.not. Me%MeteoOcean%Prop(nMOP)%Field(nF)%TimeOk) cycle
     
+                    if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == bathymetry_) then
+                        
+                        call GetBathymXY(Field4DID        = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
+                                         PropertyIDNumber = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
+                                         X                = Matrix1DX,                      &
+                                         Y                = Matrix1DY,                      &
+                                         Bathym           = Prop1D,                         &
+                                         NoData           = NoData,                         &
+                                         STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ActualizeMeteoOcean - ModuleLagrangianGlobal - ERR10' 
+                        
+                    else
+    
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
                                           !CurrentTime           = Me%ExternalVar%Now,               &
@@ -15732,7 +15772,9 @@ d1:     do while (associated(CurrentOrigin))
                                           Field                 = Prop1D,                           &
                                           NoData                = NoData,                           &
                                           STAT                  = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ActualizeMeteoOcean - ModuleLagrangianGlobal - ERR10' 
+                        if (STAT_CALL /= SUCCESS_) stop 'ActualizeMeteoOcean - ModuleLagrangianGlobal - ERR20' 
+                        
+                    endif
                     
                     do nP = 1, nPtotal
                         if (.not. NoData(nP) .and. Solution (nP) == 0) then
@@ -15808,6 +15850,16 @@ d1:     do while (associated(CurrentOrigin))
 
             CurrentPartic%CurrentZ   = PropValue
             CurrentPartic%SolutionCZ = Solution
+
+        elseif  (PropIDNumber == WaterLevel_   ) then 
+                
+            CurrentPartic%SolutionWLe = Solution
+            CurrentPartic%WaterLevel  = PropValue
+
+        elseif  (PropIDNumber == bathymetry_   ) then 
+
+            CurrentPartic%SolutionBat = Solution
+            CurrentPartic%Bathym      = PropValue
 
         elseif  (PropIDNumber == WindVelocityX_ ) then 
 
@@ -25969,11 +26021,13 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         real(8),    dimension(:), pointer           :: Longitude, Latitude, Age
+        real(8),    dimension(:), pointer           :: WaterLevel, Bathym, Hs, Tp, BeachWL, BeachPeriod
         integer,    dimension(:), pointer           :: Origin, ID   
         logical,    dimension(:), pointer           :: Beach, KillPartic        
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: n, nTotal
+        integer                                     :: i, j, emp
         
 #ifdef _LITTER_
         integer                                     :: STAT_CALL
@@ -25985,6 +26039,34 @@ CurrOr: do while (associated(CurrentOrigin))
         
         CurrentOrigin => Me%FirstOrigin
 dw1:    do while (associated(CurrentOrigin))
+    
+           CurrentPartic => CurrentOrigin%FirstPartic
+           
+            do while (associated(CurrentPartic))
+                emp    = CurrentPartic%Position%ModelID
+                i      = CurrentPartic%Position%i
+                j      = CurrentPartic%Position%j
+            
+                if (CurrentPartic%Bathym     == FillValueReal) then
+                    CurrentPartic%Bathym     = Me%EulerModel(emp)%Bathymetry(i, j)            
+                endif                        
+            
+                if (CurrentPartic%WaterLevel == FillValueReal) then
+                    CurrentPartic%WaterLevel = Me%EulerModel(emp)%WaterLevel(i, j)            
+                endif            
+                     
+                if (CurrentPartic%WaveHeight == FillValueReal) then
+                    CurrentPartic%WaveHeight = Me%EulerModel(emp)%WaveHeight2D(i, j)            
+                endif
+            
+                if (CurrentPartic%WavePeriod == FillValueReal) then
+                    CurrentPartic%WavePeriod = Me%EulerModel(emp)%WavePeriod2D(i, j)            
+                endif
+                
+                CurrentPartic => CurrentPartic%Next
+                
+            enddo
+    
             nTotal = nTotal + CurrentOrigin%nParticle
             CurrentOrigin => CurrentOrigin%Next
         enddo dw1
@@ -25996,7 +26078,15 @@ dw1:    do while (associated(CurrentOrigin))
         allocate   (Origin      (nTotal))            
         allocate   (ID          (nTotal))                        
         allocate   (Beach       (nTotal))
+        allocate   (BeachWL     (nTotal))
+        allocate   (BeachPeriod (nTotal))                
         allocate   (KillPartic  (nTotal))
+        allocate   (WaterLevel  (nTotal))
+        allocate   (Bathym      (nTotal))
+        allocate   (Hs          (nTotal))
+        allocate   (Tp          (nTotal))
+
+        
             
             n = 1
         
@@ -26015,6 +26105,12 @@ dw2:    do while (associated(CurrentOrigin))
                 ID          (n) = CurrentPartic%ID
                 KillPartic  (n) = CurrentPartic%KillPartic            
                 Beach       (n) = CurrentPartic%Beached
+                WaterLevel    (n) = CurrentPartic%WaterLevel
+                Bathym        (n) = CurrentPartic%Bathym
+                Hs            (n) = CurrentPartic%WaveHeight
+                Tp            (n) = CurrentPartic%WavePeriod
+                BeachWL       (n) = CurrentPartic%BeachedWL
+                BeachPeriod   (n) = CurrentPartic%BeachedPeriod
                 
                 CurrentPartic => CurrentPartic%Next
                 n = n + 1
@@ -26034,9 +26130,15 @@ dw2:    do while (associated(CurrentOrigin))
                               Origin        = Origin,                                   &
                               ID            = ID,                                       &
                               Beach         = Beach,                                    &
+                          BeachWL       = BeachWL,                                      &
+                          BeachPeriod   = BeachPeriod,                                  &
                               KillPartic    = KillPartic,                               &
+                          WaterLevel    = WaterLevel,                                   &
+                          Bathym        = Bathym,                                       &
+                          Hs            = Hs,                                           &  
+                          Tp            = Tp,                                           &  
                               STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ProcessLitter - ModuleLagrangianGlobal - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ProcessLitter - ModuleLagrangianGlobal - ERR10'
 #endif  
         n= 1
 
@@ -26048,6 +26150,8 @@ dw3:    do while (associated(CurrentOrigin))
             do while (associated(CurrentPartic))
 
                 CurrentPartic%Beached    = Beach     (n)
+                CurrentPartic%BeachedWL     = BeachWL     (n)
+                CurrentPartic%BeachedPeriod = BeachPeriod (n)                
                 CurrentPartic%KillPartic = KillPartic(n)
                          
                 CurrentPartic => CurrentPartic%Next
@@ -26062,7 +26166,13 @@ dw3:    do while (associated(CurrentOrigin))
             deallocate   (Origin      )            
             deallocate   (ID          )                        
             deallocate   (Beach       )
+            deallocate   (BeachWL     )            
+            deallocate   (BeachPeriod )             
             deallocate   (KillPartic  )            
+            deallocate   (WaterLevel  )                        
+            deallocate   (Bathym      )
+            deallocate   (Hs          ) 
+            deallocate   (Tp          ) 
 
         nullify(CurrentPartic)
         nullify(CurrentOrigin)
@@ -30522,6 +30632,78 @@ DoCatch: do while (associated(CurrentOrigin))
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
+            Matrix1D(nP)   =  CurrentPartic%WaterLevel
+            Solution1D(nP) =  CurrentPartic%SolutionWLe
+            CurrentPartic  => CurrentPartic%Next
+        enddo             
+        
+        if (nP > 0) then
+            !HDF 5
+            Name = "water level"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR52'
+            
+            Name = "water level Solution"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR53'            
+        endif       
+        
+        CurrentPartic => CurrentOrigin%FirstPartic
+        nP = 0
+        do while (associated(CurrentPartic))
+            nP = nP + 1
+            Matrix1D(nP)   =  CurrentPartic%Bathym
+            Solution1D(nP) =  CurrentPartic%SolutionBat
+            CurrentPartic  => CurrentPartic%Next
+        enddo             
+        
+        if (nP > 0) then
+            !HDF 5
+            Name = "bathymetry"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR55'
+            
+            Name = "bathymetry Solution"
+            Units ="m"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR56'            
+        endif                
+
+        CurrentPartic => CurrentOrigin%FirstPartic
+        nP = 0
+        do while (associated(CurrentPartic))
+            nP = nP + 1
             Matrix1D(nP)   =  CurrentPartic%WindX
             Solution1D(nP) =  CurrentPartic%SolutionWX
             CurrentPartic  => CurrentPartic%Next
@@ -31604,120 +31786,26 @@ d1:     do em =1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
 
-    subroutine FillGridConcentration
+    subroutine nullifyGridConcArrays (em, Deposition, MassTracer, ConcMaxTracer )
 
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        type (T_Origin), pointer                        :: CurrentOrigin
-        type (T_Partic), pointer                        :: CurrentPartic
-        type (T_Property), pointer                      :: FirstProperty, CurrentProperty
-        real,    dimension(:, :      ), pointer         :: DUX, DVY
-        integer                                         :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
-        integer                                         :: WS_KLB, WS_KUB
-        integer                                         :: i, j, k, nProp, status
-        integer                                         :: iV, jV, kV, Delta, iAP
-        integer                                         :: iInf, iSup
-        integer                                         :: jInf, jSup
-        integer                                         :: kInf, kSup
-        real(8)                                         :: VolumeTotal, Coef
-        real                                            :: DiffVolCel
-        type (T_Position)                               :: DummYPos    
-        logical                                         :: FoundSediment, PartInside
-        integer                                         :: Sediment_ID, np, em, ig, STAT_CALL
-        real                                            :: VolCell, VolAllPart
-        logical                                         :: HaveDomain
-        real                                             :: FractionAirTracers
-        real                                            :: FractionSurfaceTracers
-        real                                            :: FractionWCDissolvedTracers
-        real                                            :: FractionWCSedimentedTracers
-        real                                            :: FractionWCDispersedTracers
-        real                                            :: FractionBottomDepositedTracers
-        real                                            :: NbrSurfaceTracersInDomain                   
-        real                                            :: NbrAirTracersInDomain             
-        real                                            :: NbrWCDispersedTracersInDomain                   
-        real                                            :: NbrWCDissolvedTracersInDomain                   
-        real                                            :: NbrWCSedimentedTracersInDomain                  
-        real                                            :: NbrBottomDepositedTracersInDomain               
-        real, dimension(:,:,:,:  ),   pointer       :: NbrTracers                    => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrSurfaceTracers             => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrAirTracers                 => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrWCDispersedTracers           => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrWCDissolvedTracers         => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrWCSedimentedTracers         => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrBottomDepositedTracers     => null()              
-        real, dimension(:,:,:  ),     pointer       :: NbrBeachedTracers   																				 
-        !Begin----------------------------------------------------------------------
-        nullify(FirstProperty, CurrentProperty)
-        
-        Me%ExternalVar%LastConcCompute = Me%Now
-        
-d1:     do em = 1, Me%EulerModelNumber 
-
-
-            WS_ILB = Me%EulerModel(em)%WorkSize%ILB
-            WS_IUB = Me%EulerModel(em)%WorkSize%IUB
-            WS_JLB = Me%EulerModel(em)%WorkSize%JLB
-            WS_JUB = Me%EulerModel(em)%WorkSize%JUB
-            WS_KLB = Me%EulerModel(em)%WorkSize%KLB
-            WS_KUB = Me%EulerModel(em)%WorkSize%KUB
-
-
-            nProp           =  Me%OriginDefault%nProperties 
-                                                        !i,j,k,p,ig 
-            !Me%EulerModel(em)%Lag2Euler%GridVolume      (:,:,:,  :) = 0.
-            !Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:,:,:,  :) = 0.
-            !Me%EulerModel(em)%Lag2Euler%PercentContamin (:,:,:,  :) = 0.
-            !Me%EulerModel(em)%Lag2Euler%GridMass        (:,:,:,:,:) = 0.
-            !Me%EulerModel(em)%Lag2Euler%GridConc        (:,:,:,:,:) = 0.
+        !Arguments---------------------------------------------------------------
+        integer,  intent(IN)              :: em
+        logical,  intent(IN)              :: Deposition, MassTracer, ConcMaxTracer
+        !Local-------------------------------------------------------------------
+                                                        !np,ig
             Me%EulerModel(em)%Lag2Euler%MeanConc              (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%AmbientConc           (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MinConc               (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MassVolCel            (:,:) = 0.
+                                                        !i, j, k, ig 
+        Me%EulerModel(em)%Lag2Euler%GridVolume       (:, :, :,  :)   = 0. 
+        Me%EulerModel(em)%Lag2Euler%GridTracerNumber (:, :, :,  :)   = 0.
+        Me%EulerModel(em)%Lag2Euler%PercentContamin  (:, :, :,  :)   = 0. 
+                                                        !i, j, k,np ,ig 
+        Me%EulerModel(em)%Lag2Euler%GridMass         (:, :, :, :, :) = 0.
+        Me%EulerModel(em)%Lag2Euler%GridConc         (:, :, :, :, :) = 0.
             
-            do ig = 1, Me%NGroups
-            do k = WS_KLB, WS_KUB
-            do j = WS_JLB, WS_JUB
-            do i = WS_ILB, WS_IUB
-
-                Me%EulerModel(em)%Lag2Euler%GridVolume       (i, j, k,  ig) = 0. 
-                Me%EulerModel(em)%Lag2Euler%GridTracerNumber (i, j, k,  ig) = 0.
-
-            enddo
-            enddo
-            enddo
-            enddo
-            
-            do ig = 1, Me%NGroups
-            do k = WS_KLB, WS_KUB
-            do j = WS_JLB, WS_JUB
-            do i = WS_ILB, WS_IUB
-
-                Me%EulerModel(em)%Lag2Euler%PercentContamin  (i, j, k,  ig) = 0. 
-
-            enddo
-            enddo
-            enddo
-            enddo
-            
-            
-            do ig = 1, Me%NGroups
-            do nP = 1, nProp
-            do k = WS_KLB, WS_KUB
-            do j = WS_JLB, WS_JUB
-            do i = WS_ILB, WS_IUB
-
-                Me%EulerModel(em)%Lag2Euler%GridMass         (i, j, k,nP,ig) = 0.
-                Me%EulerModel(em)%Lag2Euler%GridConc         (i, j, k,nP,ig) = 0.
-
-            enddo
-            enddo
-            enddo
-            enddo
-            enddo
-            
-            if (Me%State%Deposition) then
-                                                          !i,j,p,ig 
+        if (Deposition) then
                 Me%EulerModel(em)%Lag2Euler%GridBottomMass(:,:,:,  :) = 0.
                 Me%EulerModel(em)%Lag2Euler%GridBottomConc(:,:,:,  :) = 0.
                 
@@ -31731,88 +31819,125 @@ d1:     do em = 1, Me%EulerModelNumber
 
             endif
 
-            if (Me%OutPut%ConcMaxTracer) then
+         if (ConcMaxTracer) then
                 Me%EulerModel(em)%Lag2Euler%GridMaxTracer  (:,:,:,:,:) = 0.
-                if (Me%OutPut%MassTracer) then
-                    Me%EulerModel(em)%Lag2Euler%GridMaxMass(:,:,:,:,:) = 0.                
-                endif
+            if (MassTracer) Me%EulerModel(em)%Lag2Euler%GridMaxMass    (:,:,:,:,:) = 0.      
             endif
 
-dg:         do ig = 1, Me%NGroups 
+    end subroutine
 
-            !Integrates the Volume and the Mass in each GridCell
-            CurrentOrigin => Me%FirstOrigin
-    CurrOr: do while (associated(CurrentOrigin))
+    !--------------------------------------------------------------------------
 
-            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+    subroutine GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
 
-                CurrentPartic => CurrentOrigin%FirstPartic
-                do while (associated(CurrentPartic))
+    ! this subroutine gets the size of the matrixes used by the eulerian model. It is called in many places and thus itis worth to create a 
+    ! subroutine to shorten the code
+
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: em
+        integer,            intent(OUT)             :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
+        !integer, optional,  intent(OUT)             :: STAT
+        !Local-------------------------------------------------------------------
+
+        WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+        WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+        WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+        WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+        WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+        WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+    end subroutine GetDomainLimits
 
        
-                    if (em == CurrentPartic%Position%ModelID) then
+    subroutine GetCoordinatesInThisDomain(HorizontalGridID, PartInside, CoordX, CoordY, i, j, Referential, Iold, Jold)
 
-                        i = CurrentPartic%Position%I
-                        j = CurrentPartic%Position%J
+    !This subroutine gets the coordinates (i,j) of the particle located at the point (CoordX, CoordY) in the horizontal grid
+    !"HorizontalGridID". (Iold, Jold) are the coordinates of particle (CurrentPartic%Position%i, CurrentPartic%Position%j) in the domain
+    !that the particle considers its domain, the domain with the finer resolution overlaping in those areas. "Referential" optional and 
+    !indicates the type of coordinates, geographical by default.
+    !
                     
-                    else
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer,            intent(IN)              :: Iold, Jold
+        real,               intent(IN)              :: CoordX, CoordY
+        integer, optional,  intent(IN)              :: Referential
+        integer,            intent(OUT)             :: i, j
+        logical,            intent(OUT)             :: PartInside                                                            
+        integer                                     :: STAT_CALL
 
-                        PartInside = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid, CurrentPartic%Position%CoordX, &
-                                                       CurrentPartic%Position%CoordY,Referential = GridCoord_, STAT = STAT_CALL)
+        !------------------------------------------------------------------------
 
+        PartInside = GetXYInsideDomain(HorizontalGridID, CoordX, CoordY,Referential = Referential, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR05'
 
                         if (PartInside) then
-
-                            call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid,        &
-                                            CurrentPartic%Position%CoordX,              &
-                                            CurrentPartic%Position%CoordY, i, j,        &
-                                            Referential = GridCoord_,                   &
-                                            Iold        = CurrentPartic%Position%I,     &
-                                            Jold        = CurrentPartic%Position%J,     &
+            call GetXYCellZ(HorizontalGridID,                                           &
+                            CoordX,                                                     &
+                            CoordY, i, j,                                               &
+                            Referential = Referential,                                  &
+                            Iold        = Iold,                                         &
+                            Jold        = Jold,                                         &
                                             STAT        = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR10'
+        endif !(em == CurrentPartic%Position%ModelID)
 
+    end subroutine GetCoordinatesInThisDomain
+                    
+    !--------------------------------------------------------------------------
+                    
+    subroutine GetParticlePositionIJ(em,CurrentPartic, ig, I,J, PartInside, WS_JLB, WS_JUB, WS_ILB, WS_IUB)
+                    
+        !Arguments---------------------------------------------------------------
+        type (T_Partic), pointer, intent(IN)        :: CurrentPartic
+        integer,            intent(IN)              :: em,ig, WS_JLB, WS_JUB, WS_ILB, WS_IUB
+        integer,            intent(OUT)             :: i, j
+        logical,            intent(OUT)             :: PartInside                                                            
+                        
+        !Local-------------------------------------------------------------------
+
+                            
+        !Begin-------------------------------------------------------------------
+                            
+        PartInside = .False.
+        if (em == CurrentPartic%Position%ModelID) then 
+        ! The particle has already identified itself (somewhere in the code) as belonging to the domain (model) being processed            
+            i = CurrentPartic%Position%I
+            j = CurrentPartic%Position%J
+            PartInside = .True.
                         else
-                            CurrentPartic => CurrentPartic%Next
-                            cycle
-                        endif
-                    
-                    endif
-                    
-                    if (j < WS_JLB .or. j > WS_JUB .or. i < WS_ILB .or. i > WS_IUB) then
+            ! but the particle can be located inside a region where models overlap. It checks if it is inside the corrent domain            
+            call GetCoordinatesInThisDomain(Me%EulerModel(em)%ObjHorizontalGrid,        &
+                                            PartInside,                                 &
+                                            CurrentPartic%Position%CoordX,              &
+                                            CurrentPartic%Position%CoordY,              & 
+                                            i,j,                                        &
+                                            Referential = GridCoord_,                   &
+                                            Iold        = CurrentPartic%Position%I,     &
+                                            Jold        = CurrentPartic%Position%J)     
+
+            if (PartInside) then
+                if (j < WS_JLB .or. j > WS_JUB .or. i < WS_ILB .or. i > WS_IUB) then
                         write(*,*) 'ig, em, i, j=', ig, em, i, j
                         stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR15'
-                    endif
-                    
-                    if (Me%State%Deposition) then
+                endif
+            endif  
+
+        endif
+                            
+    end subroutine GetParticlePositionIJ
+                            
+                            
+    subroutine GetParticlePositionK(em, CurrentPartic, ig, i, j, k, WS_KLB, WS_KUB)
                         
-                        if (CurrentPartic%Deposited) then
+        !Arguments---------------------------------------------------------------
+        type (T_Partic), pointer, intent(IN)        :: CurrentPartic
+        integer,            intent(IN)              :: em,ig, WS_KLB, WS_KUB, i, j
+        integer,            intent(OUT)             :: k
 
-                            Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) =      &
-                                Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) + 1
-                            
-                            Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) =      &
-                                Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) +  &
-                                CurrentPartic%Geometry%Volume
-                            
-                        else
-
-
-                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) =      &
-                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) + 1          
-                            
-                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) =      &
-                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) +  & 
-                                CurrentPartic%Geometry%Volume
-                            
-                            
-                        endif
-                        
-                    endif                        
-
-cd1:                if (.not. CurrentPartic%Deposited) then
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_CALL
 
 
                         if (em == CurrentPartic%Position%ModelID) then
@@ -31829,62 +31954,36 @@ cd1:                if (.not. CurrentPartic%Deposited) then
                             !stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR25'
                         endif                        
 
+    end subroutine GetParticlePositionK
 
-                        Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &
-                            Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) + 1
+    !--------------------------------------------------------------------------
                         
 
-                        if (Me%OutPut%OutPutConcType == Analytic) then    
-                            call AnalyticConcentration(CurrentPartic, em, i, j, k, ig, nProp)
-                        endif    
+    subroutine SpreadLargeParticleAmongNeighbours(em, ig, i, j, k, nProp, ParticMass, ParticVolume)
                             
 cd0:                    if (nProp > 0) then
                             
-                            if (Me%OutPut%ConcMaxTracer) then
+        !Arguments---------------------------------------------------------------                                
+        integer,            intent(IN)              :: i, j, k, em, ig, nProp
+        real,               intent(IN)              :: ParticVolume 
+        real,               intent(in)              :: ParticMass (nProp)
                             
-                                do nP=1, nProp
+        !Local-------------------------------------------------------------------
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
+        integer                                     :: iV, jV, kV, Delta
+        integer                                     :: iInf, iSup
+        integer                                     :: jInf, jSup
+        integer                                     :: kInf, kSup
+        real(8)                                     :: VolumeTotal, Coef
 
-                                    !In this grid is stored the maximum concentration of all tracers present in the cell
-                                    Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig) = &
-                                        max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig), &
-                                        CurrentPartic%Concentration(nP))
+        !Begin------------------------------------------------------------------        
 
-                                    if (Me%OutPut%MassTracer) then
-                                        !In this grid is stored the maximum mass of all tracers present in the cell
-                                        Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig) = &
-                                            max(Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig), &
-                                            CurrentPartic%Mass(nP))
-                                    endif     
-                                    
-                                enddo                                          
-                            endif
-                            
-                            
-                            !Particle fits inside Grid Cell?    
-        cd2:                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then
-        
-                                do nP=1, nProp
-
-                                    Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) = &
-                                        Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) + CurrentPartic%Mass(nP)
-                                   
-                                enddo
-                                
-                                 Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = &
-                                        Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)    + CurrentPartic%Geometry%Volume
-                                
-                            else  cd2
-
-                                WS_ILB = Me%EulerModel(em)%WorkSize%ILB
-                                WS_IUB = Me%EulerModel(em)%WorkSize%IUB
-                                WS_JLB = Me%EulerModel(em)%WorkSize%JLB
-                                WS_JUB = Me%EulerModel(em)%WorkSize%JUB
-                                WS_KLB = Me%EulerModel(em)%WorkSize%KLB
-                                WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+        call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
 
                                 VolumeTotal = Me%EulerModel(em)%VolumeZ(i, j, k)
                                 Delta = 0
-                                do while (VolumeTotal < CurrentPartic%Geometry%Volume)
+
+        do while (VolumeTotal < ParticVolume)
 
                                     Delta = Delta + 1
 
@@ -31910,14 +32009,13 @@ cd0:                    if (nProp > 0) then
                                     do jV = jInf, jSup
                                     do kV = kinf, kSup
                                         if (Me%EulerModel(em)%OpenPoints3D(iV, jV, kV) == OpenPoint) then
-                                            VolumeTotal = VolumeTotal +                              &
-                                                          Me%EulerModel(em)%VolumeZ(iV, jV, kV)
+                    VolumeTotal = VolumeTotal + Me%EulerModel(em)%VolumeZ(iV, jV, kV)
                                         endif
                                     enddo
                                     enddo
                                     enddo
 
-                                enddo
+        enddo !while (VolumeTotal < ParticVolume)
                 
                                 do iV = iInf, iSup
                                 do jV = jInf, jSup
@@ -31927,213 +32025,161 @@ cd0:                    if (nProp > 0) then
                                         Coef = Me%EulerModel(em)%VolumeZ(iV, jV, kV) / VolumeTotal
                         
                                         Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) = &
-                                            Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) + &
-                                            CurrentPartic%Mass(:) * Coef
-
+                            Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig)   &
+                            + ParticMass(:) * Coef
                                         Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig) = &
-                                            Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig)    + &
-                                            CurrentPartic%Geometry%Volume * Coef
+                            Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig)     &
+                            + ParticVolume * Coef
 
                                     endif
                                 enddo
                                 enddo
                                 enddo
                 
-                            endif cd2
+    end subroutine SpreadLargeParticleAmongNeighbours
                         
-                        endif cd0
+    !--------------------------------------------------------------------------
+                        
+    subroutine SmoothConcentration(em,ig)
 
-                    else if (nProp > 0) then cd1    ! The particle is deposited in the bottom
-                    !In this case no test is made to verify if the the particle occupies more then one cell
-                    !to maintain the algothim simple.
+        !Arguments---------------------------------------------------------------                                
+        integer,            intent(IN)              :: em, ig
+        !Local-------------------------------------------------------------------
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
+        integer                                     :: i, J, K, np, nProp
+        integer, dimension (:,:,:  ),   pointer                :: n_Neighbors       !(i,j,k)
+        real,    dimension (:,:,:,:),   pointer                :: ConcFromNeighbors !(i,j,k,nprop)
 
                   
-                        Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) =  &
-                            Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) + CurrentPartic%Mass(:)
+        Call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
+        nProp  =  Me%OriginDefault%nProperties 
 
+        allocate (ConcFromNeighbors(WS_ILB : WS_IUB, WS_JLB : WS_JUB, WS_KLB : WS_KUB, 1: nProp))
+        allocate (n_Neighbors      (WS_ILB : WS_IUB, WS_JLB : WS_JUB, WS_KLB : WS_KUB       ))
                    
-                    endif cd1
+        ConcFromNeighbors (:, :, :,:) = 0
+        n_Neighbors       (:, :, :  ) = 0
 
-                    CurrentPartic => CurrentPartic%Next
-                enddo
+        do k = WS_KLB, WS_KUB
+        do j = WS_JLB+1, WS_JUB-1
+        do i = WS_ILB+1, WS_IUB-1
 
-                if (.not. associated(FirstProperty)) FirstProperty => CurrentOrigin%FirstProperty
+            if (Me%EulerModel(em)%Waterpoints3D (i, j, k) == WaterPoint) then 
 
+                ! for every layer checks the lateral points  
+                if (Me%EulerModel(em)%Waterpoints3D (i, j-1, k) == WaterPoint) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i, j-1, k, np, ig)
+                    enddo  
             endif
 
-            CurrentOrigin => CurrentOrigin%Next
-            enddo CurrOr
+                if (Me%EulerModel(em)%Waterpoints3D (i, j+1, k) == WaterPoint) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i, j+1, k, np, ig)
+                    enddo
 
+                endif
 
-            if (Me%State%Deposition) then !Find if exist the 'sediment' property
+                if (Me%EulerModel(em)%Waterpoints3D (i-1, j, k) == WaterPoint) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i-1, j, k, np, ig)
+                    enddo  
+                endif
 
-                !Ambient Concentration of the place of the particle
-                Sediment_ID      = 0
-                FoundSediment = .false.
-                CurrentProperty => FirstProperty
-                do while (associated(CurrentProperty) .and. .not. FoundSediment)
-                    Sediment_ID = Sediment_ID + 1
-                    if (CurrentProperty%ID == Sediment) FoundSediment = .true.
-                    CurrentProperty => CurrentProperty%Next
+                if (Me%EulerModel(em)%Waterpoints3D (i+1, j, k) == WaterPoint) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i+1, j, k, np, ig)
                 enddo
+                endif
     
+                if (Me%EulerModel(em)%Waterpoints3D (i+1, j, k) == WaterPoint) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i+1, j, k, np, ig)
+                    enddo  
             endif
 
-        enddo dg
+                !checks the upper and lower layers
 
-        enddo d1
+                if (k < WS_KUB ) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np)=ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k+1, np, ig)
+                    enddo  
+                endif
         
-
-d2:     do em = 1, Me%EulerModelNumber 
-
-            WS_ILB = Me%EulerModel(em)%WorkSize%ILB
-            WS_IUB = Me%EulerModel(em)%WorkSize%IUB
-            WS_JLB = Me%EulerModel(em)%WorkSize%JLB
-            WS_JUB = Me%EulerModel(em)%WorkSize%JUB
-            WS_KLB = Me%EulerModel(em)%WorkSize%KLB
-            WS_KUB = Me%EulerModel(em)%WorkSize%KUB
-
-            !Fills up Grid Concentration
-g2:         do ig = 1, Me%NGroups
+                if (k > Me%EulerModel(em)%KFloor(i, j)) then 
+                    n_Neighbors(i, j, k) = n_Neighbors(i, j, k) + 1
+                    do np = 1, nProp
+                     ConcFromNeighbors(i, j, k, np) = ConcFromNeighbors(i, j, k, np) + Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k-1, np, ig)
+                    enddo  
+                endif
+            endif !waterpoint    
+        enddo  
+        enddo  
+        enddo  
              
             do k = WS_KLB, WS_KUB
             do j = WS_JLB, WS_JUB
             do i = WS_ILB, WS_IUB
-
-                if (Me%EulerModel(em)%Waterpoints3D (i, j, k) == WaterPoint) then
-
-                    !Mean Concentration of the particle
-                    Me%EulerModel(em)%Lag2Euler%MeanConc(:,ig) = 0.0
-                    if (Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) > 0.0) then
-                        Me%EulerModel(em)%Lag2Euler%MeanConc  (:, ig) = &
-                            Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) / &
-                            Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)
+            if (n_Neighbors(i,j,k) > 0) then
+                do np = 1, nProp
+                    Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, np, ig) =             &
+                            0.5*(Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, np, ig)+ &
+                            ConcFromNeighbors(i, j, k, np)/n_Neighbors(i, j, k))
+                enddo
                     endif
-
-                    !Ambient Concentration of the place of the particle
-                    iAP = 1
-!                    CurrentProperty => FirstProperty
-
-                    CurrentProperty => Me%OriginDefault%FirstProperty
-
-                    do while (associated(CurrentProperty))
-            
-                        DummYPos%I = i
-                        DummYPos%J = j
-                        DummYPos%K = k
-                
-                        call GetAmbientConcCell      (CurrentProperty,                  &
-                                                      em,                               &
-                                                      DummYPos,                         &
-                                                      Me%EulerModel(em)%Lag2Euler%AmbientConc(iAP, ig))
-
-                        Me%EulerModel(em)%Lag2Euler%MinConc (iAP,ig) = CurrentProperty%Min_concentration
-
-                        iAP = iAP + 1
-                        CurrentProperty => CurrentProperty%Next
+       enddo  
+       enddo  
                     enddo
 
 
-                    select case (Me%OutPut%OutPutConcType)
+       deallocate (ConcFromNeighbors)
+       deallocate (n_Neighbors)
 
-                    ! If a particle volume is greater than the volume cell the particle mass and volume 
-                    ! is distributed in a uniform way by the adjacent cells in the follower order I,J,K
+    end subroutine SmoothConcentration
                     
-                    case (Maximum)
 
 
-                        !"Maximum" method : In this case the maximum value between to option is assumed:
-                        !   - total particle mass inside a cell devided by the volume cell
-                        !   - total particle mass inside a cell devided by the total particle volume inside the cell 
-                        !          
-                        Me%EulerModel(em)%Lag2Euler%MassVolCel(:, ig) = &
-                            Me%EulerModel(em)%Lag2Euler%GridMass(i, j, k, :, ig) / &
-                            Me%EulerModel(em)%VolumeZ(i, j, k)
+    subroutine UpdateBottomAccumulation(em) 
                         
-                        Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) = &
-                            max(Me%EulerModel(em)%Lag2Euler%MassVolCel(:, ig), &
-                            Me%EulerModel(em)%Lag2Euler%MeanConc(:, ig)) 
+        !Arguments---------------------------------------------------------------                                
+        integer,            intent(IN)              :: em
 
-                    case (Mean)
+        !Local-------------------------------------------------------------------                                
+        type (T_Property), pointer                  :: FirstProperty, CurrentProperty
+        real,    dimension(:, :      ), pointer     :: DUX, DVY
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
+        integer                                     :: i, J,np, nProp, ig
+        integer                                     :: status, Sediment_ID
+        logical                                     :: FoundSediment
 
-                        !"Mean" method : In this case the concentration is assumed equal to the 
-                        !  total particle mass inside a cell devided by the volume cell in sum of the total particle volume
-                        !  is bigger than the cell volume. Otherwise the total particle mass is add to the ambient concentration 
-                        ! multiply by the volume cell not covered by the particle volumes. The final concentration is mass describe 
-                        ! before devide by the cell volume. 
+        !Begin-------------------------------------------------------------------                                        
 
-                        if (Me%EulerModel(em)%VolumeZ(i, j, k) >=                       &
-                            Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)) then 
-                            DiffVolCel = Me%EulerModel(em)%VolumeZ(i, j, k) -           &
-                            Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)  
-            
-                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =  &
-                            (DiffVolCel * Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig) + &
-                                          Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :,ig)) / &  
-                                          Me%EulerModel(em)%VolumeZ(i, j, k)
+        nullify(FirstProperty, CurrentProperty)
 
-                        else
-
-                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =  &
-                                Me%EulerModel(em)%Lag2Euler%MeanConc(:, ig)
-
-                        endif
-                        
-                    case (Analytic)
-
-                        !Method 3
-                        !The concentration evolution of each particle is assumed equal to the analytic solution in particle center 
-                        !The concentration of the cell becomes equal to max of particles center concentration
-                        ! C = 2 * M / ((4 * pi * t)^1.5 * (2*Kh * Kv)^0.5)
-                        ! C - center particle concentration
-                        ! M - particle mass
-                        ! t - particle age
-                        ! Kh - turbulent horizontal diffusion 
-                        ! Kv - turbulent vertical diffusion
-
-                    end select
-                    
-                    VolCell    = Me%EulerModel(em)%VolumeZ             (i, j, k    )
-                    VolAllPart = Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) 
-                    
-                    if (VolAllPart > VolCell) then
-                        Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = 100.
-                        
-                    else
-                        if (VolCell > 0.) then
-                            Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = VolAllPart / VolCell * 100.
-                        endif
-                    
-                    endif
-                    
-                    where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig).lt.     &
-                           Me%EulerModel(em)%Lag2Euler%MinConc(:, ig))                  &
-                           Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =       &
-                           Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig)
-
-                    where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  == 0.)                                   &
-                           Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  =      &
-                           Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig)
-
-                else
-
-                     Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) = null_real
-
-                end if
-
-            end do
-            end do
-            end do
-
-            end do g2
-
-    cd3:    if (Me%State%Deposition) then ! fills up the bottom concentration in a simplified way
+        call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
+        nProp  =  Me%OriginDefault%nProperties 
 
                 !Gets Horizontal Grid
                 call GetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = status)
                 if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, 'FillGridConcentration - ModuleLagrangianGlobal - ERR40')
 
-g3:             do ig = 1, Me%NGroups
+        do ig = 1, Me%NGroups
+
+            !Ambient Concentration of the place of the particle
+            Sediment_ID      = 0
+            FoundSediment = .false.
+            CurrentProperty => FirstProperty
+            do while (associated(CurrentProperty) .and. .not. FoundSediment)
+                Sediment_ID = Sediment_ID + 1
+                if (CurrentProperty%ID == Sediment) FoundSediment = .true.
+                CurrentProperty => CurrentProperty%Next
+            enddo
 
                     do j = WS_JLB, WS_JUB
                     do i = WS_ILB, WS_IUB
@@ -32146,45 +32192,35 @@ g3:             do ig = 1, Me%NGroups
                                     if (np /= Sediment_ID) then 
                                         !Mass contaminant / Mass sediment
                                         if (Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig) > 1e-12) then
-                                            Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, np, ig) = &
-                                            Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, np, ig) / &
-                                            Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig)
+                                Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, np, ig) = Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, np, ig) &
+                                                                                            / Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig)
                                         else
                                             Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, np, ig) = 0.
                                         endif
                                     else
                                         ! Mass of sediment / m^2
-                                        Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, Sediment_ID, ig) = &
-                                        Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig) / DUX(I, j) / DVY(i, j)
+                            Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, Sediment_ID, ig) = Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig) / DUX(I, j) / DVY(i, j)
                                         ! Mass of sediment / m2
-                                        Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(i, j, ig)= &
-                                            sum(Me%EulerModel(em)%Lag2Euler%GridMass(i, j, WS_KLB:WS_KUB, Sediment_ID, ig)) &
-                                            / DUX(I, j) / DVY(i, j)   
-                                        
+                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(i, j, ig)= sum(Me%EulerModel(em)%Lag2Euler%GridMass(i, j, WS_KLB:WS_KUB, Sediment_ID, ig)) / DUX(I, j) / DVY(i, j)   
                                         ! Volume / m2 = m
-                                        Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = &
-                                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
-
+                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
                                         ! Volume / m2 = m
-                                        Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) = &
-                                                Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
+                            Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) = Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
                                         
                                     endif
                    
                                 enddo 
                             else !all properties are written in mass / m^2
                                 ! Mass / m^2
-                                Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, :, ig) = &
-                                    Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, :, ig) / DUX(I, j) / DVY(i, j)
-
+                            Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, :, ig) = Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, :, ig) / DUX(I, j) / DVY(i, j)
                             endif
 
-                        endif
+                endif !(FoundSediment)
 
                     enddo
                     enddo
 
-                enddo g3
+        enddo !ig = 1, Me%NGroups
 
                 !UnGets Horizontal Grid
                 call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DUX,               &
@@ -32196,147 +32232,448 @@ g3:             do ig = 1, Me%NGroups
                                        STAT = status)
                 if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, 'FillGridConcentration - ModuleLagrangianGlobal - ERR60')
 
-            endif cd3
-        enddo d2
-!ROD!begin
+    end subroutine UpdateBottomAccumulation
 
+    !--------------------------------------------------------------------------
+    
+    ! This subroutine uses particles locations, masses and volumes to compute concentrations in a eulerian grid.
+    ! it goes through every property using some tasks computed in auxiliar subroutines. In case of oil or HNS it computes some particular properties
+    ! Ramiro: Oil and HNS must be checked (24/05/2024)
+    
+    subroutine FillGridConcentration
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                        :: CurrentOrigin
+        type (T_Partic), pointer                        :: CurrentPartic
+        type (T_Property), pointer                      :: FirstProperty, CurrentProperty
+        integer                                         :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                         :: WS_KLB, WS_KUB
+        integer                                         :: i, j, k, nProp
+        integer                                         :: iAP
+        real                                            :: DiffVolCel
+        type (T_Position)                               :: DummYPos    
+        logical                                         :: PartInside
+        integer                                         :: np, em, ig
+        !logical                                         :: FoundSediment
+        !integer                                         :: Sediment_ID
+        real                                            :: VolCell, VolAllPart
+
+        !Begin----------------------------------------------------------------------
+        nullify(FirstProperty, CurrentProperty)
         
-        if (Me%State%Oil) then                       
+        Me%ExternalVar%LastConcCompute = Me%Now
+        nProp           =  Me%OriginDefault%nProperties 
 
-            do em = 1, Me%EulerModelNumber 
+        do em = 1, Me%EulerModelNumber    ! goes through every domain (em) and processes every Group of Origins  
 
+            Call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
+            Call nullifyGridConcArrays(em, Me%State%Deposition, Me%OutPut%MassTracer, Me%OutPut%ConcMaxTracer)
+    !
+    !Integrates the Volume and the Mass in each GridCell and counts the number of particles (GridTracerNumber) for each group of origins
+    !
                 do ig = 1, Me%NGroups 
 
-                    NbrAirTracersInDomain               = 0.
-                    NbrSurfaceTracersInDomain           = 0.
-                    NbrWCDispersedTracersInDomain       = 0.
-                    NbrWCDissolvedTracersInDomain       = 0.
-                    NbrWCSedimentedTracersInDomain      = 0.
-                    NbrBottomDepositedTracersInDomain   = 0.
+            CurrentOrigin => Me%FirstOrigin
 
-                    CurrentOrigin => Me%FirstOrigin
-                    do while (associated(CurrentOrigin))
+            do while (associated(CurrentOrigin))                 ! goes through all origins and selects those belonging to the Grou "ig"
         
-                        if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then ! CurrentOrigin belongs to the "ig" group being processed 
 
                             CurrentPartic => CurrentOrigin%FirstPartic
-                            do while (associated(CurrentPartic))
 
-                    
-                                if (em == CurrentPartic%Position%ModelID) then
-                                    i = CurrentPartic%Position%I
-                                    j = CurrentPartic%Position%J
-                                    k = CurrentPartic%Position%k
-                    
-                                    HaveDomain = .true.
-                                else
-                
-                                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
-                                                                   CurrentPartic%Position%CoordX,           &
-                                                                   CurrentPartic%Position%CoordY,           &
-                                                                   Referential= GridCoord_,                 &
-                                                                   STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal - ERR20'
-                
-                                    if (HaveDomain) then
-
-                                        call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
-                                                        XPoint           = CurrentPartic%Position%CoordX,      &
-                                                        YPoint           = CurrentPartic%Position%CoordY,      &
-                                                        I                = I,                                  &
-                                                        J                = J,                                  &
-                                                        Referential      = GridCoord_,                         &
-                                                        STAT             = STAT_CALL)
-                                        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR30'  
+                    do while (associated(CurrentPartic))           ! Identifies the cell where each particle from this origin is located
                         
-                                        k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
-                                                           CurrentPartic%Position%Z, STAT = STAT_CALL)
-                                        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR40'  
+                        call GetParticlePositionIJ(em, CurrentPartic, ig, I, J, PartInside, WS_JLB, WS_JUB, WS_ILB, WS_IUB)
+                        if (.not.PartInside) then
+                            CurrentPartic => CurrentPartic%Next
+                            cycle                    ! the particle is not inside the domain. Moves to the next particle
+                        endif                        
+                    
+                        if (Me%State%Deposition) then
+                    
+                            if (CurrentPartic%Deposited) then
+                                Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) =  Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) + 1
+                                Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) =  Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) +  CurrentPartic%Geometry%Volume
+                                else
+                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) + 1          
+                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) +  CurrentPartic%Geometry%Volume
+                            endif
+                                        
+                        endif                
+                
+                        if (.not. CurrentPartic%Deposited) then
 
+                            call GetParticlePositionK(em, CurrentPartic, ig, i, j, k, WS_KLB, WS_KUB)
+
+                                Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) =  Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) + 1   ! Counts the number of particles of the selected Group, located inside a cell 
+                                
+                                if (Me%OutPut%OutPutConcType == Analytic) then
+                                    call AnalyticConcentration(CurrentPartic, em, i, j, k, ig, nProp)
+                                endif
+
+                            if (nProp > 0) then ! if there particle has properties associated
+                            
+                                if (Me%OutPut%ConcMaxTracer) then
+                                    do nP=1, nProp                         ! This array stores the maximum concentration of all tracers present in the cell
+                                        Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig) = max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig), CurrentPartic%Concentration(nP))
+
+                                        if (Me%OutPut%MassTracer) then      !This array stores the maximum mass of all tracers present in the cell
+                                            Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig) =  max(Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig), CurrentPartic%Mass(nP))
+                                        endif
+                                    enddo                                          
+                                endif !(Me%OutPut%ConcMaxTracer)
+                            
+                                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then    !Particle fits inside Grid Cell and all the mass/volume is stored in the cell    
+                                    Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) + CurrentPartic%Geometry%Volume
+                                    do nP=1, nProp
+                                        Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) = Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) + CurrentPartic%Mass(nP)
+                                    enddo
+                                else  ! (CurrentPartic%Geometry%Volume is > Me%EulerModel(em)%VolumeZ(i, j, k))
+                                        call SpreadLargeParticleAmongNeighbours(em, ig, i, j, k, nProp, CurrentPartic%Mass,CurrentPartic%Geometry%Volume) 
+                                endif ! (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k))
+                        
+                            endif
+               
+                        else ! Particle is deposited
+               
+                            if (nProp > 0) then                          ! (CurrentPartic%Deposited) The particle is deposited on the bottom. In this case no test is made to verify if the the particle occupies more then one cell to keep the algothim simple.
+                                Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) =  Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) + CurrentPartic%Mass(:)
+                            endif
+                                
+                        endif ! (.not. CurrentPartic%Deposited)
+        
+                        CurrentPartic => CurrentPartic%Next
+        
+                    enddo  ! while (associated(CurrentPartic)) Assessment of all particles completed
+        
+                    if (.not. associated(FirstProperty)) FirstProperty => CurrentOrigin%FirstProperty
+        
+                endif ! Particle belongs to the Group
+
+                CurrentOrigin => CurrentOrigin%Next
+
+            enddo   ! while (associated(CurrentOrigin) 
+
+                
+        !    if (Me%State%Deposition) then !Find if  'sediment' property exists
+        !
+        !    !Ambient Concentration of the place of the particle
+        !        Sediment_ID      = 0
+        !        FoundSediment = .false.
+        !        CurrentProperty => FirstProperty
+        !        do while (associated(CurrentProperty) .and. .not. FoundSediment)
+        !            Sediment_ID = Sediment_ID + 1
+        !            if (CurrentProperty%ID == Sediment) FoundSediment = .true.
+        !            CurrentProperty => CurrentProperty%Next
+        !        enddo
+        !    endif
+
+        enddo ! ig = 1, Me%NGroups Assessment of the Group Completed
+        enddo   ! do em = 1, Me%EulerModelNumber. 
+            
+!Assessment of the domain (model) Completed. Mass(i) and volumes of particles inside each eulerian cell calculated.
+!Now it computes the concentrations according to the user requirement.  
+
+! This volume can be higher or smaller that the volume of the cell. The only thing granted is that the individual volume of every particle
+! is smaller than the volume of the cell.
+            
+            
+d2:     do em = 1, Me%EulerModelNumber ! Now revisits every domain to fill the Eulerian grid with concentrations using the mass and volume of particles recorded inside each grid cell
+
+            Call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
+                               
+g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of origins
+                
+            do k = WS_KLB, WS_KUB
+            do j = WS_JLB, WS_JUB
+            do i = WS_ILB, WS_IUB
+
+                Me%EulerModel(em)%Lag2Euler%MeanConc(:,ig) = 0.0
+                        
+                if (Me%EulerModel(em)%Waterpoints3D (i, j, k) == WaterPoint) then ! If the cell is inside the water domain (is not land)
+                ! First it computes the concentration inside a cell, assuming that PARTICLES inside the cell DO NOT OVERLAP, since the GridVolume(i, j, k, ig) computed above 
+                ! is the summation of the fraction of the volume of each particle inside the cell.
+
+                    if (Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) > 0.0) then !If the volume of particles inside the cell is  hihger than zero  particles inside the cell
+                        Me%EulerModel(em)%Lag2Euler%MeanConc  (:, ig) =  Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) / Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) 
                                     endif
                                         
+                    !Gets the Ambient Concentration of the cell of the particle
+                    iAP = 1
+                    CurrentProperty => Me%OriginDefault%FirstProperty  !  CurrentProperty => FirstProperty
+
+                        do while (associated(CurrentProperty))
+                    
+                        DummYPos%I = i
+                        DummYPos%J = j
+                        DummYPos%K = k
+                            
+                        call GetAmbientConcCell (CurrentProperty, em, DummYPos, Me%EulerModel(em)%Lag2Euler%AmbientConc(iAP, ig))
+                        Me%EulerModel(em)%Lag2Euler%MinConc (iAP,ig) = CurrentProperty%Min_concentration
+
+                        iAP = iAP + 1
+                        CurrentProperty => CurrentProperty%Next
+                    enddo
+
+
+                    select case (Me%OutPut%OutPutConcType)  ! Now it updates the initial guess of the concentration using the user option
+
+                    case (Maximum) 
+        
+                        !"Maximum" method : In this assumes that particles CAN OVERLAPP and can fit inside the eulerian cell. In that case the total volume cannot be higher than the cell volume
+                        ! and uses VolumeZ(i, j, k) to compute a first guess of the concentration.
+                        Me%EulerModel(em)%Lag2Euler%MassVolCel(:, ig) = Me%EulerModel(em)%Lag2Euler%GridMass(i, j, k, :, ig) / Me%EulerModel(em)%VolumeZ(i, j, k)
+                        ! Now copmpares this concentration with the concentration assuming that particles do not ovelapp and chosses the maximum.              
+                        Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) = max(Me%EulerModel(em)%Lag2Euler%MassVolCel(:, ig), Me%EulerModel(em)%Lag2Euler%MeanConc(:, ig)) 
+
+                    case (Mean)    
+                        !"Mean" method : In this case the concentration is assumed equal to the mean concentration inside the cell, whatever is the volume of the particles located inside the cell.
+                        ! if the particles do not fill the whole cell, the left volume is occupied by the ambient fluid (ambient concentration)
+
+                        if (Me%EulerModel(em)%VolumeZ(i, j, k) >=  Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)) then ! fills the left volume with Ambient concentration
+              
+                                DiffVolCel = Me%EulerModel(em)%VolumeZ(i, j, k) - Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)  
+                                Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =  (DiffVolCel * Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig) + Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :,ig)) &  
+                                                                                    / Me%EulerModel(em)%VolumeZ(i, j, k)
+                        else ! uses the values computed above
+
+                                Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =  Me%EulerModel(em)%Lag2Euler%MeanConc(:, ig)
+
                                 endif                
                 
-                                if (HaveDomain) then
-                                    if (CurrentOrigin%Movement%Float) then
-                                            NbrSurfaceTracersInDomain =  NbrSurfaceTracersInDomain + 1
-                                            NbrAirTracersInDomain =  NbrAirTracersInDomain + 1
-                                            NbrWCDispersedTracersInDomain =  NbrWCDispersedTracersInDomain + 1
-                                            NbrWCDissolvedTracersInDomain =  NbrWCDissolvedTracersInDomain + 1
-                                            NbrWCSedimentedTracersInDomain =  NbrWCSedimentedTracersInDomain + 1
-                                            NbrBottomDepositedTracersInDomain =  NbrBottomDepositedTracersInDomain + 1
-                                    else
-                                        ! particles can submerge, and eventually be at the bottom seabed.
-                                        If (CurrentPartic%Position%Surface) then
-                                            NbrSurfaceTracersInDomain =  NbrSurfaceTracersInDomain + 1
-                                            NbrAirTracersInDomain =  NbrAirTracersInDomain + 1
+                    case (Analytic)  !Method 3
+                        !The concentration evolution of each particle is assumed equal to the analytic solution in particle center 
+                        !The concentration of the cell becomes equal to max of particles center concentration
+                        ! C = 2 * M / ((4 * pi * t)^1.5 * (2*Kh * Kv)^0.5)
+                        ! C - center particle concentration
+                        ! M - particle mass
+                        ! t - particle age
+                        ! Kh - turbulent horizontal diffusion 
+                        ! Kv - turbulent vertical diffusion
+                    end select
 
-                                        else
-                                            NbrWCDispersedTracersInDomain =  NbrWCDispersedTracersInDomain + 1
-                                            NbrWCDissolvedTracersInDomain =  NbrWCDissolvedTracersInDomain + 1
-                                            NbrWCSedimentedTracersInDomain =  NbrWCSedimentedTracersInDomain + 1
+                    VolCell    = Me%EulerModel(em)%VolumeZ              (i, j, k    )
+                    VolAllPart = Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig) 
 
-                                            !tracer status = at the bottom
-                                            if (Me%EulerModel(em)%KFloor(i, j) >1) then
-                                                if (CurrentPartic%Position%Z >=                             &
-                                                    Me%EulerModel(em)%SZZ(i, j, Me%EulerModel(em)%KFloor(i, j) -1)) then 
-                                                    !particle at bottom
-                                                    NbrBottomDepositedTracersInDomain =  &
-                                                        NbrBottomDepositedTracersInDomain + 1
+                    if (VolAllPart > VolCell) then !the cell is completely filled with the particles
+                                Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = 100.
+                    else ! cell is not completely filled with particles, but there is some
+                        if (VolCell > 0.) then
+                                Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = VolAllPart / VolCell * 100.
                                                 endif
                                             endif
+                    !
+                    ! Now increases the concentration to the min concentration, if necessary. Two comparisons are necessary because the discharge concentration can be lower than the AmbientConc. 
+                    !
+                    where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig).lt. Me%EulerModel(em)%Lag2Euler%MinConc(:, ig))  &
+                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) =   Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig)
+
+                    where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  == 0.)                                   & ! Ramiro. Esta condição está incluida na anterior?!
+                            Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig)  =  Me%EulerModel(em)%Lag2Euler%AmbientConc(:,ig)
+
+                else !(Me%EulerModel(em)%Waterpoints3D (i, j, k)
+
+                    Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig) = null_real
+
+                end if ! (Me%EulerModel(em)%Waterpoints3D (i, j, k)
+
+            end do ! i
+            end do ! j
+            end do ! k
+         
+            !Smooth the GridConc matrix. Artificial peak concentrations can occur in shallow areas or thin cells because of the way used to 
+            !distribute the mass of large particles, but also in areas where particles are sparce. 
+         
+            if (Me%SmoothConcON) then
+     
+                call SmoothConcentration(em, ig)   
+                
                                         endif
+
+        end do g2 !ig = 1, Me%NGroups
+
+        if (Me%State%Deposition)  call UpdateBottomAccumulation (em)
+
+        enddo d2 ! em = 1, Me%EulerModelNumber
+
+        !
+        !ROD!begin. Downward code hold for OIL only
+        !
+        
+        if (Me%State%Oil) call CountsNbrTracersEachDomain ! counts the number of Oil particles in the domain 
+
+        ! The following procedure is done for all types of materials, including Oil and HNS        
+
+        if (Me%State%Stochastic) then  ! For Oil and HNS but also for beached particles. computes the number of tracers inside each cell, or beached/deposited (encompasses all instruction up to the end of the subroutine)
+            call BeachingAndShoreLinePresence
+            if (Me%State%Oil) call OilAndHNSStocastics
                                     endif
+        !RODend
+
+    end subroutine FillGridConcentration
+
+    !--------------------------------------------------------------------------
+
+    subroutine BeachingAndShoreLinePresence
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                        :: CurrentOrigin
+        type (T_Partic), pointer                        :: CurrentPartic
+        real,    dimension(:, : , :, :), pointer        :: NbrTracers               => null()
+        real,    dimension(:, : , :   ), pointer        :: NbrBeachedTracers        ! => null() 
+        integer                                         :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                         :: WS_KLB, WS_KUB
+        integer                                         :: em, ig, i, j, k, STAT_CALL
+        logical                                         :: HaveDomain
+
+        !Begin-----------------------------------------------------------------
+
+        Call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
+
+        allocate (NbrTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, WS_KLB:WS_KUB, 1:Me%NGroups))
+        allocate (NbrBeachedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
+
+
+        do em = 1, Me%EulerModelNumber 
+
+            do ig = 1, Me%nGroups  ! set all counters to zero
+                do j = WS_JLB, WS_JUB
+                do i = WS_ILB, WS_IUB
+                
+                NbrBeachedTracers(i,j,ig) = 0.
+                
+                do k = WS_KLB, WS_KUB
+                    NbrTracers  (i,j,k,ig) = 0.
+                    Me%EulerModel(em)%Lag2Euler%ProbPresence3D (i,j,k,ig) = 0.                    
+                enddo                                 
+            enddo
+            enddo
+        enddo ! ig = 1, Me%nGroups
+            
+        do ig = 1, Me%NGroups ! computes for every group (encompasses all instruction up to the end of the subroutine)
+                
+            CurrentOrigin => Me%FirstOrigin
+            do while (associated(CurrentOrigin))
+                if (CurrentOrigin%Stochastic) then
+                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                    CurrentPartic => CurrentOrigin%FirstPartic
+                    do while (associated(CurrentPartic))
+
+                    call GetParticlePositionIJ(em, CurrentPartic, ig, I, J, HaveDomain, WS_JLB, WS_JUB, WS_ILB, WS_IUB)
+                    
+                        if (HaveDomain) then
+                            k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j, CurrentPartic%Position%Z, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR40'  
+                    
+                            NbrTracers    (i, j, k, ig) = NbrTracers      (i, j, k, ig) + 1
+                            If (CurrentPartic%Beached) NbrBeachedTracers (i, j, ig) = NbrBeachedTracers (i, j, ig) + 1
                                 endif
                                 
                                 CurrentPartic => CurrentPartic%Next
                             enddo
                         endif
+                endif !(CurrentOrigin%Stochastic)
+
                         CurrentOrigin => CurrentOrigin%Next
+                        
+            enddo !while (associated(CurrentOrigin)) 
+                
+            CurrentOrigin => Me%FirstOrigin
+            do while (associated(CurrentOrigin))
+                    
+                if (CurrentOrigin%Stochastic) then
+                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                    do k = WS_KLB, WS_KUB
+                    do j = WS_JLB, WS_JUB
+                    do i = WS_ILB, WS_IUB
+                        Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig) = 100 * NbrTracers(i, j, k, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                        if (Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence3D(i, j, k, ig)) then
+                            Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence3D(i, j, k, ig) = Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig)    
+                        endif
+                    enddo
+                    enddo
                     enddo
 
-        if (Me%State%Stochastic) then
-                !correct tracer values, beacuase oil particle weathering is not computed by particle
-                    Me%EulerModel(em)%Lag2Euler%FractionAirTracers(ig) =  &
-                        NbrAirTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
-                    Me%EulerModel(em)%Lag2Euler%FractionSurfaceTracers(ig) =  &
-                        NbrSurfaceTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
-                    Me%EulerModel(em)%Lag2Euler%FractionWCDispersedTracers(ig) =  &
-                        NbrWCDispersedTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
-                    Me%EulerModel(em)%Lag2Euler%FractionWCDissolvedTracers(ig) =  &
-                        NbrWCDissolvedTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
-                    Me%EulerModel(em)%Lag2Euler%FractionWCSedimentedTracers(ig) =  &
-                        NbrWCSedimentedTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
-                    Me%EulerModel(em)%Lag2Euler%FractionBottomDepositedTracers(ig) =  &
-                        NbrBottomDepositedTracersInDomain / Me%EulerModel(em)%ParticlesEmitted(ig)
+                    do j = WS_JLB, WS_JUB
+                    do i = WS_ILB, WS_IUB
+                        Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) = 0.
+                        do k = WS_KLB, WS_KUB
+                        if (Me%EulerModel(em)%Lag2Euler%ProbPresence3D   (i, j, k, ig) > Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) ) then      
+                            Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig)
+                        endif
+                        enddo
+                        if (Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D   (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence2D(i, j, ig) ) then       
+                            Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence2D(i, j, ig) = Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig)
         end if                    
                 enddo
             enddo
+                              
+                        
+                    do j = WS_JLB, WS_JUB
+                    do i = WS_ILB, WS_IUB
+                            
+                        Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig) =100 * NbrBeachedTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                            
+                        if (Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig)  > Me%EulerModel(em)%Lag2Euler%IntMaxProbShorelinePresence(i, j, ig) ) then    
+                            Me%EulerModel(em)%Lag2Euler%IntMaxProbShorelinePresence(i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig)
         endif
 
+                    enddo
+                    enddo
+                                
+                endif ! (CurrentOrigin%GroupID == Me%GroupIDs(ig)
+                endif ! (CurrentOrigin%Stochastic)
+                    
+                CurrentOrigin => CurrentOrigin%Next
+        
+            enddo ! while (associated(CurrentOrigin))
+            enddo  ! number of groups
+            
+            deallocate (NbrTracers)
+            deallocate (NbrBeachedTracers)
 
-        if (Me%State%Stochastic) then
+        enddo  ! do for all domains                   
+        
+    end subroutine BeachingAndShoreLinePresence
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine OilAndHNSStocastics
+            
+        !Local-----------------------------------------------------------------
+        type (T_Origin),   pointer                  :: CurrentOrigin
+        type (T_Partic),   pointer                  :: CurrentPartic
+
+        real, dimension(:,:,:  ),     pointer       :: NbrSurfaceTracers             => null()              
+        real, dimension(:,:,:  ),     pointer       :: NbrAirTracers                 => null()              
+        real, dimension(:,:,:  ),     pointer       :: NbrWCDispersedTracers         => null()              
+        real, dimension(:,:,:  ),     pointer       :: NbrWCDissolvedTracers         => null()              
+        real, dimension(:,:,:  ),     pointer       :: NbrWCSedimentedTracers        => null()              
+        real, dimension(:,:,:  ),     pointer       :: NbrBottomDepositedTracers     => null()              
+  
+        integer                                     :: em, ig, I, J, k
+        integer                                     :: WS_JLB, WS_JUB, WS_ILB, WS_IUB        
+        integer                                     :: STAT_CALL
+        logical                                     :: HaveDomain   
 
             
         do em = 1, Me%EulerModelNumber 
-            allocate (NbrTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, WS_KLB:WS_KUB, 1:Me%NGroups))
-
-            allocate (NbrBeachedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
             
-            if ((Me%State%HNS) .or. (Me%State%Oil)) then
                 allocate (NbrAirTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
                 allocate (NbrSurfaceTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
                 allocate (NbrWCDispersedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
                 allocate (NbrWCDissolvedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
                 allocate (NbrWCSedimentedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
                 allocate (NbrBottomDepositedTracers(WS_ILB:WS_IUB, WS_JLB:WS_JUB, 1:Me%NGroups))
-            endif
             
-            do ig = 1, Me%nGroups
+            do ig = 1, Me%nGroups  ! set all counters to zero
             do j = WS_JLB, WS_JUB
             do i = WS_ILB, WS_IUB
-                NbrBeachedTracers(i,j,ig) = 0.
-                if ((Me%State%HNS) .or. (Me%State%Oil)) then
+                
                     NbrAirTracers(i,j,ig) = 0.
                     NbrSurfaceTracers(i,j,ig) = 0.
                     NbrWCDispersedTracers(i,j,ig) = 0.
@@ -32350,18 +32687,13 @@ g3:             do ig = 1, Me%NGroups
                     Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i,j,ig)      = 0.
                     Me%EulerModel(em)%Lag2Euler%ProbWCPresence(i,j,ig)      = 0.
                     Me%EulerModel(em)%Lag2Euler%ProbBottomPresence(i,j,ig)     = 0.
-                    Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i,j,ig)  = 0.
-                endif
-                do k = WS_KLB, WS_KUB
-                    NbrTracers(i,j,k,ig) = 0.
-                    Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i,j,k,ig)         = 0.                    
-                enddo
+                    
             enddo
             enddo
-            enddo
+            enddo ! ig = 1, Me%nGroups
                 
             
-            do ig = 1, Me%NGroups 
+            do ig = 1, Me%NGroups ! computes for every group (encompasses all instruction up to the end of the subroutine)
                 
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
@@ -32371,137 +32703,73 @@ g3:             do ig = 1, Me%NGroups
                         CurrentPartic => CurrentOrigin%FirstPartic
                         do while (associated(CurrentPartic))
 
+                         call GetParticlePositionIJ(em, CurrentPartic, ig, I, J, HaveDomain, WS_JLB, WS_JUB, WS_ILB, WS_IUB)
                     
-                            if (em == CurrentPartic%Position%ModelID) then
-                                i = CurrentPartic%Position%I
-                                j = CurrentPartic%Position%J
-                                k = CurrentPartic%Position%k
-                    
-                                HaveDomain = .true.
-                            else
-                
-                                HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid,     &
-                                                               CurrentPartic%Position%CoordX,           &
-                                                               CurrentPartic%Position%CoordY,           &
-                                                               Referential= GridCoord_,                 &
-                                                               STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal - ERR20'
-                
-                                if (HaveDomain) then
-
-                                    call GetXYCellZ(HorizontalGridID = Me%EulerModel(em)%ObjHorizontalGrid,&
-                                                    XPoint           = CurrentPartic%Position%CoordX,      &
-                                                    YPoint           = CurrentPartic%Position%CoordY,      &
-                                                    I                = I,                                  &
-                                                    J                = J,                                  &
-                                                    Referential      = GridCoord_,                         &
-                                                    STAT             = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR30'  
+                                 if (.not.HaveDomain) then
+                                        CurrentPartic => CurrentPartic%Next
+                                        cycle                    ! the particle is not inside the domain. Moves to the next particle
+                                endif
                         
                                     k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
                                                        CurrentPartic%Position%Z, STAT = STAT_CALL)
                                     if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR40'  
 
-                                endif
-                                        
-                            endif                
-                
-                            if (HaveDomain) then
-                                NbrTracers(i, j, k, ig) = &
-                                NbrTracers(i, j, k, ig) + 1
-                                
-                                If (CurrentPartic%Beached)  then
-                                    NbrBeachedTracers(i, j, ig) = &
-                                    NbrBeachedTracers(i, j, ig) + 1
-                                endif
-
                                 if (Me%State%HNS) then
-                                    If ((CurrentPartic%HNSParticleState .eq. Air_Volatilized_) .or. &
-                                        (CurrentPartic%HNSParticleState .eq. Air_Evaporated_)) then
-                                        NbrAirTracers(i, j, ig) = &
-                                        NbrAirTracers(i, j, ig) + 1
+                                    If ((CurrentPartic%HNSParticleState .eq. Air_Volatilized_) .or. (CurrentPartic%HNSParticleState .eq. Air_Evaporated_)) then
+                                        NbrAirTracers(i, j, ig) = NbrAirTracers (i, j, ig) + 1
                                     endif
                                 
                                     If (CurrentPartic%HNSParticleState .eq. Surface_) then
-                                        NbrSurfaceTracers(i, j, ig) = &
-                                        NbrSurfaceTracers(i, j, ig) + 1
+                                        NbrSurfaceTracers(i, j, ig) = NbrSurfaceTracers(i, j, ig) + 1
                                     endif
 
                                     If (CurrentPartic%HNSParticleState .eq. WaterColumn_Droplet_) then
-                                        NbrWCDispersedTracers(i, j, ig) = &
-                                        NbrWCDispersedTracers(i, j, ig) + 1
+                                        NbrWCDispersedTracers(i, j, ig) = NbrWCDispersedTracers(i, j, ig)   + 1
                                     endif
 
                                     If (CurrentPartic%HNSParticleState .eq. WaterColumn_Dissolved_) then
-                                        NbrWCDissolvedTracers(i, j, ig) = &
-                                        NbrWCDissolvedTracers(i, j, ig) + 1
+                                        NbrWCDissolvedTracers(i, j, ig) = NbrWCDissolvedTracers(i, j, ig)   + 1
                                     endif
 
                                     If (CurrentPartic%HNSParticleState .eq. WaterColumn_Dissolved_) then
-                                        NbrWCSedimentedTracers(i, j, ig) = &
-                                        NbrWCSedimentedTracers(i, j, ig) + 1
+                                        NbrWCSedimentedTracers(i, j, ig) = NbrWCSedimentedTracers(i, j, ig) + 1
                                     endif
 
                                     If (CurrentPartic%HNSParticleState .eq. Bottom_Deposited_) then
-                                        NbrBottomDepositedTracers(i, j, ig) = &
-                                        NbrBottomDepositedTracers(i, j, ig) + 1
+                                        NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) + 1
                                     endif
                                 elseif (Me%State%Oil) then
                                     if (CurrentOrigin%Movement%Float) then
                                         ! it means that CurrentPartic%Position%Surface is always true
-                                        NbrSurfaceTracers(i, j, ig) =           &
-                                        NbrSurfaceTracers(i, j, ig) + 1                     
-
-                                        NbrAirTracers(i, j, ig) =               &
-                                        NbrAirTracers(i, j, ig) + 1
-                                        
-                                        NbrWCDispersedTracers(i, j, ig) =       &    
-                                        NbrWCDispersedTracers(i, j, ig) + 1
-
-                                        NbrWCDissolvedTracers(i, j, ig) =       &    
-                                        NbrWCDissolvedTracers(i, j, ig) + 1
-
-                                        NbrWCSedimentedTracers(i, j, ig) =       &    
-                                        NbrWCSedimentedTracers(i, j, ig) + 1
-
-                                        NbrBottomDepositedTracers(i, j, ig) =   &
-                                        NbrBottomDepositedTracers(i, j, ig)                                       
+                                        NbrSurfaceTracers         (i, j, ig) =  NbrSurfaceTracers         (i, j, ig) + 1                     
+                                        NbrAirTracers             (i, j, ig) =  NbrAirTracers             (i, j, ig) + 1
+                                        NbrWCDispersedTracers     (i, j, ig) =  NbrWCDispersedTracers     (i, j, ig) + 1
+                                        NbrWCDissolvedTracers     (i, j, ig) =  NbrWCDissolvedTracers     (i, j, ig) + 1
+                                        NbrWCSedimentedTracers    (i, j, ig) =  NbrWCSedimentedTracers    (i, j, ig) + 1
+                                        NbrBottomDepositedTracers (i, j, ig) =  NbrBottomDepositedTracers (i, j, ig) + 1  ! Ramiro. Faltava somar 1. Acrescentei!!                                
                                     else
                                         ! particles can submerge, and eventually be at the bottom seabed.
                                         If (CurrentPartic%Position%Surface) then
-                                            NbrSurfaceTracers(i, j, ig) = &
-                                            NbrSurfaceTracers(i, j, ig) + 1
-
-                                            NbrAirTracers(i, j, ig) =           &
-                                            NbrAirTracers(i, j, ig) + 1
+                                                NbrSurfaceTracers(i, j, ig)     =  NbrSurfaceTracers(i, j, ig) + 1
+                                                NbrAirTracers    (i, j, ig)     =  NbrAirTracers(i, j, ig)     + 1
 
                                         else
-                                            NbrWCDispersedTracers(i, j, ig) =   &    
-                                            NbrWCDispersedTracers(i, j, ig) + 1    
-
-                                            NbrWCDissolvedTracers(i, j, ig) =   &    
-                                            NbrWCDissolvedTracers(i, j, ig) + 1    
-
-                                            NbrWCSedimentedTracers(i, j, ig) =   &    
-                                            NbrWCSedimentedTracers(i, j, ig) + 1    
+                                                NbrWCDispersedTracers (i, j, ig) =  NbrWCDispersedTracers(i, j, ig)  + 1    
+                                                NbrWCDissolvedTracers (i, j, ig) =  NbrWCDissolvedTracers(i, j, ig)  + 1    
+                                                NbrWCSedimentedTracers(i, j, ig) = NbrWCSedimentedTracers(i, j, ig) + 1    
 
                                             !tracer status = at the bottom
                                             if (Me%EulerModel(em)%KFloor(i, j) >1) then
-                                                if (CurrentPartic%Position%Z >=                             &
-                                                    Me%EulerModel(em)%SZZ(i, j, Me%EulerModel(em)%KFloor(i, j) -1)) then 
+                                                if (CurrentPartic%Position%Z >= Me%EulerModel(em)%SZZ(i, j, Me%EulerModel(em)%KFloor(i, j) -1)) then !Ramiro. The axis is pointing downward 
                                                     !particle at bottom
-                                                    NbrBottomDepositedTracers(i, j, ig) =   &
-                                                    NbrBottomDepositedTracers(i, j, ig) + 1
-                                                endif
-                                            endif
-
+                                                    NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) + 1
                                         endif
                                                                             
                                     endif
                                     
                                 endif
                             endif                    
-                    
+                                endif ! (Me%State%HNS) + (Me%State%Oil) 
                     
                             CurrentPartic => CurrentPartic%Next
                         enddo
@@ -32510,44 +32778,30 @@ g3:             do ig = 1, Me%NGroups
                     endif
                     CurrentOrigin => CurrentOrigin%Next
                 
-                enddo
-                
+                enddo !while (associated(CurrentOrigin)) 
                 
                 if (Me%State%Oil) then
-                    FractionAirTracers =  Me%EulerModel(em)%Lag2Euler%FractionAirTracers(ig)
-                    FractionSurfaceTracers =  Me%EulerModel(em)%Lag2Euler%FractionSurfaceTracers(ig)
-                    FractionWCDispersedTracers =  Me%EulerModel(em)%Lag2Euler%FractionWCDispersedTracers(ig)
-                    FractionWCDissolvedTracers =  Me%EulerModel(em)%Lag2Euler%FractionWCDissolvedTracers(ig)
-                    FractionWCSedimentedTracers =  Me%EulerModel(em)%Lag2Euler%FractionWCSedimentedTracers(ig)
-                    FractionBottomDepositedTracers =  Me%EulerModel(em)%Lag2Euler%FractionBottomDepositedTracers(ig)
                     
                     CurrentOrigin => Me%FirstOrigin
                     do while (associated(CurrentOrigin))
                         if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
                             
-                        if (Me%ExternalVar%LastConcCompute .EQ. Me%ExternalVar%BeginTime) then
+                        if (Me%ExternalVar%LastConcCompute .EQ. Me%ExternalVar%BeginTime) then !it is the first iteration
                             CurrentOrigin%FirstPartic%FMEvaporated = 0.
                             CurrentOrigin%FirstPartic%FMDispersed = 0.
                             CurrentOrigin%FirstPartic%FMDissolved = 0.
                             CurrentOrigin%FirstPartic%FMSedimented = 0.
                         endif
                         
-                        if (CurrentOrigin%Movement%Float) then
+                        if (CurrentOrigin%Movement%Float) then  !Ramiro. This code suggests that transformation is computed for the fistparticle only and assumed the same for every particle
                             do j = WS_JLB, WS_JUB
                             do i = WS_ILB, WS_IUB
-                                NbrAirTracers(i, j, ig) =               &
-                                NbrAirTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMEvaporated / FractionAirTracers
-                                NbrWCDispersedTracers(i, j, ig) =               &
-                                NbrWCDispersedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMDispersed / FractionWCDispersedTracers
-                                NbrWCDissolvedTracers(i, j, ig) =               &
-                                NbrWCDissolvedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMDissolved / FractionWCDissolvedTracers
-                                NbrWCSedimentedTracers(i, j, ig) =  NbrWCSedimentedTracers(i, j, ig) * &
-                                    CurrentOrigin%FirstPartic%FMSedimented / FractionWCSedimentedTracers
-                                NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) * &
-                                    CurrentOrigin%FirstPartic%FMSedimented / FractionBottomDepositedTracers
-                                NbrSurfaceTracers(i, j, ig) =                       & 
-                                    NbrSurfaceTracers(i, j, ig) -                   &
-                                    NbrAirTracers(i, j, ig) -                       &
+                                NbrAirTracers            (i, j, ig) = NbrAirTracers            (i, j, ig) * CurrentOrigin%FirstPartic%FMEvaporated / Me%EulerModel(em)%Lag2Euler%FractionAirTracers             (ig)
+                                NbrWCDispersedTracers    (i, j, ig) = NbrWCDispersedTracers    (i, j, ig) * CurrentOrigin%FirstPartic%FMDispersed  / Me%EulerModel(em)%Lag2Euler%FractionWCDispersedTracers     (ig)
+                                NbrWCDissolvedTracers    (i, j, ig) = NbrWCDissolvedTracers    (i, j, ig) * CurrentOrigin%FirstPartic%FMDissolved  / Me%EulerModel(em)%Lag2Euler%FractionWCDissolvedTracers     (ig)
+                                NbrWCSedimentedTracers   (i, j, ig) = NbrWCSedimentedTracers   (i, j, ig) * CurrentOrigin%FirstPartic%FMSedimented / Me%EulerModel(em)%Lag2Euler%FractionWCSedimentedTracers    (ig)
+                                NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMSedimented / Me%EulerModel(em)%Lag2Euler%FractionBottomDepositedTracers (ig)
+                                NbrSurfaceTracers        (i, j, ig) = NbrSurfaceTracers        (i, j, ig) - NbrAirTracers              (i, j, ig) -         &
                                     NbrWCDispersedTracers(i, j, ig) -               & 
                                     NbrWCDissolvedTracers(i, j, ig) -               & 
                                     NbrWCSedimentedTracers(i, j, ig) -              & 
@@ -32556,80 +32810,65 @@ g3:             do ig = 1, Me%NGroups
                             enddo
                             enddo
 
-                        else
+                        else ! not (CurrentOrigin%Movement%Float)
                             do j = WS_JLB, WS_JUB
                             do i = WS_ILB, WS_IUB
-                                NbrAirTracers(i, j, ig) =               &
-                                NbrAirTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMEvaporated / FractionAirTracers
-                                NbrWCDispersedTracers(i, j, ig) =               &
-                                NbrWCDispersedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMDispersed / FractionWCDispersedTracers
-                                NbrWCDissolvedTracers(i, j, ig) =               &
-                                NbrWCDissolvedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMDissolved / FractionWCDissolvedTracers
-                                NbrWCSedimentedTracers(i, j, ig) = NbrWCSedimentedTracers(i, j, ig) * &
-                                    CurrentOrigin%FirstPartic%FMSedimented / FractionWCSedimentedTracers
-                                NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) * &
-                                    CurrentOrigin%FirstPartic%FMSedimented / FractionBottomDepositedTracers
-                                NbrSurfaceTracers(i, j, ig) =                       & 
-                                    NbrSurfaceTracers(i, j, ig) -                   &
-                                    NbrAirTracers(i, j, ig)                       
+                                NbrAirTracers            (i, j, ig) = NbrAirTracers            (i, j, ig) * CurrentOrigin%FirstPartic%FMEvaporated / Me%EulerModel(em)%Lag2Euler%FractionAirTracers(ig)
+                                NbrWCDispersedTracers    (i, j, ig) = NbrWCDispersedTracers    (i, j, ig) * CurrentOrigin%FirstPartic%FMDispersed  / Me%EulerModel(em)%Lag2Euler%FractionWCDispersedTracers(ig)
+                                NbrWCDissolvedTracers    (i, j, ig) = NbrWCDissolvedTracers    (i, j, ig) * CurrentOrigin%FirstPartic%FMDissolved  / Me%EulerModel(em)%Lag2Euler%FractionWCDissolvedTracers    (ig)
+                                NbrWCSedimentedTracers   (i, j, ig) = NbrWCSedimentedTracers   (i, j, ig) * CurrentOrigin%FirstPartic%FMSedimented / Me%EulerModel(em)%Lag2Euler%FractionWCSedimentedTracers   (ig)
+                                NbrBottomDepositedTracers(i, j, ig) = NbrBottomDepositedTracers(i, j, ig) * CurrentOrigin%FirstPartic%FMSedimented / Me%EulerModel(em)%Lag2Euler%FractionBottomDepositedTracers(ig)
+                                NbrSurfaceTracers        (i, j, ig) = NbrSurfaceTracers        (i, j, ig) - NbrAirTracers(i, j, ig)     ! Ramiro. Naming is strange to be checked                  
                             enddo
                             enddo
                         endif
                         endif
                     CurrentOrigin => CurrentOrigin%Next
-                    enddo                                                   
+                    enddo   ! while (associated(CurrentOrigin))                                                
 
-                endif
-
+                endif  ! (Me%State%Oil)
                 
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
                     if (CurrentOrigin%Stochastic) then
                     if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
-                        do k = WS_KLB, WS_KUB
                         do j = WS_JLB, WS_JUB
                         do i = WS_ILB, WS_IUB
-                            Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig) =   100 *           &
-                                 NbrTracers(i, j, k, ig) /                &
-                                 Me%EulerModel(em)%ParticlesEmitted(ig)
-                            
-                            if (Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig) >               &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence3D(i, j, k, ig)) then
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence3D(i, j, k, ig) =            &
-                                Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig)    
-                            endif
-                        enddo
-                        enddo
-                        enddo
 
-                        do j = WS_JLB, WS_JUB
-                        do i = WS_ILB, WS_IUB
-                            Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) = 0.
-                            do k = WS_KLB, WS_KUB
-                                if (Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig) >       &
-                                Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) ) then      
-                                    Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) =       &
-                                    Me%EulerModel(em)%Lag2Euler%ProbPresence3D(i, j, k, ig)
-                                endif
-                            enddo
-                            if (Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig) >           &
-                            Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence2D(i, j, ig) ) then       
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbPresence2D(i, j, ig) =        &
-                                Me%EulerModel(em)%Lag2Euler%MaxProbPresence2D(i, j, ig)
+                                    Me%EulerModel(em)%Lag2Euler%ProbAirPresence      (i, j, ig) = 100 * NbrAirTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbAirPresence      (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbAirPresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbAirPresence(i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbAirPresence(i, j, ig)
                             endif   
-                        enddo
-                        enddo
                               
+                                    Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence       (i, j, ig) = 100 *  NbrSurfaceTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbSurfacePresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbSurfacePresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence(i, j, ig)
+                                endif   
                         
-                        do j = WS_JLB, WS_JUB
-                        do i = WS_ILB, WS_IUB
-                            Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig) =100 * &
-                                    NbrBeachedTracers(i, j, ig)        /   &
-                                    Me%EulerModel(em)%ParticlesEmitted(ig)
-                            if (Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig) >           &
-                            Me%EulerModel(em)%Lag2Euler%IntMaxProbShorelinePresence(i, j, ig) ) then    
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbShorelinePresence(i, j, ig) =     &
-                                Me%EulerModel(em)%Lag2Euler%ProbShorelinePresence(i, j, ig)
+                                    Me%EulerModel(em)%Lag2Euler%ProbBottomPresence       (i, j, ig) = 100 * NbrBottomDepositedTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbBottomPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbBottomPresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbBottomPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbBottomPresence(i, j, ig)
+                            endif
+
+                                    Me%EulerModel(em)%Lag2Euler%ProbWCPresence       (i, j, ig) = 100 * (NbrWCDispersedTracers(i, j, ig) + NbrWCDissolvedTracers(i, j, ig) &
+                                                                                                 + NbrWCSedimentedTracers(i, j, ig)) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbWCPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbWCPresence(i, j, ig) ) then
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbWCPresence(i, j, ig)
+                                endif
+
+                                    Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence       (i, j, ig) = 100 * NbrWCDispersedTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDispPresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDispPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence(i, j, ig)
+                            endif   
+                              
+                                    Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence       (i, j, ig) = 100 *  NbrWCDissolvedTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDissPresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDissPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence(i, j, ig)
+                                endif   
+                        
+                                    Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence       (i, j, ig) = 100 * NbrWCSedimentedTracers(i, j, ig) / Me%EulerModel(em)%ParticlesEmitted(ig)
+                                if (Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence(i, j, ig) ) then    
+                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i, j, ig)
                             endif   
                         enddo
                         enddo
@@ -32639,106 +32878,116 @@ g3:             do ig = 1, Me%NGroups
                     CurrentOrigin => CurrentOrigin%Next
                 enddo
                 
-                if (Me%State%HNS .or. Me%State%Oil) then
-                    
-                    CurrentOrigin => Me%FirstOrigin
-                    do while (associated(CurrentOrigin))
-                        if (CurrentOrigin%Stochastic) then
-                        if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
-                            do j = WS_JLB, WS_JUB
-                            do i = WS_ILB, WS_IUB
-                                Me%EulerModel(em)%Lag2Euler%ProbAirPresence(i, j, ig) =     100 *  &
-                                        NbrAirTracers(i, j, ig)            /   &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbAirPresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbAirPresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbAirPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbAirPresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence(i, j, ig) = 100 *  &
-                                        NbrSurfaceTracers(i, j, ig)        /   &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbSurfacePresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbSurfacePresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbBottomPresence(i, j, ig) =  100 *  &
-                                        NbrBottomDepositedTracers(i, j, ig) /  &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbBottomPresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbBottomPresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbBottomPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbBottomPresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbWCPresence(i, j, ig) =      100 *  &
-                                 (NbrWCDispersedTracers(i, j, ig) + NbrWCDissolvedTracers(i, j, ig) + NbrWCSedimentedTracers(i, j, ig))    /   &
-                                  Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbWCPresence(i, j, ig) >           &
-                                 Me%EulerModel(em)%Lag2Euler%IntMaxProbWCPresence(i, j, ig) ) then
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbWCPresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence(i, j, ig) =      100 *  &
-                                        NbrWCDispersedTracers(i, j, ig)    /   &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDispPresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDispPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence(i, j, ig) =      100 *  &
-                                        NbrWCDissolvedTracers(i, j, ig)    /   &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDissPresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCDissPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbWCDissPresence(i, j, ig)
-                                endif   
-
-                                Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i, j, ig) =      100 *  &
-                                        NbrWCSedimentedTracers(i, j, ig)    /   &
-                                        Me%EulerModel(em)%ParticlesEmitted(ig)
-                                if (Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i, j, ig) >           &
-                                Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence(i, j, ig) ) then    
-                                    Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence(i, j, ig) =     &
-                                    Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i, j, ig)
-                                endif   
-
-                            enddo
-                            enddo
-
-                        endif
-                        endif
-                        CurrentOrigin => CurrentOrigin%Next
-                    enddo
-                endif
-                            
-
-            enddo  
+            enddo  ! number of groups
             
-            deallocate (NbrTracers)
-            deallocate (NbrBeachedTracers)
-            
-            if ((Me%State%HNS) .or. (Me%State%Oil)) then
                 deallocate (NbrAirTracers)
                 deallocate (NbrSurfaceTracers)
                 deallocate (NbrWCDispersedTracers)
                 deallocate (NbrWCDissolvedTracers)
                 deallocate (NbrWCSedimentedTracers)
-            endif
 
+        enddo  ! do for all domains                   
+        
+    end subroutine OilAndHNSStocastics
+
+    !--------------------------------------------------------------------------    
+
+    subroutine CountsNbrTracersEachDomain
+    
+        !Local-----------------------------------------------------------------    
+        type (T_Origin),   pointer                      :: CurrentOrigin
+        type (T_Partic),   pointer                      :: CurrentPartic
+
+        real                                            :: NbrSurfaceTracersInDomain                   
+        real                                            :: NbrAirTracersInDomain             
+        real                                            :: NbrWCDispersedTracersInDomain                   
+        real                                            :: NbrWCDissolvedTracersInDomain                   
+        real                                            :: NbrWCSedimentedTracersInDomain                  
+        real                                            :: NbrBottomDepositedTracersInDomain
+  
+        integer                                         :: em, ig, I, J, k
+        integer                                         :: WS_JLB, WS_JUB, WS_ILB, WS_IUB        
+        integer                                         :: STAT_CALL
+        logical                                         :: HaveDomain   
+  
+        !Begin------------------------------------------------------------------    
+  
+        do em = 1, Me%EulerModelNumber ! Counts the number of tracers inside each domain per position in the water column or form
+        do ig = 1, Me%NGroups 
+
+            NbrAirTracersInDomain               = 0.
+            NbrSurfaceTracersInDomain           = 0.
+            NbrWCDispersedTracersInDomain       = 0.
+            NbrWCDissolvedTracersInDomain       = 0.
+            NbrWCSedimentedTracersInDomain      = 0.
+            NbrBottomDepositedTracersInDomain   = 0.
+                    
+                    CurrentOrigin => Me%FirstOrigin
+                    do while (associated(CurrentOrigin))
+        
+                        if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                    CurrentPartic => CurrentOrigin%FirstPartic
+                    
+                    do while (associated(CurrentPartic))
+                                
+                        call GetParticlePositionIJ(em, CurrentPartic, ig, I, J, HaveDomain, WS_JLB, WS_JUB, WS_ILB, WS_IUB)
+                        
+                        if (.not.HaveDomain) then
+                            CurrentPartic => CurrentPartic%Next
+                            cycle                    ! the particle is not inside the domain. Moves to the next particle
+                                endif   
+
+                        k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j, CurrentPartic%Position%Z, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR40'  
+                
+                        if (CurrentOrigin%Movement%Float) then ! Ramiro. Why to increment all counters because it floats?
+                                NbrSurfaceTracersInDomain         =  NbrSurfaceTracersInDomain         + 1
+                                NbrAirTracersInDomain             =  NbrAirTracersInDomain             + 1
+                                NbrWCDispersedTracersInDomain     =  NbrWCDispersedTracersInDomain     + 1
+                                NbrWCDissolvedTracersInDomain     =  NbrWCDissolvedTracersInDomain     + 1
+                                NbrWCSedimentedTracersInDomain    =  NbrWCSedimentedTracersInDomain    + 1 ! Ramiro. What is the difference between sedimented and deposited?
+                                NbrBottomDepositedTracersInDomain =  NbrBottomDepositedTracersInDomain + 1
+                        else
+                            ! particles can submerge, and eventually be at the bottom seabed.
+                            if (CurrentPartic%Position%Surface) then
+                                NbrSurfaceTracersInDomain =  NbrSurfaceTracersInDomain + 1
+                                NbrAirTracersInDomain     =  NbrAirTracersInDomain     + 1
+                            else
+                                NbrWCDispersedTracersInDomain  =  NbrWCDispersedTracersInDomain   + 1
+                                NbrWCDissolvedTracersInDomain  =  NbrWCDissolvedTracersInDomain   + 1
+                                NbrWCSedimentedTracersInDomain =  NbrWCSedimentedTracersInDomain  + 1
+
+                                !tracer status = at the bottom
+                                if (Me%EulerModel(em)%KFloor(i, j) > 1) then
+                                    if (CurrentPartic%Position%Z >= Me%EulerModel(em)%SZZ(i, j, Me%EulerModel(em)%KFloor(i, j) -1)) then 
+                                        !particle at bottom
+                                        NbrBottomDepositedTracersInDomain =  NbrBottomDepositedTracersInDomain + 1
+                        endif
+                        endif
+                            endif  ! CurrentPartic%Position%Surface
+                        endif      ! CurrentOrigin%Movement%Float
+                            
+                        CurrentPartic => CurrentPartic%Next
+
+            enddo  
+            endif
+                CurrentOrigin => CurrentOrigin%Next
         enddo                    
         
+            if (Me%State%Stochastic) then  !correct tracer values, beacause oil particle weathering is not computed by particle
+                Me%EulerModel(em)%Lag2Euler%FractionAirTracers             (ig) = NbrAirTracersInDomain             / Me%EulerModel(em)%ParticlesEmitted (ig)
+                Me%EulerModel(em)%Lag2Euler%FractionSurfaceTracers         (ig) = NbrSurfaceTracersInDomain         / Me%EulerModel(em)%ParticlesEmitted (ig)
+                Me%EulerModel(em)%Lag2Euler%FractionWCDispersedTracers     (ig) = NbrWCDispersedTracersInDomain     / Me%EulerModel(em)%ParticlesEmitted (ig)
+                Me%EulerModel(em)%Lag2Euler%FractionWCDissolvedTracers     (ig) = NbrWCDissolvedTracersInDomain     / Me%EulerModel(em)%ParticlesEmitted (ig)
+                Me%EulerModel(em)%Lag2Euler%FractionWCSedimentedTracers    (ig) = NbrWCSedimentedTracersInDomain    / Me%EulerModel(em)%ParticlesEmitted (ig)
+                Me%EulerModel(em)%Lag2Euler%FractionBottomDepositedTracers (ig) = NbrBottomDepositedTracersInDomain / Me%EulerModel(em)%ParticlesEmitted (ig)
         endif
 
-!RODend
-    end subroutine FillGridConcentration
+        enddo ! ig
+        enddo ! em
+        
+    end subroutine CountsNbrTracersEachDomain
 
     !--------------------------------------------------------------------------
 
@@ -37815,6 +38064,9 @@ em1:    do em =1, Me%EulerModelNumber
                                         STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR150'
                 
+            call GetWaterLevel(EulerModel%ObjHydrodynamic, EulerModel%WaterLevel, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'            
+                
                
 #ifndef _WAVES_
             if (Me%State%Waves .and. .not. Me%ConstructLag) then
@@ -37829,7 +38081,7 @@ em1:    do em =1, Me%EulerModelNumber
                     write(*,*) 
                     write(*,*) 'Error opening Wave properties'
                     write(*,*) 'Check if Wave module is properly configured'                   
-                    stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'
+                    stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR170'
                 end if
             endif      
 #endif          
@@ -38051,6 +38303,9 @@ em1:    do em =1, Me%EulerModelNumber
             !Velocity_W
             call UngetHydrodynamic (EulerModel%ObjHydrodynamic, EulerModel%Velocity_W, STAT = STAT_CALL)                    
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR240'
+            
+            call UngetHydrodynamic  (EulerModel%ObjHydrodynamic, EulerModel%WaterLevel, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR245'              
                 
 #ifndef _WAVES_
             if (Me%State%Waves  .and. .not. Me%ConstructLag) then
