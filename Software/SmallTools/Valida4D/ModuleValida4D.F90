@@ -1385,7 +1385,7 @@ do1 :                   do i = 2, iLength
                 
                 if (Me%Ycolumn > Me%TableColumns )                    stop 'ReadInputTable - ModuleValida4D - ERR90'
 
-                if (Me%Dcolumn > Me%TableColumns )                    stop 'ReadInputTable - ModuleValida4D - ERR95'
+                if (Me%Dcolumn > Me%TableColumns .and. Me%ComputeD)   stop 'ReadInputTable - ModuleValida4D - ERR95'
                 
                 do iP=1, Me%PropNumber
                     if (Me%Properties(iP)%Column >  Me%TableColumns)  write (*,*) 'ReadInputTable - ModuleValida4D - WARN100'

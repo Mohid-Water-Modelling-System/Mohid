@@ -10998,7 +10998,7 @@ i7:             if (.not. ContinuousGOTM)  then
         real(8)                             :: CoordinateX, CoordinateY
         real                                :: CoordAuxX, CoordAuxY        
         real(8)                             :: LongRef, LatRef
-        logical                             :: IgnoreOK, GeoCoordON, DischargeInSide
+        logical                             :: IgnoreOK, GeoCoordON !, DischargeInSide
         
         !Begin----------------------------------------------------------------------    
         
@@ -50117,11 +50117,10 @@ do5:            do i = ILB, IUB
         real                                        :: SecondsFromStart, DischargeFlow
         type(T_Lines), pointer                      :: LineDischarge
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
-        integer                                     :: nCells, nc
+        integer                                     :: nCells
         type (T_Polygon),   pointer                 :: ModelDomainLimit
         real                                        :: InterceptionRatio
         real                                        :: PortVelX, PortVelY, PortVelZ
-        character(len=100)                          :: AuxString
         !Begin-----------------------------------------------------------------
 
         
