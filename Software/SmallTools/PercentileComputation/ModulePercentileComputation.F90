@@ -91,7 +91,7 @@ Module ModulePercentileComputation
         character(Len=PathLength)                   :: OutputESRI
         character(Len=PathLength)                   :: OutputGeoTiff
         character(Len=PathLength)                   :: BathymFile        
-        real, dimension(:, :),     pointer          :: OutMatrix2D
+        real, dimension(:, :, :),  pointer          :: OutMatrix3D
         real, dimension(:, :),     pointer          :: Bathym2D
         real                                        :: BathymMin, BathymMax
         type (T_Parameter), pointer                 :: FirstParameter     
@@ -806,9 +806,9 @@ cd2 :           if (BlockFound) then
         IUB = Me%IUB
         JUB = Me%JUB
         
-        allocate(Me%OutMatrix2D(1:IUB,1:JUB))
+        allocate(Me%OutMatrix3D(1:IUB,1:JUB,0:Me%NumberCond))
         
-        Me%OutMatrix2D(1:IUB,1:JUB) = 0
+        Me%OutMatrix3D(1:IUB,1:JUB,:) = 0
         if (Me%WriteAsGeoTiff) then
             call ReadHD5Grid        
         endif
@@ -860,7 +860,7 @@ cd2 :           if (BlockFound) then
             call WriteESRI_GeoTiff
         end if
         
-        deallocate(Me%OutMatrix2D)
+        deallocate(Me%OutMatrix3D)
         
     end subroutine ComputePercentile
     
@@ -872,7 +872,6 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         integer                             :: i, j, STAT_CALL
         integer                             :: ObjHDF5
-        real, dimension(:,:  ), pointer     :: TranspMatrix2D
         real, dimension(:,:  ), pointer     :: CoordsX, CoordsY
         real, dimension(:,:,:), allocatable :: Aux3D
         type (T_Parameter)    , pointer     :: ParameterX
@@ -1083,7 +1082,7 @@ cd2 :           if (BlockFound) then
         
         endif    
         
-        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix2D, nItems, n, WaterPoints2D)        
+        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix3D, nItems, n, WaterPoints2D)        
         
 
         deallocate(Classes3D    ) 
@@ -1094,12 +1093,13 @@ cd2 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------
     
-    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix2D, nItems, n, WaterPoints2D)
+    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix3D, nItems, n, WaterPoints2D)
 
         !Arguments-------------------------------------------------------------
         real,   dimension(:,:,:), pointer   :: InMatrix3D
         integer,dimension(:,:  ), pointer   :: WaterPoints2D
-        real,   dimension(:,:  ), pointer   :: OutMatrix2D, Limits2D
+        real,   dimension(:,:,:), pointer   :: OutMatrix3D
+        real,   dimension(:,:  ), pointer   :: Limits2D
         integer                             :: nItems, n
         
         !Local-----------------------------------------------------------------
@@ -1140,7 +1140,8 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                         endif
                 
                             if (Me%Conditions(n)%Limit >= LimitX) then 
-                                OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j,0) + 1
+                                OutMatrix3D(i, j, n) = 1
                             endif
                         
                             exit
@@ -1164,7 +1165,8 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                             endif
                     
                             if (Me%Conditions(n)%Limit <= LimitX) then 
-                                OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j, 0) + 1
+                                OutMatrix3D(i, j, n) = 1
                             endif
                     
                         exit    
@@ -1199,7 +1201,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
         do i = 1, Me%IUB
         do j = 1, Me%JUB
             
-            if (Me%OutMatrix2D(i, j) > Me%FillValueOut) then
+            if (Me%OutMatrix3D(i, j, 0) > Me%FillValueOut) then
             
                 !if(Me%Bathym2D(i,j) < Me%BathymMin .or. Me%Bathym2D(i,j) > Me%BathymMax) then
                 !    Me%OutMatrix2D(i, j) = Me%FillValueOut
@@ -1210,7 +1212,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                     XPoint  = Me%Xorig + Me%DX * (real(j-1) + 0.5)
                     YPoint  = Me%Yorig + Me%DY * (real(i-1) + 0.5)
                     if (PointXYInsidePolySet(ParameterX%ExclusionAreas, XPoint, YPoint)) then
-                        Me%OutMatrix2D(i, j) = Me%FillValueOut
+                        Me%OutMatrix3D(i, j, :) = Me%FillValueOut
                     endif
                 endif
                 
@@ -1240,10 +1242,10 @@ iW:         if (WaterPoints2D(i,j) == 1) then
         do i = 1, Me%IUB
         do j = 1, Me%JUB
             
-            if (Me%OutMatrix2D(i, j) > Me%FillValueOut) then
+            if (Me%OutMatrix3D(i, j, 0) > Me%FillValueOut) then
             
                 if(Me%Bathym2D(i,j) < Me%BathymMin .or. Me%Bathym2D(i,j) > Me%BathymMax) then
-                    Me%OutMatrix2D(i, j) = Me%FillValueOut
+                    Me%OutMatrix3D(i, j, :) = Me%FillValueOut
                     cycle
                 endif            
             
@@ -1318,7 +1320,6 @@ iW:         if (WaterPoints2D(i,j) == 1) then
         !Local-----------------------------------------------------------------
         integer                             :: i, j, STAT_CALL
         integer                             :: ObjHDF5
-        real, dimension(:,:  ), pointer     :: TranspMatrix2D
         real, dimension(:,:  ), pointer     :: CoordsX, CoordsY
         real, dimension(:,:,:), allocatable :: Aux3D
         type (T_Parameter)    , pointer     :: ParameterX
@@ -1379,34 +1380,35 @@ iW:         if (WaterPoints2D(i,j) == 1) then
         do i = Me%IUB, 1, -1
             do j = 1, Me%JUB
                 ! Assure fill values
-                if (Me%OutMatrix2D(i,j) <= Me%FillValueOut) Me%OutMatrix2D(i,j) = Me%FillValueOut
+                if (Me%OutMatrix3D(i,j, 0) <= Me%FillValueOut) then
+                    Me%OutMatrix3D(i,j,:) = Me%FillValueOut
+                endif
             enddo
         enddo
         
-        ! Transpose Matrix
-        allocate(TranspMatrix2D   (1:Me%JUB, 1:Me%IUB))
-        do i=1, size(TranspMatrix2D, 2)
-        do j=1, size(TranspMatrix2D, 1)
-            TranspMatrix2D (j, i) = Me%OutMatrix2D (i, j)
-        enddo
-        enddo
+
         
         ! Set to 3D Matrix
-        allocate(Aux3D(1:Me%JUB, 1:Me%IUB, 1)); Aux3D = 0
-        Aux3D(:,:,1) = TranspMatrix2D(:,:)
+        allocate(Aux3D(1:Me%JUB, 1:Me%IUB, 1:Me%NumberCond+1)); Aux3D = 0
+        
+        ! Transpose Matrix
+        do i=1, Me%IUB
+        do j=1, Me%JUB
+            Aux3D (j, i,1:Me%NumberCond+1) = Me%OutMatrix3D (i, j, 0:Me%NumberCond)
+        enddo
+        enddo
         
         ! Create GeoTiff
         call CreateRaster   (FileName       = trim(Me%OutputGeoTiff)  , &
                              DriverName     = "GTiff"                 , &
-                             RasterWidth    = size(TranspMatrix2D, 1) , &
-                             RasterHeight   = size(TranspMatrix2D, 2) , &
+                             RasterWidth    = Me%JUB                  , &
+                             RasterHeight   = Me%IUB                  , &
                              DataType       = GDT_Float64             , &
-                             NumberBands    = 1                       , &
+                             NumberBands    = Me%NumberCond+1         , &
                              Projection     = projref                 , &
                              GeoTrans       = geotrans                , &
                              DataMatrix3D   = Aux3D )
         deallocate(Aux3D)
-        deallocate(TranspMatrix2D)
         
         ! Write corners of file in RasterCorners.txt
         if (Me%WriteCorners) then
@@ -1472,9 +1474,9 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                 
         do i = Me%IUB, 1, -1
             do j = 1, Me%JUB
-                if (Me%OutMatrix2D(i,j) <= Me%FillValueOut) Me%OutMatrix2D(i,j) = Me%FillValueOut
+                if (Me%OutMatrix3D(i,j, 0) <= Me%FillValueOut) Me%OutMatrix3D(i,j, 0) = Me%FillValueOut
             enddo
-            write(Line,'(4000(I4,1x))') int(Me%OutMatrix2D(i,1:Me%JUB))
+            write(Line,'(4000(I4,1x))') int(Me%OutMatrix3D(i,1:Me%JUB,0))
             Line = adjustl(Line)
             Found2Blanks = .true.
 
