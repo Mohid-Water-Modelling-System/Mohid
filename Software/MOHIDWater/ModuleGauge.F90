@@ -173,6 +173,8 @@ Module ModuleGauge
         character(LEN = StringLength)       :: FileName                 = null_str
         character(LEN = StringLength)       :: HDFFileTidalComponents   = null_str
         character(LEN = StringLength)       :: HDFFileTidalComponentsOut= null_str        
+        character(LEN = StringLength)       :: HDFPropertyName          = null_str   
+        integer                             :: HDFPropertyID            = FillValueInt
         
         type(T_XYZPoints),       pointer    :: GaugesLocation            => null() 
         
@@ -358,6 +360,23 @@ Module ModuleGauge
                 Me%HDFFileTidalON = .false.
             endif
             
+            call GetData(Me%HDFPropertyName,                                            &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'FILE_TIDAL_PROPERTY_NAME',                       &
+                         Default    = null_str,                                         &
+                         ClientModule ='ModuleGauge',                                   &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR80'            
+            
+            if (iflag/=0) then
+                Me%HDFPropertyID =GetPropertyIDNumber (PropertyName = Me%HDFPropertyName)
+            else
+                Me%HDFPropertyID = WaterLevel_
+            endif
+            
+            
+            
             if (Me%HDFFileTidalON) then
                 if (Me%Triangulation) then
                 
@@ -378,7 +397,7 @@ Module ModuleGauge
             
             
             if (Me%HDFFileTidalON) then
-                call ReadGaugeDataHDF
+                call ReadGaugeDataHDF(PropertyID = Me%HDFPropertyID)
             else
                 call ReadGaugeDataASCII
             endif
@@ -403,7 +422,7 @@ Module ModuleGauge
 
                 if (Me%HDFFileTidalOutON) then
             
-                    call WriteGaugeDataHDF
+                    call WriteGaugeDataHDF(PropertyID = Me%HDFPropertyID)
                 
                 endif
                         
@@ -527,7 +546,9 @@ if6 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadGaugeDataHDF
+    subroutine ReadGaugeDataHDF(PropertyID)
+        !Argumnent-------------------------------------------------------------
+        integer                                                 :: PropertyID
 
         !Local-----------------------------------------------------------------
         real,       dimension(:,:), pointer                     :: CoordX, CoordY 
@@ -630,7 +651,7 @@ if6 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR60' 
         
         call GetField4DHarmonicsON(Field4DID        = Me%ObjField4D,                    &
-                                   PropertyIDNumber = WaterLevel_,                      &
+                                   PropertyIDNumber = PropertyID,                      &
                                    HarmonicsON      = Field4DHarmonicsON,               &
                                    STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -643,7 +664,7 @@ if6 :           if (BlockFound) then
         endif            
         
         call GetField4DHarmonicsNumber(Field4DID        = Me%ObjField4D,                    &
-                                       PropertyIDNumber = WaterLevel_,                      &
+                                       PropertyIDNumber = PropertyID,                      &
                                        HarmonicsNumber  = HarmonicsNumber,                  &
                                        STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -653,7 +674,7 @@ if6 :           if (BlockFound) then
         allocate(HarmonicsName(HarmonicsNumber))
         
         call GetField4DHarmonicsName  (Field4DID        = Me%ObjField4D,                    &
-                                       PropertyIDNumber = WaterLevel_,                      &
+                                       PropertyIDNumber = PropertyID,                      &
                                        HarmonicsName    = HarmonicsName,                    &
                                        STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -763,7 +784,7 @@ if6 :           if (BlockFound) then
             NoAmplitude (:) = .true. 
             
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = Amplitude,                        & 
@@ -776,7 +797,7 @@ if6 :           if (BlockFound) then
             NoPhaseReal(:) = .true.             
 
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = PhaseReal,                        & 
@@ -790,7 +811,7 @@ if6 :           if (BlockFound) then
             NoPhaseImag(:) = .true.
             
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = PhaseImag,                        & 
@@ -874,7 +895,9 @@ if6 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------
     
-    subroutine WriteGaugeDataHDF
+    subroutine WriteGaugeDataHDF(PropertyID)
+        !Argumnent-------------------------------------------------------------
+        integer                                                 :: PropertyID
 
         !Local-----------------------------------------------------------------
         real,       dimension(:,:,:), pointer                   :: AmplitudeOut
@@ -958,7 +981,7 @@ if6 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR60'
         
         call GetField4DHarmonicsON(Field4DID        = Me%ObjField4D,                    &
-                                   PropertyIDNumber = WaterLevel_,                      &
+                                   PropertyIDNumber = PropertyID,                      &
                                    HarmonicsON      = Field4DHarmonicsON,               &
                                    STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -971,7 +994,7 @@ if6 :           if (BlockFound) then
         endif            
         
         call GetField4DHarmonicsNumber(Field4DID        = Me%ObjField4D,                &
-                                       PropertyIDNumber = WaterLevel_,                  &
+                                       PropertyIDNumber = PropertyID,                  &
                                        HarmonicsNumber  = HarmonicsNumber,              &
                                        STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -981,7 +1004,7 @@ if6 :           if (BlockFound) then
         allocate(HarmonicsName(HarmonicsNumber))
         
         call GetField4DHarmonicsName  (Field4DID        = Me%ObjField4D,                &
-                                       PropertyIDNumber = WaterLevel_,                  &
+                                       PropertyIDNumber = PropertyID,                  &
                                        HarmonicsName    = HarmonicsName,                &
                                        STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)      then
@@ -1065,7 +1088,7 @@ if6 :           if (BlockFound) then
             NoAmplitude (:) = .true. 
             
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = Amplitude,                        & 
@@ -1078,7 +1101,7 @@ if6 :           if (BlockFound) then
             NoPhaseReal(:) = .true.             
 
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = PhaseReal,                        & 
@@ -1092,7 +1115,7 @@ if6 :           if (BlockFound) then
             NoPhaseImag(:) = .true.
             
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
-                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  PropertyIDNumber  = PropertyID,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
                                   Field             = PhaseImag,                        & 
