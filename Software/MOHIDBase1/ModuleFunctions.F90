@@ -367,7 +367,7 @@ Module ModuleFunctions
     public :: AmpPhase_To_Complex
     public :: Complex_to_AmpPhase
 
-    !wind waves lnear theory
+    !wind waves linear theory
     public :: WaveLengthHuntsApproximation
 
     !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
@@ -5618,7 +5618,8 @@ end function
         
         !while(linha!=12)
         !
-        !   //the MAXINT value is assigned to the positions so that there is no possibility to return to that square in order to go through all the squares once
+        !   //the MAXINT value is assigned to the positions so that there is no possibility 
+        !   to return to that square in order to go through all the squares once
         !  if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
         !  {
         !       S->z1[auxINT] = path(c1,c2+1,S);
@@ -8852,7 +8853,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     end subroutine tridag
 
-
+    !
     subroutine Tridag_cyclic(a, b, c, alpha, beta, r, x, gam, bb, u, z, imin, imax)
 
         !Arguments-------------------------------------------------------------

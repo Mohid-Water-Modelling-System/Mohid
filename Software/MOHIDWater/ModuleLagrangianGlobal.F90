@@ -904,6 +904,7 @@ Module ModuleLagrangianGlobal
         real(8), dimension(:, :, :, :   ), pointer     :: GridVolume            => null()
         real,    dimension(:, :, :, :   ), pointer     :: PercentContamin       => null()
         real,    dimension(:, :, :, :, :), pointer     :: GridMass              => null()
+
                           !p, ig  
         real,    dimension(:, :),          pointer     :: MeanConc              => null()
         real,    dimension(:, :),          pointer     :: AmbientConc           => null()
@@ -1198,6 +1199,7 @@ Module ModuleLagrangianGlobal
         real,    pointer, dimension(:,:,:)      :: Velocity_U                           => null()
         real,    pointer, dimension(:,:,:)      :: Velocity_V                           => null()
         real,    pointer, dimension(:,:,:)      :: Velocity_W                           => null()
+
 
         !ObjInterfaceWaterAir
         real,    pointer, dimension(:,:  )      :: WindX                                => null()
@@ -5587,6 +5589,7 @@ em4:        do em =1, Me%EulerModelNumber
                         Default      = 100,                                            &
                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR410'       
+        
         call GetData(Me%LitterON,                                                       &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -8965,8 +8968,10 @@ SP:             if (NewProperty%SedimentPartition%ON) then
     !--------------------------------------------------------------------------
     
     subroutine ReadSectionEmission(NewOrigin)
+
         !Arguments-------------------------------------------------------------
         type(T_Origin)                  :: NewOrigin
+
         !Local-----------------------------------------------------------------    
         real, dimension(1:2)            :: Aux1D
         integer                         :: flag, STAT_CALL, em
@@ -9013,6 +9018,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             em = Locate_ModelDomain(Aux1D(1), Aux1D(2), NoDomain) 
             
             NewOrigin%Position%ModelID = em
+
             if (NoDomain) then
                 write(*,*) 'Discharge outside the domain - ',trim(NewOrigin%Name)
                 write (*,*) 'Origin ',trim(NewOrigin%Name),' is outside of the outer model domain'																						
@@ -9031,6 +9037,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
        !--------------------------------------------------------------------------
     
     subroutine ReadPolyEmission(NewOrigin, em)
+
         !Arguments-------------------------------------------------------------
         type(T_Origin)                  :: NewOrigin
         integer                         :: em
@@ -9052,6 +9059,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadPolyEmission - ModuleLagrangianGlobal - ERR010'
         if (flag == 0            ) stop 'ReadPolyEmission - ModuleLagrangianGlobal - ERR020'
  
+
         call New(NewOrigin%PolyEmission, PolyFilename)  
         call GetPolyLimits(PolyA    = NewOrigin%PolyEmission,                           &
                            Left     = NewOrigin%PolyLeft,                               &
@@ -9065,14 +9073,18 @@ SP:             if (NewProperty%SedimentPartition%ON) then
            if(STAT_CALL /= SUCCESS_) stop 'ReadPolyEmission - ModuleLagrangianGlobal - ERR030'
 
             InsideDomain = VertPolygonInsidePolygon(NewOrigin%PolyEmission, ModelDomainPolygon)
+
+
             if (InsideDomain) then
                 NewOrigin%Position%ModelID = em
                 exit
             endif
+
         enddo    
         if (.not. InsideDomain) then
             stop 'ReadPolyEmission - ModuleLagrangianGlobal - ERR040'
         endif
+    
     
     end subroutine ReadPolyEmission
     
@@ -15764,7 +15776,6 @@ d1:     do while (associated(CurrentOrigin))
     
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
-                                          !CurrentTime           = Me%ExternalVar%Now,               &
                                           CurrentTime           = Me%NextCompute,                   &
                                           X                     = Matrix1DX,                        &
                                           Y                     = Matrix1DY,                        &
@@ -15819,7 +15830,9 @@ d1:     do while (associated(CurrentOrigin))
                     
     end subroutine ActualizeMeteoOcean    
 
+    
     !--------------------------------------------------------------------------
+
 
     subroutine ActualizeMeteoOceanPartic(CurrentPartic, PropIDNumber, PropValue,        &
                                          LagPropI, EqualToAmbient, Solution)
@@ -19788,6 +19801,7 @@ MF:             if (CurrentPartic%Position%Surface) then
                         UWind = - UWind
                         VWind = - VWind
                     endif                          
+
                     !Plume velocity
                     UPlume = 0.
                     VPlume = 0.
@@ -26034,7 +26048,6 @@ CurrOr: do while (associated(CurrentOrigin))
 #endif
 
         !Begin-----------------------------------------------------------------
-
         nTotal = 0
         
         CurrentOrigin => Me%FirstOrigin
@@ -26069,6 +26082,7 @@ dw1:    do while (associated(CurrentOrigin))
     
             nTotal = nTotal + CurrentOrigin%nParticle
             CurrentOrigin => CurrentOrigin%Next
+            
         enddo dw1
 
             
@@ -31816,7 +31830,6 @@ d1:     do em =1, Me%EulerModelNumber
                 
                 Me%EulerModel(em)%Lag2Euler%GridBottomVolume             (:,:,:) = 0.
                 Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume        (:,:,:) = 0.                
-
             endif
 
          if (ConcMaxTracer) then
@@ -31848,6 +31861,7 @@ d1:     do em =1, Me%EulerModelNumber
 
     end subroutine GetDomainLimits
 
+    !--------------------------------------------------------------------------
        
     subroutine GetCoordinatesInThisDomain(HorizontalGridID, PartInside, CoordX, CoordY, i, j, Referential, Iold, Jold)
 
@@ -31928,6 +31942,7 @@ d1:     do em =1, Me%EulerModelNumber
                             
     end subroutine GetParticlePositionIJ
                             
+    !--------------------------------------------------------------------------
                             
     subroutine GetParticlePositionK(em, CurrentPartic, ig, i, j, k, WS_KLB, WS_KUB)
                         
@@ -31939,10 +31954,13 @@ d1:     do em =1, Me%EulerModelNumber
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_CALL
 
+        !Begin------------------------------------------------------------------
 
                         if (em == CurrentPartic%Position%ModelID) then
+            ! The particle has already identified itself as belonging to the domain (model) being processed 
                             k = CurrentPartic%Position%K
                         else
+            !Otherwise gets its vertical position in the current domain overlappong with the "particle registered domain"
                             k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j, CurrentPartic%Position%Z, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR20'
                         endif
@@ -31961,7 +31979,6 @@ d1:     do em =1, Me%EulerModelNumber
 
     subroutine SpreadLargeParticleAmongNeighbours(em, ig, i, j, k, nProp, ParticMass, ParticVolume)
                             
-cd0:                    if (nProp > 0) then
                             
         !Arguments---------------------------------------------------------------                                
         integer,            intent(IN)              :: i, j, k, em, ig, nProp
@@ -32050,6 +32067,7 @@ cd0:                    if (nProp > 0) then
         integer, dimension (:,:,:  ),   pointer                :: n_Neighbors       !(i,j,k)
         real,    dimension (:,:,:,:),   pointer                :: ConcFromNeighbors !(i,j,k,nprop)
 
+        !Begin------------------------------------------------------------------        
                   
         Call GetDomainLimits (em, WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB)
         nProp  =  Me%OriginDefault%nProperties 
@@ -32144,6 +32162,7 @@ cd0:                    if (nProp > 0) then
     end subroutine SmoothConcentration
                     
 
+    !--------------------------------------------------------------------------
 
     subroutine UpdateBottomAccumulation(em) 
                         
@@ -32573,7 +32592,8 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
                                 endif
                                 
                                 CurrentPartic => CurrentPartic%Next
-                            enddo
+                    enddo! while (associated(CurrentPartic))
+                
                         endif
                 endif !(CurrentOrigin%Stochastic)
 
@@ -32660,6 +32680,7 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
         integer                                     :: STAT_CALL
         logical                                     :: HaveDomain   
 
+        !Begin-----------------------------------------------------------------        
             
         do em = 1, Me%EulerModelNumber 
             
@@ -32680,6 +32701,7 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
                     NbrWCDissolvedTracers(i,j,ig) = 0.
                     NbrWCSedimentedTracers(i,j,ig) = 0.
                     NbrBottomDepositedTracers(i,j,ig) = 0.
+                    
                     Me%EulerModel(em)%Lag2Euler%ProbAirPresence(i,j,ig)        = 0.
                     Me%EulerModel(em)%Lag2Euler%ProbSurfacePresence(i,j,ig)    = 0.
                     Me%EulerModel(em)%Lag2Euler%ProbWCDispPresence(i,j,ig)     = 0.
@@ -32697,6 +32719,7 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
                 
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
+                    
                     if (CurrentOrigin%Stochastic) then
                     if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
 
@@ -32710,6 +32733,7 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
                                         cycle                    ! the particle is not inside the domain. Moves to the next particle
                                 endif
                         
+                                 ! If the particle is inside the domain updates counters
                                     k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j,         &
                                                        CurrentPartic%Position%Z, STAT = STAT_CALL)
                                     if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangianGlobal- ERR40'  
@@ -32870,6 +32894,7 @@ g2:     do ig = 1, Me%NGroups !Fills up Grid Concentration for each group of ori
                                 if (Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence       (i, j, ig) > Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence(i, j, ig) ) then    
                                     Me%EulerModel(em)%Lag2Euler%IntMaxProbWCSedPresence (i, j, ig) = Me%EulerModel(em)%Lag2Euler%ProbWCSedPresence(i, j, ig)
                             endif   
+
                         enddo
                         enddo
 
@@ -37969,6 +37994,7 @@ em1:    do em =1, Me%EulerModelNumber
             call GetGridData          (EulerModel%ObjGridData, EulerModel%Bathymetry, STAT = STAT_CALL)     
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR20'
 
+
             !Gets ExteriorPoints 2D
              call GetBoundaries      (EulerModel%ObjHorizontalMap, EulerModel%BoundaryPoints2D, &
                                         STAT = STAT_CALL)
@@ -38012,9 +38038,11 @@ em1:    do em =1, Me%EulerModelNumber
             call GetLandPoints3D(EulerModel%ObjMap, EulerModel%LandPoints3D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR90'
 
+
             !OpenPoints3D
             call GetOpenPoints3D(EulerModel%ObjMap, EulerModel%OpenPoints3D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR100'
+
 
             !Compute faces
             call GetComputeFaces3D(EulerModel%ObjMap,                               &
@@ -38022,6 +38050,7 @@ em1:    do em =1, Me%EulerModelNumber
                                     ComputeFacesV3D = EulerModel%ComputeFaces3D_V,   &
                                     STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR110'
+
 
             !Lupward, Ldownward
             call GetMixingLengthVertical(EulerModel%ObjTurbulence,                  &
@@ -38198,6 +38227,7 @@ em1:    do em =1, Me%EulerModelNumber
             !Gets Bathymetry
             call UnGetGridData (EulerModel%ObjGridData, EulerModel%Bathymetry, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR50'
+
 
             !Gets ExteriorPoints 2D
             call UngetHorizontalMap (EulerModel%ObjHorizontalMap, EulerModel%BoundaryPoints2D,   &

@@ -1204,7 +1204,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
             if (Me%OutMatrix3D(i, j, 0) > Me%FillValueOut) then
             
                 !if(Me%Bathym2D(i,j) < Me%BathymMin .or. Me%Bathym2D(i,j) > Me%BathymMax) then
-                !    Me%OutMatrix2D(i, j) = Me%FillValueOut
+                !    Me%OutMatrix3D(i, j) = Me%FillValueOut
                 !    cycle
                 !endif            
             

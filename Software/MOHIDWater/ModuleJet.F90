@@ -347,6 +347,7 @@ Module ModuleJet
         real                            :: zmax                         = null_real        
         !Discharge depth min 
         real                            :: Dmin                         = null_real        
+        !Discharge depth max         
         real                            :: Dmax                         = null_real        
         real                            :: x_old                        = null_real
         real                            :: y_old                        = null_real

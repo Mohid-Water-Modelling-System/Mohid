@@ -23,13 +23,21 @@ Module ModuleLitter
 !<<BeginBeachArea>>
 !   NAME                    : char                        [Beach Area X]
 !   DESCRIPTION                : char                     [Area where litter can beach]
-!   VEL_THRESHOLD            : m/s                        [velocity below which litter can beach]
-!   WAVE_THRESHOLD            : m                         [significant wave heiht limit below which litter can beach]
+!   WATER_COLUM_THRESHOLD   : m                           [water column limit below which litter can beach]
 !   FILENAME                : char                        [file of polygons delimiting the area where litter can beach]
 !   COAST_TYPE              : integer                     [1 - Type A, 2 - Type B, etc.]
 !   PROBABILITY             : -                           [0 = 0% beach probability , 1 = 100% - beach probability  
 !   AGE_LIMIT               : seconds                     [Age limit after beaching above which the particle 
 !                                                          is delete from module litter]
+!   BEACH_TIME_SCALE        : seconds                     [Time scale use to calculate the beach 
+!                                                          probability = 1-exp(dt/beach_time_scale). dt = (CurrentTime - LastAtualization)
+
+!   UNBEACH                 : 0/1                         [After being beach can be unbeach]
+!   UNBEACH_TIME_SCALE      : seconds                     [Time scale use to calculate the Unbeach 
+!                                                          probability = 1-exp(BeachPeriod/unbeach_time_scale)
+!   RUN_UP_EFFECT           : m                           [Beached water level (important for the unbeach process) takes in consideration the wave run up effect
+!   BEACH_SLOPE             : -                           [Beached slope, parameter use to compute the wave run up effect
+
 !<<EndBeachArea>>
 !<EndLitter>
 
@@ -107,6 +115,7 @@ Module ModuleLitter
         
     end type T_IndividualArea
 
+
     type T_BeachAreas
         type (T_IndividualArea), dimension(:), pointer  :: Individual           => null()           
         integer                                         :: Number               = null_int
@@ -175,6 +184,7 @@ Module ModuleLitter
         integer                                         :: NextOutPut           = null_int
         integer                                         :: Number               = null_int
         real,          dimension(:,:), pointer          :: AuxReal2D            => null()
+
         character (len = PathLength)                    :: OutputFile           = null_str
         character (len = PathLength)                    :: HotStartFile         = null_str        
         character (len = PathLength)                    :: InputGridFile        = null_str        
@@ -1736,7 +1746,7 @@ i5:                 if (.not.Me%ExtVar%Beach(nP)) then
     subroutine ComputeUnBeach(nArea,nP, BeachWaterLevel, Beached)        
         !Arguments-------------------------------------------------------------
         integer, intent(in)                         :: nArea, nP
-        real,    intent(in)                         :: BeachWaterLevel
+        real(8), intent(in)                         :: BeachWaterLevel
         logical, intent(out)                        :: Beached
 
         !Local-----------------------------------------------------------------
@@ -1787,6 +1797,7 @@ i3:                 if (Probability > Rand1) then
     end subroutine ComputeUnBeach    
 
     !--------------------------------------------------------------------------
+
 
     integer function ParticleID(CurrentPartic)        
         !Arguments-------------------------------------------------------------
