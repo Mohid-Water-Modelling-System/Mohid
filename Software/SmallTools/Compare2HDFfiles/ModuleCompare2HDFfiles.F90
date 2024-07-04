@@ -749,7 +749,7 @@ Module ModuleCompare2HDFfiles
                                 ObjTime             = Me%ObjTime,                       &
                                 TimeSerieDataFile   = "Compare2HDFfiles.dat",           &
                                 PropertyList        = PropertyList,                     &
-                                Extension           = "",                               &
+                                Extension           = "dat",                            &
                                 WaterPoints3D       = Me%WaterPoints3D,                 &
                                 ResultFileName      = trim(Me%FileOutTS),               &                                
                                 STAT                = STAT_CALL)
@@ -761,7 +761,7 @@ Module ModuleCompare2HDFfiles
                                 ObjTime             = Me%ObjTime,                       &
                                 TimeSerieDataFile   = "Compare2HDFfiles.dat",                 &
                                 PropertyList        = PropertyList,                     &
-                                Extension           = "",                               &
+                                Extension           = "dat",                            &
                                 WaterPoints2D       = Me%WaterPoints2D,                 &
                                 ResultFileName      = trim(Me%FileOutTS),               &                                  
                                 STAT                = STAT_CALL)

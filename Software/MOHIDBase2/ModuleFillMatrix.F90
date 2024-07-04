@@ -501,6 +501,7 @@ Module ModuleFillMatrix
         logical, dimension(:), pointer              :: NoData               => null()
         logical                                     :: Extrapolate          = .false.
         integer                                     :: ExtrapolateMethod    = null_int
+        logical                                     :: NoDataDefaultValue   = .false.
         character(len=PathLength), dimension(:), pointer :: FileNameList    => null()
         type (T_Field4D), pointer                   :: Next                 => null()
         type (T_Field4D), pointer                   :: Prev                 => null()
@@ -7284,6 +7285,17 @@ i0:     if(Me%Dim == Dim2D)then
                         call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)
                     endif
 
+                    
+                    call GetData(CurrentHDF%NoDataDefaultValue,                         &
+                                 Me%ObjEnterData , iflag,                               &
+                                 SearchType   = ExtractType,                            &
+                                 keyword      = 'NO_DATA_DEFAULT_VALUE',                &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleFillMatrix',                     &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR295'
+
+
                 endif
 
                 !The adding and multiplying functionalities are also available in ModuleField4D
@@ -9247,8 +9259,12 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                 !NeedToExtrapolate = .true.
                                 Matrix3D(i, j, k) = Me%DefaultValue(1)
                             else
+                                if (CurrentHDF%NoDataDefaultValue) then
+                                    Matrix3D(i, j, k) = Me%DefaultValue(1)
+                                else
                                 write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
                                 stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
+                                endif
                             endif
                         else
                             Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
