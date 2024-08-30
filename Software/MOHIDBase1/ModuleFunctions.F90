@@ -369,6 +369,7 @@ Module ModuleFunctions
 
     !wind waves linear theory
     public :: WaveLengthHuntsApproximation
+    public :: JONSWAP2
 
     !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
     public :: WaveRunUpHunt1959
@@ -14965,11 +14966,14 @@ D2:     do I=imax-1,2,-1
 
     !------------------------------------------------------------------------------
 
-    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
+    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,nf,tmax,dt, ETA, UU, f, s, EqualEnergy)
 
         !Arguments----------------------------------------------------
-        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,df,tmax,dt
+        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,tmax,dt
+        integer,                         intent(IN)      :: nf
         real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
+        real, dimension(:), allocatable, intent(OUT)     :: f, s
+        logical,                         intent(IN)      :: EqualEnergy
 
         !Computes the sea level and velocity time series based in a JONSWAP spectrum
         !
@@ -14982,7 +14986,7 @@ D2:     do I=imax-1,2,-1
         !       dh   - vertical discretization used to compute the average in depth velocity
         !       fmim - min frequency
         !       fmax - max frequency
-        !       df - frequency discretization
+        !       nf - number of frequencies
         !       tmax -time serie period
         !       dt - time discretization
         !
@@ -14992,24 +14996,34 @@ D2:     do I=imax-1,2,-1
         !Local----------------------------------------------------------------
         real, dimension(:,:,:), allocatable :: U
         real, dimension(:,:),   allocatable :: wave, U1
-        real, dimension(:),     allocatable :: f, z, t, w
+        real, dimension(:),     allocatable :: z, t, w
         real                                :: wp, h, SIG, K, LLC
-        real                                :: SS, SJ, phi, A, sigmaX, RAND
-        integer                             :: x, l, i, nf, nh, nt
+        real                                :: SS, SJ, phi, A, sigmaX, RAND, aux, df, dfx
+        integer                             :: x, l, i, nh, nt
 
         !Begin----------------------------------------------------------------
 
         !f=fmin:df:fmax;
-        if (df >0.) then
-            nf = int((fmax-fmin)/df)+1
+        if (nf > 1) then
+            !nf = int((fmax-fmin)/df)+1
             allocate(f(1:nf))
-            allocate(w(1:nf))
             f(1) = fmin
+            
+            if (EqualEnergy) then
+            
+            else
+                !df =  constant
+                df =  (fmax-fmin) / (nf - 1) 
             do i =2, nf
                 f(i) = f(i-1) + df
             enddo
+                
+            endif
+            
+            allocate(w(1:nf))
             w(:) = f(:)
-
+            allocate(s   (1:nf))
+            s(:) = 0.
         else
             stop "JONSWAP2 - ERR10"
         endif
@@ -15021,7 +15035,7 @@ D2:     do I=imax-1,2,-1
             nh = int(h/dh)+1
             allocate(z(1:nh))
             z(1) = 0.
-            do i =2, nf
+            do i =2, nh
                 z(i) = z(i-1) + dh
             enddo
         else
@@ -15032,9 +15046,9 @@ D2:     do I=imax-1,2,-1
         !t=0:dt:tmax;
         if (dt >0.) then
             nt = int(tmax/dt)+1
-            allocate(t(1:nh))
-            t(1) = 0
-            do i =2, nf
+        allocate(t(nt))
+        t(1) = 0.0
+        do i = 2, nt
                 t(i) = t(i-1) + dt
             enddo
 
@@ -15048,31 +15062,37 @@ D2:     do I=imax-1,2,-1
         allocate(U1  (1:nt,     1:nf))
         allocate(U   (1:nt,1:nh,1:nf))
 
-
-        wp = 1/Tp;
+    wp = 1.0 / Tp
         do x = 1, nf
              if (f(x)<wp) then
-                 sigmaX= 0.07;
+            sigmaX = 0.07
              else
-                 sigmaX = 0.09;
+            sigmaX = 0.09
              endif
 
-             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
-             SS = 0.3125*Hs**2*wp**4;
+             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4)
+             SS = 0.3125*Hs**2*wp**4
              SS = SS / f(x)**5;
-             SS = SS * exp(-1.25/(f(x)/wp)**4);
-             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
+             SS = SS * exp(-1.25/(f(x)/wp)**4)
+             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2))
 
-             !Jonsoap
-             A  = sqrt(2*SJ*df);
+             if (x == nf) then 
+                dfx = f(x)   - f(x-1)
+             else
+                dfx = f(x+1) - f(x) 
+             endif
+             !Jonswap
+             A  = sqrt(2*SJ*dfx)
+             s(x) = SJ
 
              !Pierson-Moskowitz Spectrum
-             !A = sqrt(2*SS*df);
+             !A = sqrt(2*SS*dfx);
+             !s(x) = SS
 
              call RANDOM_NUMBER(RAND)
-             phi= 2*Pi*(RAND-0.5); ! random phase of ith frequency
-
-             wave(:,x) =(A * cos(f(x)*2*pi*t(:) + phi));
+             ! random phase of the frequency
+             phi= 2*Pi*(RAND-0.5)
+             wave(:,x) =A * cos(f(x)*2*pi*t(:) + phi)
 
             !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             !%% comprimento de onda na profundidade local %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -15084,17 +15104,32 @@ D2:     do I=imax-1,2,-1
             !(.00654080*k0h.**6))); ,K=kh/h;, LLC=2*pi./K;
             LLC = WaveLengthHuntsApproximation(1/f(x), h)
             K = 2*Pi/LLC
-            SIG=sqrt(Gravity*K*tanh(K*h));
+            SIG=sqrt(Gravity*K*tanh(K*h))
+            aux = Gravity*K/SIG
             do l=1,nh
-                U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h+z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi);
+                !U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h-z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi)
+                U(:,l,x)= aux * cosh(K*(h-z(l)))/cosh(K*h) * wave(:,x)
             enddo
         enddo
         !sum in frequency
         ETA(:)  =Sum(Wave(:,:  ),2)
-        !sum in frequency
-        U1 (:,:)=Sum(U   (:,:,:),3)
-        !average in depth
+        !sum in depth
+        U1 (:,:)=Sum(U   (:,:,:),2)
+        !average in frequency
         UU (:  )=Sum(U1  (:,:  ),2) / h
+        
+        !deallocate(f)
+        !deallocate(s)          
+        deallocate(w)      
+        deallocate(z)        
+        deallocate(t)          
+        
+        !deallocate(ETA)
+        !deallocate(UU )
+        deallocate(wave)
+        deallocate(U1  )
+        deallocate(U   )
+          
 
     end subroutine JONSWAP2
 
