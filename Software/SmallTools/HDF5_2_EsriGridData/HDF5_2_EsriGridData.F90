@@ -1529,19 +1529,20 @@ do2:    do l  = 1, Me%PropNumber
          IOSTAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR20'
                     
-        write(Unit,*)'<begin_xyz>'
+        !write(Unit,*)'<begin_xyz>'
+        write(Unit,*)'X,Y,P'
         
         do i = ILB, IUB
             do j = JLB, JUB
-                if (Aux3D(i,j,k) <= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue) then
-                    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
-                else
-                    write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
+                if (Aux3D(i,j,k) >= FillValueReal/1e4 .and. Aux3D(i,j,k) /= Me%FillValue) then
+!                    write(Unit,*)CoordX(i, j), CoordY(i, j), Me%FillValue
+!                else
+                    write(Unit,*)CoordX(i, j),',',CoordY(i, j), ',', Aux3D(i,j,k)
                 endif
             enddo
         enddo
         
-        write(Unit,*)'<end_xyz>'
+        !write(Unit,*)'<end_xyz>'
                         
         call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR30'

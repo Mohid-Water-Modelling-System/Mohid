@@ -23,7 +23,7 @@ Module ModuleLitter
 !<<BeginBeachArea>>
 !   NAME                    : char                        [Beach Area X]
 !   DESCRIPTION                : char                     [Area where litter can beach]
-!   WATER_COLUM_THRESHOLD   : m                           [water column limit below which litter can beach]
+!   WATER_COLUMN_THRESHOLD  : m                           [water column limit below which litter can beach]
 !   FILENAME                : char                        [file of polygons delimiting the area where litter can beach]
 !   COAST_TYPE              : integer                     [1 - Type A, 2 - Type B, etc.]
 !   PROBABILITY             : -                           [0 = 0% beach probability , 1 = 100% - beach probability  
@@ -1624,6 +1624,9 @@ i4:                             if (Me%KillBeachLitter) then
                                     Me%ExtVar%KillPartic(nP) = .true.
                                 endif i4
                                                                 
+                            !If the particle is beached do not test other areas (or coast types)
+                            exit 
+
                         endif i5
                     enddo   d2
                 endif i1
