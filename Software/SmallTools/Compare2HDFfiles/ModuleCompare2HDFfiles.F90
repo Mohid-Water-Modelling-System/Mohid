@@ -1208,6 +1208,9 @@ i1:     if (PropertyFound) then
                 stop "ReadModelGrid - ModuleCompare2HDFfiles - ERR50"
             endif
 
+            Me%LatDefault  = 0.
+            Me%LongDefault = 0.              
+            
             call ConstructField4D(Field4DID              = Me%HDFSolution(it)%InstanceID,    &
                                   EnterDataID            = Me%ObjEnterData,                  &
                                   ExtractType            = FromBlock,                        &
@@ -1351,6 +1354,9 @@ i1:     if (PropertyFound) then
         if (flag == 0) then            
             stop "ConstructOneSolution - ModuleCompare2HDFfiles - ERR60"
         endif
+        
+        Me%LatDefault  = 0.
+        Me%LongDefault = 0.          
 
         call ConstructField4D(Field4DID         = Me%HDFSolution(it)%InstanceID,           &
                               EnterDataID       = Me%ObjEnterData,                         &
