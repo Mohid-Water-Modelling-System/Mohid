@@ -53,7 +53,7 @@ Module ModulePercentileComputation
     private :: T_Conditions
     type       T_Conditions
         character(len=StringLength)                 :: PropName
-        logical                                     :: Lower
+        logical                                     :: Below
         real                                        :: Limit
         real                                        :: Percentile
     end type  T_Conditions    
@@ -254,9 +254,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ie = is + index(AuxString(is:1000), ',')-2
             read(AuxString(is:ie),*) AuxInt
             if      (AuxInt == 0) then
-                Me%Conditions(l)%Lower = .false.
+                Me%Conditions(l)%Below = .false.
             elseif  (AuxInt == 1) then
-                Me%Conditions(l)%Lower = .true. 
+                Me%Conditions(l)%Below = .true. 
             else
                 stop 'ReadInputFile - ModulePercentileComputation - ERR30' 
             endif
@@ -809,6 +809,7 @@ cd2 :           if (BlockFound) then
         allocate(Me%OutMatrix3D(1:IUB,1:JUB,0:Me%NumberCond))
         
         Me%OutMatrix3D(1:IUB,1:JUB,:) = 0
+        Me%OutMatrix3D(1:IUB,1:JUB,0) = Me%NumberCond
         if (Me%WriteAsGeoTiff) then
             call ReadHD5Grid        
         endif
@@ -895,20 +896,20 @@ cd2 :           if (BlockFound) then
         
         ! CoordX and CoordY have one extra size because its the corners of the HDF cells
         call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = Me%IUB + 1, JLB = 1, JUB = Me%JUB + 1, STAT= STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileCheckCondition - ModulePercentileComputation - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR20'
         
         call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
                             GroupName     = 'Grid',                             &
                             Name          = 'Longitude',                        &
                             Array2D       = CoordsX,                            &
                             STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR30'
         call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
                             GroupName     = 'Grid',                             &
                             Name          = 'Latitude',                         &
                             Array2D       = CoordsY,                            &
                             STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR31'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR31'
         
         
         Me%XOrig    = CoordsX  (1,1) ! origin x (bottom left)
@@ -1126,7 +1127,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                 
                     Sum = Sum + InMatrix3D(i, j, ni)
                 
-                    if (Me%Conditions(n)%Lower) then
+                    if (Me%Conditions(n)%Below) then
                 
                     if (Sum >= Me%Conditions(n)%Percentile) then 
                     
@@ -1139,8 +1140,8 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                                 LimitX = (Limits2D(ni,2) - Limits2D(ni,1)) * dPx/dP2 + Limits2D(ni,1)
                         endif
                 
-                            if (Me%Conditions(n)%Limit >= LimitX) then 
-                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j,0) + 1
+                            if (LimitX <= Me%Conditions(n)%Limit) then 
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j,0) - 1
                                 OutMatrix3D(i, j, n) = 1
                             endif
                         
@@ -1151,7 +1152,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                     endif
                 
                     
-                        if (.not. Me%Conditions(n)%Lower) then
+                        if (.not. Me%Conditions(n)%Below) then
                     
                         if (Sum >= PercentX) then 
                     
@@ -1164,8 +1165,8 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                                 LimitX = (Limits2D(ni,2) - Limits2D(ni,2)) * dPx/dP2 + Limits2D(ni,2)
                             endif
                     
-                            if (Me%Conditions(n)%Limit <= LimitX) then 
-                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j, 0) + 1
+                            if (LimitX >= Me%Conditions(n)%Limit) then 
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j, 0) - 1
                                 OutMatrix3D(i, j, n) = 1
                             endif
                     
