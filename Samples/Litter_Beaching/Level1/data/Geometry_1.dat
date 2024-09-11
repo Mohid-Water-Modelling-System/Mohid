@@ -1,0 +1,36 @@
+MINIMUMDEPTH : 1e-6
+<begindomain>
+ ID                : 1
+ TYPE              : SIGMA
+ DOMAINDEPTH       : -99.00
+ LAYERS            : 12
+ <<beginlayers>>
+0.02
+0.04
+0.06
+0.08
+0.1
+0.1
+0.1
+0.1
+0.1
+0.1
+0.1
+0.1
+<<endlayers>>
+<enddomain>
+
+<BeginDepth>
+0.5
+2
+4.5
+8
+12.5
+17.5
+22.5
+27.5
+32.5
+37.5
+42.5
+47.5
+<EndDepth>

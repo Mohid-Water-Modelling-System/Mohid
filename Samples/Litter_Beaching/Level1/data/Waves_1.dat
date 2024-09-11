@@ -1,0 +1,25 @@
+WAVE_PERIOD              : 1
+WAVE_HEIGHT              : 1
+WAVE_DIRECTION           : 1
+
+<begin_waveperiod>
+INITIALIZATION_METHOD    : CONSTANT
+DEFAULTVALUE             : 10.0
+REMAIN_CONSTANT         : 1
+<end_waveperiod>
+
+<begin_waveheight>
+INITIALIZATION_METHOD    : CONSTANT
+DEFAULTVALUE             : 2
+REMAIN_CONSTANT         : 1
+
+!FILE_IN_TIME            	   : TIMESERIE
+!FILENAME                       : ..\..\GeneralData\Waves\DecreasingStorm.dat
+!DATA_COLUMN                    : 2
+<end_waveheight>
+
+<begin_wavedirection>
+INITIALIZATION_METHOD    : CONSTANT
+DEFAULTVALUE             : 0.0
+REMAIN_CONSTANT         : 1
+<end_wavedirection>

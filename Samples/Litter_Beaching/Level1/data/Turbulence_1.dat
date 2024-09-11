@@ -1,0 +1,6 @@
+VISCOSITY_V             : 0.00001
+VISCOSITY_H             : 20
+
+MIXLENGTH_V              : 0.5
+
+CONST_MIXING_LENGTH_HORIZONTAL : 500
