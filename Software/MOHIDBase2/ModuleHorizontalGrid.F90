@@ -1,4 +1,5 @@
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 !        IST/MARETEC, Water Modelling Group, Mohid modelling system
 !------------------------------------------------------------------------------
 !
@@ -387,6 +388,9 @@ Module ModuleHorizontalGrid
     !Input / Output
     integer, parameter :: FileOpen = 1, FileClose = 0
 
+    !Domain decomposition 
+    integer, parameter :: Lines_ = 1, Columns_ = 2, Chess_ = 3
+
 
     !Type----------------------------------------------------------------------
     type T_BorderLimits
@@ -526,7 +530,9 @@ Module ModuleHorizontalGrid
         character(PathLength)                   :: ModelPath      = null_str
         type (T_Coef2D)                         :: Coef2D
         type (T_Coef3D)                         :: Coef3D
-        logical                                 :: AutomaticLines = .false.
+        integer                                 :: AutomaticDD    = FillValueInt
+        integer                                 :: ChessLines     = FillValueInt
+        integer                                 :: ChessColumns   = FillValueInt          
         real, dimension(:, :), pointer          :: XX_IE_Global   => null()
         real, dimension(:, :), pointer          :: YY_IE_Global   => null()
         type (T_Border), dimension(:),  pointer :: Slaves_Mapping_Bound  => null()        
@@ -1226,6 +1232,7 @@ iE:         if  (Exist) then
         integer                                     :: ClientNumber, STAT_CALL, iflag
         integer                                     :: in, line, FirstLine, LastLine, i, ii, jj
         integer                                     :: SN_N_Interfaces, WE_N_Interfaces, MPI_ID
+        integer                                     :: ND
         logical                                     :: MissMatchID
 
         !Begin----------------------------------------------------------------
@@ -1349,15 +1356,55 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
 
 iAuto:  if (Me%DDecomp%Auto) then
 
-            call GetData(Value          = Me%DDecomp%AutomaticLines,                    &
+            call GetData(Value          = Me%DDecomp%AutomaticDD,                       &
                          EnterDataID    = Me%ObjEnterData2,                             &
                          flag           = iflag,                                        &
-                         keyword        = 'AUTOMATIC_LINES',                            &
+                         keyword        = 'AUTOMATIC_DD',                               &
                          SearchType     = FromFile,                                     &
-                         default        = .false.,                                      &
+                         default        = Lines_,                                       &
+                         ClientModule   = 'ModuleHorizontalGrid',                       &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
+
+            if (Me%DDecomp%AutomaticDD == Chess_) then
+
+                call GetData(Value         = Me%DDecomp%ChessLines,                     &
+                            EnterDataID    = Me%ObjEnterData2,                          &
+                            flag           = iflag,                                     &
+                            keyword        = 'CHESS_LINES',                             &
+                            SearchType     = FromFile,                                  &
+                            default        = -99,                                       &
                          ClientModule   = 'ModuleHorizontalGrid',                       &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
+
+                call GetData(Value         = Me%DDecomp%ChessColumns,                   &
+                            EnterDataID    = Me%ObjEnterData2,                          &
+                            flag           = iflag,                                     &
+                            keyword        = 'CHESS_COLUMNS',                           &
+                            SearchType     = FromFile,                                  &
+                            default        = -99,                                       &
+                            ClientModule   = 'ModuleHorizontalGrid',                    &
+                            STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'   
+                
+                ND   = Me%DDecomp%Nslaves + 1
+
+                if (Me%DDecomp%ChessColumns < 1 .or. Me%DDecomp%ChessLines < 1) then
+
+                    write(*,*) 'Number of "chess columns" * "chess lines" need to be equal or greater than 1'    
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR242'   
+
+                endif                
+
+                if (Me%DDecomp%ChessColumns * Me%DDecomp%ChessLines /= ND) then
+
+                    write(*,*) 'Number of "chess columns" * "chess lines" /= Threeds'    
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR245'   
+
+                endif
+
+            endif
 
         else
 
@@ -1368,21 +1415,21 @@ iAuto:  if (Me%DDecomp%Auto) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleHorizontalGrid',                             &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
 
             allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
             allocate(Aux1D(1:2))
 
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
 
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock2, EndBlock2, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
 
             if (.not. BlockFound) then
                 SN_N_Interfaces = 0
@@ -1399,7 +1446,7 @@ iAuto:  if (Me%DDecomp%Auto) then
                 endif
 
                 if (SN_N_Interfaces > Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'
                 endif
 
                 do line = FirstLine + 1, LastLine - 1
@@ -1411,8 +1458,8 @@ iAuto:  if (Me%DDecomp%Auto) then
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
 
                     in = in + 1
 
@@ -1431,7 +1478,7 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
-                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
                         endif
                     enddo
 
@@ -1453,14 +1500,14 @@ iAuto:  if (Me%DDecomp%Auto) then
              endif
 
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR320'
 
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock3, EndBlock3, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR330'
 
             if (.not. BlockFound) then
                 WE_N_Interfaces = 0
@@ -1475,7 +1522,7 @@ iAuto:  if (Me%DDecomp%Auto) then
                 endif
 
                 if (SN_N_Interfaces + WE_N_Interfaces /= Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR340'
                 endif
 
 
@@ -1488,8 +1535,8 @@ iAuto:  if (Me%DDecomp%Auto) then
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR350'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR360'
 
                     in = in + 1
 
@@ -1508,7 +1555,7 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
-                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR315'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR370'
                         endif
                     enddo
 
@@ -1547,12 +1594,26 @@ iAuto:  if (Me%DDecomp%Auto) then
 
         write(*,*) 'halo_points', Me%DDecomp%Halo_Points
 
-        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB .or. Me%DDecomp%AutomaticLines) then
+        if (Me%DDecomp%AutomaticDD < 0) then
+            !No Automatic decomposition method was defined
+            if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
             call AutomaticDDecompLines  ()
         else
             call AutomaticDDecompColumns()
         endif
+        elseif (Me%DDecomp%AutomaticDD == Lines_  ) then
 
+            call AutomaticDDecompLines      ()
+
+        elseif (Me%DDecomp%AutomaticDD == Columns_) then
+
+            call AutomaticDDecompColumns    ()
+
+        elseif (Me%DDecomp%AutomaticDD == Chess_) then
+
+            call AutomaticDDecompChess      ()
+
+        endif
 
 
     end subroutine AutomaticDDecomp
@@ -1691,6 +1752,161 @@ iAuto:  if (Me%DDecomp%Auto) then
     end subroutine AutomaticDDecompColumns
 
     !End------------------------------------
+
+    
+    subroutine AutomaticDDecompChess()
+
+        !Arguments------------------------------------------------------------
+
+        !Local----------------------------------------------------------------
+        integer                                     :: n, ns, ND
+        integer                                     :: ilb_map, iub_map, jlb_map, jub_map
+        integer                                     :: jWest, jEast, iSouth, iNorth
+        integer                                     :: is, in, iw, ie, cc, cl, i
+
+        !Begin----------------------------------------------------------------
+
+        !In automatic mode MOHID slices the domains along a chess patern (1:ChessLines,1:ChessColumns)
+
+        ND   = Me%DDecomp%Nslaves + 1
+
+        ns   = Me%DDecomp%Master_MPI_ID
+
+        do n=1, ND
+            if (ns + n - 1 == Me%DDecomp%MPI_ID) then
+                call FromThread_2_Chess_corners(n, ilb_map, iub_map, jlb_map, jub_map)
+                exit
+            endif
+        enddo
+
+        Me%DDecomp%Mapping%ILB = ilb_map
+        Me%DDecomp%Mapping%IUB = iub_map
+        Me%DDecomp%Mapping%JLB = jlb_map
+        Me%DDecomp%Mapping%JUB = jub_map
+
+
+        write(*,*) 'Limits i_l, i_u, J_l, J_u', Me%DDecomp%MPI_ID, ilb_map, iub_map, jlb_map, jub_map
+
+        Me%DDecomp%NInterfaces = (Me%DDecomp%ChessLines - 1) * Me%DDecomp%ChessColumns + (Me%DDecomp%ChessColumns - 1) * Me%DDecomp%ChessLines
+
+        allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
+
+        i = 0 
+        
+        do cl = 1, Me%DDecomp%ChessLines
+            do cc = 1, Me%DDecomp%ChessColumns - 1
+                
+                i = i + 1
+                
+                iw = (cl - 1) * Me%DDecomp%ChessColumns + cc - 1
+                ie = iw + 1
+
+                jWest = Me%DDecomp%Master_MPI_ID + iw 
+                jEast = Me%DDecomp%Master_MPI_ID + ie
+
+                Me%DDecomp%Interfaces(i,1) = jWest
+                Me%DDecomp%Interfaces(i,2) = jEast
+                Me%DDecomp%Interfaces(i,3) = WestEast_
+
+                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+
+                if (Me%DDecomp%MPI_ID == jWest) then
+                    Me%DDecomp%NeighbourEast = jEast
+                endif
+
+                if (Me%DDecomp%MPI_ID == jEast) then
+                    Me%DDecomp%NeighbourWest = jWest
+                endif
+
+            enddo
+        enddo
+
+        do cc = 1, Me%DDecomp%ChessColumns
+            do cl = 1, Me%DDecomp%ChessLines - 1
+                
+                i = i + 1
+
+                is = (cl - 1) * Me%DDecomp%ChessColumns + cc - 1
+                in = is + Me%DDecomp%ChessColumns
+
+                iSouth = Me%DDecomp%Master_MPI_ID + is
+                iNorth = Me%DDecomp%Master_MPI_ID + in
+
+                Me%DDecomp%Interfaces(i,1) = iSouth
+                Me%DDecomp%Interfaces(i,2) = iNorth
+                Me%DDecomp%Interfaces(i,3) = SouthNorth_
+
+                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+
+                if (Me%DDecomp%MPI_ID == iSouth) then
+                    Me%DDecomp%NeighbourNorth = iNorth
+                endif
+
+                if (Me%DDecomp%MPI_ID == iNorth) then
+                    Me%DDecomp%NeighbourSouth = iSouth
+                endif
+
+            enddo
+        enddo
+
+    end subroutine AutomaticDDecompChess
+
+    !End------------------------------------
+
+    subroutine FromThread_2_Chess_corners(nT, ilb_map, iub_map, jlb_map, jub_map)
+
+        !Arguments------------------------------------------------------------
+        integer, intent(IN)                         :: nT
+        integer, intent(OUT)                        :: ilb_map, iub_map, jlb_map, jub_map    
+
+        !Local----------------------------------------------------------------
+        integer                                     :: Chess_Line, Chess_Column
+        integer                                     :: ILB, IUB, JLB, JUB, ND
+        real                                        :: IDD, JDD, aux
+
+        !Begin----------------------------------------------------------------
+
+        ILB  = Me%DDecomp%Global%ILB
+        IUB  = Me%DDecomp%Global%IUB
+        JLB  = Me%DDecomp%Global%JLB
+        JUB  = Me%DDecomp%Global%JUB
+
+        ND   = Me%DDecomp%Nslaves + 1
+
+        if (nT > ND) then
+            stop 'FromThread_2_Chess_corners - ModuleHorizontalGrid - ERR10'
+        endif
+
+        IDD  = real (IUB - ILB + 1) / real (Me%DDecomp%ChessLines)
+        JDD  = real (JUB - JLB + 1) / real (Me%DDecomp%ChessColumns)
+
+        !locate chess line
+        aux = real(nT) / real(Me%DDecomp%ChessColumns)
+
+        if (aux ==  int(aux)) then
+            Chess_Line    = int(aux)
+        else
+            Chess_Line    = int(aux) + 1
+        endif
+
+        Chess_Column  = nT - (Chess_Line - 1) * Me%DDecomp%ChessColumns
+
+        ilb_map = ILB     + int(real(Chess_Line-1)*IDD)
+        iub_map = ILB - 1 + int(real(Chess_Line  )*IDD)
+
+        if (Chess_Line == Me%DDecomp%ChessLines) then
+            iub_map = IUB
+        endif
+
+        jlb_map = JLB     + int(real(Chess_Column-1)*JDD)
+        jub_map = JLB - 1 + int(real(Chess_Column  )*JDD)
+
+        if (Chess_Column == Me%DDecomp%ChessColumns) then
+            jub_map = JUB
+        endif
+
+    end subroutine FromThread_2_Chess_corners
+    !End------------------------------------    
 
 #endif _USE_MPI
 
