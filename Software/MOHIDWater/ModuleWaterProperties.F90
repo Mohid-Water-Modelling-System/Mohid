@@ -49,6 +49,11 @@
                                                                 !However, if the user considers the 0 option several secondries properties will be output
 !   SIMPLE_WINDOW_OUTPUT        : logical           1           !The same of SIMPLE_OUTPUT but for the windows output option
 
+!   WC_ANOMALY_OUTPUT           : logical           0           !The can connect a 2D output of the maximum value in the water column 
+                                                                
+!   WC_ANOMALY_WINDOW_OUTPUT    : logical           0           !The can connect a 2D output of the maximum value in the water column for all windows output
+    
+
 !   BOXFLUXES                   : char              -           !If specified computes box integration
 !                                                               !based on boxes file defined by this keyword
 !   ALTIMETRIC_ASSIMILATION     : 0/1               -           !Cooper-Haines altimetry assimilation method
@@ -922,6 +927,7 @@ Module ModuleWaterProperties
          logical                                :: Simple               = .false.
          integer, pointer, dimension(:)         :: BivalveTimeSeriesIndex => null()
          character(len=Stringlength), pointer, dimension(:) :: BivalveTimeSeriesNames => null()
+         logical                                :: WC_Anomaly           = .false.
     end type T_OutPut
 
     type      T_OutW
@@ -931,6 +937,7 @@ Module ModuleWaterProperties
         integer                                 :: WindowsNumber   = 0
         integer,           dimension(:),pointer :: ObjHDF5         => null()
         logical                                 :: Simple          = .false.
+         logical                                :: WC_Anomaly      = .false.  
     end type  T_OutW
 
     type       T_SubModel
@@ -10687,6 +10694,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR07')
 
+
     end subroutine Construct_PropertyOutPut
 
     !--------------------------------------------------------------------------
@@ -12230,6 +12238,29 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR90")
 
+
+        call GetData(Me%OutW%WC_Anomaly,                                                &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'WC_ANOMALY_WINDOW_OUTPUT',                         &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR100")
+
+        call GetData(Me%OutPut%WC_Anomaly,                                              &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'WC_ANOMALY_OUTPUT',                                &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR110")  
+
     end subroutine ConstructGlobalOutput
 
 
@@ -12561,8 +12592,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%NoFlux%ON)                                 &
                 call ModifyNoFluxMapping
 
-            if (Me%Coupled%AdvectionDiffusion%Yes)            &
+            if (Me%Coupled%AdvectionDiffusion%Yes .or. Me%Coupled%BoxTimeSerie%Yes) then
                 call Advection_Diffusion_Processes
+            endif
 
             if (Me%Coupled%InstantMixing%Yes)                 &
                 call InstantaneouslyMixing
@@ -14455,6 +14487,13 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         Property => Me%FirstProperty
 
 do1 :   do while (associated(Property))
+    
+            if (Property%BoxTimeSerie .and. ComputeBoxTimeSerie) then
+                    PropertyComputeBoxTimeSerie = .true.
+            else
+                    PropertyComputeBoxTimeSerie = .false.
+            endif        
+    
 cd1 :       if (Property%Evolution%AdvectionDiffusion) then
 cd2 :           if (Actual.GE.Property%Evolution%NextCompute) then
 
@@ -14619,11 +14658,6 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR100')
                     endif
 
-                    if (Property%BoxTimeSerie .and. ComputeBoxTimeSerie) then
-                            PropertyComputeBoxTimeSerie = .true.
-                    else
-                            PropertyComputeBoxTimeSerie = .false.
-                    endif
 
                     call AdvectionDiffusion(Me%ObjAdvectionDiffusion,                       &
                             Property%Concentration,                                         &
@@ -14846,7 +14880,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
                                 !$OMP END PARALLEL
                             endif
 
-                            !Integration of fluxes
+                            !!Integration of fluxes
                             call BoxDif(Me%ObjBoxDif,                        &
                                         Me%MassFluxesX,                      &
                                         Me%MassFluxesY,                      &
@@ -14899,6 +14933,97 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
 
             end if cd1
 
+
+cd100 :     if (PropertyComputeBoxTimeSerie) then
+                
+cd101 :         if (.not. Property%Evolution%AdvectionDiffusion) then
+                    
+cd102 :             if (Actual.GE.Property%Evolution%NextCompute) then 
+    
+                        !WaterFluxes
+                        call GetWaterFluxes(Me%ObjHydrodynamic,                            &
+                                            WaterFluxX = Me%ExternalVar%WaterFluxX,        &
+                                            WaterFluxY = Me%ExternalVar%WaterFluxY,        &
+                                            WaterFluxZ = Me%ExternalVar%WaterFluxZ,        &
+                                            STAT       = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                       &
+                            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR380')
+    
+                        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                        !$OMP PARALLEL PRIVATE(I,J,K)
+                        !$OMP DO SCHEDULE(STATIC, CHUNK)
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                            if (Me%ExternalVar%WaterFluxX(i,j,k) > 0.) then
+                                Me%MassFluxesX (i,j,k) = Me%ExternalVar%WaterFluxX(i,j,k) * Property%Concentration(i,j-1,k)
+                            else
+                                Me%MassFluxesX (i,j,k) = Me%ExternalVar%WaterFluxX(i,j,k) * Property%Concentration(i,j  ,k)
+                            endif
+                                
+                            if (Me%ExternalVar%WaterFluxY(i,j,k) > 0.) then
+                                Me%MassFluxesY (i,j,k) = Me%ExternalVar%WaterFluxY(i,j,k) * Property%Concentration(i-1,j,k)
+                            else
+                                Me%MassFluxesY (i,j,k) = Me%ExternalVar%WaterFluxY(i,j,k) * Property%Concentration(i,  j,k)
+                            endif
+                                
+                        end do 
+                        end do 
+                        end do 
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+                        !Sobrinho
+                        if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
+                            !$OMP PARALLEL PRIVATE(I,J,K)
+                            !$OMP DO SCHEDULE(STATIC, CHUNK)
+                            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                if (Me%ExternalVar%WaterFluxZ(i,j,k) > 0.) then
+                                    Me%MassFluxesZ (i,j,k) = Me%ExternalVar%WaterFluxZ(i,j,k) * Property%Concentration(i,j  ,k-1)
+                                else
+                                    Me%MassFluxesZ (i,j,k) = Me%ExternalVar%WaterFluxZ(i,j,k) * Property%Concentration(i,j  ,k)
+                                endif
+
+                            end do
+                            end do
+                            end do
+                            !$OMP END DO
+                            !$OMP END PARALLEL
+                        endif
+    
+    
+                        !Integration of fluxes
+                        call BoxDif(Me%ObjBoxDif,                                       &
+                                    Me%MassFluxesX,                                     &
+                                    Me%MassFluxesY,                                     &
+                                    Me%MassFluxesZ,                                     &
+                                    trim(Property%ID%Name),                             &
+                                    Me%ExternalVar%OpenPoints3D,                        &
+                                    STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                        call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR390')
+                        
+                        call UngetHydrodynamic(Me%ObjHydrodynamic, Me%ExternalVar%WaterFluxX, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR400')
+
+                        call UngetHydrodynamic(Me%ObjHydrodynamic, Me%ExternalVar%WaterFluxY, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR410')
+
+                        call UngetHydrodynamic(Me%ObjHydrodynamic, Me%ExternalVar%WaterFluxZ, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR420')
+                        
+    
+                    endif cd102
+
+                endif cd101
+            endif cd100
+    
+
             Property => Property%Next
 
         end do do1
@@ -14918,10 +15043,10 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
         nullify(OpenPoints3D)
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Visc_H, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR380')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR430')
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR390')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR440')
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
@@ -23251,16 +23376,20 @@ do9:                do k=kbottom, KUB
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                            :: WorkKLB, WorkKUB
-        logical                            :: SimpleOutPut
+        logical                            :: SimpleOutPut, WC_Anomaly
         character(len=StringLength)        :: AuxGroup
         real(8)                            :: AuxPeriod, TotalTime
         logical                            :: StoppingModel_
+        real,   dimension(:,:  ), pointer  :: Anomaly_WC_Value, Anomaly_WC_Depth
+        type (T_Size3D)                    :: SizeAux
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_Results_HDF")
 
         SimpleOutPut = .false.
+
+        WC_Anomaly   = .false.
 
         if (present(StoppingModel)) then
             StoppingModel_ = StoppingModel
@@ -23287,6 +23416,15 @@ do9:                do k=kbottom, KUB
             WorkKLB = Me%OutW%OutPutWindows(iW)%KLB
             WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
 
+            SizeAux%ILB = WorkILB
+            SizeAux%IUB = WorkIUB            
+
+            SizeAux%JLB = WorkJLB
+            SizeAux%JUB = WorkJUB            
+
+            SizeAux%KLB = WorkKLB
+            SizeAux%KUB = WorkKUB            
+
             ObjHDF5 = Me%OutW%ObjHDF5(iW)
 
             !Current output
@@ -23294,6 +23432,8 @@ do9:                do k=kbottom, KUB
             OutTime      = Me%OutW%OutPutWindows(iW)%OutTime(OutPutNumber)
 
             if (Me%OutW%Simple) SimpleOutPut = .true.
+
+            if (Me%OutW%WC_Anomaly) WC_Anomaly = .true.
 
         else
 
@@ -23305,6 +23445,8 @@ do9:                do k=kbottom, KUB
 
             WorkKLB = Me%WorkSize%KLB
             WorkKUB = Me%WorkSize%KUB
+
+            SizeAux = Me%WorkSize
 
             ObjHDF5 = Me%ObjHDF5
 
@@ -23318,12 +23460,20 @@ do9:                do k=kbottom, KUB
 
             if (Me%OutPut%Simple) SimpleOutPut = .true.
 
+            if (Me%OutPut%WC_Anomaly) WC_Anomaly = .true.
+
         endif
+
 
 TOut:   if (Actual >= OutTime) then
 
             if (Me%EndTime == OutTime) then
                 Me%OutPut%Run_End = .true.
+            endif
+
+            if (WC_Anomaly) then 
+                allocate(Anomaly_WC_Value(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
+                allocate(Anomaly_WC_Depth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
             endif
 
 PropX:      do while (associated(PropertyX))
@@ -23403,6 +23553,7 @@ sp:                     if (.not. SimpleOutPut) then
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')
 
                     if (Me%WriteHDFReal4 .and. .not. present(iW))then
+
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
 
                     call HDF5WriteData(ObjHDF5,                                         &
@@ -23410,7 +23561,8 @@ sp:                     if (.not. SimpleOutPut) then
                                        PropertyX%ID%Name,                               &
                                        PropertyX%ID%Units,                              &
                                            Array3D      = Me%Output%Aux3Dreal4,         &
-                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                                           OutputNumber = OutPutNumber,                 &
+                                           STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR90')
                     else
@@ -23420,10 +23572,76 @@ sp:                     if (.not. SimpleOutPut) then
                                            PropertyX%ID%Name,                           &
                                            PropertyX%ID%Units,                          &
                                        Array3D      = PropertyX%Concentration,          &
-                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                                           OutputNumber = OutPutNumber,                 &
+                                           STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
+                    
                     endif
+
+                    if (WC_Anomaly) then
+
+                        call WaterColumnMaxAnomaly(Matrix3D         = PropertyX%Concentration,      &
+                                                   VerticalZ        = Me%ExternalVar%SZZ,           &
+                                                   Mask             = Me%ExternalVar%OpenPoints3D,  &
+                                                   Size             = SizeAux,                      &
+                                                   PositiveAnomaly  = .true.,                       &
+                                                   Value2D          = Anomaly_WC_Value,             &
+                                                   Depth2D          = Anomaly_WC_Depth)
+
+                        call HDF5WriteData(ObjHDF5,                                                 &
+                                           trim(AuxGroup)//"MaxAnomaly/Value/"//PropertyX%ID%Name,  &
+                                           PropertyX%ID%Name,                                       &
+                                           PropertyX%ID%Units,                                      &
+                                           Array2D      = Anomaly_WC_Value,                         &
+                                           OutputNumber = OutPutNumber,                             &
+                                           STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                                  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR110')
+
+                        call HDF5WriteData(ObjHDF5,                                                 &
+                                           trim(AuxGroup)//"MaxAnomaly/Depth/"//PropertyX%ID%Name,  &
+                                           PropertyX%ID%Name,                                       &
+                                           PropertyX%ID%Units,                                      &
+                                           Array2D      = Anomaly_WC_Depth,                         &
+                                           OutputNumber = OutPutNumber,                             &
+                                           STAT         = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_)                                                  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR120')
+                        
+                        call WaterColumnMaxAnomaly(Matrix3D         = PropertyX%Concentration,      &
+                                                   VerticalZ        = Me%ExternalVar%SZZ,           &
+                                                   Mask             = Me%ExternalVar%OpenPoints3D,  &
+                                                   Size             = SizeAux,                      &
+                                                   PositiveAnomaly  = .false.,                      &
+                                                   Value2D          = Anomaly_WC_Value,             &
+                                                   Depth2D          = Anomaly_WC_Depth)
+
+                        call HDF5WriteData(ObjHDF5,                                                 &
+                                           trim(AuxGroup)//"MinAnomaly/Value/"//PropertyX%ID%Name,  &
+                                           PropertyX%ID%Name,                                       &
+                                           PropertyX%ID%Units,                                      &
+                                           Array2D      = Anomaly_WC_Value,                         &
+                                           OutputNumber = OutPutNumber,                             &
+                                           STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                                  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR130')
+
+                        call HDF5WriteData(ObjHDF5,                                                 &
+                                           trim(AuxGroup)//"MinAnomaly/Depth/"//PropertyX%ID%Name,  &
+                                           PropertyX%ID%Name,                                       &
+                                           PropertyX%ID%Units,                                      &
+                                           Array2D      = Anomaly_WC_Depth,                         &
+                                           OutputNumber = OutPutNumber,                             &
+                                           STAT         = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_)                                                  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR140')
+                        
+
+                    endif
+
 
                     if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut .and. .not. StoppingModel_) then
 
@@ -23450,7 +23668,7 @@ sp:                     if (.not. SimpleOutPut) then
                                 if (STAT_CALL /= SUCCESS_) then
                                     write(*,*) 'Cannot find Property name: ', trim(PropertyX%ID%Name)
                                     write(*,*) 'in module assimilation'
-                                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
+                                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
                                 endif
                             endif
                         end if i4
@@ -23463,7 +23681,7 @@ sp:                     if (.not. SimpleOutPut) then
                                            Array3D      = PropertyX%Assimilation%Field, &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR110')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR160')
                     endif
 
                     if (PropertyX%Evolution%Filtration%On .and. .not. SimpleOutPut) then
@@ -23475,7 +23693,7 @@ sp:                     if (.not. SimpleOutPut) then
                                            Array3D      = PropertyX%Filtration,         &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR120')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR170')
 
                     endif
 
@@ -23488,7 +23706,7 @@ sp:                     if (.not. SimpleOutPut) then
                                               Free_Velocity          = SettlingVelocity,          &
                                               STAT                   = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR130')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR180')
 
                         call HDF5WriteData(ObjHDF5,                                     &
                                            "/Results/SettlingVelocity/"//PropertyX%ID%Name,   &
@@ -23497,14 +23715,14 @@ sp:                     if (.not. SimpleOutPut) then
                                            Array3D      = SettlingVelocity,             &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR140')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR190')
 
 
                         call UngetFreeVerticalMovement(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
                                                        Array                  = SettlingVelocity,          &
                                                        STAT                   = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR200')
                     endif
 
                     if (PropertyX%UpscalingSinkSource .and. allocated(PropertyX%UpscalingMassLoss)) then
@@ -23515,7 +23733,7 @@ sp:                     if (.not. SimpleOutPut) then
                                            Array3D      = GetPointer(PropertyX%UpscalingMassLoss),  &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR121')
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR210')
                     endif
 
                     if (FirstTime) FirstTime = .false.
@@ -23544,14 +23762,14 @@ sp3:                if (.not. SimpleOutPut) then
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR160')
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR220')
 
                 call HDF5WriteData  (ObjHDF5, "/Results/"//"macroalgae distribution",   &
                                      "macroalgae distribution", "gC/m2",                &
                                      Array2D = Me%MacroAlgae%Distribution,              &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR170')
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR230')
 
             end if
 
@@ -23562,15 +23780,14 @@ sp3:                if (.not. SimpleOutPut) then
                                              WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
                                              STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR142')
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR240')
 
                         call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass",   &
                                              "seagrasses leaves biomass", "gdw/m2",                &
                                              Array2D = Me%SeagrassesLeaves%Biomass,              &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR144')
-
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR250')
 
            endif
 
@@ -23585,7 +23802,12 @@ sp3:                if (.not. SimpleOutPut) then
             !Writes everything to disk
             call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR180')
+                call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR260')
+
+            if (WC_Anomaly) then 
+                deallocate(Anomaly_WC_Value)
+                deallocate(Anomaly_WC_Depth)
+            endif                
 
         endif  TOut
 
@@ -23617,6 +23839,60 @@ sp3:                if (.not. SimpleOutPut) then
 
     !--------------------------------------------------------------------------
 
+    subroutine WaterColumnMaxAnomaly(Matrix3D, VerticalZ, Mask, Size, PositiveAnomaly, Value2D, Depth2D)
+        !Arguments-------------------------------------------------------------
+        real,       dimension(:, :, :), pointer, intent (IN)    :: Matrix3D, VerticalZ
+        integer,    dimension(:, :, :), pointer, intent (IN)    :: Mask
+        type (T_Size3D)                        , intent (IN)    :: Size
+        logical                                , intent (IN)    :: PositiveAnomaly        
+        real,       dimension(:, :   ), pointer, intent (INOUT) :: Value2D, Depth2D
+
+        !Local-----------------------------------------------------------------
+        integer                                                 :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            
+            Value2D(i, j) = -99
+            Depth2D(i, j) = -99
+            
+            if (Mask(i,j,KUB) == 1) then
+                
+                if (PositiveAnomaly) then
+                    Value2D(i, j) = FillValueReal
+                else
+                    Value2D(i, j) = - FillValueReal
+                endif                
+                
+                do k = KLB, KUB
+                    if (Mask(i,j,k) == 1) then
+                        if (PositiveAnomaly) then                    
+                            if (Matrix3D(i, j, k) > Value2D(i, j)) then
+                                Value2D(i, j) = Matrix3D(i, j, k)
+                                Depth2D(i, j) = (VerticalZ(i,j,k) + VerticalZ(i,j,k-1))/2.
+                            endif
+                        else
+                            if (Matrix3D(i, j, k) < Value2D(i, j)) then
+                                Value2D(i, j) = Matrix3D(i, j, k)
+                                Depth2D(i, j) = (VerticalZ(i,j,k) + VerticalZ(i,j,k-1))/2.
+                            endif
+                        endif
+                    endif
+                enddo
+                
+            endif
+            
+        enddo
+        enddo
+
+    end subroutine WaterColumnMaxAnomaly
+
+    !End-------------------------------------------------------------------------
+    
     subroutine OutPut_SurfaceResults_HDF
 
         !External--------------------------------------------------------------
