@@ -73,6 +73,7 @@ Module ModuleFunctions
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
+
     public  :: SumMatrixes
     interface  SumMatrixes
         module procedure SumMatrixes_R4
@@ -2680,6 +2681,9 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !$OMP END DO
         !$OMP END PARALLEL
     end subroutine SumMatrixes_R4
+
+    
+    !End-------------------------------------------------------------------------        
 
     subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
