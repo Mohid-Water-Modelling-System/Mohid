@@ -9034,6 +9034,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         type(T_Origin)                  :: NewOrigin
 
         !Local-----------------------------------------------------------------    
+        real                            :: aux
         integer                         :: flag, STAT_CALL
         
         !Begin-----------------------------------------------------------------    
@@ -9065,6 +9066,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR030'
         
+        aux = 0.9035*Pi
+        
         !Preferred direction of the Jellyfish in radians (0 => East, Pi/2 => North, Pi => West, 1.5*Pi => South) [rad]
         call GetData(NewOrigin%JellyFish%Pref_Dir,                                      &
                         Me%ObjEnterData,                                                &
@@ -9073,7 +9076,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                         keyword      ='JELLYFISH_PREF_DIR',                             &
                         ClientModule ='ModuleLagrangianGlobal',                         &
                         !Malul et al., 2024
-                        Default      = 0.9035*Pi,                                       &
+                        Default      = aux,                                             &
                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR040'        
 
