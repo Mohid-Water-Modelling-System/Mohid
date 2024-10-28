@@ -37,7 +37,7 @@
 !   WS_VALUE                    : real          [0.0001 m/s]    !Constant settling velocity
 !   WS_TYPE                     : int               [1]         !Settling velocity compute method 
 !                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3,  
-!                                                                WSPrimaryClarifier = 4, WSSand = 5, WSFlocs = 6
+!                                                                WSPrimaryClarifier = 4, WSSand = 5, WSFlocs = 6, WSBox = 7
 !   SALTINT                     : 0/1               [0]         !Use salinity effect on settling velocity
 !   SALTINTVALUE                : real            [3 psu]       !Salinity threshold concentration for affecting
 !                                                               !settling velocity
@@ -77,6 +77,10 @@ Module ModuleFreeVerticalMovement
     use ModuleTurbGOTM,         only : GetTurbGOTM_TurbEq, UnGetTurbGOTM_TurbEq
     
     use ModuleDrawing
+    
+    use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,    &
+                                       KillBoxDif
+    
     
 
 #ifdef _ENABLE_CUDA
@@ -753,7 +757,8 @@ cd2 :           if (BlockFound) then
             !Type             : integer 
             !Default          : WSConstant
             !File keyword     : FREE_DAT
-            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5,
+            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, 
+            !                   WSSand = 5, WSFlocs = 6, WSBox = 7
             !WSFlocs = 6 
             !Search Type      : FromBlock
             !Begin Block      : <beginproperty>
@@ -778,8 +783,11 @@ cd2 :           if (BlockFound) then
         
         if(NewProperty%Ws_Type == WSFlocs              ) Me%Needs%SPM = .true. 
         
-        if(NewProperty%Ws_Type == WSConstant)then
+        if(NewProperty%Ws_Type == WSConstant .or. NewProperty%Ws_Type == WSBox) then
             call SetMatrixValue(NewProperty%Velocity, Me%Size, NewProperty%Ws_Value)
+            if (NewProperty%Ws_Type == WSBox) then
+                call ConstructSpaceBox (NewProperty)   
+            endif
         endif
         
         !<BeginKeyword>
@@ -1314,6 +1322,116 @@ cd2 :           if (BlockFound) then
     end subroutine Construct_Time_Serie
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+
+
+    subroutine ConstructSpaceBox (PropertyX)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                       :: PropertyX
+        !Local----------------------------------------------------------------
+        integer                                         :: ExtractType
+        integer, dimension(:, :, :), pointer            :: PointsToFill3D
+        integer                                         :: STAT_CALL
+        integer                                         :: iflag
+        integer                                         :: i, j, k
+        integer, dimension (:, :, :), pointer           :: Boxes3D
+        integer                                         :: BoxesNumber
+        real,    dimension (:      ), pointer           :: BoxValues
+        character (len=PathLength)                      :: BoxesFilename
+        integer                                         :: ObjBoxDif
+        
+        !Begin----------------------------------------------------------------
+        
+        
+        call GetWaterPoints3D(Me%ObjMap, PointsToFill3D, STAT = STAT_CALL)
+        if (STAT_CALL/= SUCCESS_) Stop 'ConstructSpaceBox - ModuleFreeVerticalMovement - ERR05'
+         
+         ExtractType = FromBlock_
+         
+         ObjBoxDif = 0
+
+
+        !Gets name of the Box definition file
+        call GetData(BoxesFilename,                                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FILENAME',                                         &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR010'
+        
+        if (iflag==0)then
+            write(*,*)'Box File Name not given'
+            stop 'ConstructSpaceBox - ModuleFillMatrix - ERR020'
+        end if
+
+        !Starts BoxDif / Gets Boxes and number of boxes
+        call StartBoxDif(BoxDifID           = ObjBoxDif,                                &
+                         TimeID             = Me%ObjTime,                               &
+                         HorizontalGridID   = Me%ObjHorizontalGrid,                     &
+                         BoxesFilePath      = BoxesFilename,                            &
+                         WaterPoints3D      = PointsToFill3D,                           &
+                         Size3D             = Me%Size,                                  &
+                         WorkSize3D         = Me%WorkSize,                              &
+                         STAT               = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR030'
+
+        call GetBoxes(ObjBoxDif, Boxes3D = Boxes3D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR040'
+
+        call GetNumberOfBoxes(ObjBoxDif, NumberOfBoxes3D = BoxesNumber, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFillMatrix - ERR050'
+
+
+        !Gets boxes Values
+        allocate (BoxValues(BoxesNumber))
+
+        call GetData(BoxValues,                                                         &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'BOXES_VALUES',                                     &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+
+        if       (STAT_CALL .EQ. SIZE_ERR_)  then
+            write(*,*) 'Incorrect number of boxes'
+            write(*,*) 'property '//trim(PropertyX%ID%Name)            
+            stop 'ConstructSpaceBox - ModuleFillMatrix - ERR060'
+        else if ((STAT_CALL .NE. SIZE_ERR_) .AND.  (STAT_CALL .NE. SUCCESS_)) then
+            write(*,*) 'property '//trim(PropertyX%ID%Name)                        
+            stop 'ConstructSpaceBox - ModuleFillMatrix - ERR070'
+        end if
+
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Boxes3D(i,j,k) > 0) then
+                PropertyX%Velocity(i, j, k) = - BoxValues(Boxes3D(i, j, k))
+            end if
+        end do
+        end do
+        end do
+
+        call UngetBoxDif(ObjBoxDif, Boxes3D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFreeVerticalMovement - ERR080'
+
+        deallocate (BoxValues)
+
+        call KillBoxDif(ObjBoxDif, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceBox - ModuleFreeVerticalMovement - ERR090'
+        
+        
+        call UnGetMap(Me%ObjMap, PointsToFill3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSpaceBox - ModuleFreeVerticalMovement - ERR100'
+        
+
+    end subroutine ConstructSpaceBox
+
+    !--------------------------------------------------------------------------    
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

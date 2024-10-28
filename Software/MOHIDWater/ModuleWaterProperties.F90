@@ -23590,7 +23590,7 @@ sp:                     if (.not. SimpleOutPut) then
                                                    Depth2D          = Anomaly_WC_Depth)
 
                         call HDF5WriteData(ObjHDF5,                                                 &
-                                           trim(AuxGroup)//"MaxAnomaly/Value/"//PropertyX%ID%Name,  &
+                                            "/Results/"//"MaxAnomaly/Value/"//PropertyX%ID%Name,    &
                                            PropertyX%ID%Name,                                       &
                                            PropertyX%ID%Units,                                      &
                                            Array2D      = Anomaly_WC_Value,                         &
@@ -23600,7 +23600,7 @@ sp:                     if (.not. SimpleOutPut) then
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR110')
 
                         call HDF5WriteData(ObjHDF5,                                                 &
-                                           trim(AuxGroup)//"MaxAnomaly/Depth/"//PropertyX%ID%Name,  &
+                                           "/Results/"//"MaxAnomaly/Depth/"//PropertyX%ID%Name,     &
                                            PropertyX%ID%Name,                                       &
                                            PropertyX%ID%Units,                                      &
                                            Array2D      = Anomaly_WC_Depth,                         &
@@ -23619,7 +23619,7 @@ sp:                     if (.not. SimpleOutPut) then
                                                    Depth2D          = Anomaly_WC_Depth)
 
                         call HDF5WriteData(ObjHDF5,                                                 &
-                                           trim(AuxGroup)//"MinAnomaly/Value/"//PropertyX%ID%Name,  &
+                                           "/Results/"//"MinAnomaly/Value/"//PropertyX%ID%Name,     &
                                            PropertyX%ID%Name,                                       &
                                            PropertyX%ID%Units,                                      &
                                            Array2D      = Anomaly_WC_Value,                         &
@@ -23629,7 +23629,7 @@ sp:                     if (.not. SimpleOutPut) then
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR130')
 
                         call HDF5WriteData(ObjHDF5,                                                 &
-                                           trim(AuxGroup)//"MinAnomaly/Depth/"//PropertyX%ID%Name,  &
+                                           "/Results/"//"MinAnomaly/Depth/"//PropertyX%ID%Name,     &
                                            PropertyX%ID%Name,                                       &
                                            PropertyX%ID%Units,                                      &
                                            Array2D      = Anomaly_WC_Depth,                         &
