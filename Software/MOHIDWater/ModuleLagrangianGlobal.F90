@@ -500,7 +500,8 @@ Module ModuleLagrangianGlobal
 #ifndef _WAVES_
     use ModuleWaves
 #endif
-    use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, GetBathymXY, KillField4D
+    use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, GetBathymXY,     &
+                                       KillField4D
     
 #ifdef _LITTER_    
     use ModuleLitter,           only : ConstructLitter, ModifyLitter, KillLitter
@@ -1621,6 +1622,12 @@ Module ModuleLagrangianGlobal
     end type T_Property
 
 
+    type T_JellyFish_Parcel
+        real                                    :: Vel                      = null_real
+        real                                    :: Dir                      = null_real
+    end type T_JellyFish_Parcel
+
+
     !Particle List
     type T_Partic
         integer                                 :: ID
@@ -1728,6 +1735,8 @@ Module ModuleLagrangianGlobal
 
         real                                    :: WaterColumn              = null_real        
         
+        type (T_JellyFish_Parcel)               :: JellyFish
+        
     end type T_Partic
 
     !Particle deposition
@@ -1757,6 +1766,18 @@ Module ModuleLagrangianGlobal
         logical                                 :: Drowned                = OFF
         logical                                 :: AtTheBottom            = OFF
     end type T_HumanBody    
+
+    type T_JellyFish
+        logical                                 :: ON                       = .false. 
+        integer                                 :: Iter                     = null_int
+        real                                    :: Ave_Vel                  = null_real
+        real                                    :: Stdev_Vel                = null_real        
+        real                                    :: Pref_Dir                 = null_real
+        real                                    :: AngDif                   = null_real
+        real                                    :: Pref_Dir_Ave_Time        = null_real
+        real                                    :: dt                       = null_real        
+    end type T_JellyFish
+    
 
     !Origin list
     type T_Origin
@@ -1919,6 +1940,9 @@ Module ModuleLagrangianGlobal
         integer, dimension(:), pointer          :: LC50Type                => null()
         character(LEN=StringLength), dimension(:), pointer  :: LC50Specie     => null()
         real, dimension(:), pointer             :: LC50Value               => null() 																					
+        
+        type (T_JellyFish)                      :: JellyFish
+        
     end type T_Origin
 
     type T_OptionsStat
@@ -1955,6 +1979,7 @@ Module ModuleLagrangianGlobal
         integer                                     :: LagPropI             = null_int
         logical                                     :: EqualToAmbient       = .false.
         logical                                     :: FileListMode         = .false.  
+        logical                                     :: ChangeInTime         = .false.   
     end type T_MetOceanProp
 
     type T_MeteoOcean
@@ -4177,6 +4202,16 @@ i1:         if (PropertyFound) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
                 
+                call GetData(Me%MeteoOcean%Prop(nProp)%ChangeInTime,                &
+                             Me%ObjEnterData,                                       &
+                             flag,                                                  &
+                             SearchType   = FromBlockInBlock,                       &
+                             keyword      ='CHANGE_IN_TIME',                        &
+                             default      = .true.,                                 &
+                             ClientModule ='ModuleLagrangianGlobal',                &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR35'                
+                
                 call ConstructMeteoOceanProperties(nProp, ClientNumber)                
 
             else i1
@@ -4328,7 +4363,15 @@ i1:     if (BlockInBlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR30'
 
                 FileName = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName
+                
+                
+                
+                if (Me%MeteoOcean%Prop(nProp)%ChangeInTime) then
                 TimeOk   = CheckHDF5_IntersectRun(FileName, Me%ExternalVar%BeginTime, Me%ExternalVar%EndTime)
+                else
+                    TimeOk   = .true. 
+                endif
+                
                 if (TimeOk) then
                     Me%MeteoOcean%Prop(nProp)%Field(i)%TimeOk = .true.
                 endif                
@@ -8964,7 +9007,114 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1830'
         endif    
 
+        !If the user wants to add Jelly fish movement to lagrangian particles
+        call GetData(NewOrigin%JellyFish%ON,                                            &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_ON',                                   &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        Default      = .false.,                                         &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1840'  
+        
+        if (NewOrigin%JellyFish%ON) then
+            
+            call ReadJellyFishOptions(NewOrigin)
+            
+        endif
+        
     end subroutine ConstructOneOrigin
+    !--------------------------------------------------------------------------
+    
+
+    subroutine ReadJellyFishOptions(NewOrigin)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Origin)                  :: NewOrigin
+
+        !Local-----------------------------------------------------------------    
+        integer                         :: flag, STAT_CALL
+        
+        !Begin-----------------------------------------------------------------    
+        
+        
+        !Default assumed to the results for Israel of "Malul et al., 2024, Current Biology 34, 1-6. 
+        
+        !Average velocity of the Jellyfish in m/s
+        call GetData(NewOrigin%JellyFish%Ave_Vel,                                       &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_AVERAGE_VEL',                          &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 0.1,                                             &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR020'
+        
+        !standard deviation velocity of the Jellyfish assuming a normal distribution in m/s
+        call GetData(NewOrigin%JellyFish%StDev_Vel,                                     &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_STDEV_VEL',                            &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 0.03,                                            &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR030'
+        
+        !Preferred direction of the Jellyfish in radians (0 => East, Pi/2 => North, Pi => West, 1.5*Pi => South) [rad]
+        call GetData(NewOrigin%JellyFish%Pref_Dir,                                      &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_PREF_DIR',                             &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 0.9035*Pi,                                       &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR040'        
+
+        
+        !Angular diffusivity of the Jellyfish in [rad^2/s]
+        call GetData(NewOrigin%JellyFish%AngDif,                                        &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_ANGULAR_DIFFUSIVITY',                  &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 0.0198,                                          &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR050'           
+
+        !Average time to orient to preferred direction [s]
+        call GetData(NewOrigin%JellyFish%Pref_Dir_Ave_Time,                             &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_PREF_DIR_AVE_TIME',                    &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 32.1968,                                         &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR060'           
+
+        !movement time step [s]
+        call GetData(NewOrigin%JellyFish%dt,                                            &
+                        Me%ObjEnterData,                                                &
+                        flag,                                                           &
+                        SearchType   = FromBlock,                                       &
+                        keyword      ='JELLYFISH_DT',                                   &
+                        ClientModule ='ModuleLagrangianGlobal',                         &
+                        !Malul et al., 2024
+                        Default      = 0.1,                                             &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJellyFishOptions - ModuleLagrangianGlobal - ERR070'               
+
+    end subroutine ReadJellyFishOptions
     !--------------------------------------------------------------------------
     
     subroutine ReadSectionEmission(NewOrigin)
@@ -19509,6 +19659,7 @@ CurrOr: do while (associated(CurrentOrigin))
         integer, parameter                          :: MethodFloatVel_           = 1
         real(8)                                     :: Latitude, Longitude
         real                                        :: CloudCover
+        real                                        :: JellyVel, JellyDir, dt_aux
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -20344,6 +20495,33 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     else
                         DX = (UINT + UD + UWIND + UOIL + UHNS + UStokesDrift) * Me%DT_Partic
                         DY = (VINT + VD + VWIND + VOIL + VHNS + VStokesDrift) * Me%DT_Partic
+                        
+                        if (CurrentOrigin%JellyFish%ON) then
+                            
+                            dt_aux = 0
+                            
+                            do while (dt_aux < Me%DT_Partic) 
+                                
+                                call JellyFishMovement(muv      = CurrentOrigin%JellyFish%Ave_Vel,          &
+                                                       sigmav   = CurrentOrigin%JellyFish%Stdev_Vel,        &
+                                                       theta0   = CurrentOrigin%JellyFish%Pref_Dir,         &
+                                                       sig02    = CurrentOrigin%JellyFish%AngDif,           &
+                                                       Bt       = CurrentOrigin%JellyFish%Pref_Dir_Ave_Time,&
+                                                       JellyDir = CurrentPartic%JellyFish%Dir,              &
+                                                       JellyVel = CurrentPartic%JellyFish%Vel)
+                                ! Update particle step
+                                JellyDir = CurrentPartic%JellyFish%Dir
+                                JellyVel = CurrentPartic%JellyFish%Vel   
+                                
+                                DX = DX + JellyVel * cos(JellyDir) * CurrentOrigin%JellyFish%dt
+                                DY = DY + JellyVel * sin(JellyDir) * CurrentOrigin%JellyFish%dt
+                                
+                                dt_aux = dt_aux + CurrentOrigin%JellyFish%dt
+                                
+                            enddo
+                            
+                        endif
+                        
                     endif
                 else
                     DX         =  UD           * Me%DT_Partic
@@ -20668,6 +20846,8 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPo
         if (Me%CheckRogue) then
             deallocate(Point)
         endif
+
+
 
     end subroutine MoveParticHorizontal
 
@@ -22092,6 +22272,130 @@ OIL:            if (CurrentOrigin%State%Oil) then
 
     !--------------------------------------------------------------------------
     
+    subroutine JellyFishMovement(muv, sigmav, theta0, sig02, Bt, JellyDir, JellyVel)
+    
+        !Arguments-------------------------------------------------------------
+        real,   intent(IN)      :: muv, sigmav, theta0, sig02, Bt
+        real,   intent(INOUT)   :: JellyDir, JellyVel
+        !Local----------------------------------------------------------------
+
+
+        ! Parameters:
+        real, parameter :: At = 0.05
+        real, parameter :: dt = 0.1          
+    
+        ! BCRW (Biased Correlated Random Walk) parameters
+        !real, parameter :: sig02 = 0.0198 ! Angular diffusivity
+        !real, parameter :: theta0 = 0.9035 * 3.141592653589793 ! Preferred direction in radians
+        !real, parameter :: Bt = 32.1968 ! Average time to reorient to the preferred direction
+        !! Fixed parameters
+        !real, parameter :: muv = 0.1 ! Mean swimming speed
+        !real, parameter :: sigmav = 0.03 ! Standard deviation of swimming speed
+
+        ! Local variables
+        real    :: delta
+        real    :: a, b, c, xr
+        real    :: deltheta
+        real    :: Z(3), W_normalized(3), W_cdf(3)
+        logical :: Cid(3)
+        integer :: idxLocation, direction
+        
+        !Begin----------------------------------------------------------------
+        
+        
+
+        ! Initialize particle direction if NaN
+        if (JellyDir == null_real) then
+            call random_number(xr)
+            JellyDir = 2 * 3.141592653589793 * xr
+            !JellyDir = theta0
+        end if
+
+        ! Initialize particle swimming speed if NaN
+        if (JellyVel == null_real) then
+            JellyVel = normal_random(muv, sigmav)
+        end if
+
+        delta = sqrt(At * dt)
+
+        ! Calculate probabilities
+        a = dt * (sig02 / (2 * delta**2) + (JellyDir - theta0) / (2 * Bt * delta)) ! Turn clockwise
+        b = dt * (sig02 / (2 * delta**2) - (JellyDir - theta0) / (2 * Bt * delta)) ! Turn anticlockwise
+        c = 1 - a - b ! No turn
+
+        Z = [a, b, c]
+        W_normalized = Z / sum(Z)
+        W_cdf = cumsum(W_normalized)
+
+        call random_number(xr)
+        
+        Cid(:) = .false.
+        
+        if (W_cdf(1) > xr) then
+            Cid(1) = .true.
+        endif
+        
+        if (W_cdf(2) > xr) then
+            Cid(2) = .true.
+        endif
+
+        if (W_cdf(3) > xr) then
+            Cid(3) = .true.
+        endif
+
+        if (Cid(1)) then
+            idxLocation = 0
+        else if (Cid(2)) then
+            idxLocation = 1
+        else
+            idxLocation = 2
+        end if
+
+        select case(idxLocation)
+            case(0)
+                direction = -1 ! Turn anticlockwise
+            case(1)
+                direction = 1 ! Turn clockwise
+            case default
+                direction = 0
+        end select
+
+        deltheta = delta * real(direction)
+        JellyDir = JellyDir + deltheta
+
+    end subroutine JellyFishMovement
+    
+    !--------------------------------------------------------------------------    
+
+    function cumsum(arr)
+        real, intent(in) :: arr(:)
+        real :: cumsum(size(arr))
+        cumsum(1) = arr(1)
+        cumsum(2:) = arr(2:) + cumsum(1:size(arr)-1)
+    end function cumsum
+    
+    !--------------------------------------------------------------------------    
+
+  function normal_random(a, b) result(random_value)
+    real, intent(in) :: a, b
+    real :: random_value, u1, u2, z0
+    real, parameter :: pi = 3.14159265358979323846
+
+    !
+    ! Fortran's intrinsic random number generator
+    call random_number(u1)
+    call random_number(u2)
+
+    ! Box-Muller transform
+    z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * pi * u2)
+
+    ! Scale and shift to match desired distribution
+    random_value = a + b * z0
+    
+  end function normal_random
+
+    
+    !--------------------------------------------------------------------------
 
     subroutine VolumeVariation ()
 
