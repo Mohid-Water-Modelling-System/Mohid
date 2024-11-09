@@ -1769,7 +1769,6 @@ Module ModuleLagrangianGlobal
 
     type T_JellyFish
         logical                                 :: ON                       = .false. 
-        integer                                 :: Iter                     = null_int
         real                                    :: Ave_Vel                  = null_real
         real                                    :: Stdev_Vel                = null_real        
         real                                    :: Pref_Dir                 = null_real
@@ -9041,6 +9040,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         
         
         !Default assumed to the results for Israel of "Malul et al., 2024, Current Biology 34, 1-6. 
+         !(Israel, jellyfish specie Rhopilema nomadica)
         
         !Average velocity of the Jellyfish in m/s
         call GetData(NewOrigin%JellyFish%Ave_Vel,                                       &
@@ -20503,15 +20503,17 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                             
                             dt_aux = 0
                             
+                            ! Initialize particle swimming speed 
+                            if (CurrentPartic%JellyFish%Vel == null_real) then
+                                CurrentPartic%JellyFish%Vel = normal_random(CurrentOrigin%JellyFish%Ave_Vel, CurrentOrigin%JellyFish%Stdev_Vel)
+                            end if
+                            
                             do while (dt_aux < Me%DT_Partic) 
                                 
-                                call JellyFishMovement(muv      = CurrentOrigin%JellyFish%Ave_Vel,          &
-                                                       sigmav   = CurrentOrigin%JellyFish%Stdev_Vel,        &
-                                                       theta0   = CurrentOrigin%JellyFish%Pref_Dir,         &
+                                call JellyFishDirection(theta0   = CurrentOrigin%JellyFish%Pref_Dir,         &
                                                        sig02    = CurrentOrigin%JellyFish%AngDif,           &
                                                        Bt       = CurrentOrigin%JellyFish%Pref_Dir_Ave_Time,&
-                                                       JellyDir = CurrentPartic%JellyFish%Dir,              &
-                                                       JellyVel = CurrentPartic%JellyFish%Vel)
+                                                        JellyDir = CurrentPartic%JellyFish%Dir)
                                 ! Update particle step
                                 JellyDir = CurrentPartic%JellyFish%Dir
                                 JellyVel = CurrentPartic%JellyFish%Vel   
@@ -20840,7 +20842,6 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPo
                     write(*,*) 'Rogue particle - inside land - partic id =', CurrentPartic%ID
                 endif
             endif                        
-            
             
             CurrentPartic => CurrentPartic%Next
 
@@ -22275,115 +22276,73 @@ OIL:            if (CurrentOrigin%State%Oil) then
 
     !--------------------------------------------------------------------------
     
-    subroutine JellyFishMovement(muv, sigmav, theta0, sig02, Bt, JellyDir, JellyVel)
+    subroutine JellyFishDirection(theta0, sig02, Bt, JellyDir)
     
         !Arguments-------------------------------------------------------------
-        real,   intent(IN)      :: muv, sigmav, theta0, sig02, Bt
-        real,   intent(INOUT)   :: JellyDir, JellyVel
+        real,   intent(IN)      :: theta0, sig02, Bt
+        real,   intent(INOUT)   :: JellyDir
         !Local----------------------------------------------------------------
 
 
         ! Parameters:
-        real, parameter :: At = 0.05
+        !real, parameter :: At = 0.05
         real, parameter :: dt = 0.1          
+        !delta = sqrt(At * dt)        
+        real, parameter :: delta = 0.070710678
     
-        ! BCRW (Biased Correlated Random Walk) parameters
+        ! BCRW (Biased Correlated Random Walk) parameters (Israel, Rhopilema nomadica)
         !real, parameter :: sig02 = 0.0198 ! Angular diffusivity
         !real, parameter :: theta0 = 0.9035 * 3.141592653589793 ! Preferred direction in radians
         !real, parameter :: Bt = 32.1968 ! Average time to reorient to the preferred direction
-        !! Fixed parameters
         !real, parameter :: muv = 0.1 ! Mean swimming speed
         !real, parameter :: sigmav = 0.03 ! Standard deviation of swimming speed
 
         ! Local variables
-        real    :: delta
-        real    :: a, b, c, xr
-        real    :: deltheta
-        real    :: Z(3), W_normalized(3), W_cdf(3)
-        logical :: Cid(3)
-        integer :: idxLocation, direction
+        real    :: a, b, ab, xr
+        integer :: direction
         
         !Begin----------------------------------------------------------------
         
         
 
-        ! Initialize particle direction if NaN
+        ! Initialize particle direction 
         if (JellyDir == null_real) then
             call random_number(xr)
-            JellyDir = 2 * 3.141592653589793 * xr
-            !JellyDir = theta0
+            JellyDir = 2 * Pi * xr
         end if
-
-        ! Initialize particle swimming speed if NaN
-        if (JellyVel == null_real) then
-            JellyVel = normal_random(muv, sigmav)
-        end if
-
-        delta = sqrt(At * dt)
 
         ! Calculate probabilities
         a = dt * (sig02 / (2 * delta**2) + (JellyDir - theta0) / (2 * Bt * delta)) ! Turn clockwise
         b = dt * (sig02 / (2 * delta**2) - (JellyDir - theta0) / (2 * Bt * delta)) ! Turn anticlockwise
-        c = 1 - a - b ! No turn
+        !c = 1 - a - b ! No turn
 
-        Z = [a, b, c]
-        W_normalized = Z / sum(Z)
-        W_cdf = cumsum(W_normalized)
+        ab = a + b
 
         call random_number(xr)
         
-        Cid(:) = .false.
-        
-        if (W_cdf(1) > xr) then
-            Cid(1) = .true.
-        endif
-        
-        if (W_cdf(2) > xr) then
-            Cid(2) = .true.
-        endif
-
-        if (W_cdf(3) > xr) then
-            Cid(3) = .true.
-        endif
-
-        if (Cid(1)) then
-            idxLocation = 0
-        else if (Cid(2)) then
-            idxLocation = 1
-        else
-            idxLocation = 2
-        end if
-
-        select case(idxLocation)
-            case(0)
+        if     (xr < a) then
                 direction = -1 ! Turn anticlockwise
-            case(1)
+        elseif (xr < ab) then
                 direction = 1 ! Turn clockwise
-            case default
-                direction = 0
-        end select
+        elseif (xr <= 1) then
+            direction = 0 ! no turn
+        endif
 
-        deltheta = delta * real(direction)
-        JellyDir = JellyDir + deltheta
+        JellyDir = JellyDir +  delta * real(direction)
 
-    end subroutine JellyFishMovement
+    end subroutine JellyFishDirection
     
     !--------------------------------------------------------------------------    
 
-    function cumsum(arr)
-        real, intent(in) :: arr(:)
-        real :: cumsum(size(arr))
-        cumsum(1) = arr(1)
-        cumsum(2:) = arr(2:) + cumsum(1:size(arr)-1)
-    end function cumsum
+    function normal_random(a, b) result(random_value)
     
-    !--------------------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
+        real,   intent(IN)      ::  a, b
+        real                    :: random_value
+        !Local----------------------------------------------------------------
+        real                    :: u1, u2, z0
 
-  function normal_random(a, b) result(random_value)
-    real, intent(in) :: a, b
-    real :: random_value, u1, u2, z0
-    real, parameter :: pi = 3.14159265358979323846
-
+        !Begin----------------------------------------------------------------        
     !
     ! Fortran's intrinsic random number generator
     call random_number(u1)
