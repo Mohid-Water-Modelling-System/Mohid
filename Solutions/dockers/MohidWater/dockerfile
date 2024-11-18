@@ -1,0 +1,91 @@
+# Base image
+FROM ubuntu:22.04 AS base
+
+# Metadata about the image
+LABEL maintainer="Joao Rodrigues <joao.rodrigues@hidromod.com>"
+LABEL version="1.0"
+LABEL created="2024-11-18"
+LABEL revised="2024-11-18"
+
+# Compiler stage
+FROM intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04 AS build
+
+# Atualiza a lista de pacotes e instala ferramentas essenciais para compilação
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    apt update && \
+    apt install m4 autoconf automake gcc -y
+	
+# Copia scripts externos e código-fonte do host para o container
+COPY Solutions/dockers/externalSoftware/ /externalSoftware
+COPY Software/ /src
+
+# Define o shell padrão como Bash (pode ser necessário para scripts)
+RUN ln -sf /bin/bash /bin/sh
+# Caso seja necessário um link explícito para bash no caminho
+# RUN ln -sf /bin/bash /usr/bin/bash
+
+# Instala a biblioteca Zlib usando o script fornecido
+RUN chmod +x /externalSoftware/install_zlib.sh && \
+    ./externalSoftware/install_zlib.sh
+
+# Instala a biblioteca HDF5 usando o script fornecido
+RUN chmod +x /externalSoftware/install_hdf5.sh && \
+    ./externalSoftware/install_hdf5.sh
+
+# Define variáveis de ambiente para diretórios de instalação
+ENV DIRINSTALL=/root/apps_intel
+ENV zlib='zlib-1.2.11'
+ENV hdf5='hdf5-1.8.17'
+
+# Configura o ambiente para Zlib
+ENV ZLIB=$DIRINSTALL/$zlib
+ENV PATH=$PATH:$ZLIB/lib:$ZLIB/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZLIB/lib
+
+# Configura o ambiente para HDF5
+ENV HDF5=$DIRINSTALL/$hdf5
+ENV PATH=$PATH:$HDF5/bin:$HDF5/lib:$HDF5/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5/lib
+
+# Define o caminho do código-fonte no container
+ENV SRCPATH=/src
+
+# Prepara as dependências do Numerical Recipes usando o script fornecido
+RUN cd /src && \
+    ifort -O0 -w -cpp -real-size 64 -convert little_endian -fPIC -heap-arrays 64 -fp-model source -xHost -ip -fpe0 -fpp -D_NO_NETCDF -D_INCREASE_MAXINSTANCES_EXTRA -D_LAGRANGIAN_GLOBAL_ -D_USE_NIX -D_STACK_LIMITS_ -D_BIG_LINE_LENGTH -D_INCREASE_MAXINSTANCES $SRCPATH/MOHIDBase1/ModuleGlobalData.F90  $SRCPATH/MOHIDBase1/ModuleLUD.F90  $SRCPATH/MOHIDBase1/ModuleTriangulation.F90  $SRCPATH/MOHIDBase1/ModuleTime.F90  $SRCPATH/MOHIDBase1/ModuleEnterData.F90  $SRCPATH/MOHIDBase1/ModuleWWTPQ.F90  $SRCPATH/MOHIDBase1/ModuleStopWatch.F90  $SRCPATH/MOHIDBase1/ModuleFunctions.F90  $SRCPATH/MOHIDBase1/ModuleMacroAlgae.F90  $SRCPATH/MOHIDBase1/ModuleWaterQuality.F90  $SRCPATH/MOHIDBase1/ModuleSedimentQuality.F90  $SRCPATH/MOHIDBase1/ModuleHydroIntegration.F90  $SRCPATH/MOHIDBase1/ModuleSeagrassWaterInteraction.F90  $SRCPATH/MOHIDBase1/ModuleHDF5.F90  $SRCPATH/MOHIDBase1/ModuleHDF5_OO.F90  $SRCPATH/MOHIDBase1/ModuleSeagrassSedimInteraction.F90  $SRCPATH/MOHIDBase1/ModuleLife.F90  $SRCPATH/MOHIDBase1/ModuleCEQUALW2.F90  $SRCPATH/MOHIDBase1/ModuleBenthos.F90  $SRCPATH/MOHIDBase1/ModuleDrawing.F90  $SRCPATH/MOHIDBase1/ModuleProfile.F90  $SRCPATH/MOHIDBase1/ModuleBivalve.F90  $SRCPATH/MOHIDBase1/ModuleBenthicEcology.F90 $SRCPATH/MOHIDBase1/ModuleInterface.F90  $SRCPATH/MOHIDBase1/ModuleTimeSerie.F90  $SRCPATH/MOHIDBase1/ModuleDischarges.F90  $SRCPATH/MOHIDBase1/ModuleLightExtinction.F90  $SRCPATH/MOHIDBase1/ModuleDrainageNetwork.F90  $SRCPATH/MOHIDBase1/ModuleMPImanagement.F90  $SRCPATH/MOHIDBase1/ModuleTask2000.F $SRCPATH/MOHIDBase2/ModuleHorizontalGrid.F90  $SRCPATH/MOHIDBase2/ModuleStatistic.F90  $SRCPATH/MOHIDBase2/ModuleGridData.F90  $SRCPATH/MOHIDBase2/ModuleBasinGeometry.F90  $SRCPATH/MOHIDBase2/ModuleHorizontalMap.F90  $SRCPATH/MOHIDBase2/ModuleBoxDif.F90  $SRCPATH/MOHIDBase2/ModuleGeometry.F90  $SRCPATH/MOHIDBase2/ModuleMap.F90  $SRCPATH/MOHIDBase2/ModuleAdvectionDiffusion.F90  $SRCPATH/MOHIDBase2/ModuleInterpolation.F90    $SRCPATH/MOHIDBase2/ModuleTwoWay.F90  $SRCPATH/MOHIDBase2/ModuleField4D.F90  $SRCPATH/MOHIDBase2/ModuleFillMatrix.F90  $SRCPATH/MOHIDBase2/ModuleChainReactions.F90  $SRCPATH/MOHIDBase2/ModuleAtmosphere.F90 $SRCPATH/MOHIDWater/ModuleTurbine.F90  $SRCPATH/MOHIDWater/ModuleGOTM.F90  $SRCPATH/MOHIDWater/ModuleTurbGOTM.F90  $SRCPATH/MOHIDWater/ModuleFreeVerticalMovement.F90  $SRCPATH/MOHIDWater/ModuleToga.F90  $SRCPATH/MOHIDWater/ModuleGauge.F90  $SRCPATH/MOHIDWater/ModuleOil.F90  $SRCPATH/MOHIDWater/ModuleOil_0D.F90  $SRCPATH/MOHIDWater/ModuleHNS.F90  $SRCPATH/MOHIDWater/ModuleOpenBoundary.F90  $SRCPATH/MOHIDWater/ModuleTurbulence.F90  $SRCPATH/MOHIDWater/ModuleHydrodynamicFile.F90  $SRCPATH/MOHIDWater/ModuleAssimilation.F90  $SRCPATH/MOHIDWater/ModuleWaves.F90  $SRCPATH/MOHIDWater/ModuleJet.F90  $SRCPATH/MOHIDWater/ModuleSand.F90  $SRCPATH/MOHIDWater/ModuleConsolidation.F90  $SRCPATH/MOHIDWater/ModuleHydrodynamic.F90  $SRCPATH/MOHIDWater/ModuleWaterProperties.F90  $SRCPATH/MOHIDWater/ModuleLagrangian.F90  $SRCPATH/MOHIDWater/ModuleLagrangianGlobal.F90  $SRCPATH/MOHIDWater/ModuleSedimentProperties.F90  $SRCPATH/MOHIDWater/ModuleSediment.F90  $SRCPATH/MOHIDWater/ModuleInterfaceSedimentWater.F90  $SRCPATH/MOHIDWater/ModuleInterfaceWaterAir.F90  $SRCPATH/MOHIDWater/ModuleModel.F90 $SRCPATH/MOHIDWater/Main.F90 -I$HDF5/include -L$HDF5/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -ldl -I$ZLIB/include -L$ZLIB/lib -lz -lm -o MohidWater.exe
+
+## Final Stage: Prepare the MOHID application environment
+FROM base AS final
+
+# Cria o diretório principal para os binários e bibliotecas do MOHID
+RUN mkdir /mohid
+
+# Copia o executável compilado do MOHID da etapa de build
+COPY --from=build /src/MohidWater.exe /mohid/MohidWater.exe
+
+COPY --from=build /root/apps_intel /mohid_libs 
+
+# Copia as bibliotecas compiladas (zlib, hdf5, etc.) da etapa de build para o diretório do container
+COPY --from=build /root/apps_intel /mohid_libs 
+
+# Cria um subdiretório para as bibliotecas Intel necessárias
+RUN mkdir /mohid_libs/intel
+
+# Copia as bibliotecas Intel necessárias do ambiente de build para o container
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libimf.so /mohid_libs/intel/libimf.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libsvml.so /mohid_libs/intel/libsvml.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libirng.so /mohid_libs/intel/libirng.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libintlc.so.5 /mohid_libs/intel/libintlc.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifport.so.5 /mohid_libs/intel/libifport.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifcoremt.so.5 /mohid_libs/intel/libifcoremt.so.5
+
+# Adiciona os caminhos das bibliotecas ao sistema de bibliotecas compartilhadas
+RUN echo "/mohid_libs/intel" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/mpich-3.2/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/proj-4.9.3/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/netcdf-4.4.1.1/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/hdf5-1.8.17/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/zlib-1.2.11/lib" >> /etc/ld.so.conf
+
+# Atualiza o cache de bibliotecas compartilhadas para incluir os novos caminhos
+RUN ldconfig

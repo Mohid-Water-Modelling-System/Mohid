@@ -1,1 +1,0 @@
-Directory where will be publish the dockers focus in compiling and run mohid tools. 

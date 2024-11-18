@@ -1,0 +1,115 @@
+# Base image
+FROM ubuntu:22.04 AS base
+
+# Metadata about the image
+LABEL maintainer="Joao Rodrigues <joao.rodrigues@hidromod.com>"
+LABEL version="1.0"
+LABEL created="2024-11-18"
+LABEL revised="2024-11-18"
+
+# Compiler stage
+FROM intel/oneapi-hpckit:2023.2.1-devel-ubuntu22.04 AS build
+
+# Atualiza a lista de pacotes e instala ferramentas essenciais para compilação
+RUN rm -rf /etc/apt/sources.list.d/* && \
+    apt update && \
+    apt install m4 autoconf automake gcc -y
+	
+# Copia scripts externos e código-fonte do host para o container
+COPY Solutions/dockers/externalSoftware/ /externalSoftware
+COPY Software/ /src
+
+# Define o shell padrão como Bash (pode ser necessário para scripts)
+RUN ln -sf /bin/bash /bin/sh
+# Caso seja necessário um link explícito para bash no caminho
+# RUN ln -sf /bin/bash /usr/bin/bash
+
+# Instala a biblioteca Zlib usando o script fornecido
+RUN chmod +x /externalSoftware/install_zlib.sh && \
+    ./externalSoftware/install_zlib.sh
+
+# Instala a biblioteca HDF5 usando o script fornecido
+RUN chmod +x /externalSoftware/install_hdf5.sh && \
+    ./externalSoftware/install_hdf5.sh
+
+# Instala NetCDF usando o script fornecido
+RUN chmod +x /externalSoftware/install_nc.sh && \
+    ./externalSoftware/install_nc.sh
+
+# Define variáveis de ambiente para as bibliotecas instaladas
+ENV DIRINSTALL=/root/apps_intel
+ENV zlib='zlib-1.2.11'
+ENV hdf5='hdf5-1.8.17'
+ENV netcdf='netcdf-4.4.1.1'
+ENV netcdff='netcdf-fortran-4.4.4'
+
+# Configurações para Zlib
+ENV ZLIB=$DIRINSTALL/$zlib
+ENV PATH=$PATH:$ZLIB/lib:$ZLIB/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZLIB/lib
+
+# Configurações para HDF5
+ENV HDF5=$DIRINSTALL/$hdf5
+ENV PATH=$PATH:$HDF5/bin:$HDF5/lib:$HDF5/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5/lib
+
+# Configurações para NetCDF
+ENV CPPFLAGS="-I$DIRINSTALL/$hdf5/include -I$DIRINSTALL/$zlib/include"
+ENV LDFLAGS="-L$DIRINSTALL/$hdf5/lib -L$DIRINSTALL/$zlib/lib"
+ENV NETCDF=$DIRINSTALL/${netcdf}
+ENV PATH=$PATH:$NETCDF/bin:$NETCDF/lib:$NETCDF/include
+ENV NETCDF_ROOT=$NETCDF
+ENV NETCDF4_ROOT=$NETCDF
+ENV NETCDF_LIB=$NETCDF/lib
+ENV NETCDF_INC=$NETCDF/include
+ENV NETCDF_GF_ROOT=$NETCDF
+ENV NETCDF4_GF_ROOT=$NETCDF
+ENV NETCDF_GF_LIB=$NETCDF/lib
+ENV NETCDF_GF_INC=$NETCDF/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NETCDF_LIB
+ENV CPPFLAGS="$CPPFLAGS -I$NETCDF_INC"
+ENV LDFLAGS="$LDFLAGS -L$NETCDF_LIB"
+ENV NETCDFINC=$NETCDF/include
+ENV NETCDFLIB=$NETCDF/lib
+ENV NETCDF_LIB="-lnetcdf -lnetcdff"
+
+# Define o caminho do código-fonte
+ENV SRCPATH=/src
+
+# Compila os arquivos Fortran usando o compilador Intel e as bibliotecas instaladas
+RUN cd /src && \
+ifort -O0 -w -cpp -real-size 64 -convert little_endian -fPIC -heap-arrays 64 -fp-model source -xHost -ip -fpe0 -fpp -D_INCREASE_MAXINSTANCES_EXTRA -D_LAGRANGIAN_GLOBAL_ -D_USE_NIX -D_STACK_LIMITS_ -D_BIG_LINE_LENGTH -D_INCREASE_MAXINSTANCES $SRCPATH/MOHIDBase1/ModuleGlobalData.F90 $SRCPATH/MOHIDBase1/ModuleTime.F90  $SRCPATH/MOHIDBase1/ModuleEnterData.F90  $SRCPATH/MOHIDBase1/ModuleStopWatch.F90  $SRCPATH/MOHIDBase1/ModuleFunctions.F90 $SRCPATH/MOHIDBase1/ModuleHDF5.F90  $SRCPATH/MOHIDBase1/ModuleHDF5_OO.F90 $SRCPATH/MOHIDBase2/ModuleNETCDF.F90  $SRCPATH/MOHIDBase1/ModuleDrawing.F90 $SRCPATH/MOHIDBase2/ModuleHorizontalGrid.F90 $SRCPATH/SmallTools/Convert2netcdf/Convert2netcdf.F90 -I$HDF5/include -L$HDF5/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -ldl -I$ZLIB/include -L$ZLIB/lib -lz -lm -L${NETCDFLIB} $NETCDF_LIB -I${NETCDFINC} -o convert2nc.exe
+
+# Final stage: Prepare the runtime environment
+FROM base AS final
+
+# Cria diretório para os binários e bibliotecas do MOHID
+RUN mkdir /mohid
+
+# Copia o executável compilado do estágio de build
+COPY --from=build /src/convert2nc.exe /mohid/convert2nc.exe
+
+# Copia as bibliotecas compiladas para o container final
+COPY --from=build /root/apps_intel /mohid_libs 
+
+# Cria subdiretório para bibliotecas Intel
+RUN mkdir /mohid_libs/intel
+
+# Copia bibliotecas específicas da Intel necessárias para o ambiente
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libimf.so /mohid_libs/intel/libimf.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libsvml.so /mohid_libs/intel/libsvml.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libirng.so /mohid_libs/intel/libirng.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libintlc.so.5 /mohid_libs/intel/libintlc.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifport.so.5 /mohid_libs/intel/libifport.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifcoremt.so.5 /mohid_libs/intel/libifcoremt.so.5
+
+# Adiciona os caminhos das bibliotecas ao sistema de bibliotecas compartilhadas
+RUN echo "/mohid_libs/intel" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/mpich-3.2/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/proj-4.9.3/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/netcdf-4.4.1.1/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/hdf5-1.8.17/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/zlib-1.2.11/lib" >> /etc/ld.so.conf
+
+# Atualiza o cache de bibliotecas compartilhadas
+RUN ldconfig

@@ -1,0 +1,73 @@
+# MohidWater sem MPI
+
+# Base image || JGRR - LTS do ubuntu
+FROM ubuntu:22.04 AS base
+
+# Compiler
+FROM intel/oneapi-hpckit AS build
+RUN apt update && \
+    apt install m4 autoconf automake gcc -y
+RUN ls
+COPY Solutions/linuxHidromod/externalSoftware/ /externalSoftware
+COPY Software/ /src
+## tipicamente não e preciso mexer nisto
+## corresponde a zona de instalação de todos os pacotes necessarios
+RUN ln -sf /bin/bash /bin/sh
+# RUN ln -sf /bin/bash /usr/bin/bash
+
+# instalar zlib
+RUN chmod +x /externalSoftware/install_zlib.sh && \
+    ./externalSoftware/install_zlib.sh
+
+# install hdf5
+RUN chmod +x /externalSoftware/install_hdf5.sh && \
+    ./externalSoftware/install_hdf5.sh
+
+# install netcdf
+RUN chmod +x /externalSoftware/install_nc.sh && \
+    ./externalSoftware/install_nc.sh
+
+ENV DIRINSTALL=/root/apps_intel
+ENV zlib='zlib-1.2.11'
+ENV hdf5='hdf5-1.8.17'
+ENV netcdf='netcdf-4.4.1.1'
+ENV netcdff='netcdf-fortran-4.4.4'
+
+ENV ZLIB=$DIRINSTALL/$zlib
+ENV PATH=$PATH:$ZLIB/lib:$ZLIB/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ZLIB/lib
+
+ENV HDF5=$DIRINSTALL/$hdf5
+ENV PATH=$PATH:$HDF5/bin:$HDF5/lib:$HDF5/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5/lib
+
+ENV NETCDFINC=$DIRINSTALL/$netcdf/include
+ENV NETCDFLIB=$DIRINSTALL/$netcdf/lib
+
+ENV SRCPATH=/src
+
+RUN cd /src && \
+    ifort -O0 -g -traceback -debug all -w -cpp -real-size 64 -convert little_endian -fPIC -heap-arrays 64 -fp-model source -xHost -ip -fpe0 -fpp -D_GOOGLEMAPS -D_LITTER_ -D_OUTPUT_GRID_ -D_INCREASE_MAXINSTANCES_EXTRA -D_LAGRANGIAN_GLOBAL_ -D_USE_NIX -D_STACK_LIMITS_ -D_BIG_LINE_LENGTH -D_INCREASE_MAXINSTANCES $SRCPATH/MOHIDBase1/ModuleGlobalData.F90  $SRCPATH/MOHIDBase1/ModuleLUD.F90  $SRCPATH/MOHIDBase1/ModuleTriangulation.F90  $SRCPATH/MOHIDBase1/ModuleTime.F90  $SRCPATH/MOHIDBase1/ModuleEnterData.F90  $SRCPATH/MOHIDBase1/ModuleWWTPQ.F90  $SRCPATH/MOHIDBase1/ModuleStopWatch.F90  $SRCPATH/MOHIDBase1/ModuleFunctions.F90  $SRCPATH/MOHIDBase1/ModuleMacroAlgae.F90  $SRCPATH/MOHIDBase1/ModuleWaterQuality.F90  $SRCPATH/MOHIDBase1/ModuleSedimentQuality.F90  $SRCPATH/MOHIDBase1/ModuleHydroIntegration.F90  $SRCPATH/MOHIDBase1/ModuleSeagrassWaterInteraction.F90  $SRCPATH/MOHIDBase1/ModuleHDF5.F90  $SRCPATH/MOHIDBase1/ModuleHDF5_OO.F90  $SRCPATH/MOHIDBase1/ModuleSeagrassSedimInteraction.F90  $SRCPATH/MOHIDBase1/ModuleLife.F90  $SRCPATH/MOHIDBase1/ModuleCEQUALW2.F90  $SRCPATH/MOHIDBase1/ModuleBenthos.F90  $SRCPATH/MOHIDBase1/ModuleDrawing.F90  $SRCPATH/MOHIDBase1/ModuleProfile.F90  $SRCPATH/MOHIDBase1/ModuleBivalve.F90  $SRCPATH/MOHIDBase1/ModuleBenthicEcology.F90 $SRCPATH/MOHIDBase1/ModuleInterface.F90  $SRCPATH/MOHIDBase1/ModuleTimeSerie.F90  $SRCPATH/MOHIDBase1/ModuleDischarges.F90  $SRCPATH/MOHIDBase1/ModuleLightExtinction.F90  $SRCPATH/MOHIDBase1/ModuleDrainageNetwork.F90  $SRCPATH/MOHIDBase1/ModuleMPImanagement.F90  $SRCPATH/MOHIDBase1/ModuleTask2000.F $SRCPATH/MOHIDBase2/ModuleHorizontalGrid.F90  $SRCPATH/MOHIDBase2/ModuleStatistic.F90  $SRCPATH/MOHIDBase2/ModuleNETCDF.F90  $SRCPATH/MOHIDBase2/ModuleLitter.F90  $SRCPATH/MOHIDBase2/ModuleOutputGrid.F90  $SRCPATH/MOHIDBase2/ModuleGridData.F90  $SRCPATH/MOHIDBase2/ModuleBasinGeometry.F90  $SRCPATH/MOHIDBase2/ModuleHorizontalMap.F90  $SRCPATH/MOHIDBase2/ModuleBoxDif.F90  $SRCPATH/MOHIDBase2/ModuleGeometry.F90  $SRCPATH/MOHIDBase2/ModuleMap.F90  $SRCPATH/MOHIDBase2/ModuleAdvectionDiffusion.F90  $SRCPATH/MOHIDBase2/ModuleInterpolation.F90    $SRCPATH/MOHIDBase2/ModuleTwoWay.F90  $SRCPATH/MOHIDBase2/ModuleField4D.F90  $SRCPATH/MOHIDBase2/ModuleFillMatrix.F90  $SRCPATH/MOHIDBase2/ModuleChainReactions.F90  $SRCPATH/MOHIDBase2/ModuleAtmosphere.F90 $SRCPATH/MOHIDWater/ModuleTurbine.F90  $SRCPATH/MOHIDWater/ModuleGOTM.F90  $SRCPATH/MOHIDWater/ModuleTurbGOTM.F90  $SRCPATH/MOHIDWater/ModuleFreeVerticalMovement.F90  $SRCPATH/MOHIDWater/ModuleToga.F90  $SRCPATH/MOHIDWater/ModuleGauge.F90  $SRCPATH/MOHIDWater/ModuleOil.F90  $SRCPATH/MOHIDWater/ModuleOil_0D.F90  $SRCPATH/MOHIDWater/ModuleHNS.F90  $SRCPATH/MOHIDWater/ModuleOpenBoundary.F90  $SRCPATH/MOHIDWater/ModuleTurbulence.F90  $SRCPATH/MOHIDWater/ModuleHydrodynamicFile.F90  $SRCPATH/MOHIDWater/ModuleAssimilation.F90  $SRCPATH/MOHIDWater/ModuleWaves.F90  $SRCPATH/MOHIDWater/ModuleJet.F90  $SRCPATH/MOHIDWater/ModuleSand.F90  $SRCPATH/MOHIDWater/ModuleConsolidation.F90  $SRCPATH/MOHIDWater/ModuleHydrodynamic.F90  $SRCPATH/MOHIDWater/ModuleWaterProperties.F90  $SRCPATH/MOHIDWater/ModuleLagrangian.F90  $SRCPATH/MOHIDWater/ModuleLagrangianGlobal.F90  $SRCPATH/MOHIDWater/ModuleSedimentProperties.F90   $SRCPATH/MOHIDWater/ModuleSediment.F90  $SRCPATH/MOHIDWater/ModuleInterfaceSedimentWater.F90  $SRCPATH/MOHIDWater/ModuleInterfaceWaterAir.F90  $SRCPATH/MOHIDWater/ModuleModel.F90 $SRCPATH/MOHIDWater/Main.F90 -I$HDF5/include -L$HDF5/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -ldl -I$ZLIB/include -L$ZLIB/lib -lz -lm -I${NETCDFINC} -L${NETCDFLIB} -lnetcdf -lnetcdff -o MohidWater.exe
+
+## resultado final
+FROM base AS final
+RUN mkdir /mohid
+
+COPY --from=build /src/MohidWater.exe /mohid/MohidWater.exe
+COPY --from=build /root/apps_intel /mohid_libs 
+RUN mkdir /mohid_libs/intel
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libimf.so /mohid_libs/intel/libimf.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libsvml.so /mohid_libs/intel/libsvml.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libirng.so /mohid_libs/intel/libirng.so
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libintlc.so.5 /mohid_libs/intel/libintlc.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifport.so.5 /mohid_libs/intel/libifport.so.5
+COPY --from=build /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libifcoremt.so.5 /mohid_libs/intel/libifcoremt.so.5
+
+# add both the intel libs and mohid_libs to the shared libraries
+RUN echo "/mohid_libs/intel" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/mpich-3.2/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/proj-4.9.3/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/netcdf-4.4.1.1/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/hdf5-1.8.17/lib" >> /etc/ld.so.conf
+RUN echo "/mohid_libs/zlib-1.2.11/lib" >> /etc/ld.so.conf
+RUN ldconfig
