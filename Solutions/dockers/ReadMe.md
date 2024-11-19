@@ -6,21 +6,24 @@ This directory contains Dockerfiles and build instructions focused on compiling 
 ## List of public Docker Images
 Public Docker images are pre-built versions of MOHID tools and models, hosted on a Docker registry. These images can be pulled directly and are ready to use without requiring local compilation or additional dependencies.
 
+All pre-compiled images can be located inside Mohid Packages.
+
  ### Models
 - **MOHID Water**
- > docker pull SOON
+ > docker pull ghcr.io/mohid-water-modelling-system/model/mohidwater:24.11
 
 - **MOHID Land**
- > docker pull SOON
+ > docker pull ghcr.io/mohid-water-modelling-system/model/mohidland:24.11
  
  ### Tools
  - **Compare2HDFfiles**
- > docker pull SOON
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/compare2hdf5files:24.11
 - **Convert2HDF5**
- > docker pull SOON
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2hdf5:24.11
 - **Convert2NC**
- > docker pull SOON
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2nc:24.11
 
+All pre-compiled executables are located inside docker at /mohid .
 
 ## How to generate your own Images
 If you prefer to customize the Docker images or if the public images are not yet available, you can generate your own images using the provided Dockerfiles. This process involves downloading the source code and dependencies, and then building the images locally. Generating your own images may also be useful for testing or modifying the tools to suit specific needs.
