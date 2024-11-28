@@ -7,7 +7,7 @@ on:
 
 
 env:
-  TAG: 24.11
+  TAG: 24.10
   REPOSITORY: mohid-water-modelling-system
   DOCKER_IMAGE_NAME: tools/compare2hdf5files
 jobs:
