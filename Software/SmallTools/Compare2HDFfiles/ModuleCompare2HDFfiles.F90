@@ -749,7 +749,7 @@ Module ModuleCompare2HDFfiles
                                 ObjTime             = Me%ObjTime,                       &
                                 TimeSerieDataFile   = "Compare2HDFfiles.dat",           &
                                 PropertyList        = PropertyList,                     &
-                                Extension           = "",                               &
+                                Extension           = "dat",                            &
                                 WaterPoints3D       = Me%WaterPoints3D,                 &
                                 ResultFileName      = trim(Me%FileOutTS),               &                                
                                 STAT                = STAT_CALL)
@@ -761,7 +761,7 @@ Module ModuleCompare2HDFfiles
                                 ObjTime             = Me%ObjTime,                       &
                                 TimeSerieDataFile   = "Compare2HDFfiles.dat",                 &
                                 PropertyList        = PropertyList,                     &
-                                Extension           = "",                               &
+                                Extension           = "dat",                            &
                                 WaterPoints2D       = Me%WaterPoints2D,                 &
                                 ResultFileName      = trim(Me%FileOutTS),               &                                  
                                 STAT                = STAT_CALL)
@@ -1208,6 +1208,9 @@ i1:     if (PropertyFound) then
                 stop "ReadModelGrid - ModuleCompare2HDFfiles - ERR50"
             endif
 
+            Me%LatDefault  = 0.
+            Me%LongDefault = 0.              
+            
             call ConstructField4D(Field4DID              = Me%HDFSolution(it)%InstanceID,    &
                                   EnterDataID            = Me%ObjEnterData,                  &
                                   ExtractType            = FromBlock,                        &
@@ -1351,6 +1354,9 @@ i1:     if (PropertyFound) then
         if (flag == 0) then            
             stop "ConstructOneSolution - ModuleCompare2HDFfiles - ERR60"
         endif
+        
+        Me%LatDefault  = 0.
+        Me%LongDefault = 0.          
 
         call ConstructField4D(Field4DID         = Me%HDFSolution(it)%InstanceID,           &
                               EnterDataID       = Me%ObjEnterData,                         &

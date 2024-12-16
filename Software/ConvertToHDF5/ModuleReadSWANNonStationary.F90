@@ -82,6 +82,7 @@ Module ModuleReadSWANNonStationary
         integer                                 :: Nautical
         integer                                 :: WavePower
         integer                                 :: ScaleToHS
+        integer                                 :: RepeatFileInTime
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: SwanFileName
@@ -349,6 +350,16 @@ Module ModuleReadSWANNonStationary
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190' 
         
+        call GetData(Me%RepeatFileInTime,                                     &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'REPEAT_FILE_IN_TIME',                    &
+                     default      = 0,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR200'  
+        
         call GetOutPutWindow
             
     end subroutine ReadGlobalOptions
@@ -598,6 +609,10 @@ i5:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) the
                 Me%TEY(n,:,:) = Me%Fields(n, :, :)
             endif i5
         endif i3
+           
+i6:     if (Me%RepeatFileInTime == 1) then
+            rewind (Me%Unit)
+        endif i6
     enddo
     
     if (p == Me%NumberProps) then

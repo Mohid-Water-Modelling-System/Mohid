@@ -1864,7 +1864,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             if (iflag == 0) then
                 write(*,*)
-                write(*,*)"HEADWALLS_FILENAME keyword setting the inlets file path was not found"
+                write(*,*)"HEADWALLS_FILENAME keyword setting the HeadWalls file path was not found"
                 write(*,*)"Simulation will not consider headwalls"
 
                 Me%NumberOfHeadwalls = 0
@@ -1908,8 +1908,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             if (iflag == 0) then
                 write(*,*)
-                write(*,*)"OPEN_CHANNEL_LINKS_FILENAME keyword setting the inlets file path was not found"
-                write(*,*)"Simulation will not consider inlets/catch-basins"
+                write(*,*)"OPEN_CHANNEL_LINKS_FILENAME keyword setting the Open Channel links file path was not found"
+                write(*,*)"Simulation will not consider open channels"
 
                 Me%NumberOfOpenChannelLinks = 0
                 
@@ -3020,8 +3020,9 @@ do2:    do
                 if(iflag == 0)then
                     write(*,*)"Please define NAME for headwall"
                     write(*,*)"ID = ", n
-                    stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR40'
+                    stop 'ReadHeadwallsFromFile - ModuleRunOff - ERR31'
                 endif
+                
 
                 call GetData(Me%Headwalls(n)%OutputResults,                                     &
                              HeadwallsObjEnterData, iflag,                                      &
@@ -3177,8 +3178,9 @@ do2:    do
                 if(iflag == 0)then
                     write(*,*)"Please define NAME for inlet"
                     write(*,*)"ID = ", n
-                    stop 'ReadInletsFromFile - ModuleRunOff - ERR05'
+                    stop 'ReadInletsFromFile - ModuleRunOff - ERR35'
                 endif
+                
                 
                 call GetData(Me%Inlets(n)%TypeOf,                                               &
                              InletsObjEnterData, iflag,                                         &
@@ -3219,7 +3221,7 @@ do2:    do
                 
                     call UnitsManager(Me%Inlets(n)%OutputUnit, OPEN_FILE, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadInletsFromFile - ModuleRunOff - ERR48'
-
+                    
                     InletOutputFilename = trim(adjustl(RootSRT))//trim(adjustl(Me%Inlets(n)%Name))//".sri"
                 
                     open(Unit = Me%Inlets(n)%OutputUnit,                                        &
@@ -5892,6 +5894,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         enddo
     
     end function ValidateInlet
+    
 
     !--------------------------------------------------------------------------
     
@@ -5949,6 +5952,8 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
         enddo
     
     end function ValidatePond
+    
+    !--------------------------------------------------------------------------
 
 
 #endif _SEWERGEMSENGINECOUPLER_
@@ -12080,7 +12085,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%CenterFlowX(i, j) = FlowX * Me%GridCosAngleX + FlowY * Me%GridCosAngleY
                     Me%CenterFlowY(i, j) = FlowX * Me%GridSinAngleX + FlowY * Me%GridSinAngleY
                 
-                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                    if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                         Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j) )
                         Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j) )
                     else
@@ -12116,7 +12121,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%CenterFlowX(i, j) = FlowX * cos(Me%ExtVar%RotationX(i, j)) + FlowY * cos(Me%ExtVar%RotationY(i, j))
                     Me%CenterFlowY(i, j) = FlowX * sin(Me%ExtVar%RotationX(i, j)) + FlowY * sin(Me%ExtVar%RotationY(i, j))
                 
-                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                    if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                         Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j))
                         Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j))
                     else
@@ -12152,7 +12157,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     
                 Me%FlowModulus(i, j) = sqrt (Me%CenterFlowX(i, j)**2. + Me%CenterFlowY(i, j)**2.)
                 
-                if (Me%myWaterColumn (i,j) > AllmostZero) then
+                if (Me%myWaterColumn (i,j) > Me%MinimumWaterColumn) then
                     Me%VelocityModulus (i, j) = sqrt (Me%CenterVelocityX(i, j)**2.0 + Me%CenterVelocityY(i, j)**2.0)
                 else
                     Me%VelocityModulus(i,j) = 0.0

@@ -10998,7 +10998,7 @@ i7:             if (.not. ContinuousGOTM)  then
         real(8)                             :: CoordinateX, CoordinateY
         real                                :: CoordAuxX, CoordAuxY        
         real(8)                             :: LongRef, LatRef
-        logical                             :: IgnoreOK, GeoCoordON, DischargeInSide
+        logical                             :: IgnoreOK, GeoCoordON !, DischargeInSide
         
         !Begin----------------------------------------------------------------------    
         
@@ -11028,7 +11028,8 @@ if1:    if (Me%MohidJet%ON) then
 
             Me%MohidJet%DischargesNumber = DischargesNumber
 
-            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Me%MohidJet%LatitudeRef, Me%MohidJet%LongitudeRef, STAT= STAT_CALL)       
+            call GetLatitudeLongitude(Me%ObjHorizontalGrid, Me%MohidJet%LatitudeRef,    &
+                                      Me%MohidJet%LongitudeRef, STAT= STAT_CALL)       
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ConstructHydroMohidJet - ModuleHydrodynamic - ERR40'
             endif        
@@ -36949,6 +36950,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: InterceptionRatio
         integer                            :: kmin, kmax, kaux
         real                               :: Depth_min, Depth_max
+        logical                            :: FixReferential
         real                               :: DischargeVelocityX, DischargeVelocityY, VectorGridX, VectorGridY
         integer                            :: djx, diy 
         integer                            :: IUB, ILB, JUB, JLB
@@ -37124,6 +37126,7 @@ iup:        if (UpscalingDischarge )then
                                                   kmax                  = kmax,             &
                                                   Depth_min             = Depth_min,        &
                                                   Depth_max             = Depth_max,        &
+                                                  FixReferential        = FixReferential,   &    
                                                   STAT                  = STAT_CALL)                
 
                 if (STAT_CALL/=SUCCESS_)                                                     &
@@ -37253,7 +37256,8 @@ ifn:                if (nCells > 1) then
 
                         if (Depth_max > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_max, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmin = kaux
@@ -37264,7 +37268,8 @@ ifn:                if (nCells > 1) then
 
                         if (Depth_min > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_min, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmax = kaux
@@ -49683,6 +49688,7 @@ subroutine ModifyWaterDischarges(ModifyPhase)
         real                               :: InterceptionRatio
         integer                            :: kmin, kmax, kaux
         real                               :: Depth_min, Depth_max
+        logical                            :: FixReferential 
 
 
         integer                            :: CHUNK
@@ -49826,6 +49832,7 @@ do1:        do DischargeID = 1, DischargesNumber
                                                   kmax                  = kmax,             &
                                                   Depth_min             = Depth_min,        &
                                                   Depth_max             = Depth_max,        &
+                                                  FixReferential        = FixReferential,   & 
                                                   STAT                  = STAT_CALL)   
 
                 if (STAT_CALL/=SUCCESS_)                                                &
@@ -49914,7 +49921,8 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (Depth_max > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_max)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_max, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmin = kaux
@@ -49925,7 +49933,8 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (Depth_min > FillValueReal) then
 
-                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, i, j, KLB, KUB, Depth_min)
+                            kaux = FromDepth_2_layer(Me%External_Var%SZZ, Me%External_Var%OpenPoints3D, &
+                                                     i, j, KLB, KUB, Depth_min, FixReferential)
 
                             if (kaux >= kmin .or. kaux <= kmax) then
                                 kmax = kaux
@@ -50108,11 +50117,10 @@ do5:            do i = ILB, IUB
         real                                        :: SecondsFromStart, DischargeFlow
         type(T_Lines), pointer                      :: LineDischarge
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
-        integer                                     :: nCells, nc
+        integer                                     :: nCells
         type (T_Polygon),   pointer                 :: ModelDomainLimit
         real                                        :: InterceptionRatio
         real                                        :: PortVelX, PortVelY, PortVelZ
-        character(len=100)                          :: AuxString
         !Begin-----------------------------------------------------------------
 
         
@@ -50361,15 +50369,6 @@ iIn:                    if (InterceptionRatio <= 0.) then
                                 stop 'ModifyHydroMohidJet - ModuleHydrodynamic - ERR270'
                             endif
                             
- !                           write(AuxString,'(A25,A75)') "The mohidjet discharge = ", trim(adjustl(Me%MohidJet%Jetx(dis)%DischargeName))
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A)') "section is outside of the domain for that reason was reposition over the port location"
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A45,f5.1)') "The interception ratio in % of the domain is = ",InterceptionRatio*100.  
- !                           write(*,'(A)') trim(adjustl(AuxString))
- !                           write(AuxString,'(A44,f12.7,f12.7)') "The dlong and dlat = ", AuxCenterX, AuxCenterY 
- !                           write(*,'(A)') trim(adjustl(AuxString))
-                                        
                         endif iIn
 
                         !It allways assumed that the entire discharge is done in the one domain

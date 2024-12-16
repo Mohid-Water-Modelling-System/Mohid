@@ -286,6 +286,7 @@ Module ModuleSediment
         type (T_Time)                           :: NextSediment, NextBatim
         logical                                 :: Bathym       = .false.
         logical                                 :: Geometry     = .false. 
+        logical                                 :: ResetBathym  = .false.
     end type T_Evolution
      
     private :: T_Property
@@ -381,7 +382,7 @@ Module ModuleSediment
 
     private :: T_Sediment
     type       T_Sediment
-        character(PathLength)                      ::  SedGeometryFile     = null_str
+        character(PathLength)                      :: SedGeometryFile       = null_str
         integer                                    :: InstanceID            = FillValueInt
         type (T_Size2D)                            :: Size, WorkSize
         type (T_Time)                              :: BeginTime, EndTime
@@ -456,11 +457,19 @@ Module ModuleSediment
         integer                                    :: BedloadMethod        = FillValueInt
         integer                                    :: RefConcMethod        = FillValueInt
         logical                                    :: BedSlopeEffects      = .false.
+        real                                       :: BedSlopeEffectsSpeedUp = null_real
         logical                                    :: SwashZoneTransport   = .false.
         real                                       :: SwashFactor          = null_real
         logical                                    :: WavesOn              = .false.
         logical                                    :: ConsolidationOn      = .false.
         logical                                    :: DepositionIntertidalZones = .false.
+        
+        character(PathLength)                      :: MappDZFile            = null_str
+        logical                                    :: MappDZON              = .false.
+        logical                                    :: MappDZPressureSluicing = .false.
+        real, pointer, dimension(:,:)              :: MappDZ                => null()
+        
+        integer                                    :: ObjMappDZ             = 0 
         
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
@@ -613,7 +622,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !read in nomfich by ModuleModel will be overitten by the ones in Me%Files%Initial
             call SetGridDataEvolution(GridDataID          = Me%ObjBathym,              &
                                       Evolution           = Me%Evolution%Bathym,       &
-                                      SedimentInitialFile = Me%Files%Initial, STAT = STAT_CALL) 
+                                      SedimentInitialFile = Me%Files%Initial,          &
+                                      ResetBathym         = Me%Evolution%ResetBathym,  &
+                                      STAT                = STAT_CALL) 
             
             call AllocateVariables      
             
@@ -622,7 +633,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call Construct_Initial_Geometry
                         
             call ConstructClasses
-
+            
+            if (Me%MappDZON) then
+                call ConstructMappDZ
+            endif
+            
             call ConstructOutputTime
 
             call ConstructD50Cell
@@ -867,6 +882,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR80'
         
+         call GetData(Me%BedSlopeEffectsSpeedUp,                                         &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'BEDSLOPE_SPEED_UP',                                 &
+                     default      = 1.,                                                  &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR82'        
+        
         call GetData(Me%SwashZoneTransport,                                               &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
@@ -908,6 +932,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
                      keyword      = 'GEOMETRY_EVOLUTION',                                &
+                     default      = .true.,                                              &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR95'
@@ -1038,7 +1063,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR200'
         
         if (Me%ConsolidationOn) then
-            if (Me%Evolution%Geometry) then
+            if (Me%Evolution%Geometry == .false.) then
                 write(*,*) 'GEOMETRY_EVOLUTION must be activated to run with CONSOLIDATION'
                 stop 'ConstructGlobalParameters - ModuleSediment - ERR205'
             endif
@@ -1128,7 +1153,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR270'
         
+        call GetData(Me%MappDZON,                                                       &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MAPP_DZ_ON',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleSediment',                                   &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR280'
+        
+        if (Me%MappDZON) then
 
+            call GetData(Me%MappDZFile,                                                     &
+                         Me%ObjEnterData,iflag,                                             &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'MAPP_DZ_FILE',                                     &
+                         ClientModule = 'ModuleSediment',                                   &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR290'
+            if (iflag == 0) then
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR300'
+            endif
+            
+            call GetData(Me%MappDZPressureSluicing,                                     &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'MAPP_DZ_PRESSURE_SLUICING',                    &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleSediment',                               &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR310'
+        
+        endif
+        
     end subroutine ConstructGlobalParameters
 
     !----------------------------------------------------------------------------
@@ -1248,6 +1305,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             endif
             
+        endif
+        
+        if (Me%MappDZOn) then
+            allocate(Me%MappDZ(ILB:IUB, JLB:JUB))
+            Me%MappDZ(:,:) = 0
         endif
             
     end subroutine AllocateVariables
@@ -1382,6 +1444,7 @@ i1:     if (Me%Boxes%Yes) then
         real    :: ModelDT
         integer :: STAT_CALL, iflag
         real(8) :: ErrorAux, auxFactor, DTaux
+        logical :: VariableDT
 
 
 
@@ -1390,113 +1453,150 @@ i1:     if (Me%Boxes%Yes) then
         call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                 &
             stop 'ConstructEvolution - ModuleSediment - ERR10'
-
-
-        call GetData(Me%Evolution%SedimentDT,                                            &
-                     Me%ObjEnterData,iflag,                                              &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'SEDIMENT_DT',                                       &
-                     default      = ModelDT,                                             &
-                     ClientModule = 'ModuleSediment',                                    &
-                     STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20' 
+        
+        call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+            stop 'ConstructEvolution - ModuleSediment - ERR20'
+        
 
         call GetComputeTimeLimits(Me%ObjTime,                                            &
-                                  EndTime   = Me%EndTime,                                &
-                                  BeginTime = Me%BeginTime,                              &
-                                  STAT = STAT_CALL)
+                                    EndTime   = Me%EndTime,                                &
+                                    BeginTime = Me%BeginTime,                              &
+                                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'ConstructEvolution - ModuleSediment - ERR30'
-
-        if (Me%Evolution%SedimentDT < (ModelDT)) then
-
-            !Sediment DT  must be a submultiple of the ModelDT
-            auxFactor = ModelDT / Me%Evolution%SedimentDT
-
-            Erroraux = auxFactor - int(auxFactor)
-            if (Erroraux /= 0) then
-                write(*,*) 
-                write(*,*) 'Sediment DT  must be a submultiple of the ModelDT'
-                stop 'ConstructEvolution - ModuleSediment - ERR40'
-            endif
-
-        elseif (Me%Evolution%SedimentDT > (ModelDT)) then
-
-            !Sediment DT  must be a multiple of the ModelDT
-            auxFactor = Me%Evolution%SedimentDT  / ModelDT
-
-            Erroraux = auxFactor - int(auxFactor)
-            if (Erroraux /= 0) then
-                write(*,*) 
-                write(*,*) 'Sediment DT  must be a multiple of the ModelDT'
-                stop 'ConstructEvolution - ModuleSediment - ERR50'
-            endif
-
-        endif
-
-        ! Run period in seconds
-        DTaux = Me%EndTime - Me%BeginTime
-
-        !The run period   must be a multiple of the Sediment DT
-        auxFactor = DTaux / Me%Evolution%SedimentDT
-
-        ErrorAux = auxFactor - int(auxFactor)
-        if (ErrorAux /= 0) then
-            write(*,*) 
-            write(*,*) ' Time step error.'
-            stop 'ConstructEvolution - ModuleSediment - ERR60'
-        endif
+            stop 'ConstructEvolution - ModuleSediment - ERR30'        
 
 
-        Me%Evolution%NextSediment = Me%BeginTime + Me%Evolution%SedimentDT
+i1:     if (VariableDT) then
 
-        if (Me%Evolution%Bathym) then
+            Me%Evolution%SedimentDT = ModelDT
             
-            call GetData(Me%Evolution%BathymDT,                                              &
+            if (Me%Evolution%Bathym) then
+            
+                Me%Evolution%BathymDT  = ModelDT
+                
+            endif
+
+        else i1
+
+
+            call GetData(Me%Evolution%SedimentDT,                                            &
                          Me%ObjEnterData,iflag,                                              &
                          SearchType   = FromFile,                                            &
-                         keyword      = 'EVOLUTION_DT',                                          &
-                         default      = Me%Evolution%SedimentDT,                                 &
-                         ClientModule = 'ModuleSediment',                                        &
+                         keyword      = 'SEDIMENT_DT',                                       &
+                         default      = ModelDT,                                             &
+                         ClientModule = 'ModuleSediment',                                    &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR70'
-        
-        
-            if (Me%Evolution%BathymDT < Me%Evolution%SedimentDT) then                
-                write(*,*) 
-                write(*,*) 'Batim DT must be a multiple of the Sediment DT'
-                stop 'ConstructEvolution - ModuleSediment - ERR90'
-        
-            elseif (Me%Evolution%BathymDT > Me%Evolution%SedimentDT) then
-        
-                !Batim DT  must be a multiple of the Sediment DT
-                auxFactor = Me%Evolution%BathymDT / Me%Evolution%SedimentDT
-        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20' 
+
+
+            if (Me%Evolution%SedimentDT < (ModelDT)) then
+
+                !Sediment DT  must be a submultiple of the ModelDT
+                auxFactor = ModelDT / Me%Evolution%SedimentDT
+
                 Erroraux = auxFactor - int(auxFactor)
                 if (Erroraux /= 0) then
                     write(*,*) 
-                    write(*,*) 'Batim DT must be a multiple of the Sediment DT'
-                    stop 'ConstructEvolution - ModuleSediment - ERR100'
+                    write(*,*) 'Sediment DT  must be a submultiple of the ModelDT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR40'
                 endif
-        
+
+            elseif (Me%Evolution%SedimentDT > (ModelDT)) then
+
+                !Sediment DT  must be a multiple of the ModelDT
+                auxFactor = Me%Evolution%SedimentDT  / ModelDT
+
+                Erroraux = auxFactor - int(auxFactor)
+                if (Erroraux /= 0) then
+                    write(*,*) 
+                    write(*,*) 'Sediment DT  must be a multiple of the ModelDT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR50'
+                endif
+                
+
+
             endif
 
             ! Run period in seconds
             DTaux = Me%EndTime - Me%BeginTime
-        
-            !The run period   must be a multiple of the BATIM DT
-            auxFactor = DTaux / Me%Evolution%BathymDT
-        
+
+            !The run period   must be a multiple of the Sediment DT
+            auxFactor = DTaux / Me%Evolution%SedimentDT
+
             ErrorAux = auxFactor - int(auxFactor)
             if (ErrorAux /= 0) then
                 write(*,*) 
                 write(*,*) ' Time step error.'
-                stop 'ConstructEvolution - ModuleSediment - ERR120'
+                stop 'ConstructEvolution - ModuleSediment - ERR60'
             endif
+
+
+            if (Me%Evolution%Bathym) then
+            
+                call GetData(Me%Evolution%BathymDT,                                              &
+                             Me%ObjEnterData,iflag,                                              &
+                             SearchType   = FromFile,                                            &
+                             keyword      = 'EVOLUTION_DT',                                          &
+                             default      = Me%Evolution%SedimentDT,                                 &
+                             ClientModule = 'ModuleSediment',                                        &
+                             STAT         = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR70'
         
+        
+                if (Me%Evolution%BathymDT < Me%Evolution%SedimentDT) then                
+                    write(*,*) 
+                    write(*,*) 'Batim DT must be a multiple of the Sediment DT'
+                    stop 'ConstructEvolution - ModuleSediment - ERR90'
+        
+                elseif (Me%Evolution%BathymDT > Me%Evolution%SedimentDT) then
+        
+                    !Batim DT  must be a multiple of the Sediment DT
+                    auxFactor = Me%Evolution%BathymDT / Me%Evolution%SedimentDT
+        
+                    Erroraux = auxFactor - int(auxFactor)
+                    if (Erroraux /= 0) then
+                        write(*,*) 
+                        write(*,*) 'Batim DT must be a multiple of the Sediment DT'
+                        stop 'ConstructEvolution - ModuleSediment - ERR100'
+                    endif
+                    
+                endif
+
+                ! Run period in seconds
+                DTaux = Me%EndTime - Me%BeginTime
+        
+                !The run period   must be a multiple of the BATIM DT
+                auxFactor = DTaux / Me%Evolution%BathymDT
+        
+                ErrorAux = auxFactor - int(auxFactor)
+                if (ErrorAux /= 0) then
+                    write(*,*) 
+                    write(*,*) ' Time step error.'
+                    stop 'ConstructEvolution - ModuleSediment - ERR120'
+                endif
+                
+                call GetData(Me%Evolution%ResetBathym,                                  &
+                             Me%ObjEnterData,iflag,                                     &
+                             SearchType   = FromFile,                                   &
+                             keyword      = 'RESET_BATHYM',                             &
+                             default      = .false.,                                    &
+                             ClientModule = 'ModuleSediment',                           &
+                             STAT         = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR20'                 
+                
+            endif
+            
+        endif i1
+        
+        Me%Evolution%NextSediment = Me%BeginTime + Me%Evolution%SedimentDT
+
+        if (Me%Evolution%Bathym) then
+            
             Me%Evolution%NextBatim = Me%BeginTime + Me%Evolution%BathymDT
             
         endif
+        
         
         if (Me%Residual%ON) then
             Me%Residual%StartTime = Me%BeginTime
@@ -1819,6 +1919,47 @@ do1:    do n=1,Me%NumberOfClasses
         if (Me%TimeSerie) call ConstructTimeSerie
 
     end subroutine ConstructOutputTime
+
+    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
+    
+    subroutine ConstructMappDZ
+    
+        !Local----------------------------------------------------------------
+        real,   dimension(:,:), pointer     :: MappDZ  
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL
+        logical                             :: BlockFound
+
+
+        !------------------------------------------------------------------------    
+        
+
+        
+        !Horizontal Grid Data - Cells with no bottom evolution
+        call ConstructGridData      (GridDataID       = Me%ObjMappDZ,                   &
+                                     HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     FileName         = Me%MappDZFile,                  &
+                                     STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR10'        
+    
+        
+        !MappDZ
+        call GetGridData(Me%ObjMappDZ, MappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR20'
+                            
+        Me%MappDZ(:,:) = MappDZ(:,:)
+                            
+                            
+        !MappDZ 
+        call UnGetGridData(Me%ObjMappDZ, MappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR30'
+        
+        call KillGridData(Me%ObjMappDZ, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSediment - ERR40'                            
+
+
+    end subroutine ConstructMappDZ
 
     !--------------------------------------------------------------------------
 
@@ -2408,30 +2549,25 @@ cd2 :           if (BlockFound) then
                 if (Me%CohesiveClass%Run) then
                      
                     Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density 
-                     
-                    if(Me%SandD50(i,j) > 0)then
         
-                        !Volume fraction of the cohesive class based on total volume        
-                        c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%PorositySand)       
+                    !Volume fraction of the cohesive class   
+                    c = Me%CohesiveClass%Field3D(i,j,k)      
                                
                 
-                        if (c < Me%PorositySand) then
+                    if (c < Me%PorositySand) then
                     
-                            y = c * (ymin - 1) / Me%PorositySand + 1
+                        y = c * (ymin - 1) / Me%PorositySand + 1
                 
-                            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
+                        Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                                    (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
                 
-                        else
+                    else
                     
-                            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                        y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
                     
-                            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
+                        Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
                 
-                        endif                    
-                    else                        
-                        Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)                        
-                    endif                        
+                    endif                    
                 else                
                     Me%Porosity(i,j,k) = Me%PorositySand 
                 endif
@@ -4215,6 +4351,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             call ReadLockExternalVar 
+            
+            call TimeStepActualization
 
 do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment) 
 
@@ -4317,7 +4455,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                             !Bathymetry 
                             call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR10'
-
+                            
                             call ModifyGridData(Me%ObjBathym,Me%BatimIncrement, Add = .false.,  &
                                                 STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR20.'
@@ -4356,6 +4494,43 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
     end subroutine ModifySediment
 
     !--------------------------------------------------------------------------
+                              
+    subroutine TimeStepActualization
+
+        !Local-----------------------------------------------------------------
+        real                             :: NewDT
+        integer                          :: STAT_CALL
+        logical                          :: VariableDT
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'TimeStepActualization - ModuleSediment - ERR10'
+
+cd1:    if (VariableDT) then
+
+            call GetComputeTimeStep(Me%ObjTime, NewDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'TimeStepActualization - ModuleSediment - ERR20'
+
+            Me%Evolution%SedimentDT = NewDT
+
+            if (Me%Evolution%Bathym) then
+            
+                Me%Evolution%BathymDT = NewDT
+            
+            endif
+
+        endif cd1
+
+
+    end subroutine TimeStepActualization
+
+    !------------------------------------------------------------------------
+
+                              
     
     subroutine ComputeOpenSediment
        !Local-----------------------------------------------------------------
@@ -5382,9 +5557,9 @@ do1:    do n=1,Me%NumberOfClasses
                         FluxV = alfa_s * (SandClass%FluxV(i, j) +   &
                                                 alfa_n * SandClass%FluxU(i, j))   
                         
-                        SandClass%FluxU(i, j) = FluxU
+                        SandClass%FluxU(i, j) = Me%BedSlopeEffectsSpeedUp * FluxU
                         
-                        SandClass%FluxV(i, j) = FluxV
+                        SandClass%FluxV(i, j) = Me%BedSlopeEffectsSpeedUp * FluxV
                         
                     endif
                 endif               
@@ -6430,31 +6605,25 @@ if5:                if (aux < SandClass%Mass_Min) then
         
         Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density
         
-        if(Me%SandD50(i,j) > 0)then
         
-            !Volume fraction of the cohesive class based on total volume        
-            c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%Porosity (i,j,k))        
-                
-            if (c < Me%PorositySand) then
+        !Volume fraction of the cohesive class      
+        c = Me%CohesiveClass%Field3D(i,j,k)
+            
+        if (c < Me%PorositySand) then
                     
-                y = c * (ymin - 1) / Me%PorositySand + 1
+            y = c * (ymin - 1) / Me%PorositySand + 1
                 
-                Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                            (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
-                
-            else
-                    
-                y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
-                    
-                Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
-                
-            endif
+            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
                 
         else
-            
-            Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)
+                    
+            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                    
+            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
                 
-        endif        
+        endif
+                     
        
     end subroutine ComputePorosity
     
@@ -7077,6 +7246,15 @@ if9:        if (Me%CohesiveClass%Run) then
                         
                 if (Me%ConsolidationOn) then
                     Me%DZ(i, j) = Me%DZ(i, j) + Me%DZ_Consolidation(i,j)
+                endif
+                
+                if (Me%MappDZON) then
+                    if (Me%MappDZ(i,j) < 0.5) then
+                        Me%DZ(i, j) = 0. 
+                        if (Me%MappDZPressureSluicing) then
+                            Me%DZ_Residual(i, j) = 0.
+                        endif
+                    endif
                 endif
                     
                 if (Me%Evolution%Bathym) then
@@ -7769,6 +7947,10 @@ do1 :               do i=1, Me%NumberOfClasses
                     nullify(Me%Residual%BedloadU)
                     deallocate(Me%Residual%BedloadV)
                     nullify(Me%Residual%BedloadV)
+                endif
+
+                if (Me%MappDZOn) then
+                    deallocate(Me%MappDZ)
                 endif
                 
                 if (Me%Boxes%Yes) then

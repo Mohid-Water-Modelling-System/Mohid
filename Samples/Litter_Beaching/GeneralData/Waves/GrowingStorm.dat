@@ -1,0 +1,16 @@
+TIME_UNITS: DAYS
+SERIE_INITIAL_DATA: 2024 1 1 0 0 0
+NAME : Mare esquematica 
+COORD_X : 26.03478
+COORD_Y : 40.7444
+
+Date   Hs
+<BeginTimeSerie>
+0 0 
+1 1
+2 2
+3 3
+4 4
+5 5
+100 5
+<EndTimeSerie>

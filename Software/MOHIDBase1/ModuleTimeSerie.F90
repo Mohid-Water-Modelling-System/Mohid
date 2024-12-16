@@ -73,6 +73,7 @@ Module ModuleTimeSerie
     public  :: GetTimeSerieValue
     public  :: GetTimeSerieTimeLimits
     public  :: GetTimeSerieIntegral
+    public  :: GetTimeSerieCumulativeValue
     public  :: GetTimeSerieDT
     public  :: GetTimeSerieHeader
     public  :: GetTimeSerieName
@@ -4409,6 +4410,129 @@ i1:             if (StartIndex == EndIndex) then
     end function GetTimeSerieIntegral
 
     !--------------------------------------------------------------------------
+    
+
+    real function GetTimeSerieCumulativeValue(TimeSerieID, StartTime, EndTime, DataColumn, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        type(T_Time),      intent(IN)               :: StartTime, EndTime
+        integer,           intent(IN)               :: DataColumn
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+        type(T_Time)                                :: StartTimeSerie, EndTimeSerie, TSi, TEi, T1, T2
+        integer                                     :: StoredColumn, StartIndex, EndIndex, i
+        real                                        :: dt1, dt2, Px, CumulativeValue
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StartTimeSerie = Me%InitialData + Me%DataMatrix(1,             1)
+
+            EndTimeSerie   = Me%InitialData + Me%DataMatrix(Me%DataValues, 1)
+            
+            StoredColumn = Me%FileColumns(DataColumn)            
+            
+            if (Me%TimeCycle) then
+                
+                stop 'GetTimeSerieIntegralCumulative - TimeSerie - ERR10'
+            
+            else
+
+                if (StartTime > EndTime       ) stop 'GetTimeSerieIntegralCumulative - TimeSerie - ERR20'
+                if (StartTime < StartTimeSerie) stop 'GetTimeSerieIntegralCumulative - TimeSerie - ERR30'
+                if (EndTime   > EndTimeSerie  ) stop 'GetTimeSerieIntegralCumulative - TimeSerie - ERR40'
+
+                
+                do i = 1, Me%DataValues
+
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) > StartTime) then
+                        StartIndex = i
+                       
+                        exit
+                    endif
+                enddo
+
+                do i = 1, Me%DataValues
+
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= EndTime  ) then
+                        EndIndex   = i+1
+                        exit
+                    endif
+                enddo
+
+                dt1 = EndTime - StartTime
+  
+i1:             if ((EndIndex - StartIndex) == 1) then
+
+    
+                    TSi        = Me%InitialData + Me%DataMatrix(StartIndex  , 1)
+                    TEi        = Me%InitialData + Me%DataMatrix(EndIndex, 1)
+                    
+                    dt2 = TEi - TSi
+                    Px  = Me%DataMatrix(EndIndex  ,   StoredColumn)    
+                        
+                    if (dt2 > 0) then
+                        CumulativeValue = Px * dt1 / dt2
+                    endif
+
+                else i1
+                    T1              = StartTime
+                    CumulativeValue = 0.
+
+                    do i=StartIndex, EndIndex-1
+                        TSi        = Me%InitialData + Me%DataMatrix(i  , 1)
+                        TEi        = Me%InitialData + Me%DataMatrix(i+1, 1)
+                        if (TEi <= EndTime) then
+                            T2         = TEi
+                        else
+                            T2         = EndTime
+                        endif
+                        
+                        dt1        = T2  - T1
+                        dt2        = TEi - TSi
+                        Px         = Me%DataMatrix(i+1,   StoredColumn)   
+                        
+                        if (dt2 > 0) then
+                            CumulativeValue = CumulativeValue + Px * dt1 / dt2
+                        else
+                            exit
+                        endif
+                        
+                        T1 = T2
+                    enddo
+
+                endif i1
+                
+                GetTimeSerieCumulativeValue = CumulativeValue
+                
+            endif                
+
+            
+
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+        
+    end function GetTimeSerieCumulativeValue
+
+    !--------------------------------------------------------------------------    
 
     real function TimeSerieCycleIntegral(StartTime, EndTime, StoredColumn) 
 

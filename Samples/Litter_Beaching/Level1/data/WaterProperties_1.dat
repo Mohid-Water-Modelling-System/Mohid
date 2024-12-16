@@ -1,0 +1,25 @@
+
+<beginproperty>
+NAME                           : salinity
+UNITS                          : psu
+DESCRIPTION                    : Salinity
+DEFAULTVALUE                   : 37.0
+ADVECTION_DIFFUSION            : 0
+<endproperty>
+
+<beginproperty>
+NAME                           : temperature
+UNITS                          : ?C
+DESCRIPTION                    : temperature
+DEFAULTVALUE                   : 17.0
+ADVECTION_DIFFUSION            : 0
+<endproperty>
+
+
+<beginproperty>
+NAME                     : cohesive sediment
+UNITS                    : mg/l
+DESCRIPTION              : cohesive sediment
+DEFAULTVALUE             : 5
+ADVECTION_DIFFUSION      : 0
+<endproperty>

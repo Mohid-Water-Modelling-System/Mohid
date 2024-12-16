@@ -1,0 +1,51 @@
+FILL_VALUE                    : -99
+ILB_IUB                       : 1 3
+JLB_JUB                       : 1 10
+ORIGIN                        : -10 41
+GRID_ANGLE                    : 0
+COORD_TIP                     : 4
+LATITUDE                      : 41
+LONGITUDE                     : -10
+CONSTANT_SPACING_X            : 1
+DX                            : 1e-3
+!CONSTANT_SPACING_Y            : 1
+!DY                            : 1e-2
+<BeginYY>
+0
+1e-3
+2.9e-2
+3e-2
+<EndYY>
+
+<BeginGridData2D>
+1
+0.5
+0
+-0.5
+-1
+-1.5
+-2
+-2.5
+-3
+-3.5
+1
+0.5
+0
+-0.5
+-1
+-1.5
+-2
+-2.5
+-3
+-3.5
+1
+0.5
+0
+-0.5
+-1
+-1.5
+-2
+-2.5
+-3
+-3.5
+<EndGridData2D>

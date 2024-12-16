@@ -73,6 +73,7 @@ Module ModuleFunctions
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
+
     public  :: SumMatrixes
     interface  SumMatrixes
         module procedure SumMatrixes_R4
@@ -105,6 +106,8 @@ Module ModuleFunctions
 
     !Linear tridiagonal sytems solvers tridiagonal system with cyclic boundaries
     public  :: tridag_cyclic
+    !solve linear equations with 5 diagonals using the Gauss method
+    public  :: gauss_5diagonals
 
     !Linear iterative solver
     public  :: CGS2D
@@ -336,8 +339,10 @@ Module ModuleFunctions
 
     public  :: WGS84toGoogleMaps
     interface  WGS84toGoogleMaps
-        module procedure WGS84toGoogleMaps1D
-        module procedure WGS84toGoogleMaps2D
+        module procedure WGS84toGoogleMaps1D_R4
+        module procedure WGS84toGoogleMaps2D_R4
+        module procedure WGS84toGoogleMaps1D_R8
+        module procedure WGS84toGoogleMaps2D_R8        
     end interface  WGS84toGoogleMaps
 
     public  :: FillMatrix2D
@@ -363,8 +368,13 @@ Module ModuleFunctions
     public :: AmpPhase_To_Complex
     public :: Complex_to_AmpPhase
 
-    !wind waves lnear theory
+    !wind waves linear theory
     public :: WaveLengthHuntsApproximation
+    public :: JONSWAP2
+
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
+    public :: WaveRunUpHunt1959
+    public :: WaveRunUpStockdon2006
 
     public :: THOMASZ_NewType2
 
@@ -2671,6 +2681,9 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !$OMP END DO
         !$OMP END PARALLEL
     end subroutine SumMatrixes_R4
+
+    
+    !End-------------------------------------------------------------------------        
 
     subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
@@ -5610,7 +5623,8 @@ end function
         
         !while(linha!=12)
         !
-        !   //the MAXINT value is assigned to the positions so that there is no possibility to return to that square in order to go through all the squares once
+        !   //the MAXINT value is assigned to the positions so that there is no possibility 
+        !   to return to that square in order to go through all the squares once
         !  if(( (path(c1,c2+1,S) == 0) || (path(c1,c2+1,S) == 1) )&& S->x2D[c1][c2+1] != MAXINT)
         !  {
         !       S->z1[auxINT] = path(c1,c2+1,S);
@@ -8110,7 +8124,7 @@ d5:     do k = klast + 1,KUB
 
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
-                                DTPredictionInterval)
+                                DTPredictionInterval, MinDT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjEnterData
@@ -8122,6 +8136,7 @@ d5:     do k = klast + 1,KUB
         real, optional                              :: MaxDT
         real, optional                              :: GmtReference
         real, optional                              :: DTPredictionInterval
+        real, optional                              :: MinDT
 
         !Local-----------------------------------------------------------------
         real(8)                                     :: aux, aux1, DTD
@@ -8181,6 +8196,22 @@ d5:     do k = klast + 1,KUB
             else
                 !MAXDT will be read somewhere else...
             endif
+            
+            if (present(MinDT)) then
+                call GetData(MinDT,   ObjEnterData, iflag, keyword = 'MINDT',                    &
+                             SearchType   = ExtractTime,                                         &
+                             ClientModule = ClientModule,                                   &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_ ) stop 'ReadTimeKeyWords - ModuleFunctions - ERR03b'
+                if (iflag == 0) MinDT = DT
+                if (MinDT == 0) then
+                    write (*,*) 'Time Interval can not be zero'
+                    write (*,*) 'Module :',ClientModule
+                    stop 'ReadTimeKeyWords - ModuleFunctions - ERR04b'
+                endif
+            else
+                !MINDT will be read somewhere else...
+            endif            
 
         endif
 
@@ -8827,7 +8858,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     end subroutine tridag
 
-
+    !
     subroutine Tridag_cyclic(a, b, c, alpha, beta, r, x, gam, bb, u, z, imin, imax)
 
         !Arguments-------------------------------------------------------------
@@ -8871,6 +8902,63 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     end subroutine Tridag_cyclic
 
     !--------------------------------------------------------------------------
+
+    !Fortran function to solve a system of linear equations with 
+    !5 main principle diagonals using the Gauss method:    
+    
+    subroutine gauss_5diagonals(A, b, x, n)
+        ! Input parameters
+        real(8), dimension(:,:), pointer, intent(in) :: A  ! Coefficient matrix with 5 diagonals
+        real(8), dimension(:  ), pointer, intent(in) :: b   ! Right-hand side vector
+        integer, intent(in) :: n                 ! Dimension of the system
+
+        ! Output parameter
+        real(8), dimension(:), pointer, intent(out) :: x  ! Solution vector
+
+        ! Local variables
+        real(8), dimension(:,:), pointer :: Ab            ! Augmented matrix
+        integer :: i, k
+        real(8) :: factor
+
+        ! Check the size of A
+        if (size(A, 1) /= n .or. size(A, 2) /= n) then
+            print *, "Matrix A must be nxn"
+            stop
+        end if
+
+        ! Augment matrix A with vector b
+        allocate(Ab(n, n+1))
+        Ab(:, 1:n) = A
+        Ab(:, n+1) = b
+
+        ! Forward elimination process
+        do k = 1, n-1
+            ! Partial pivoting
+            do i = k+1, n
+                if (abs(Ab(i, k)) > abs(Ab(k, k))) then
+                    Ab([k, i], :) = Ab([i, k], :)
+                end if
+            end do
+
+            ! Elimination
+            do i = k+1, n
+                factor = Ab(i, k) / Ab(k, k)
+                Ab(i, k:n+1) = Ab(i, k:n+1) - factor * Ab(k, k:n+1)
+            end do
+        end do
+
+        ! Back substitution process
+        x(n) = Ab(n, n+1) / Ab(n, n)
+        do i = n-1, 1, -1
+            x(i) = (Ab(i, n+1) - sum(Ab(i, i+1:n) * x(i+1:n))) / Ab(i, i)
+        end do
+        
+        deallocate(Ab)
+
+
+    end subroutine gauss_5diagonals
+
+    !-----------    
 
     !Computes de value for a depth based in a profile.
     real function InterpolateProfile (CellDepth, NDEPTHS, Depth, Values)
@@ -13832,10 +13920,10 @@ D2:     do I=imax-1,2,-1
 
 !------------------------------------------------------------------------------
 
-    subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y)
+    subroutine WGS84toGoogleMaps2D_R4(lon, lat, ILB, IUB, JLB, JUB, x, y)
 
         !Arguments-------------------------------------------------------------
-         real,    dimension(:,:), pointer :: lon, lat
+         real(4), dimension(:,:), pointer :: lon, lat
          integer                          :: ILB, IUB, JLB, JUB
          real(8), dimension(:,:), pointer :: x, y
         !Local-----------------------------------------------------------------
@@ -13852,21 +13940,21 @@ D2:     do I=imax-1,2,-1
             else
                 write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
                 write(*,*) 'i=',i,' j=',j,' Lat=',Lat(i,j)
-                stop 'WGS84toGoogleMaps2D - ModuleFunctions - ERR10'
+                stop 'WGS84toGoogleMaps2D_R4 - ModuleFunctions - ERR10'
             endif
 
         enddo
         enddo
 
-    end subroutine WGS84toGoogleMaps2D
+    end subroutine WGS84toGoogleMaps2D_R4
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y)
+    subroutine WGS84toGoogleMaps1D_R4(lon, lat, Dim,  x, y)
 
         !Arguments-------------------------------------------------------------
-         real(8), dimension(:  ), pointer :: lon, lat
+         real(4), dimension(:  ), pointer :: lon, lat
          integer                          :: Dim
          real(8), dimension(:  ), pointer :: x, y
         !Local-----------------------------------------------------------------
@@ -13887,9 +13975,72 @@ D2:     do I=imax-1,2,-1
             endif
         enddo
 
-    end subroutine WGS84toGoogleMaps1D
+    end subroutine WGS84toGoogleMaps1D_R4
 
 !------------------------------------------------------------------------------
+    
+
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps2D_R8(lon, lat, ILB, IUB, JLB, JUB, x, y)
+
+        !Arguments-------------------------------------------------------------
+         real(8), dimension(:,:), pointer :: lon, lat
+         integer                          :: ILB, IUB, JLB, JUB
+         real(8), dimension(:,:), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i, j
+        !Begin-----------------------------------------------------------------
+
+        do j=JLB, JUB+1
+        do i=ILB, IUB+1
+
+            x(i,j) = lon(i,j) * 20037508.34 / 180;
+            if (abs(lat(i,j))<90) then
+                y(i,j) = log(tan((90 + lat(i,j)) * Pi / 360)) / (Pi / 180)
+                y(i,j) = y(i,j) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                write(*,*) 'i=',i,' j=',j,' Lat=',Lat(i,j)
+                stop 'WGS84toGoogleMaps2D_R8 - ModuleFunctions - ERR10'
+            endif
+
+        enddo
+        enddo
+
+    end subroutine WGS84toGoogleMaps2D_R8
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps1D_R8(lon, lat, Dim,  x, y)
+
+        !Arguments-------------------------------------------------------------
+         real(8), dimension(:  ), pointer :: lon, lat
+         integer                          :: Dim
+         real(8), dimension(:  ), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i
+        !Begin-----------------------------------------------------------------
+
+        do i=1, Dim
+            x(i) = lon(i) * 20037508.34 / 180;
+        enddo
+
+        do i=1, Dim
+            if (abs(lat(i))<90) then
+                y(i) = log(tan((90 + lat(i)) * Pi / 360)) / (Pi / 180)
+                y(i) = y(i) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                stop 'WGS84toGoogleMap1D_R8 - ModuleHorizontalGrid - ERR10'
+            endif
+        enddo
+
+    end subroutine WGS84toGoogleMaps1D_R8
+
+!------------------------------------------------------------------------------
+    
 
     real function GreatCircleDistance(Long1, Lat1, Long2, Lat2)
 
@@ -14771,12 +14922,62 @@ D2:     do I=imax-1,2,-1
 
     !------------------------------------------------------------------------------
 
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Hunt (1959)
+        !Hs - Significant wave height
+        !Tp - Peak period
+        !m  - Beach slope 
+    real function WaveRunUpHunt1959(Hs,Tp,m)    
+        !Arguments-------------------------------------------------------------
+        real , intent(IN)        :: Hs,Tp,m
+        !Local-----------------------------------------------------------------
 
-    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
+        !Begin-----------------------------------------------------------------   
+        if (Hs > 0.001) then 
+            WaveRunUpHunt1959 = Hs * (0.2 + Tp*m*sqrt(Gravity/(2*Pi*Hs)))
+        else
+            WaveRunUpHunt1959 = 0.
+        endif
+    
+    end function WaveRunUpHunt1959
+
+    !------------------------------------------------------------------------------
+
+    !Wave run-up calculation for waves collapsing on the beach using the formula of Stockdon2006 et al. (2006)
+        !Hs - Significant wave height
+        !Tp - Peak period
+        !m  - Beach slope 
+    real function WaveRunUpStockdon2006(Hs,Tp,m)    
+        !Arguments-------------------------------------------------------------
+        real , intent(IN)        :: Hs,Tp,m
+        !Local-----------------------------------------------------------------
+        real                     :: L, E, Sw, Sig
+        !Begin-----------------------------------------------------------------   
+        if (Hs > 0.001) then 
+            L = Gravity * Tp**2 / (2*Pi) 
+            E = m / sqrt(Hs/L)
+            if (E >= 0.3) then
+                Sw  = 0.75 * Hs * E
+                Sig = 0.06 * sqrt(Hs * L)
+                WaveRunUpStockdon2006 = 1.1 * (0.35*Hs*E + 0.5*sqrt(Sw**2+Sig**2))
+            else
+                WaveRunUpStockdon2006 = 0.043 * sqrt(Hs * L)
+            endif
+        else
+            WaveRunUpStockdon2006 = 0.
+        endif
+    
+    end function WaveRunUpStockdon2006
+
+    !------------------------------------------------------------------------------
+
+    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,nf,tmax,dt, ETA, UU, f, s, EqualEnergy)
 
         !Arguments----------------------------------------------------
-        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,df,tmax,dt
+        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,tmax,dt
+        integer,                         intent(IN)      :: nf
         real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
+        real, dimension(:), allocatable, intent(OUT)     :: f, s
+        logical,                         intent(IN)      :: EqualEnergy
 
         !Computes the sea level and velocity time series based in a JONSWAP spectrum
         !
@@ -14789,7 +14990,7 @@ D2:     do I=imax-1,2,-1
         !       dh   - vertical discretization used to compute the average in depth velocity
         !       fmim - min frequency
         !       fmax - max frequency
-        !       df - frequency discretization
+        !       nf - number of frequencies
         !       tmax -time serie period
         !       dt - time discretization
         !
@@ -14799,24 +15000,34 @@ D2:     do I=imax-1,2,-1
         !Local----------------------------------------------------------------
         real, dimension(:,:,:), allocatable :: U
         real, dimension(:,:),   allocatable :: wave, U1
-        real, dimension(:),     allocatable :: f, z, t, w
+        real, dimension(:),     allocatable :: z, t, w
         real                                :: wp, h, SIG, K, LLC
-        real                                :: SS, SJ, phi, A, sigmaX, RAND
-        integer                             :: x, l, i, nf, nh, nt
+        real                                :: SS, SJ, phi, A, sigmaX, RAND, aux, df, dfx
+        integer                             :: x, l, i, nh, nt
 
         !Begin----------------------------------------------------------------
 
         !f=fmin:df:fmax;
-        if (df >0.) then
-            nf = int((fmax-fmin)/df)+1
+        if (nf > 1) then
+            !nf = int((fmax-fmin)/df)+1
             allocate(f(1:nf))
-            allocate(w(1:nf))
             f(1) = fmin
+            
+            if (EqualEnergy) then
+            
+            else
+                !df =  constant
+                df =  (fmax-fmin) / (nf - 1) 
             do i =2, nf
                 f(i) = f(i-1) + df
             enddo
+                
+            endif
+            
+            allocate(w(1:nf))
             w(:) = f(:)
-
+            allocate(s   (1:nf))
+            s(:) = 0.
         else
             stop "JONSWAP2 - ERR10"
         endif
@@ -14828,7 +15039,7 @@ D2:     do I=imax-1,2,-1
             nh = int(h/dh)+1
             allocate(z(1:nh))
             z(1) = 0.
-            do i =2, nf
+            do i =2, nh
                 z(i) = z(i-1) + dh
             enddo
         else
@@ -14839,9 +15050,9 @@ D2:     do I=imax-1,2,-1
         !t=0:dt:tmax;
         if (dt >0.) then
             nt = int(tmax/dt)+1
-            allocate(t(1:nh))
-            t(1) = 0
-            do i =2, nf
+        allocate(t(nt))
+        t(1) = 0.0
+        do i = 2, nt
                 t(i) = t(i-1) + dt
             enddo
 
@@ -14855,31 +15066,37 @@ D2:     do I=imax-1,2,-1
         allocate(U1  (1:nt,     1:nf))
         allocate(U   (1:nt,1:nh,1:nf))
 
-
-        wp = 1/Tp;
+    wp = 1.0 / Tp
         do x = 1, nf
              if (f(x)<wp) then
-                 sigmaX= 0.07;
+            sigmaX = 0.07
              else
-                 sigmaX = 0.09;
+            sigmaX = 0.09
              endif
 
-             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
-             SS = 0.3125*Hs**2*wp**4;
+             !SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4)
+             SS = 0.3125*Hs**2*wp**4
              SS = SS / f(x)**5;
-             SS = SS * exp(-1.25/(f(x)/wp)**4);
-             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
+             SS = SS * exp(-1.25/(f(x)/wp)**4)
+             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2))
 
-             !Jonsoap
-             A  = sqrt(2*SJ*df);
+             if (x == nf) then 
+                dfx = f(x)   - f(x-1)
+             else
+                dfx = f(x+1) - f(x) 
+             endif
+             !Jonswap
+             A  = sqrt(2*SJ*dfx)
+             s(x) = SJ
 
              !Pierson-Moskowitz Spectrum
-             !A = sqrt(2*SS*df);
+             !A = sqrt(2*SS*dfx);
+             !s(x) = SS
 
              call RANDOM_NUMBER(RAND)
-             phi= 2*Pi*(RAND-0.5); ! random phase of ith frequency
-
-             wave(:,x) =(A * cos(f(x)*2*pi*t(:) + phi));
+             ! random phase of the frequency
+             phi= 2*Pi*(RAND-0.5)
+             wave(:,x) =A * cos(f(x)*2*pi*t(:) + phi)
 
             !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             !%% comprimento de onda na profundidade local %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -14891,17 +15108,32 @@ D2:     do I=imax-1,2,-1
             !(.00654080*k0h.**6))); ,K=kh/h;, LLC=2*pi./K;
             LLC = WaveLengthHuntsApproximation(1/f(x), h)
             K = 2*Pi/LLC
-            SIG=sqrt(Gravity*K*tanh(K*h));
+            SIG=sqrt(Gravity*K*tanh(K*h))
+            aux = Gravity*K/SIG
             do l=1,nh
-                U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h+z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi);
+                !U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h-z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi)
+                U(:,l,x)= aux * cosh(K*(h-z(l)))/cosh(K*h) * wave(:,x)
             enddo
         enddo
         !sum in frequency
         ETA(:)  =Sum(Wave(:,:  ),2)
-        !sum in frequency
-        U1 (:,:)=Sum(U   (:,:,:),3)
-        !average in depth
+        !sum in depth
+        U1 (:,:)=Sum(U   (:,:,:),2)
+        !average in frequency
         UU (:  )=Sum(U1  (:,:  ),2) / h
+        
+        !deallocate(f)
+        !deallocate(s)          
+        deallocate(w)      
+        deallocate(z)        
+        deallocate(t)          
+        
+        !deallocate(ETA)
+        !deallocate(UU )
+        deallocate(wave)
+        deallocate(U1  )
+        deallocate(U   )
+          
 
     end subroutine JONSWAP2
 
@@ -15557,27 +15789,43 @@ D2:     do I=imax-1,2,-1
 
     end function ReadEsriGridData
 
-    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth)
+    integer function FromDepth_2_layer(SZZ, OpenPoints, i, j, KLB, KUB, Depth, FixReferential)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:,:,:), pointer, intent(IN) :: SZZ
         integer,    dimension(:,:,:), pointer, intent(IN) :: OpenPoints        
         integer,                               intent(IN) :: i, j, KLB, KUB
         real,                                  intent(IN) :: Depth
+        logical, optional                                 :: FixReferential
         !Local-----------------------------------------------------------------
         real                                              :: Depth_u, Depth_l
         integer                                           :: k, k_depth
+        logical                                           :: FixReferential_  
 
         !Begin-----------------------------------------------------------------
 
         k_depth = FillValueInt
 
+        if (present(FixReferential)) then
+            FixReferential_ = FixReferential
+        else
+            FixReferential_ = .false.
+        endif
+
         do k = KUB, KLB, -1
 
             if (OpenPoints(i, j, k) == OpenPoint) then
-                Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
-                Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+
+                if (FixReferential_) then
+                    Depth_u = SZZ(i, j, k  ) 
+                    Depth_l = SZZ(i, j, k-1) 
+                else
+                    Depth_u = SZZ(i, j, k  ) - SZZ(i, j, KUB)
+                    Depth_l = SZZ(i, j, k-1) - SZZ(i, j, KUB)
+                endif
+
                 k_depth = k
+
                 if (Depth_u <= Depth .and. Depth_l >= Depth) then
                     exit
                 endif

@@ -78,6 +78,7 @@ Module ModuleDischarges
     public  :: GetDischargeFlowVelocity
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
+    public  :: GetDischargeConcMultiplyFactor
     public  :: GetByPassON
     public  :: GetByPassConcIncrease
     public  :: GetDischargeFromIntakeON
@@ -149,6 +150,7 @@ Module ModuleDischarges
     !Uniform discharge along a section define by "line" and two depths ("DEPTH_MIN", "DEPTH_MAX")
     !MohidJet module to update the section size and position. 
     integer, parameter :: MohidJet_     = 6
+    integer, parameter :: Maintainlevel = 7    
 
     !Valve side
     integer, parameter :: SideA         = 1
@@ -185,6 +187,7 @@ Module ModuleDischarges
         logical                                 :: PropTimeSerie    = .false.
         logical                                 :: FromIntake       = .false.
         real                                    :: IncreaseValue    = FillValueReal
+        real                                    :: MultiplyFactor   = 1.
         type (T_Property), pointer              :: Next => null(), &
                                                    Prev => null()
     end type T_Property
@@ -236,6 +239,7 @@ Module ModuleDischarges
         real                                    :: PipeLength           = null_real
         real                                    :: PipeManning          = null_real
         real                                    :: AreaInTime           = null_real
+        real                                    :: DH_Min               = null_real
     end  type T_Valve
     
     type       T_MohidJet
@@ -243,6 +247,15 @@ Module ModuleDischarges
         character(len=PathLength)               :: FileName             = null_str
         real                                    :: DT                   = null_real
     end  type T_MohidJet    
+    
+    type       T_MaintainLevel
+        character(len=PathLength)               :: FileName             = null_str
+        integer                                 :: ObjTimeSerie         = 0
+        integer                                 :: DataColumn           = null_int
+        real                                    :: DT                   = null_real
+        real                                    :: Area                 = null_real
+        real                                    :: MaxFlow              = null_real
+    end  type T_MaintainLevel    
 
     type T_GridCoordinates
         integer                                 :: I    = FillValueInt
@@ -290,6 +303,7 @@ Module ModuleDischarges
          integer                                :: kmax                             = FillValueInt
          real                                   :: Depth_min                        = FillValueReal
          real                                   :: Depth_max                        = FillValueReal
+         logical                                :: FixReferential                   = .false.
 
          !Important for the domain decomposition approach
          !is the ratio of the XYZPoints or Line or Polygon that intercepts the model domain
@@ -327,6 +341,9 @@ Module ModuleDischarges
          logical                                :: TimeSerieON      = .false.
          integer                                :: TimeSerie        = 0
          integer                                :: TimeSerieMaxCol  = 0
+         logical                                :: SwitchON         = .false.
+         integer                                :: SwitchTS         = 0 
+         integer                                :: SwitchColumn     = FillValueInt
          logical                                :: UseOriginalValues    = .false.
          type(T_WaterFlow          )            :: WaterFlow
          type(T_WaterVelocity      )            :: VelocityFlow
@@ -334,6 +351,7 @@ Module ModuleDischarges
          type(T_Valve   )                       :: Valve
          type(T_FlowOver)                       :: FlowOver
          type(T_RatingCurve)                    :: RatingCurve
+         type(T_MaintainLevel)                  :: MaintainLevel
          type(T_Property           ), pointer   :: FirstProperty    => null()
          type(T_Property           ), pointer   :: LastProperty     => null()
          type(T_Property           ), pointer   :: CurrProperty     => null()
@@ -497,7 +515,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR70'
 
             if (Me%SlowStart > Me%EndTime - Me%BeginTime) then
-                stop 'Construct_Discharges - ModuleDischarges - ERR90'
+                stop 'Construct_Discharges - ModuleDischarges - ERR75'
             endif
 
 
@@ -673,6 +691,9 @@ cd2 :           if (BlockFound) then
 
         !Read_DataBaseFile
         call Read_DataBaseFile                (NewDischarge)
+        
+        !Read Switch file
+        call Read_SwitchFile                  (NewDischarge)
 
         !Construct Discharge Flow values
         call Construct_FlowValues             (NewDischarge)
@@ -982,7 +1003,24 @@ i1:     if (NewDischarge%Localization%Location2D) then
                                      STAT         = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR78.'                        
-                    endif                    
+                    endif        
+
+                    if (NewDischarge%Localization%kmax == FillValueInt .or.             &
+                        NewDischarge%Localization%kmin == FillValueInt) then
+                        
+                        call GetData(NewDischarge%Localization%FixReferential,          &
+                                     Me%ObjEnterData,                                   &
+                                     flag,                                              &
+                                     FromBlock,                                         &
+                                     keyword      ='DEPTH_FIX',                         &
+                                     default      = .false.,                            &
+                                     ClientModule = 'ModuleDischarges',                 &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                    &
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR79.'                        
+                    endif                      
+                    
+                    
 
                 case (DischBottom_, DischSurf_)
                     !do not do nothing
@@ -1275,6 +1313,70 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine Read_SwitchFile(NewDischarge)
+
+        !Arguments-------------------------------------------------------------
+        type(T_IndividualDischarge), pointer                :: NewDischarge
+
+        !External--------------------------------------------------------------
+        character (len = PathLength)                        :: SwitchFile
+        integer                                             :: flag, STAT_CALL, TimeSerieMaxCol
+        !----------------------------------------------------------------------
+
+
+        !Looks for a definition of the data base file. If there is one, this module assumes
+        !that the discharge can be switch ON and switch OFF in time
+        call GetData(SwitchFile,                                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromBlock,                                                         &
+                     keyword      = 'SWITCH_FILE',                                      &
+                     ClientModule = 'ModuleDischarges',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR10'
+
+        if (flag == 1) then
+            NewDischarge%SwitchON = .true.
+        else
+            NewDischarge%SwitchON = .false.
+        endif
+        
+        if (NewDischarge%SwitchON) then
+            
+            call StartTimeSerieInput(NewDischarge%SwitchTS, SwitchFile, Me%ObjTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR20'            
+        
+        
+            call GetData(NewDischarge%SwitchColumn,                                     &
+                            Me%ObjEnterData,                                            &
+                            flag,                                                       &
+                            FromFile,                                                   &
+                            keyword      = 'SWITCH_COLUMN',                             &
+                            default      = 2,                                           &
+                            ClientModule = 'ModuleDischarges',                          &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR30'
+
+            call GetTimeSerieDataColumns (TimeSerieID = NewDischarge%SwitchTS,          &
+                                          DataColumns = TimeSerieMaxCol,                &
+                                          STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_SwitchFile - ModuleDischarges - ERR40'
+
+        
+            if (NewDischarge%SwitchColumn > TimeSerieMaxCol) then
+                stop 'Read_SwitchFile - ModuleDischarges - ERR50'
+            endif
+
+        endif
+
+        !----------------------------------------------------------------------
+
+    end subroutine Read_SwitchFile
+
+    !--------------------------------------------------------------------------
+    
 
     !--------------------------------------------------------------------------
 
@@ -1292,7 +1394,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
         integer                                     :: FirstLine, LastLine
         integer                                     :: iValue, iLine
         integer                                     :: localFile, localClientNumber
-
+        integer                                     :: TimeSerieMaxCol
+        
 
         !----------------------------------------------------------------------
 
@@ -1374,7 +1477,8 @@ i1:     if (NewDischarge%TimeSerieON) then
                  NewDischarge%DischargeType /= Valve        .and.                       &
                  NewDischarge%DischargeType /= OpenMILink   .and.                       &
                  NewDischarge%DischargeType /= RatingCurve  .and.                       &
-                 NewDischarge%DischargeType /= MohidJet_)   then
+                 NewDischarge%DischargeType /= MohidJet_    .and.                       &
+                 NewDischarge%DischargeType /= MaintainLevel)   then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
 
@@ -1579,10 +1683,20 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                 stop 'Construct_FlowValues - ModuleDischarges - ERR240'
             endif
 
+            call GetData(NewDischarge%Valve%DH_Min,                                     &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='VALVE_DH_MIN',                                  &
+                         default      = 0.,                                             & 
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR245'
+            
         else if (NewDischarge%DischargeType == RatingCurve) then i2
             
             !get rating curve file name
-            call GetData(NewDischarge%RatingCurve%File,                                &
+            call GetData(NewDischarge%RatingCurve%File,                                 &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
@@ -1657,6 +1771,95 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR300'
+            
+        elseif  (NewDischarge%DischargeType == MaintainLevel) then i2
+
+            call GetData(NewDischarge%MaintainLevel%Filename,                           &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='TIME_SERIE_MAINTAIN_LEVEL',                     &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR3010'
+            
+            if (flag /= 1) then
+                write(*,*) 'Missing Time Serie Filename of Water Level to Maintain'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR3020'
+            endif
+
+            call GetData(NewDischarge%MaintainLevel%Area,                               &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='AREA_MAINTAIN_LEVEL',                           &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR3030'
+            
+            if (flag /= 1) then
+                write(*,*) 'Missing Area of Water Level to Maintain'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR3040'
+            endif
+
+            call GetData(NewDischarge%MaintainLevel%DT,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='DT_MAINTAIN_LEVEL',                             &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR3050'
+            
+            if (flag /= 1) then
+                write(*,*) 'Missing DT of Water Level to Maintain'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR3060'
+            endif            
+            
+            call GetData(NewDischarge%MaintainLevel%MaxFlow,                            &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='MAX_FLOW_MAINTAIN_LEVEL',                       &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR3070'
+            
+            if (flag /= 1) then
+                write(*,*) 'Missing DT of Water Level to Maintain'
+                stop ' Construct_FlowValues - ModuleDischarges - ERR3080'
+            endif            
+            
+            call StartTimeSerieInput(NewDischarge%MaintainLevel%ObjTimeSerie,           &
+                                     NewDischarge%MaintainLevel%FileName,               &
+                                     Me%ObjTime, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR3090'
+            
+            call GetData(NewDischarge%MaintainLevel%DataColumn,                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='DATA_COLUMN_MAINTAIN_LEVEL',                    &
+                         default      = 2,                                              &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR3100'
+       
+
+            call GetTimeSerieDataColumns (TimeSerieID = NewDischarge%MaintainLevel%ObjTimeSerie,      &
+                                            DataColumns = TimeSerieMaxCol,&
+                                            STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR3110'
+
+            if (NewDischarge%MaintainLevel%DataColumn > TimeSerieMaxCol .or.               &
+                NewDischarge%MaintainLevel%DataColumn < 2) then
+
+                write(*,*)'Look at file', trim(Me%DataFile)
+                write(*,*)'DATA_COLUMN_MAINTAIN_LEVEL not valid in dicharge ', trim(NewDischarge%ID%Name)
+                stop 'Construct_PropertyValues - ModuleDischarges - ERR3120'
+
+            endif
 
 
         endif i2
@@ -2318,6 +2521,15 @@ ifvar:  if (NewProperty%Variable) then
             stop 'Construct_PropertyValues - ModuleDischarges -  ERR90'
 
         end if
+        
+        !Check if the user want to multiply the input concentration by a factor
+        call GetData(NewProperty%MultiplyFactor,                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromBlockinBlock,                                                  &
+                     keyword      ='MULTIPLY_FACTOR',                                   &
+                     ClientModule ='ModuleDischarges',                                  &
+                     default      = 1.)        
 
         !----------------------------------------------------------------------
 
@@ -3537,7 +3749,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     Subroutine GetDischargeFlowDistribuiton(DischargesID, DischargeIDNumber,            &
                                             nCells, FlowDistribution,                   &
                                             VectorI, VectorJ, VectorK,                  &
-                                            kmin, kmax, Depth_min, Depth_max, STAT)
+                                            kmin, kmax, Depth_min, Depth_max,           &
+                                            FixReferential, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3548,6 +3761,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer, dimension(:), pointer, optional    :: VectorI, VectorJ, VectorK
         integer,                        optional    :: kmin, kmax
         real,                           optional    :: Depth_min, Depth_max
+        logical, optional,              intent(OUT) :: FixReferential
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3564,8 +3778,6 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
@@ -3627,6 +3839,12 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 Depth_max = DischargeX%Localization%Depth_max
 
             endif            
+            
+            if (present(FixReferential)) then
+
+                FixReferential = DischargeX%Localization%FixReferential
+
+            endif              
 
             nullify(DischargeX)
 
@@ -3735,6 +3953,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: dQ1, dQ2
         integer                                     :: iAux
         real                                        :: DT_RunPeriod
+        real                                        :: RefLevel, Aux
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3772,7 +3991,8 @@ cd31:           if (STAT_CALL/=SUCCESS_) then
             end if
 
 
-cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Variable) then
+cd2:        if ((DischargeX%DischargeType == Normal .or. DischargeX%DischargeType == MohidJet_)    &
+                .and. DischargeX%WaterFlow%Variable) then
 
 
                 Flow = TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues, &
@@ -3809,6 +4029,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
                     Flow = - Flow
                 endif
+                
+                
 
             elseif (DischargeX%DischargeType == RatingCurve) then
 
@@ -3945,6 +4167,10 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
 
                     if (present(FlowArea)) FlowArea = A
+                    
+                    if (H < DischargeX%Valve%DH_Min) then
+                        Flow = 0
+                    endif
 
                     Flow = Flow * FlowDir
 
@@ -3954,8 +4180,31 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                             (DischargeX%ByPass%Side == SideB .and. FlowDir < 0.)) Flow = 0.
                     endif
                 endif
+                
+            elseif (DischargeX%DischargeType == MaintainLevel) then
+                
+
+                RefLevel = TimeSerieValue(TimeSerieID       = DischargeX%MaintainLevel%ObjTimeSerie,&
+                                          UseOriginalValues = .false.,                              &
+                                          TimeX             = TimeX,                                &
+                                          XColumn           = DischargeX%MaintainLevel%DataColumn)                
+
+                ![m3/s] = [m] / [s] * [m2]
+                Flow = (RefLevel - SurfaceElevation) / DischargeX%MaintainLevel%DT * DischargeX%MaintainLevel%Area
+                
+                if (abs(Flow) > DischargeX%MaintainLevel%MaxFlow) then
+                    
+                    if (Flow < 0) then
+                        Flow = - DischargeX%MaintainLevel%MaxFlow
+                    else
+                        Flow =   DischargeX%MaintainLevel%MaxFlow
+                    endif
+                    
+                endif
 
             else
+                
+                
 
                 Flow = DischargeX%WaterFlow%Scalar
 
@@ -3989,6 +4238,22 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     Flow = Flow * DT_RunPeriod / Me%SlowStart
                 endif
 
+            endif
+            
+            if (DischargeX%SwitchON) then
+                Aux = TimeSerieValue(TimeSerieID         = DischargeX%SwitchTS,          &
+                                     UseOriginalValues   = .true.,                       &
+                                     TimeX               = TimeX,                        &
+                                     XColumn             = DischargeX%SwitchColumn)
+                if      (Aux == 0) then
+                    Flow =  0
+                elseif  (Aux == 1) then
+                    !Do not change flow
+                else
+                    write (*,*) 'SWITCH ON/OFF discharge can only be 0 (OFF) or 1 (ON)'
+                    stop 'GetDischargeWaterFlow - ModuleDischarges - ERR40'
+                endif
+                
             endif
 
             nullify(DischargeX)
@@ -4637,6 +4902,8 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                     Concentration = PropertyX%Scalar
 
                 endif
+                
+                Concentration = Concentration * PropertyX%MultiplyFactor
 
                 if (present(PropertyFromIntake)) then
                     if(PropertyFromIntake) then
@@ -4678,6 +4945,88 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     end Subroutine GetDischargeConcentration
 
     !--------------------------------------------------------------------------
+    
+                                         
+    !--------------------------------------------------------------------------
+
+    subroutine GetDischargeConcMultiplyFactor(DischargesID, DischargeIDNumber,          &
+                                              MultiplyFactor, PropertyIDNumber, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,           intent(IN)               :: DischargeIDNumber
+        real,              intent(OUT)              :: MultiplyFactor
+        integer,           intent(IN)               :: PropertyIDNumber
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        type(T_Property),            pointer        :: PropertyX
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        integer                                     :: STAT_CALL
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
+            endif
+
+            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+            if (STAT_CALL/=SUCCESS_) then
+                !If the proeprty is not found the program don't stop is return a error
+                !not found
+                if (STAT_CALL /= NOT_FOUND_ERR_) then
+                    stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
+                endif
+            endif
+
+cd2 :       if (STAT_CALL == SUCCESS_) then
+
+                MultiplyFactor = PropertyX%MultiplyFactor
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = SUCCESS_
+
+            else if (STAT_CALL == NOT_FOUND_ERR_) then cd2
+
+
+                nullify(PropertyX)
+
+                nullify(DischargeX)
+
+                STAT_ = NOT_FOUND_ERR_
+
+
+            end if cd2
+
+
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischargeConcMultiplyFactor
+
+    !--------------------------------------------------------------------------                                         
 
     subroutine GetIntakePosition(DischargesID, DischargeIDNumber, IntakeI, IntakeJ, IntakeK, STAT)
 
@@ -5536,12 +5885,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
                 if (DischargeToDelete%TimeSerie /= 0) then
-
+                    
                     call KillTimeSerie(DischargeToDelete%TimeSerie, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR10.'
-
+                    
                 end if
-
+                
+                if (DischargeToDelete%MaintainLevel%ObjTimeSerie /= 0) then
+                    call KillTimeSerie(DischargeToDelete%MaintainLevel%ObjTimeSerie, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR15.'
+                endif                         
+                
+                if (DischargeToDelete%SwitchTS /= 0) then
+                    call KillTimeSerie(DischargeToDelete%SwitchTS, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR15.'
+                endif                    
+                
 
                 PropertyX => DischargeToDelete%FirstProperty
 

@@ -1,0 +1,36 @@
+
+EVOLUTION                      : Imposed Solution
+
+RESIDUAL		       : 1
+
+OUTPUT_TIME                    : 0 3600  
+
+<begin_waterlevel>
+NAME                           : water level
+UNITS                          : m
+DEFAULTVALUE                   : 0
+FILE_IN_TIME            	   : TIMESERIE
+FILENAME                       : ..\..\GeneralData\Tide\MareEsquematica.dat
+DATA_COLUMN                    : 5
+<end_waterlevel>
+
+
+<begin_velocity_u>
+NAME                           : velocity U
+UNITS                          : m/s
+DEFAULTVALUE                   : 0.0
+!FILE_IN_TIME                   : TIMESERIE
+!FILENAME                       : ..\..\GeneralData\Tide\MareEsquematica.dat
+!DATA_COLUMN                    : 2
+<end_velocity_u>
+
+<begin_velocity_v>
+NAME                           : velocity V
+UNITS                          : m/s
+DEFAULTVALUE                   : 0.0
+<end_velocity_v>
+
+
+
+
+

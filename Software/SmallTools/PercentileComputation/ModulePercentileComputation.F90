@@ -18,10 +18,11 @@ Module ModulePercentileComputation
 
     use ModuleGlobalData
     use ModuleTime               
-    use ModuleEnterData,         only : ConstructEnterData, KillEnterData,              &
-                                        GetData, ExtractBlockFromBuffer, Block_Unlock
+    use ModuleEnterData
     use ModuleFunctions         
     use ModuleHDF5
+    use ModuleDrawing
+    use RasterFunctions !new
     !use ModuleHorizontalGrid
     !use ModuleGridData
     
@@ -52,10 +53,16 @@ Module ModulePercentileComputation
     private :: T_Conditions
     type       T_Conditions
         character(len=StringLength)                 :: PropName
-        logical                                     :: Lower
+        logical                                     :: Below
         real                                        :: Limit
         real                                        :: Percentile
     end type  T_Conditions    
+    
+    private :: T_PolyField
+    type       T_PolyField
+        character(len=StringLength)                 :: PropName
+        integer                                     :: LayerON
+    end type  T_PolyField        
     
     ! Definition of type T_Parameter
     type       T_Parameter
@@ -63,31 +70,40 @@ Module ModulePercentileComputation
         character(len=PathLength  )                 :: GroupName
         character(len=PathLength  )                 :: File        
         integer                                     :: ObjHDF5
-        character(Len=StringLength)                 :: MappingName        
-        type(T_Parameter), pointer                  :: Next     => null()
+        character(Len=StringLength)                 :: MappingName  
+        logical                                     :: PolyField     = .false. 
+        type (T_Polygon), pointer                   :: ExclusionAreas            
+        type(T_Parameter), pointer                  :: Next         => null()
     end type  T_Parameter
     
     
-    private :: T_PercentileComputation
+    !private :: T_PercentileComputation
     type       T_PercentileComputation
         integer                                     :: InstanceID
         integer                                     :: ObjEnterData     = 0
         integer                                     :: ObjGridData      = 0
         integer                                     :: ObjGrid          = 0
         integer                                     :: IUB, JUB, KUB
-        real                                        :: DX              
+        real                                        :: DX, DY           
         real                                        :: Xorig, Yorig
         real                                        :: FillValueIn
         real                                        :: FillValueOut = -99
         character(Len=PathLength)                   :: OutputESRI
+        character(Len=PathLength)                   :: OutputGeoTiff
         character(Len=PathLength)                   :: BathymFile        
-        real, dimension(:, :),     pointer          :: OutMatrix2D
+        real, dimension(:, :, :),  pointer          :: OutMatrix3D
         real, dimension(:, :),     pointer          :: Bathym2D
         real                                        :: BathymMin, BathymMax
         type (T_Parameter), pointer                 :: FirstParameter     
         integer                                     :: ParameterNumber        
         type (T_Conditions),  dimension(:), pointer :: Conditions 
-        integer                                     :: NumberCond        
+        type (T_PolyField ),  dimension(:), pointer :: PolyField        
+        integer                                     :: NumberCond
+        integer                                     :: NumberPoly
+        logical                                     :: WriteAsGeoTiff = .false.
+        logical                                     :: WriteAsAsc     = .false.
+        logical                                     :: WriteCorners   = .false.
+        integer                                     :: EPSG
         type(T_PercentileComputation), pointer      :: Next
     end type  T_PercentileComputation
 
@@ -97,6 +113,7 @@ Module ModulePercentileComputation
 
 
     !--------------------------------------------------------------------------
+    !allocate(Me) 
     
     contains
 
@@ -123,8 +140,9 @@ Module ModulePercentileComputation
 
         !------------------------------------------------------------------------
 
-        STAT_ = UNKNOWN_
-
+        STAT_ = UNKNOWN_        
+        
+        
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mGeneric_)) then
             nullify (FirstObjPercentileComputation)
@@ -142,7 +160,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadKeywords
 
             call ReadBathymFile
-
+            
             !Returns ID
             ObjPercentileComputationID          = Me%InstanceID
 
@@ -170,8 +188,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         type (T_PercentileComputation), pointer                         :: NewObjPercentileComputation
         type (T_PercentileComputation), pointer                         :: PreviousObjPercentileComputation
-
-
+        
         !Allocates new instance
         allocate (NewObjPercentileComputation)
         nullify  (NewObjPercentileComputation%Next)
@@ -204,7 +221,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         integer                                         :: iFile, l, is, ie, AuxInt
-        integer                                         :: STAT_CALL
+        integer                                         :: STAT_CALL, ios
         character(Len=1000)                             :: AuxString
 
         !----------------------------------------------------------------------
@@ -237,9 +254,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ie = is + index(AuxString(is:1000), ',')-2
             read(AuxString(is:ie),*) AuxInt
             if      (AuxInt == 0) then
-                Me%Conditions(l)%Lower = .false.
+                Me%Conditions(l)%Below = .false.
             elseif  (AuxInt == 1) then
-                Me%Conditions(l)%Lower = .true. 
+                Me%Conditions(l)%Below = .true. 
             else
                 stop 'ReadInputFile - ModulePercentileComputation - ERR30' 
             endif
@@ -252,9 +269,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             read(AuxString(is:1000),*) Me%Conditions(l)%Percentile            
             
         enddo            
+        
+        read(iFile,*,iostat=ios) Me%NumberPoly 
+        if (ios == 0) then
+        
+            allocate(Me%PolyField(1:Me%NumberPoly))        
+        
+            do l=1, Me%NumberPoly
+        
+                read(iFile,'(A1000)') AuxString
+        
+                is = 1
+                ie = index(AuxString(is:1000), ',')-1
+                Me%PolyField(l)%PropName = trim(adjustl(AuxString(is:ie)))
+            
+                is = ie+2
+                ie = 1000
+                read(AuxString(is:ie),*) Me%PolyField(l)%LayerON
+                if ( Me%PolyField(l)%LayerON /= 0 .and.  Me%PolyField(l)%LayerON /= 1) then
+                    stop 'ReadInputFile - ModulePercentileComputation - ERR40'
+                endif
 
+            enddo
+        
+        else
+
+            Me%NumberPoly = 0        
+            
+        endif
+        
         call UnitsManager(iFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInputFile - ModulePercentileComputation - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInputFile - ModulePercentileComputation - ERR50'
+        
+        
         
     end subroutine ReadInputFile
     
@@ -267,7 +314,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                         :: iFile, i, j
         integer                                         :: STAT_CALL
-        character(Len=1000)                             :: AuxString
+        !character(Len=1000)                             :: AuxString
 
         !----------------------------------------------------------------------
         call UnitsManager(iFile, OPEN_FILE, STAT = STAT_CALL) 
@@ -313,7 +360,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadGlobalData        
 
         call ReadParameters
-
+        
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ReadKeywords - ModulePercentileComputation - ERR20'
@@ -339,6 +386,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
             stop 'ReadGlobalData - ModulePercentileComputation - ERR10'   
+        
+        ! DY
+        call GetData(Me%DY, Me%ObjEnterData, iflag,                                     &
+                     keyword      = 'DY',                                               &
+                     SearchType   = FromFile,                                           &
+                     Default      = Me%DX,                                              &                       
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ReadGlobalData - ModulePercentileComputation - ERR15'           
 
         ! X origin
         call GetData(Me%Xorig, Me%ObjEnterData, iflag,                                  &
@@ -398,8 +455,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      ClientModule = 'ModulePercentileComputation',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-            stop 'ReadGlobalData - ModulePercentileComputation - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalData - ModulePercentileComputation - ERR70'
+        if (iflag /= 0) Me%WriteAsAsc = .true.
+                
+        call GetData(Me%OutputGeoTiff, Me%ObjEnterData, iflag,                          &
+                     keyword      = 'OUTPUT_TIFF',                                      &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalData - ModulePercentileComputation - ERR71'
+        if (iflag /= 0) Me%WriteAsGeoTiff = .true.
+        
+        if (Me%WriteAsGeoTiff) then
+            call GetData(Me%EPSG,                                                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EPSG',                                             &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         default      = 4326,                                               &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePercentileComputation - ERR71.1'
+        end if
+        
+        if (.not. Me%WriteAsGeoTiff .and. .not. Me%WriteAsAsc) then
+            write(*,*) 'No output file provided, ASC or GEOTIFF'
+            stop 'ReadGlobalData - ModulePercentileComputation - ERR72'
+        endif
+        
+        if (Me%WriteAsGeoTiff) then
+            call GetData(Me%WriteCorners, Me%ObjEnterData, iflag,                       &
+                     keyword      = 'WRITE_CORNERS',                                    &
+                     Default      = .false.,                                            &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModulePercentileComputation',                      &
+                     STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePercentileComputation - ERR73'
+        end if
+        
         
         call GetData(Me%FillValueIn, Me%ObjEnterData, iflag,                            &
                      keyword      = 'FILLVALUE_IN',                                     &
@@ -448,10 +540,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_CALL, ClientNumber, i
+        integer                                         :: STAT_CALL, ClientNumber!, i
         type (T_Parameter),       pointer               :: NewParameter
         logical                                         :: BlockFound
-        logical                                         :: AtLeastOneBlock = .false.
+        !logical                                         :: AtLeastOneBlock = .false.
 
         !Begin-----------------------------------------------------------------
         
@@ -565,16 +657,6 @@ cd2 :           if (BlockFound) then
             !No stop is made because in some HDF5 files parameters are not
             !registred in Module GlobalData
         end if
-
-        ! Obtain parameter group
-        call GetData(NewParameter%GroupName,                                            &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'HDF_GROUP',                                        &
-                     ClientModule = 'ModulePercentileComputation',                      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_ .and. iflag == 0)                                   &
-            stop 'ConstructParameters - ModulePercentileComputation - ERR20'
         
         call GetData(NewParameter%File,                                                 &
                      Me%ObjEnterData, iflag,                                            &
@@ -583,26 +665,51 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModulePercentileComputation',                      &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_ .and. iflag == 0)                                   &
-            stop 'ConstructParameters - ModulePercentileComputation - ERR30'                     
+            stop 'ConstructParameters - ModulePercentileComputation - ERR30'         
         
-        call GetData(NewParameter%MappingName, Me%ObjEnterData, iflag,                  &
-                     keyword      = 'MAPPING',                                          &
+        ! Obtain parameter type
+        call GetData(NewParameter%PolyField,                                            &
+                     Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
+                     keyword      = 'POLY_FILE',                                        &
+                     default      = .false.,                                            &    
                      ClientModule = 'ModulePercentileComputation',                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
-            stop 'ConstructParameters - ModulePercentileComputation - ERR40'   
+        if (STAT_CALL .NE. SUCCESS_) then
+            stop 'ConstructParameters - ModulePercentileComputation - ERR15'        
+        endif
+        
+        if (.not.NewParameter%PolyField) then
+            ! Obtain parameter group
+            call GetData(NewParameter%GroupName,                                            &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'HDF_GROUP',                                        &
+                         ClientModule = 'ModulePercentileComputation',                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_ .and. iflag == 0)                                   &
+                stop 'ConstructParameters - ModulePercentileComputation - ERR20'
+        
+        
+            call GetData(NewParameter%MappingName, Me%ObjEnterData, iflag,                  &
+                         keyword      = 'MAPPING',                                          &
+                         SearchType   = FromBlock,                                          &
+                         ClientModule = 'ModulePercentileComputation',                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                                      &
+                stop 'ConstructParameters - ModulePercentileComputation - ERR40'   
 
         
-        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
             
-        NewParameter%ObjHDF5 = 0
+            NewParameter%ObjHDF5 = 0
 
-        !Open HDF5 file
-        call ConstructHDF5 (NewParameter%ObjHDF5, trim(NewParameter%File),              &
-                            HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'ConstructParameters - ModulePercentileComputation - ERR50'                     
+            !Open HDF5 file
+            call ConstructHDF5 (NewParameter%ObjHDF5, trim(NewParameter%File),              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                    &
+                stop 'ConstructParameters - ModulePercentileComputation - ERR50'                     
+        endif
 
     end subroutine ConstructParameters
 
@@ -699,9 +806,14 @@ cd2 :           if (BlockFound) then
         IUB = Me%IUB
         JUB = Me%JUB
         
-        allocate(Me%OutMatrix2D(1:IUB,1:JUB))
+        allocate(Me%OutMatrix3D(1:IUB,1:JUB,0:Me%NumberCond))
         
-        Me%OutMatrix2D(1:IUB,1:JUB) = 0.
+        Me%OutMatrix3D(1:IUB,1:JUB,:) = 0
+        Me%OutMatrix3D(1:IUB,1:JUB,0) = Me%NumberCond
+        if (Me%WriteAsGeoTiff) then
+            call ReadHD5Grid        
+        endif
+        
     
         do n = 1, Me%NumberCond
             
@@ -713,17 +825,105 @@ cd2 :           if (BlockFound) then
                 stop 'ComputePercentile - ModulePercentileComputation - ERR10'                     
             endif
             
-            call ReadFileCheckCondition(ParameterX, n)
+            if (.not. ParameterX%PolyField) then
+                call ReadFileCheckCondition(ParameterX, n)
+            endif
             
         enddo
         
-        call WriteESRI_GridData
+        call BathymFilter
         
-        deallocate(Me%OutMatrix2D)
+        do n = 1, Me%NumberPoly
+            
+            if ( Me%PolyField(n)%LayerON == 1) then
+            
+                nullify(ParameterX)
+            
+                call Search_Parameter(ParameterX, Me%PolyField(n)%PropName, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) then
+                    write(*,*) 'No hdf5 file found with the parameter name = ',trim(Me%PolyField(n)%PropName)
+                    stop 'ComputePercentile - ModulePercentileComputation - ERR20'                     
+                endif
+            
+                if (ParameterX%PolyField) then
+                    call CheckExclusionAreas(ParameterX)
+                endif
+                
+            endif
+            
+        enddo        
+        
+        if (Me%WriteAsAsc) then
+            call WriteESRI_GridData
+        end if
+        
+        if (Me%WriteAsGeoTiff) then
+            call WriteESRI_GeoTiff
+        end if
+        
+        deallocate(Me%OutMatrix3D)
         
     end subroutine ComputePercentile
     
     !--------------------------------------------------------------------------
+    
+    subroutine ReadHD5Grid
+    
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                             :: i, j, STAT_CALL
+        integer                             :: ObjHDF5
+        real, dimension(:,:  ), pointer     :: CoordsX, CoordsY
+        real, dimension(:,:,:), allocatable :: Aux3D
+        type (T_Parameter)    , pointer     :: ParameterX
+        real(kind=c_double)                 :: geotrans(6) = 0.0
+        character(len=1000)                 :: projref
+        integer                             :: Unit ! to write 4 corners
+        !Body------------------------------------------------------------------
+        
+        ! Get one HDF (the first) to check for conditions
+        nullify(ParameterX)
+        call Search_Parameter(ParameterX, Me%Conditions(1)%PropName, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ComputePercentile - ModulePercentileComputation - ERR10'
+        
+        ObjHDF5     = ParameterX%ObjHDF5
+        
+        ! Is and Js from HDF instead of 
+        
+        ! Read Coordinates from HDF5
+        allocate(CoordsX(0:Me%IUB+2,0:Me%JUB+2)); CoordsX = 0.0
+        allocate(CoordsY(0:Me%IUB+2,0:Me%JUB+2)); CoordsY = 0.0
+        
+        ! CoordX and CoordY have one extra size because its the corners of the HDF cells
+        call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = Me%IUB + 1, JLB = 1, JUB = Me%JUB + 1, STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR20'
+        
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Longitude',                        &
+                            Array2D       = CoordsX,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR30'
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Latitude',                         &
+                            Array2D       = CoordsY,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHD5Grid - ModulePercentileComputation - ERR31'
+        
+        
+        Me%XOrig    = CoordsX  (1,1) ! origin x (bottom left)
+        Me%DX       = subtract_with_precision(CoordsX(1,Me%JUB + 1), CoordsX(1,1)) / Me%JUB ! dx
+        Me%YOrig    = CoordsY  (1,1) ! origin y (bottom left)
+        Me%DY       = subtract_with_precision(CoordsY(Me%IUB + 1,1), CoordsY(1,1)) / Me%IUB ! dy
+
+        deallocate(CoordsX)
+        deallocate(CoordsY)
+        
+    
+    end subroutine ReadHD5Grid
+    
+    !--------------------------------------------------------------------------    
     
     subroutine ReadFileCheckCondition(ParameterX, n)
 
@@ -883,7 +1083,7 @@ cd2 :           if (BlockFound) then
         
         endif    
         
-        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix2D, nItems, n, WaterPoints2D)        
+        call CheckCondition (Classes3D, Limits2D, Me%OutMatrix3D, nItems, n, WaterPoints2D)        
         
 
         deallocate(Classes3D    ) 
@@ -894,18 +1094,19 @@ cd2 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------
     
-    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix2D, nItems, n, WaterPoints2D)
+    subroutine CheckCondition(InMatrix3D, Limits2D, OutMatrix3D, nItems, n, WaterPoints2D)
 
         !Arguments-------------------------------------------------------------
         real,   dimension(:,:,:), pointer   :: InMatrix3D
         integer,dimension(:,:  ), pointer   :: WaterPoints2D
-        real,   dimension(:,:  ), pointer   :: OutMatrix2D, Limits2D
+        real,   dimension(:,:,:), pointer   :: OutMatrix3D
+        real,   dimension(:,:  ), pointer   :: Limits2D
         integer                             :: nItems, n
         
         !Local-----------------------------------------------------------------
         real                                :: Sum, dP2, dPx, LimitX, PercentX
-        integer                             :: STAT_CALL, IUB, JUB, KUB, ni, i, j
-        
+        integer                             :: IUB, JUB, ni, i, j !,STAT_CALL, KUB
+        real                                :: XPoint, YPoint
         !Begin-----------------------------------------------------------------
         
         
@@ -917,73 +1118,327 @@ cd2 :           if (BlockFound) then
         
         do i = 1, IUB
         do j = 1, JUB
+                                     
+iW:         if (WaterPoints2D(i,j) == 1) then
             
-            if (WaterPoints2D(i,j) == 0         .or.                                    &
-                Me%Bathym2D(i,j) < Me%BathymMin .or.                                    &
-                Me%Bathym2D(i,j) > Me%BathymMax) then
-                OutMatrix2D(i, j) = Me%FillValueOut
-                cycle
-            endif
+                Sum = 0.
             
-            Sum = 0.
-            
-            do ni = 1, nItems
+                do ni = 1, nItems
                 
-                Sum = Sum + InMatrix3D(i, j, ni)
+                    Sum = Sum + InMatrix3D(i, j, ni)
                 
-                if (Me%Conditions(n)%Lower) then
+                    if (Me%Conditions(n)%Below) then
                 
-                if (Sum >= Me%Conditions(n)%Percentile) then 
+                    if (Sum >= Me%Conditions(n)%Percentile) then 
                     
-                    dPx = Sum - Me%Conditions(n)%Percentile
-                    dP2 = InMatrix3D(i, j, ni)                    
-                    
-                    if (dPx == 0. .or. ni == nItems .or. dP2 == 0.) then
-                            LimitX = Limits2D(ni,2)
-                    else
-                            LimitX = (Limits2D(ni,2) - Limits2D(ni,1)) * dPx/dP2 + Limits2D(ni,1)
-                    endif
-                
-                        if (Me%Conditions(n)%Limit >= LimitX) then 
-                            OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
-                        endif
-                        
-                        exit
-                        
-                    endif
-                    
-                endif
-                
-                    
-                    if (.not. Me%Conditions(n)%Lower) then
-                    
-                    if (Sum >= PercentX) then 
-                    
-                        dPx = Sum - PercentX
+                        dPx = Sum - Me%Conditions(n)%Percentile
                         dP2 = InMatrix3D(i, j, ni)                    
                     
                         if (dPx == 0. .or. ni == nItems .or. dP2 == 0.) then
-                            LimitX = Limits2D(ni,2)
+                                LimitX = Limits2D(ni,2)
                         else
-                            LimitX = (Limits2D(ni,2) - Limits2D(ni,2)) * dPx/dP2 + Limits2D(ni,2)
+                                LimitX = (Limits2D(ni,2) - Limits2D(ni,1)) * dPx/dP2 + Limits2D(ni,1)
+                        endif
+                
+                            if (LimitX <= Me%Conditions(n)%Limit) then 
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j,0) - 1
+                                OutMatrix3D(i, j, n) = 1
+                            endif
+                        
+                            exit
+                        
                         endif
                     
-                        if (Me%Conditions(n)%Limit <= LimitX) then 
-                            OutMatrix2D(i, j) = OutMatrix2D(i, j) + 1
-                        endif
+                    endif
+                
                     
-                    exit    
+                        if (.not. Me%Conditions(n)%Below) then
+                    
+                        if (Sum >= PercentX) then 
+                    
+                            dPx = Sum - PercentX
+                            dP2 = InMatrix3D(i, j, ni)                    
+                    
+                            if (dPx == 0. .or. ni == nItems .or. dP2 == 0.) then
+                                LimitX = Limits2D(ni,2)
+                            else
+                                LimitX = (Limits2D(ni,2) - Limits2D(ni,2)) * dPx/dP2 + Limits2D(ni,2)
+                            endif
+                    
+                            if (LimitX >= Me%Conditions(n)%Limit) then 
+                                OutMatrix3D(i, j, 0) = OutMatrix3D(i, j, 0) - 1
+                                OutMatrix3D(i, j, n) = 1
+                            endif
+                    
+                        exit    
                 
-                endif
+                    endif
                 
-                endif
+                    endif
                 
-            enddo
+                enddo
+                
+            endif iW
         enddo
         enddo
 
 
     end subroutine CheckCondition
+    
+    !--------------------------------------------------------------------------  
+    
+    subroutine CheckExclusionAreas(ParameterX)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Parameter), pointer         :: ParameterX
+
+        !Local-----------------------------------------------------------------
+        integer                             :: IUB, JUB, i, j
+        real                                :: XPoint, YPoint
+        !Begin-----------------------------------------------------------------
+        
+        call New(ParameterX%ExclusionAreas,  trim(ParameterX%File))        
+        
+        do i = 1, Me%IUB
+        do j = 1, Me%JUB
+            
+            if (Me%OutMatrix3D(i, j, 0) > Me%FillValueOut) then
+            
+                !if(Me%Bathym2D(i,j) < Me%BathymMin .or. Me%Bathym2D(i,j) > Me%BathymMax) then
+                !    Me%OutMatrix3D(i, j) = Me%FillValueOut
+                !    cycle
+                !endif            
+            
+                if (associated(ParameterX%ExclusionAreas)) then
+                    XPoint  = Me%Xorig + Me%DX * (real(j-1) + 0.5)
+                    YPoint  = Me%Yorig + Me%DY * (real(i-1) + 0.5)
+                    if (PointXYInsidePolySet(ParameterX%ExclusionAreas, XPoint, YPoint)) then
+                        Me%OutMatrix3D(i, j, :) = Me%FillValueOut
+                    endif
+                endif
+                
+            endif
+            
+        enddo
+        enddo
+
+
+    end subroutine CheckExclusionAreas
+    
+    !--------------------------------------------------------------------------  
+    
+    
+    !--------------------------------------------------------------------------  
+    
+    subroutine BathymFilter()
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                             :: IUB, JUB, i, j
+        real                                :: XPoint, YPoint
+        !Begin-----------------------------------------------------------------
+        
+        
+        do i = 1, Me%IUB
+        do j = 1, Me%JUB
+            
+            if (Me%OutMatrix3D(i, j, 0) > Me%FillValueOut) then
+            
+                if(Me%Bathym2D(i,j) < Me%BathymMin .or. Me%Bathym2D(i,j) > Me%BathymMax) then
+                    Me%OutMatrix3D(i, j, :) = Me%FillValueOut
+                    cycle
+                endif            
+            
+            endif
+            
+        enddo
+        enddo
+
+
+    end subroutine BathymFilter
+    
+    !--------------------------------------------------------------------------      
+    function subtract_with_precision(x, y) result(res)
+        real(kind=c_double), intent(in) :: x, y
+        real(kind=c_double) :: res
+        integer :: max_decimals
+
+        ! Determine max number of decimals
+        max_decimals = max(num_decimals(x), num_decimals(y))
+
+        ! Perform subtraction with appropriate scaling
+        res = (x * 10.0_c_double**max_decimals - y * 10.0_c_double**max_decimals) &
+              / 10.0_c_double**max_decimals
+    end function subtract_with_precision
+    
+    !function num_decimals(val) result(ndec)
+    !    real(kind=c_double), intent(in) :: val
+    !    integer :: ndec
+    !    real(kind=c_double) :: temp
+    !    integer, parameter :: max_iterations = 15
+    !
+    !    ndec = 0
+    !    temp = val
+    !
+    !    do while (ndec < max_iterations)
+    !        if (abs(temp - nint(temp)) < 1.0_c_double * 1.0e-14) exit
+    !        temp = temp * 10.0_c_double
+    !        ndec = ndec + 1
+    !    end do
+    !end function num_decimals
+    
+    function num_decimals(val) result(ndec)
+        real(kind=c_double), intent(in) :: val
+        integer :: ndec, pos
+        character(len=100) :: tempStr
+    
+        ! Convert the number to a string
+        write(tempStr, '(f0.15)') val
+    
+        ! Search for the decimal point
+        pos = index(tempStr, '.')
+    
+        ! If no decimal point is found, number of decimals is zero
+        if (pos == 0) then
+            ndec = 0
+            return
+        end if
+    
+        ! Determine the length of the decimal part
+        ! And make sure to exclude trailing zeros after the decimal point
+        ndec = len_trim(tempStr) - pos
+        do while(tempStr(pos + ndec:len_trim(tempStr)) == '0' .and. ndec > 0)
+            ndec = ndec - 1
+        end do
+    
+    end function num_decimals
+
+
+    
+    subroutine WriteESRI_GeoTiff
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                             :: i, j, STAT_CALL
+        integer                             :: ObjHDF5
+        real, dimension(:,:  ), pointer     :: CoordsX, CoordsY
+        real, dimension(:,:,:), allocatable :: Aux3D
+        type (T_Parameter)    , pointer     :: ParameterX
+        real(kind=c_double)                 :: geotrans(6) = 0.0
+        character(len=1000)                 :: projref
+        integer                             :: Unit ! to write 4 corners
+        !Body------------------------------------------------------------------
+                
+        ! Get one HDF (the first) to check for conditions
+        nullify(ParameterX)
+        call Search_Parameter(ParameterX, Me%Conditions(1)%PropName, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ComputePercentile - ModulePercentileComputation - ERR10'
+        
+        ObjHDF5     = ParameterX%ObjHDF5
+        
+        ! Is and Js from HDF instead of 
+        
+        ! Read Coordinates from HDF5
+        allocate(CoordsX(0:Me%IUB+2,0:Me%JUB+2)); CoordsX = 0.0
+        allocate(CoordsY(0:Me%IUB+2,0:Me%JUB+2)); CoordsY = 0.0
+        
+        ! CoordX and CoordY have one extra size because its the corners of the HDF cells
+        call HDF5SetLimits  (HDF5ID = ObjHDF5, ILB = 1, IUB = Me%IUB + 1, JLB = 1, JUB = Me%JUB + 1, STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR20'
+        
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Longitude',                        &
+                            Array2D       = CoordsX,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR30'
+        call HDF5ReadWindow(HDF5ID        = ObjHDF5,                            &
+                            GroupName     = 'Grid',                             &
+                            Name          = 'Latitude',                         &
+                            Array2D       = CoordsY,                            &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR31'
+        
+        ! Get GeoTransform from HDF5 (Convert the floating-point resolution to integers by scaling)
+        
+        geotrans(1) = CoordsX  (1,1) ! origin x (bottom left)
+        geotrans(2) = subtract_with_precision(CoordsX(1,Me%JUB + 1), CoordsX(1,1)) / Me%JUB ! dx
+        geotrans(3) = 0.0 ! offsetx
+        geotrans(4) = CoordsY  (1,1) ! origin y (bottom left)
+        geotrans(5) = 0.0 ! offsety
+        geotrans(6) = subtract_with_precision(CoordsY(Me%IUB + 1,1), CoordsY(1,1)) / Me%IUB ! dy
+        
+        ! Get projection - ideally from HDF5 - does it only work in 4326?
+        select case (Me%EPSG)
+            case (4326)
+                projref = 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]'
+            case default
+                write (*,*) 'Unknown projection for GeoTiff'
+                stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR40'
+            end select
+            
+        ! Apply mask when value below fillval
+        do i = Me%IUB, 1, -1
+            do j = 1, Me%JUB
+                ! Assure fill values
+                if (Me%OutMatrix3D(i,j, 0) <= Me%FillValueOut) then
+                    Me%OutMatrix3D(i,j,:) = Me%FillValueOut
+                endif
+            enddo
+        enddo
+        
+
+        
+        ! Set to 3D Matrix
+        allocate(Aux3D(1:Me%JUB, 1:Me%IUB, 1:Me%NumberCond+1)); Aux3D = 0
+        
+        ! Transpose Matrix
+        do i=1, Me%IUB
+        do j=1, Me%JUB
+            Aux3D (j, i,1:Me%NumberCond+1) = Me%OutMatrix3D (i, j, 0:Me%NumberCond)
+        enddo
+        enddo
+        
+        ! Create GeoTiff
+        call CreateRaster   (FileName       = trim(Me%OutputGeoTiff)  , &
+                             DriverName     = "GTiff"                 , &
+                             RasterWidth    = Me%JUB                  , &
+                             RasterHeight   = Me%IUB                  , &
+                             DataType       = GDT_Float64             , &
+                             NumberBands    = Me%NumberCond+1         , &
+                             Projection     = projref                 , &
+                             GeoTrans       = geotrans                , &
+                             DataMatrix3D   = Aux3D )
+        deallocate(Aux3D)
+        
+        ! Write corners of file in RasterCorners.txt
+        if (Me%WriteCorners) then
+            call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR100'
+            
+            open(Unit   = Unit,                                                             &
+                 File   = 'RasterCorners.txt',                                              &
+                 Form   = 'FORMATTED',                                                      &
+                 STATUS = 'UNKNOWN',                                                        &
+                 Action = 'WRITE',                                                          &
+                 IOSTAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR110'
+            
+            write(Unit,'(A14,f12.6,A,f12.6)') 'topright:     ', CoordsX(1,Me%JUB + 1),' ', CoordsY(Me%IUB + 1,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'bottomright:  ', CoordsX(1,Me%JUB + 1),' ', CoordsY(1         ,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'topleft:      ', CoordsX(1,1         ),' ', CoordsY(Me%IUB + 1,1)
+            write(Unit,'(A14,f12.6,A,f12.6)') 'bottomleft:   ', CoordsX(1,1         ),' ', CoordsY(1,1         )
+            
+            call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteESRI_GeoTiff - ModulePercentileComputation - ERR120'
+            
+        end if 
+        
+        deallocate(CoordsX)
+        deallocate(CoordsY)
+        
+    
+    end subroutine WriteESRI_GeoTiff
     
     !--------------------------------------------------------------------------  
     
@@ -1020,9 +1475,9 @@ cd2 :           if (BlockFound) then
                 
         do i = Me%IUB, 1, -1
             do j = 1, Me%JUB
-                if (Me%OutMatrix2D(i,j) <= Me%FillValueOut) Me%OutMatrix2D(i,j) = Me%FillValueOut
+                if (Me%OutMatrix3D(i,j, 0) <= Me%FillValueOut) Me%OutMatrix3D(i,j, 0) = Me%FillValueOut
             enddo
-            write(Line,'(4000(I4,1x))') int(Me%OutMatrix2D(i,1:Me%JUB))
+            write(Line,'(4000(I4,1x))') int(Me%OutMatrix3D(i,1:Me%JUB,0))
             Line = adjustl(Line)
             Found2Blanks = .true.
 
@@ -1066,7 +1521,7 @@ cd2 :           if (BlockFound) then
         integer                             :: ready_              
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_, nUsers, STAT_CALL        
+        integer                             :: STAT_, nUsers!, STAT_CALL        
 
         !------------------------------------------------------------------------
 
@@ -1091,7 +1546,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 !    stop 'KillPercentileComputation - ModulePercentileComputation - ERR20'
                 
                 deallocate(Me%Bathym2D)
-
+                
                 !Deallocates Instance
                 call DeallocateInstance ()
 

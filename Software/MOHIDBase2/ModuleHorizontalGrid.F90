@@ -1,4 +1,5 @@
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 !        IST/MARETEC, Water Modelling Group, Mohid modelling system
 !------------------------------------------------------------------------------
 !
@@ -156,6 +157,8 @@ Module ModuleHorizontalGrid
     public  :: GetGhostCorners
 
     public  :: GetSonWindow
+    
+    public  :: GetConstDX_NoRot
 
     public  :: GetConnections
     public  :: UnGetConnections
@@ -346,6 +349,7 @@ Module ModuleHorizontalGrid
     public :: ReceiveSendIntMinMPI
     
     public :: IntMaster2Slaves
+    
 
 #endif _USE_MPI
 
@@ -383,6 +387,9 @@ Module ModuleHorizontalGrid
 
     !Input / Output
     integer, parameter :: FileOpen = 1, FileClose = 0
+
+    !Domain decomposition 
+    integer, parameter :: Lines_ = 1, Columns_ = 2, Chess_ = 3
 
 
     !Type----------------------------------------------------------------------
@@ -523,7 +530,9 @@ Module ModuleHorizontalGrid
         character(PathLength)                   :: ModelPath      = null_str
         type (T_Coef2D)                         :: Coef2D
         type (T_Coef3D)                         :: Coef3D
-        logical                                 :: AutomaticLines = .false.
+        integer                                 :: AutomaticDD    = FillValueInt
+        integer                                 :: ChessLines     = FillValueInt
+        integer                                 :: ChessColumns   = FillValueInt          
         real, dimension(:, :), pointer          :: XX_IE_Global   => null()
         real, dimension(:, :), pointer          :: YY_IE_Global   => null()
         type (T_Border), dimension(:),  pointer :: Slaves_Mapping_Bound  => null()        
@@ -612,6 +621,8 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer        :: DefineCrossMap  => null()
 
         logical                                 :: NotDefinedCells = .false.
+        
+        logical                                 :: WriteCellsArea  = .false.      
 
         !Latitude, Longitude
         real, dimension(:, :), pointer          :: LatitudeZ  => null()
@@ -636,6 +647,11 @@ Module ModuleHorizontalGrid
 
         type(T_DDecomp)                         :: DDecomp
         type (T_BorderLimits)                   :: BorderLimits
+        
+        logical                                 :: ConstantSpacingX = .false.
+        real(8)                                 :: DX               = null_real
+        logical                                 :: ConstantSpacingY = .false.
+        real(8)                                 :: DY               = null_real
 
         !Instances
         integer                                 :: ObjHDF5       = 0
@@ -1216,6 +1232,7 @@ iE:         if  (Exist) then
         integer                                     :: ClientNumber, STAT_CALL, iflag
         integer                                     :: in, line, FirstLine, LastLine, i, ii, jj
         integer                                     :: SN_N_Interfaces, WE_N_Interfaces, MPI_ID
+        integer                                     :: ND
         logical                                     :: MissMatchID
 
         !Begin----------------------------------------------------------------
@@ -1339,15 +1356,55 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
 
 iAuto:  if (Me%DDecomp%Auto) then
 
-            call GetData(Value          = Me%DDecomp%AutomaticLines,                    &
+            call GetData(Value          = Me%DDecomp%AutomaticDD,                       &
                          EnterDataID    = Me%ObjEnterData2,                             &
                          flag           = iflag,                                        &
-                         keyword        = 'AUTOMATIC_LINES',                            &
+                         keyword        = 'AUTOMATIC_DD',                               &
                          SearchType     = FromFile,                                     &
-                         default        = .false.,                                      &
+                         default        = Lines_,                                       &
+                         ClientModule   = 'ModuleHorizontalGrid',                       &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
+
+            if (Me%DDecomp%AutomaticDD == Chess_) then
+
+                call GetData(Value         = Me%DDecomp%ChessLines,                     &
+                            EnterDataID    = Me%ObjEnterData2,                          &
+                            flag           = iflag,                                     &
+                            keyword        = 'CHESS_LINES',                             &
+                            SearchType     = FromFile,                                  &
+                            default        = -99,                                       &
                          ClientModule   = 'ModuleHorizontalGrid',                       &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
+
+                call GetData(Value         = Me%DDecomp%ChessColumns,                   &
+                            EnterDataID    = Me%ObjEnterData2,                          &
+                            flag           = iflag,                                     &
+                            keyword        = 'CHESS_COLUMNS',                           &
+                            SearchType     = FromFile,                                  &
+                            default        = -99,                                       &
+                            ClientModule   = 'ModuleHorizontalGrid',                    &
+                            STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'   
+                
+                ND   = Me%DDecomp%Nslaves + 1
+
+                if (Me%DDecomp%ChessColumns < 1 .or. Me%DDecomp%ChessLines < 1) then
+
+                    write(*,*) 'Number of "chess columns" * "chess lines" need to be equal or greater than 1'    
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR242'   
+
+                endif                
+
+                if (Me%DDecomp%ChessColumns * Me%DDecomp%ChessLines /= ND) then
+
+                    write(*,*) 'Number of "chess columns" * "chess lines" /= Threeds'    
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR245'   
+
+                endif
+
+            endif
 
         else
 
@@ -1358,21 +1415,21 @@ iAuto:  if (Me%DDecomp%Auto) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleHorizontalGrid',                             &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
 
             allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
             allocate(Aux1D(1:2))
 
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
 
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock2, EndBlock2, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
 
             if (.not. BlockFound) then
                 SN_N_Interfaces = 0
@@ -1389,7 +1446,7 @@ iAuto:  if (Me%DDecomp%Auto) then
                 endif
 
                 if (SN_N_Interfaces > Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'
                 endif
 
                 do line = FirstLine + 1, LastLine - 1
@@ -1401,8 +1458,8 @@ iAuto:  if (Me%DDecomp%Auto) then
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
 
                     in = in + 1
 
@@ -1421,7 +1478,7 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
-                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
                         endif
                     enddo
 
@@ -1443,14 +1500,14 @@ iAuto:  if (Me%DDecomp%Auto) then
              endif
 
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR320'
 
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock3, EndBlock3, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR330'
 
             if (.not. BlockFound) then
                 WE_N_Interfaces = 0
@@ -1465,7 +1522,7 @@ iAuto:  if (Me%DDecomp%Auto) then
                 endif
 
                 if (SN_N_Interfaces + WE_N_Interfaces /= Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR340'
                 endif
 
 
@@ -1478,8 +1535,8 @@ iAuto:  if (Me%DDecomp%Auto) then
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR350'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR360'
 
                     in = in + 1
 
@@ -1498,7 +1555,7 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
-                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR315'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR370'
                         endif
                     enddo
 
@@ -1537,12 +1594,26 @@ iAuto:  if (Me%DDecomp%Auto) then
 
         write(*,*) 'halo_points', Me%DDecomp%Halo_Points
 
-        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB .or. Me%DDecomp%AutomaticLines) then
+        if (Me%DDecomp%AutomaticDD < 0) then
+            !No Automatic decomposition method was defined
+            if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
             call AutomaticDDecompLines  ()
         else
             call AutomaticDDecompColumns()
         endif
+        elseif (Me%DDecomp%AutomaticDD == Lines_  ) then
 
+            call AutomaticDDecompLines      ()
+
+        elseif (Me%DDecomp%AutomaticDD == Columns_) then
+
+            call AutomaticDDecompColumns    ()
+
+        elseif (Me%DDecomp%AutomaticDD == Chess_) then
+
+            call AutomaticDDecompChess      ()
+
+        endif
 
 
     end subroutine AutomaticDDecomp
@@ -1681,6 +1752,161 @@ iAuto:  if (Me%DDecomp%Auto) then
     end subroutine AutomaticDDecompColumns
 
     !End------------------------------------
+
+    
+    subroutine AutomaticDDecompChess()
+
+        !Arguments------------------------------------------------------------
+
+        !Local----------------------------------------------------------------
+        integer                                     :: n, ns, ND
+        integer                                     :: ilb_map, iub_map, jlb_map, jub_map
+        integer                                     :: jWest, jEast, iSouth, iNorth
+        integer                                     :: is, in, iw, ie, cc, cl, i
+
+        !Begin----------------------------------------------------------------
+
+        !In automatic mode MOHID slices the domains along a chess patern (1:ChessLines,1:ChessColumns)
+
+        ND   = Me%DDecomp%Nslaves + 1
+
+        ns   = Me%DDecomp%Master_MPI_ID
+
+        do n=1, ND
+            if (ns + n - 1 == Me%DDecomp%MPI_ID) then
+                call FromThread_2_Chess_corners(n, ilb_map, iub_map, jlb_map, jub_map)
+                exit
+            endif
+        enddo
+
+        Me%DDecomp%Mapping%ILB = ilb_map
+        Me%DDecomp%Mapping%IUB = iub_map
+        Me%DDecomp%Mapping%JLB = jlb_map
+        Me%DDecomp%Mapping%JUB = jub_map
+
+
+        write(*,*) 'Limits i_l, i_u, J_l, J_u', Me%DDecomp%MPI_ID, ilb_map, iub_map, jlb_map, jub_map
+
+        Me%DDecomp%NInterfaces = (Me%DDecomp%ChessLines - 1) * Me%DDecomp%ChessColumns + (Me%DDecomp%ChessColumns - 1) * Me%DDecomp%ChessLines
+
+        allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
+
+        i = 0 
+        
+        do cl = 1, Me%DDecomp%ChessLines
+            do cc = 1, Me%DDecomp%ChessColumns - 1
+                
+                i = i + 1
+                
+                iw = (cl - 1) * Me%DDecomp%ChessColumns + cc - 1
+                ie = iw + 1
+
+                jWest = Me%DDecomp%Master_MPI_ID + iw 
+                jEast = Me%DDecomp%Master_MPI_ID + ie
+
+                Me%DDecomp%Interfaces(i,1) = jWest
+                Me%DDecomp%Interfaces(i,2) = jEast
+                Me%DDecomp%Interfaces(i,3) = WestEast_
+
+                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+
+                if (Me%DDecomp%MPI_ID == jWest) then
+                    Me%DDecomp%NeighbourEast = jEast
+                endif
+
+                if (Me%DDecomp%MPI_ID == jEast) then
+                    Me%DDecomp%NeighbourWest = jWest
+                endif
+
+            enddo
+        enddo
+
+        do cc = 1, Me%DDecomp%ChessColumns
+            do cl = 1, Me%DDecomp%ChessLines - 1
+                
+                i = i + 1
+
+                is = (cl - 1) * Me%DDecomp%ChessColumns + cc - 1
+                in = is + Me%DDecomp%ChessColumns
+
+                iSouth = Me%DDecomp%Master_MPI_ID + is
+                iNorth = Me%DDecomp%Master_MPI_ID + in
+
+                Me%DDecomp%Interfaces(i,1) = iSouth
+                Me%DDecomp%Interfaces(i,2) = iNorth
+                Me%DDecomp%Interfaces(i,3) = SouthNorth_
+
+                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+
+                if (Me%DDecomp%MPI_ID == iSouth) then
+                    Me%DDecomp%NeighbourNorth = iNorth
+                endif
+
+                if (Me%DDecomp%MPI_ID == iNorth) then
+                    Me%DDecomp%NeighbourSouth = iSouth
+                endif
+
+            enddo
+        enddo
+
+    end subroutine AutomaticDDecompChess
+
+    !End------------------------------------
+
+    subroutine FromThread_2_Chess_corners(nT, ilb_map, iub_map, jlb_map, jub_map)
+
+        !Arguments------------------------------------------------------------
+        integer, intent(IN)                         :: nT
+        integer, intent(OUT)                        :: ilb_map, iub_map, jlb_map, jub_map    
+
+        !Local----------------------------------------------------------------
+        integer                                     :: Chess_Line, Chess_Column
+        integer                                     :: ILB, IUB, JLB, JUB, ND
+        real                                        :: IDD, JDD, aux
+
+        !Begin----------------------------------------------------------------
+
+        ILB  = Me%DDecomp%Global%ILB
+        IUB  = Me%DDecomp%Global%IUB
+        JLB  = Me%DDecomp%Global%JLB
+        JUB  = Me%DDecomp%Global%JUB
+
+        ND   = Me%DDecomp%Nslaves + 1
+
+        if (nT > ND) then
+            stop 'FromThread_2_Chess_corners - ModuleHorizontalGrid - ERR10'
+        endif
+
+        IDD  = real (IUB - ILB + 1) / real (Me%DDecomp%ChessLines)
+        JDD  = real (JUB - JLB + 1) / real (Me%DDecomp%ChessColumns)
+
+        !locate chess line
+        aux = real(nT) / real(Me%DDecomp%ChessColumns)
+
+        if (aux ==  int(aux)) then
+            Chess_Line    = int(aux)
+        else
+            Chess_Line    = int(aux) + 1
+        endif
+
+        Chess_Column  = nT - (Chess_Line - 1) * Me%DDecomp%ChessColumns
+
+        ilb_map = ILB     + int(real(Chess_Line-1)*IDD)
+        iub_map = ILB - 1 + int(real(Chess_Line  )*IDD)
+
+        if (Chess_Line == Me%DDecomp%ChessLines) then
+            iub_map = IUB
+        endif
+
+        jlb_map = JLB     + int(real(Chess_Column-1)*JDD)
+        jub_map = JLB - 1 + int(real(Chess_Column  )*JDD)
+
+        if (Chess_Column == Me%DDecomp%ChessColumns) then
+            jub_map = JUB
+        endif
+
+    end subroutine FromThread_2_Chess_corners
+    !End------------------------------------    
 
 #endif _USE_MPI
 
@@ -3102,10 +3328,10 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: STAT_CALL, ZoneLong
         integer, dimension(2)               :: AuxInt
         real,    dimension(2)               :: AuxReal
-        real                                :: DX, DY, Aux, XY_Aux
+        real                                :: Aux, XY_Aux
         integer                             :: flag, flag1, flag2
         integer                             :: ClientNumber
-        logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
+        logical                             :: BlockFound
         integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
         logical                             :: CornersOverlap
 
@@ -3170,7 +3396,18 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         Me%GlobalWorkSize%JLB = AuxInt(1)
         Me%GlobalWorkSize%JUB = AuxInt(2)
-
+        
+        !Write cells area in the Grid Group of hdf5 output files
+        call GetData(Value          = Me%WriteCellsArea,                                &
+                     EnterDataID    = Me%ObjEnterData,                                  &
+                     flag           = iflag,                                            &
+                     keyword        = 'WRITE_CELLS_AREA',                               &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'HorizontalGrid',                                 &
+                     default        = .false.,                                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR55'
+        
         call GetData(Value          = Me%DDecomp%Halo_Points,                           &
                      EnterDataID    = Me%ObjEnterData,                                  &
                      flag           = iflag,                                            &
@@ -3385,6 +3622,14 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR180'
+        
+        !Reads ORIGIN
+        call GetData(AuxReal,Me%ObjEnterData, flag,                                        &
+                     keyword      = 'ORIGIN',                                           &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR160'
+        if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR170'        
 
 
         !Allocates XX and YY
@@ -3680,27 +3925,27 @@ BF:     if (BlockFound) then
             endif
 
            !Check if the spacing in Y is constant
-            call GetData(ConstantSpacingY,                                              &
+            call GetData(Me%ConstantSpacingY,                                           &
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_Y',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR250'
 
-iconY:      if (ConstantSpacingY) Then
+iconY:      if (Me%ConstantSpacingY) Then
                 !Get grid origin
-                call GetData(DY,                                                        &
+                call GetData(Me%DY,                                                     &
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DY',                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR260'
 
-                XY_Aux   = -DY
+                XY_Aux   = -Me%DY
                 ii       = 0
                 do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1
 
-                    XY_Aux   = XY_Aux + DY
+                    XY_Aux   = XY_Aux + Me%DY
 
                     if (Me%DDecomp%Master) then
 
@@ -3788,27 +4033,27 @@ iconY:      if (ConstantSpacingY) Then
             end if iconY
 
            !Check if the spacing in X is constant
-            call GetData(ConstantSpacingX,                                              &
+            call GetData(Me%ConstantSpacingX,                                           &
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_X',                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR320'
 
-iconX:      if (ConstantSpacingX) Then
+iconX:      if (Me%ConstantSpacingX) Then
                 !Get grid spacing dx
-                call GetData(DX,                                                        &
+                call GetData(Me%DX,                                                     &
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DX',                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR330'
 
-                XY_Aux   = -DX
+                XY_Aux   = -Me%DX
                 jj       = 0
                 do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1
 
-                    XY_Aux = XY_Aux + DX
+                    XY_Aux = XY_Aux + Me%DX
 
 
                     if (Me%DDecomp%Master) then
@@ -5961,7 +6206,7 @@ do8:   do i = ILB, IUB + 1
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: i, j
-        real(8)                             :: AuxDble
+        real(8)                             :: AuxDble, x1, y1, x2, y2
 
         !----------------------------------------------------------------------
 
@@ -6000,6 +6245,38 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
                 Me%DYY(i, j) = real (AuxDble)
             enddo
             enddo
+            
+            !DUX
+            do j = JLB, JUB
+            do i = ILB, IUB
+                x1      =   dble(Me%XX_IE(i, j  ) + Me%XX_IE(i+1, j  )) / 2.
+                y1      =   dble(Me%YY_IE(i, j  ) + Me%YY_IE(i+1, j  )) / 2.  
+                
+                x2      =   dble(Me%XX_IE(i, j+1) + Me%XX_IE(i+1, j+1)) / 2.
+                y2      =   dble(Me%YY_IE(i, j+1) + Me%YY_IE(i+1, j+1)) / 2.                  
+                
+                AuxDble =   sqrt((x2-x1)**2 + (y2-y1)**2)
+                
+
+                Me%DUX(i, j) = real (AuxDble)
+            enddo
+            enddo
+            
+            !DVY
+            do j = JLB, JUB
+            do i = ILB, IUB
+                x1      =   dble(Me%XX_IE(i  , j) + Me%XX_IE(i  , j+1)) / 2.
+                y1      =   dble(Me%YY_IE(i  , j) + Me%YY_IE(i  , j+1)) / 2.  
+                
+                x2      =   dble(Me%XX_IE(i+1, j) + Me%XX_IE(i+1, j+1)) / 2.
+                y2      =   dble(Me%YY_IE(i+1, j) + Me%YY_IE(i+1, j+1)) / 2.                  
+                
+                AuxDble =   sqrt((x2-x1)**2 + (y2-y1)**2)
+                
+
+                Me%DVY(i, j) = real (AuxDble)
+            enddo
+            enddo            
 
         else  cd1 !Grid_Angle = 0. No grid rotation. Or coordinate type not circular
 
@@ -6019,26 +6296,28 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
             enddo
             enddo
 
+            
+            !DUX, DVY
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Me%DUX(i, j) = (Me%DXX(i, j) +       &
+                                               Me%DXX(i+1, j)) / 2.
+                Me%DVY(i, j) = (Me%DYY(i, j) +       &
+                                               Me%DYY(i, j+1)) / 2.
+            enddo
+            enddo
+
+            !DVX
+            do j = JLB, JUB - 1
+            do i = ILB, IUB + 1
+               Me%DVX(i, j) = (Me%DXX(i, j) +        &
+                                              Me%DXX(i, j+1)) / 2.
+            enddo
+            enddo            
 
         endif cd1
 
-        !DUX, DVY
-        do j = JLB, JUB
-        do i = ILB, IUB
-            Me%DUX(i, j) = (Me%DXX(i, j) +       &
-                                           Me%DXX(i+1, j)) / 2.
-            Me%DVY(i, j) = (Me%DYY(i, j) +       &
-                                           Me%DYY(i, j+1)) / 2.
-        enddo
-        enddo
 
-        !DVX
-        do j = JLB, JUB - 1
-        do i = ILB, IUB + 1
-           Me%DVX(i, j) = (Me%DXX(i, j) +        &
-                                          Me%DXX(i, j+1)) / 2.
-        enddo
-        enddo
 
         !DZX
         do j = JLB, JUB - 1
@@ -12573,6 +12852,64 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !--------------------------------------------------------------------------
 
 
+    logical function GetConstDX_NoRot(HorizontalGridID, Xorig, YOrig, DX, DY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                     intent(IN )    :: HorizontalGridID
+        real(8)                                     :: Xorig, YOrig, DX, DY
+        integer,   optional,         intent(OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        GetConstDX_NoRot = .false.
+
+        Xorig   = null_real
+        YOrig   = null_real
+        DX      = null_real
+        DY      = null_real
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+    
+                if (.not. Me%Distortion .and. .not. Me%RegularRotation) then
+                    if (Me%ConstantSpacingX .and. Me%ConstantSpacingY) then
+
+                        GetConstDX_NoRot  = .true.
+                        Xorig             = Me%Xorig
+                        YOrig             = Me%YOrig
+                        DX                = Me%DX   
+                        DY                = Me%DY   
+
+                    endif               
+                endif
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function GetConstDX_NoRot
+
+    !--------------------------------------------------------------------------
+    
     logical function GetGhostCorners(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -12654,6 +12991,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
+    
 
     !--------------------------------------------------------------------------
 
@@ -14363,7 +14701,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !Sets limits for next write operations
             call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR10'
 
             if (present(OutputNumber)) then
 
@@ -14371,25 +14709,25 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                       Array2D = Me%XX_IE,                               &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR20'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid/ConnectionY", "ConnectionY", "m", &
                                       Array2D = Me%YY_IE,                               &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "º",     &
                                       Array2D = Me%LongitudeConn,                       &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR40'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "º",       &
                                       Array2D = Me%LatitudeConn,                        &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR50'
 
                 if (Me%CornersXYInput) then
 
@@ -14397,7 +14735,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                           Array2D = Me%DefineCellsMap,                  &
                                           OutputNumber = OutputNumber,                  &
                                           STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR09'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR60'
 
 
                 endif
@@ -14407,31 +14745,56 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",             &
                                       Array2D = Me%XX_IE,                               &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR70'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",             &
                                       Array2D = Me%YY_IE,                               &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR80'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
                                       Array2D = Me%LongitudeConn,                       &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR90'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
                                       Array2D = Me%LatitudeConn,                        &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR100'
 
                 if (Me%CornersXYInput) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid", "Define Cells", "-",        &
                                           Array2D = Me%DefineCellsMap,                  &
                                           STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR09'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR110'
 
 
+                endif
+                
+                if (Me%WriteCellsArea) then
+                    
+
+                    call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB,      &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR120'                    
+                    
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "Area", "m2",                   &
+                                          Array2D = Me%GridCellArea,                        &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR130'
+                    
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "DUX", "m",                     &
+                                          Array2D = Me%DUX,                                 &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR140'                    
+                    
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "DVY", "m",                     &
+                                          Array2D = Me%DVY,                                 &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR150'                    
+
+                    
                 endif
 
 #if _GOOGLEMAPS
@@ -14455,12 +14818,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_x", "-",    &
                                               Array2D = XX_aux,                         &
                                               STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR20'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR160'
 
                         call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_y", "-",&
                                               Array2D = YY_aux,                         &
                                               STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR170'
 
                         deallocate(XX_aux,YY_Aux)
 
@@ -14474,7 +14837,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     !Sets limits for next write operations
                     call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR40'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR180'
 
 
                     if (WindowGrid_) then
@@ -14492,7 +14855,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR50'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR190'
 
                     AuxInt4(1) = Me%DDecomp%HaloMap%ILB + WorkILB - 1
                     AuxInt4(2) = Me%DDecomp%HaloMap%ILB + WorkIUB - 1
@@ -14501,7 +14864,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR60'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR200'
 
                     if (AuxInt4(1) == Me%DDecomp%HaloMap%ILB) then
                         AuxInt4(1) =  Me%DDecomp%Mapping%ILB
@@ -14521,7 +14884,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/InnerMapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR210'
 
                     deallocate(AuxInt4)
 
@@ -14529,7 +14892,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                         call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL)
 
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR80'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR220'
 
                         write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
 
@@ -14561,7 +14924,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                  form   = "formatted",                                  &
                                  IOSTAT = STAT_CALL)
 
-                            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR90'
+                            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR230'
                         endif
 
                         Me%DDecomp%FilesListOpen = .true.
@@ -14571,7 +14934,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     if (Me%DDecomp%FilesListOpen) then
 
                         call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR100'
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR240'
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1

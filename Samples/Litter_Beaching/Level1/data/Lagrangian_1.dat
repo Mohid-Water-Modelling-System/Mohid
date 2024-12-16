@@ -1,0 +1,254 @@
+﻿<BeginGeneralKeywords>
+OUTPUT_TIME           : 0 3600
+DT_PARTIC:  360
+OUTPUT_ORIGIN_ENVELOPE  : 1
+COMPUTE_AVERAGE_POSITION : 1 
+
+
+OUTPUT_CONC           : 1
+OUTPUT_MAX_TRACER     : 1
+OUTPUT_MASS_TRACER    : 1
+OUTPUT_NETCDF         : 1   
+
+!THINWALLS_FILE	      : ../../GeneralData/polygons/Land/Galiza.xy
+
+<EndGeneralKeywords>
+
+! Activates litter module
+LITTER_ON                      : 1
+<EndGeneralKeywords>
+
+<BeginLitter>
+! (in sec)
+AGE_TO_BEACH                   : 0.
+KILL_BEACH_LITTER              : 0
+<<BeginBeachArea>>
+NAME                           : Beaching area 1
+DESCRIPTION                    : Area where litter can beach
+FILENAME                       : ../../GeneralData/polygons/Beaching/Schematic.xy
+
+COAST_TYPE                     : 1
+PROBABILITY                    : 0.5
+!AGE_LIMIT                      : 2592000.
+
+FREE_LITTER_PROJECT            : 1
+WATER_COLUMN_THRESHOLD         : 0.1
+BEACH_TIME_SCALE               : 3600
+
+UNBEACH                        : 1 
+UNBEACH_TIME_SCALE             : 43200
+RUN_UP_EFFECT                  : 1
+BEACH_SLOPE                    : 0.005 
+RUN_UP_EFFECT_UNBEACH          : 1
+<<EndBeachArea>>
+<EndLitter>
+
+
+<BeginOrigin_Clone>
+CLONE                   : Default
+DEFAULT                 : 0
+ORIGIN_NAME             : spill
+EMISSION_SPATIAL        : Point
+!EMISSION_SPATIAL        : Accident
+|EMISSION_SPATIAL        : Poly
+!EMISSION_TEMPORAL       : Continuous
+POINT_VOLUME            : 10.0
+NBR_PARTIC              : 1000
+WINDCOEF                : 0.015
+STOKES_DRIFT            : 0
+ 
+
+POSITION_COORDINATES    : -9.9985 41.015
+FLOAT                   : 1
+
+DIFFUSION_H             : 1
+DIFFUSION_V             : 0.0
+
+<EndOrigin_Clone>
+
+<BeginMeteoOcean>
+<<BeginProperty>>
+NAME	: bathymetry
+DESCRIPTION : bathymetry from operational models
+UNITS	: m
+MASK_DIM : 3
+SPACE_DIM   : 2
+CHANGE_IN_TIME : 0
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	: velocity U
+!FIELD_NAME : u
+DESCRIPTION : velocity from operational models
+UNITS	: m/s
+MASK_DIM : 3
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	: velocity V
+!FIELD_NAME : v
+DESCRIPTION : velocity from operational models
+UNITS	: m/s
+MASK_DIM : 3
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+
+<<BeginProperty>>
+NAME	: temperature
+DESCRIPTION : density from operational models
+UNITS	: oC
+MASK_DIM : 3
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	: salinity
+DESCRIPTION : density from operational models
+UNITS	: psu
+MASK_DIM : 3
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	: wind velocity X
+!FIELD_NAME : x_wind
+DESCRIPTION : wind from operational models
+UNITS	: m/s
+MASK_DIM : 2
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+
+<<EndProperty>>
+<<BeginProperty>>
+NAME	: wind velocity Y
+!FIELD_NAME : y_wind
+DESCRIPTION : wind from operational models
+UNITS	: m/s
+MASK_DIM : 2
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+
+<<EndProperty>>
+
+
+<<BeginProperty>>
+NAME	       : wave amplitude
+HDF_FIELD_NAME : significant wave height
+!FIELD_NAME  : significant_wave_height
+DESCRIPTION : wind wave conditions from operational models
+UNITS	    : m
+MASK_DIM : 2
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	    : wave period
+HDF_FIELD_NAME : mean wave period
+!FIELD_NAME  : mean_wave_period
+DESCRIPTION : wind wave conditions from operational models
+UNITS	    : s
+MASK_DIM : 2
+FILE_LIST_MODE   : 1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+<<BeginProperty>>
+NAME	    : wave direction
+HDF_FIELD_NAME : mean wave direction
+!FIELD_NAME  : mean_wave_direction
+DESCRIPTION : wind wave conditions from operational models
+UNITS	    : s
+MASK_DIM : 2
+FILE_LIST_MODE   : 1
+ADDING_FACTOR         : 270.
+MULTIPLYING_FACTOR : -1
+<<<BeginMeteoOceanFiles>>>
+<<<EndMeteoOceanFiles>>>
+<<EndProperty>>
+
+
+
+<EndMeteoOcean>
+
+
+
+
+
+
+<BeginOrigin>
+GROUP_ID                : 1
+ORIGIN_NAME             : Default
+DEFAULT                 : 1
+
+NBR_PARTIC              : 1000
+
+EMISSION_SPATIAL        : Poly
+POLY_EMISSION_FILE      : ../../GeneralData/polygons/Discharge/DischargePoly.xy
+EMISSION_TEMPORAL       : Instantaneous
+POINT_VOLUME            : 200000 
+
+
+STOKES_DRIFT            : 1
+STOKES_DRIFT_METHOD     : LonguetHigginsDeep
+ 
+SURFACE_EMISSION        : 1
+FLOAT                   : 0
+
+       
+ACCIDENT_METHOD         : 1
+!1 - Grid cells, 2 - Voronoi area , 3 - Fay analytical evolution
+AREA_METHOD             : 2            
+
+FLOW                    : 0.014
+!START_PARTIC_EMIT       : 2000 1 1 0 0 0 
+!STOP_PARTIC_EMIT        : 2000 1 2 0 0 0 
+
+OLD                     : 0
+
+POSITION_COORDINATES    : 3000   3000
+
+!MOVEMENT                : SullivanAllen
+MOVEMENT                : DiffusionCoef
+
+DEPTH_METERS            : 0.0
+ADVECTION               : 1
+WINDCOEF                : 0.03
+
+BEACHING                : 0
+
+COMPUTE_AGE             : 1
+
+DIFFUSION_H             : 1
+DIFFUSION_V             : 0.001
+
+
+<EndOrigin>
+
+<BeginBooms>
+<EndBooms>
+

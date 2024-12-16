@@ -238,6 +238,7 @@ Module ModuleJet
         integer                         :: Number                       = null_int
         real                            :: MinPortVelocity              = null_real 
         logical                         :: MonitorPlumeTop              = .false. 
+        real                            :: DischargeSectionHorizScale   = null_real 
     end type T_Port
 
     type T_Ambient
@@ -340,7 +341,13 @@ Module ModuleJet
         real                            :: Xrand                        = null_real
         real                            :: Yrand                        = null_real
         real                            :: z                            = null_real
+        !plume min depth
+        real                            :: zmin                         = null_real
+        !plume max depth
+        real                            :: zmax                         = null_real        
+        !Discharge depth min 
         real                            :: Dmin                         = null_real        
+        !Discharge depth max         
         real                            :: Dmax                         = null_real        
         real                            :: x_old                        = null_real
         real                            :: y_old                        = null_real
@@ -733,7 +740,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%OutPut%FormatType == JET) then
 
-            Me%OutPut%OutColumns = 13
+            Me%OutPut%OutColumns = 17
 
             allocate(Me%OutPut%Matrix(int(Me%NumericalOptions%MaxSimulationPeriod/Me%OutPut%DT)+1,Me%OutPut%OutColumns))
             allocate(Me%OutPut%Header(Me%OutPut%OutColumns))
@@ -763,6 +770,15 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%OutPut%Header(12) = "Thickness"
 
             Me%OutPut%Header(13) = "Length_V"
+
+            Me%OutPut%Header(14) = "zmin"
+            
+            Me%OutPut%Header(15) = "zmax"            
+            
+            Me%OutPut%Header(16) = "Dmin"
+            
+            Me%OutPut%Header(17) = "Dmax"            
+            
 
         else if (Me%OutPut%FormatType == CLOUD) then
 
@@ -1049,12 +1065,23 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                           &
                      keyword      ='MONITOR_PLUME_TOP',                                 &
                      ClientModule ='ModuleJet',                                         &
-                     Default      = .true.,                                             &
+                     Default      = .false.,                                             &
                      STAT         = STAT_CALL)        
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR70'      
         
 
+        call GetData(Me%Port%DischargeSectionHorizScale,                                &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='DISCHARGE_SECTION_HORIZ_SCALE',                     &
+                     ClientModule ='ModuleJet',                                         &
+                     Default      = 1.0,                                                &
+                     STAT         = STAT_CALL)        
+
+        if (STAT_CALL /= SUCCESS_) stop 'ReadJetData - ModuleJet - ERR70'      
+        
     end subroutine ReadJetData
 
 
@@ -1893,6 +1920,8 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
                     RestrainedLengthScale = Me%Evolution%VertLengthScale                    
 
+                    Me%Evolution%HZAngle    = 0.
+
                 endif i3
 
                 !A rectangular geometry is assumed 
@@ -1923,7 +1952,7 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
    
         !Local-----------------------------------------------------------------
         real    :: dx, dy, dz, Aux, SurfaceLevel, BottomLevel, AuxRandX, AuxRandY, AuxRand
-        real    :: length, nx, ny, WaterColumn
+        real    :: length, nx, ny, WaterColumn, Length_H
         integer :: I, J, K, Kbottom
         !----------------------------------------------------------------------
 
@@ -1952,7 +1981,7 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 i1:     if (.not. Me%Evolution%VertBoundContact) then
     
             if (Me%Port%MonitorPlumeTop) then                
-                Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
+                Aux = Me%Evolution%Diameter * abs(Cos(Me%Evolution%HZangle)) / 2
             else
                 Aux = 0.
             endif    
@@ -2044,24 +2073,33 @@ i2:     if (Me%Evolution%VertBoundContact) then
         nx = Cos(Me%Evolution%XYAngle)
         ny = Sin(Me%Evolution%XYAngle)
 
+        Length_H = Me%Port%DischargeSectionHorizScale * length
+
         ! Calculate the first point of the segment
-        Me%Evolution%X1  = Me%Evolution%x + (length/2)*ny
-        Me%Evolution%Y1  = Me%Evolution%y - (length/2)*nx
+        Me%Evolution%X1  = Me%Evolution%x + (Length_H/2)*ny
+        Me%Evolution%Y1  = Me%Evolution%y - (Length_H/2)*nx
       
         ! Calculate the second point of the segment
-        Me%Evolution%X2  = Me%Evolution%x - (length/2)*ny
-        Me%Evolution%Y2  = Me%Evolution%y + (length/2)*nx
+        Me%Evolution%X2  = Me%Evolution%x - (Length_H/2)*ny
+        Me%Evolution%Y2  = Me%Evolution%y + (Length_H/2)*nx
         
         
-        if (Me%Port%MonitorPlumeTop) then                
-            Aux = Me%Evolution%Diameter * Cos(Me%Evolution%HZangle) / 2
-        else
-            Aux = 0.
-        endif            
+        !if (Me%Port%MonitorPlumeTop) then                
+            Aux = Me%Evolution%VertLengthScale * abs(Cos(Me%Evolution%HZangle)) / 2
+        !else
+        !    Aux = 0.
+        !endif            
 
         !Minimum and maximum depths of the plume     
-        Me%Evolution%Dmin = Me%Evolution%z - SurfaceLevel - Aux
-        Me%Evolution%Dmax = min(Me%Evolution%z - SurfaceLevel  + Me%Evolution%VertLengthScale - Aux, WaterColumn)
+        Me%Evolution%zmin = max(Me%Evolution%z - SurfaceLevel - Aux, 0.)
+        Me%Evolution%zmax = min(Me%Evolution%z - SurfaceLevel + Aux, WaterColumn)
+
+        Me%Evolution%Dmin = Me%Evolution%zmin
+        Me%Evolution%Dmax = Me%Evolution%zmin + Me%Evolution%VertLengthScale
+        if (Me%Evolution%Dmax> WaterColumn) then
+            Me%Evolution%Dmax =  WaterColumn
+            Me%Evolution%Dmin =  max (Me%Evolution%Dmax - Me%Evolution%VertLengthScale,0.)
+        endif
         
 
     end subroutine Plumetrajectory
@@ -2155,6 +2193,13 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         Me%OutPut%Matrix(Me%OutPut%Number, 13)= Me%Evolution%VertLengthScale
 
+        Me%OutPut%Matrix(Me%OutPut%Number, 14)= Me%Evolution%zmin
+        
+        Me%OutPut%Matrix(Me%OutPut%Number, 15)= Me%Evolution%zmax        
+        
+        Me%OutPut%Matrix(Me%OutPut%Number, 16)= Me%Evolution%Dmin
+        
+        Me%OutPut%Matrix(Me%OutPut%Number, 17)= Me%Evolution%Dmax        
 
     end subroutine JetOutPut
 

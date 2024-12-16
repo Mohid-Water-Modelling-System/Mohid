@@ -58,7 +58,7 @@ program MohidPercentileComputation
     subroutine ModifyMohidPercentileComputation
         
         !Local-----------------------------------------------------------------
-        logical                                     :: Running
+        !logical                                     :: Running
 
 
         call ModifyPercentileComputation(ObjPercentileComputationID, STAT = STAT_CALL)

@@ -269,6 +269,8 @@ Module ModuleAdvectionDiffusion
         !Discharges
         real,    pointer, dimension(:)     :: DischFlow     => null()
         real,    pointer, dimension(:)     :: DischConc     => null()
+        !Concentration multiply factor for flow < 0 (implicit method)
+        real,    pointer, dimension(:)     :: DischConcMF   => null()
         integer, pointer, dimension(:)     :: DischI        => null()
         integer, pointer, dimension(:)     :: DischJ        => null()
         integer, pointer, dimension(:)     :: DischK        => null()
@@ -976,7 +978,7 @@ cd1 :   if (ready_ == READ_LOCK_ERR_) then
     subroutine SetDischarges (AdvectionDiffusionID, DischFlow, DischConc,               &
                               DischI, DischJ, DischK, DischKmin, DischKmax,             &
                               DischVert, DischNumber, IgnoreDisch, DischnCells, ByPass, &
-                              STAT)
+                              DischConcMF, STAT)
     
     
         !Arguments--------------------------------------------------------------
@@ -987,6 +989,7 @@ cd1 :   if (ready_ == READ_LOCK_ERR_) then
         integer,           intent(IN )     :: DischNumber
         logical, pointer, dimension(:)     :: IgnoreDisch, ByPass
         integer, pointer, dimension(:)     :: DischnCells
+        real,    pointer, dimension(:)     :: DischConcMF
         integer, optional, intent(OUT)     :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1017,7 +1020,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             Me%ExternalVar%IgnoreDisch  => IgnoreDisch
             Me%ExternalVar%DischnCells  => DischnCells
             Me%ExternalVar%ByPass       => ByPass
-
+            Me%ExternalVar%DischConcMF  => DischConcMF 
 
             STAT_ = SUCCESS_
         else               
@@ -1069,7 +1072,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             nullify(Me%ExternalVar%IgnoreDisch)
             nullify(Me%ExternalVar%DischnCells)
             nullify(Me%ExternalVar%ByPass     )
-
+            nullify(Me%ExternalVar%DischConcMF)
 
             STAT_ = SUCCESS_
         else               
@@ -4027,7 +4030,7 @@ cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
         real(8)                                     :: DT_V
         real                                        :: Flow
         integer                                     :: i, j, k, kd, n, dis, nc, kmin, kmax
-        real                                        :: WaterColumn, Aux_Conc
+        real                                        :: WaterColumn, Aux_Conc, Aux_MF
 
         !----------------------------------------------------------------------
 
@@ -4095,8 +4098,9 @@ fl:                         if (Flow > 0.) then
                                                     Flow * DT_V * Aux_Conc
                             else fl
                     
+                                Aux_MF            = Me%ExternalVar%DischConcMF(n)  
                                 Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k)       -           &
-                                                    Flow * DT_V 
+                                                    Flow * DT_V * Aux_MF
                             endif fl
                             
                         endif

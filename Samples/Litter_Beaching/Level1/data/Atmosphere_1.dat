@@ -1,0 +1,55 @@
+
+
+OVERRIDE_WIND_VEL_STANDARD : 1
+
+<beginproperty>
+NAME                    : wind velocity
+UNITS                   : m/s
+DESCRIPTION             : wind velocity
+DEFAULTVALUE            : 0.2 0.2
+REMAIN_CONSTANT         : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : wind velocity X
+UNITS                   : m/s
+DESCRIPTION             : wind velocity X
+DEFAULTVALUE            : 2
+REMAIN_CONSTANT         : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : wind velocity Y
+UNITS                   : m/s
+DESCRIPTION             : wind velocity Y
+DEFAULTVALUE            : 1
+REMAIN_CONSTANT         : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                    : atmospheric pressure
+UNITS                   : atm
+DESCRIPTION             : atmospheric pressure
+FILE_IN_TIME            : NONE
+DEFAULTVALUE            : 1e5 
+REMAIN_CONSTANT         : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                    : solar radiation
+UNITS                   : W/m^2
+DESCRIPTION             : GFS model predictions
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.0
+TIME_SERIE              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : cloud cover
+UNITS                   : fraction
+DESCRIPTION             : GFS model predictions
+DEFAULTVALUE            : 0.
+REMAIN_CONSTANT         : 1
+<endproperty>
