@@ -6596,8 +6596,6 @@ dConv:  do while (iteration <= Niteration)
                 !remove/add fluxes on all layers that are influenced by level difference
                 elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then                    
                     call ExchangeWithDrainageNet_3
-                !elseif (Me%SoilOpt%DNLink == GWFlowToChanByHeadPressure_) then
-                !    call ExchangeWithDrainageNet_4
                 endif
             endif
             
