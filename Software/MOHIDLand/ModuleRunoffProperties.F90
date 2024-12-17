@@ -7020,9 +7020,10 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                !Flux in routeD4 points 
                
               
-                !$OMP PARALLEL PRIVATE(i,j,it,jt,Prop,WaterVolumeOldDFour,WaterVolumeNewDFour,WaterVolumeOldLowNeighbour), &
-                !$OMP& PRIVATE(WaterVolumeNewLowNeighbour,FlowMass)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+                !this parallellization is commented because it is modifying the results when compared with No OpenMP solution
+                !!$OMP PARALLEL PRIVATE(i,j,it,jt,Prop,WaterVolumeOldDFour,WaterVolumeNewDFour,WaterVolumeOldLowNeighbour), &
+                !!$OMP& PRIVATE(WaterVolumeNewLowNeighbour,FlowMass)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
@@ -7087,8 +7088,8 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 enddo
                 enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
 
             endif
             
@@ -7929,7 +7930,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) then
             call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
         endif
-        
+                
         SedimentGenerationRate => Me%SedimentGenerationRate%Field
         WaterColumn        => Me%ExtVar%WaterColumn
         
@@ -7942,7 +7943,7 @@ if2:        if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                             
                     ![kg.m-2] = [kg.m-2.s-1] * [s]
                     GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT  !* EnrichmentRatio
-                           
+                        
                     Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
                                                             + GenerationConc                        
 
@@ -7953,8 +7954,8 @@ if2:        if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
                     ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
                     Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / BottomArea &
-                                                        + Property%BottomConcentration (i,j)            
-                                                                
+                                                        + Property%BottomConcentration (i,j)   
+                            
             end if if2
  
         enddo
@@ -8374,7 +8375,7 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
         do while (associated (Property))
 if1:        if (Property%Evolution%BottomFluxes   .and.   Property%Evolution%Deposition    &
                 .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
-                
+
                 Property%DepositionRate = 0.0
                 
                 !$OMP PARALLEL PRIVATE(I,J, WaterVolume, BottomArea,DepositionRate, DepositedMass,Mass, SPMConc,aux, MinimumMass)
