@@ -830,7 +830,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif    
             
             !vegetation model growth needs field capacity computation
-            if (Me%SoilOpt%ComputeSoilField) then
+            if (Me%SoilOpt%ComputeSoilField .or. (Me%ObjDrainageNetwork /= 0 .and. Me%SoilOpt%CalcDrainageNetworkFlux)) then !Modified by Ana Oliveira - field capacity is needed for PM-DN fluxes
                 call ComputeSoilFieldCapacity
             endif   
 
@@ -1150,7 +1150,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'COMPUTE_SOIL_FIELD',                                 &
-                     Default    = .false.,                                              &                                           
+                     Default    = .true.,                                               &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR080'
@@ -2312,7 +2312,7 @@ do1:     do
         allocate(Me%EfectiveEVTP    (ILB:IUB,JLB:JUB))
         allocate(Me%ImpermeableFraction (ILB:IUB,JLB:JUB))
 
-        if (Me%SoilOpt%ComputeSoilField) then
+        if (Me%SoilOpt%ComputeSoilField .or. (Me%ObjDrainageNetwork /= 0 .and. Me%SoilOpt%CalcDrainageNetworkFlux)) then
             allocate (Me%ThetaField          (ILB:IUB,JLB:JUB,KLB:KUB))
         endif
           
@@ -4180,7 +4180,7 @@ DoPiezometers:      do while(associated(Piezometer))
 
         !Local-----------------------------------------------------------------
         integer                                     :: i,j,k
-        real                                        :: Hinf
+        !real                                        :: Hinf
         integer                                     :: WTCell
         real                                        :: inf_border 
         
@@ -4211,14 +4211,17 @@ DoPiezometers:      do while(associated(Piezometer))
                     !Sets cell above WT to Field Capacity
                     do k = WTCell, Me%WorkSize%KUB
 
-                        if (k == WTCell) then
-                            !Half of the cell distance
-                            Hinf = - Me%ExtVar%DWZ(i,j,k) * 0.5
-                        else
-                            Hinf = - (Me%ExtVar%DZZ(i,j,k-1) - Hinf)
-                        endif
+                        !if (k == WTCell) then
+                        !    !Half of the cell distance
+                        !    Hinf = - Me%ExtVar%DWZ(i,j,k) * 0.5
+                        !else
+                        !    Hinf = - (Me%ExtVar%DZZ(i,j,k-1) - Hinf)
+                        !endif
+                        !
+                        !Me%Theta(i, j, k) = Theta_(Hinf, Me%SoilID(i, j, k))
                         
-                        Me%Theta(i, j, k) = Theta_(Hinf, Me%SoilID(i, j, k))
+                        !Uses new function to estimate field capacity - Ana Oliveira
+                        Me%Theta(i, j, k) = ThetaFieldCapacity_(Me%SoilID(i, j, k))
                         
                     enddo
                 
@@ -4239,7 +4242,7 @@ DoPiezometers:      do while(associated(Piezometer))
 
         !Local-----------------------------------------------------------------
         integer                                             :: i,j,k
-        real                                                :: Hinf
+        !real                                                :: Hinf
         !Begin-----------------------------------------------------------------
 
         do j= Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -4248,14 +4251,17 @@ DoPiezometers:      do while(associated(Piezometer))
             
                 do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
 
-                    if (k == Me%ExtVar%KFloor(i, j)) then
-                        !Half of the cell distance
-                        Hinf = - Me%ExtVar%DWZ(i,j,k) * 0.5
-                    else
-                        Hinf = - (Me%ExtVar%DZZ(i,j,k-1) - Hinf)
-                    endif
+                    !if (k == Me%ExtVar%KFloor(i, j)) then
+                    !    !Half of the cell distance
+                    !    Hinf = - Me%ExtVar%DWZ(i,j,k) * 0.5
+                    !else
+                    !    Hinf = - (Me%ExtVar%DZZ(i,j,k-1) - Hinf)
+                    !endif
+                    !
+                    !Me%ThetaField(i, j, k) = Theta_(Hinf, Me%SoilID(i, j, k))
                     
-                    Me%ThetaField(i, j, k) = Theta_(Hinf, Me%SoilID(i, j, k))
+                    !Uses new function to estimate field capacity - Ana Oliveira
+                    Me%ThetaField(i, j, k) = ThetaFieldCapacity_(Me%SoilID(i, j, k))
                     
                 enddo
                 
@@ -6590,6 +6596,8 @@ dConv:  do while (iteration <= Niteration)
                 !remove/add fluxes on all layers that are influenced by level difference
                 elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then                    
                     call ExchangeWithDrainageNet_3
+                !elseif (Me%SoilOpt%DNLink == GWFlowToChanByHeadPressure_) then
+                !    call ExchangeWithDrainageNet_4
                 endif
             endif
             
@@ -8304,7 +8312,7 @@ cd1 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
             !Close or below residual value
             else if (Me%Theta(i,j,k) < Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo) then
-            
+                            
                 !This creates mass...
                 Me%RC%ThetaF    (i, j, k) = Me%CV%LimitThetaLo / (Me%SoilTypes(Me%SoilID(I,J,K))%ThetaS   &
                                                                  - Me%SoilTypes(Me%SoilID(I,J,K))%ThetaR)
@@ -8918,11 +8926,11 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k, CHUNK
         real                                        :: CellBottomLevel, DZInCell
-        real                                        :: FieldHead, FieldTheta
+        !real                                        :: FieldHead, FieldTheta
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J,K, CellBottomLevel, DZInCell, FieldHead, FieldTheta)
+        !$OMP PARALLEL PRIVATE(I,J,K, CellBottomLevel, DZInCell)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8942,13 +8950,13 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                 k = min(k, Me%WorkSize%KUB)
                 
                 CellBottomLevel = - Me%ExtVar%SZZ(i,j,k-1)
-                FieldHead       = - 0.5 * Me%ExtVar%DWZ(i, j, k)
-                FieldTheta      = Theta_(FieldHead, Me%SoilID(i,j,k))
+                !FieldHead       = - 0.5 * Me%ExtVar%DWZ(i, j, k)
+                !FieldTheta      = Theta_(FieldHead, Me%SoilID(i,j,k))
                 
-                if (Me%Theta(i,j,k) < FieldTheta) then
+                if (Me%Theta(i,j,k) < Me%ThetaField(i, j, k)) then
                     DZInCell        = 0.0
                 else
-                    DZInCell        = LinearInterpolation(FieldTheta, 0.0, Me%RC%ThetaS(i,j,k), &
+                    DZInCell        = LinearInterpolation(Me%ThetaField(i, j, k), 0.0, Me%RC%ThetaS(i,j,k), &
                                                           Me%ExtVar%DWZ(i,j,k), Me%Theta(i,j,k))
                 endif
                 
@@ -9037,6 +9045,31 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                 Me%SoilTypes(SoilID)%MFit )
 
     end function Theta_
+
+    !----------------------------------------------------------------------------
+
+    ! Added by Ana Oliveira to correct the calculation of field capacity
+    real function ThetaFieldCapacity_ (SoilID)
+
+        !Arguments-------------------------------------------------------------------
+        integer, intent(IN)                         :: SoilID
+
+        !----------------------------------------------------------------------
+        real                                        :: DrainageFlux
+        !----------------------------------------------------------------------
+
+        ! Formula from Twarakavi, N. K. C, M. Sakai, and J. Šim?nek, An objective analysis 
+        ! of the dynamic nature of field capacity, Water Resources Research, 45, W10410, 
+        ! doi:10.1029/2009WR007944, 9 pp., 2009.
+        
+        ! Considering a drainage flux of 0.01 cm d-1
+        !  m/s      =  cm/d     m      s
+        DrainageFlux = 0.01 * 1E-2 / 86400       
+        ThetaFieldCapacity_ = Me%SoilTypes(SoilID)%ThetaR + &
+                              Me%SoilTypes(SoilID)%Nfit ** (0.6 * LOG10(DrainageFlux/Me%SoilTypes(SoilID)%SatK)) * &
+                              (Me%SoilTypes(SoilID)%ThetaS - Me%SoilTypes(SoilID)%ThetaR)
+
+    end function ThetaFieldCapacity_
 
     !----------------------------------------------------------------------------
     
@@ -9252,7 +9285,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k, STAT_CALL
         real                                        :: dH, dX, TotalArea !, LayerArea
-        real                                        :: MinHead, FieldTheta !, TopHeightInCell
+        !real                                        :: MinHead, FieldTheta , TopHeightInCell
         real                                        :: InfiltrationVolume, ChannelsVolume, WaveHeight
         real                                        :: MaxFlow !, VerticalFluxVariation
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
@@ -9282,14 +9315,14 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         
        
         !!Computation of TotalFlow - always
-        !$OMP PARALLEL PRIVATE(I,J,K, dH, dX, TotalArea, MinHead, FieldTheta), &
+        !$OMP PARALLEL PRIVATE(I,J,K, dH, dX, TotalArea), &
         !$OMP& PRIVATE(InfiltrationVolume, ChannelsVolume,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
-                if ((ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) > 0.0) then            
+                if ((ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) >= 0.0) then            
                 
     !                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
     !                    write (*,*) 
@@ -9343,7 +9376,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !                             * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
                     Me%lFlowToChannels(i, j) = (min(dH, WaveHeight) / dX ) * TotalArea * Me%SatK(i, j, k)                  &
                                                  * Me%SoilOpt%FCHCondFactor 
-                
+                    
                     !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                     !negative.                
                     if (dH < 0) then
@@ -9377,16 +9410,16 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !will be half the height
                     elseif (dH > 0) then
                         !k           = Me%UGCell(i,j)
-                        MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
-                        FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
+                        !MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
+                        !FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
                         
                         !Maxflow was erroneous. It has to use actual Theta and not ThetaS because content may not be
                         !completely saturated       
                         !m3/s   = (-) * m3 / s
-                        if (Me%Theta (i,j,k) <= FieldTheta) then
+                        if (Me%Theta (i,j,k) <= Me%ThetaField(i, j, k)) then
                             MaxFlow = 0.
                         else
-                            MaxFlow   = (Me%Theta (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
+                            MaxFlow   = (Me%Theta (i,j,k) - Me%ThetaField(i, j, k)) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
                             !MaxFlow   = (Me%Theta (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
                             !MaxFlow   = (Me%RC%ThetaS (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
                         endif
@@ -9560,7 +9593,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                     :: i, j, k, STAT_CALL, CHUNK
         real                                        :: dH, dX, TotalArea
         real                                        :: TotalHeight, Toplevel, BottomLevel, ChannelColumn
-        real                                        :: MinHead, FieldTheta, WaveHeight
+        real                                        :: WaveHeight !FieldTheta, MinHead
         real                                        :: InfiltrationVolume, ChannelsVolume
         real                                        :: MaxFlow
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
@@ -9591,7 +9624,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
         !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX), &
-        !$OMP& PRIVATE(ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow)
+        !$OMP& PRIVATE(ChannelsVolume,InfiltrationVolume,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9667,14 +9700,14 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
                     !will be half the height
                     elseif (dH > 0) then
                         !k           = Me%UGCell(i,j)
-                        MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
-                        FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
+                        !MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
+                        !FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
                         
                         !m3/s   = (-) * m3 / s
-                        if (Me%Theta (i,j,k) <= FieldTheta) then
+                        if (Me%Theta (i,j,k) <= Me%ThetaField(i, j, k)) then
                             MaxFlow = 0.
                         else
-                            MaxFlow   = (Me%Theta (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
+                            MaxFlow   = (Me%Theta (i,j,k) - Me%ThetaField(i, j, k)) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
                         endif
                         
                         if (Me%lFlowToChannels(i,j) > MaxFlow) then
@@ -9782,7 +9815,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 dH            = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j) 
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
                 WaveHeight =  max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%BottomTopoG(i, j)
-                
+                    
                 !Flux only occurs if there is gradient or water                
                 if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. &
                      (dH < 0 .and. ChannelColumn > 0.)) then
@@ -9818,7 +9851,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                    
                    !go trough all active flux layers (computed in the routine GetLayersLimits
 do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
-                        
+                            
                         !if layers equal the height is level difference
                         if (Me%FlowToChannelsTopLayer(i,j) == Me%FlowToChannelsBottomLayer(i,j)) then
                             
@@ -9887,9 +9920,13 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
                             !m3/s = m * m * m / s
                             MaxFlow = - LayerHeight * ChannelsBottomWidth(i, j) * ChannelsNodeLength(i, j) / Me%CV%CurrentDT
                         else
-                            !limit to residual
-                            !m3/s = m3H20/m3cell * m3cell / s
-                            MaxFlow = (Me%Theta(i,j,k) - Me%RC%ThetaR(i,j,k)) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
+                            !limit to field theta or zero if theta is higher than field theta
+                            if (Me%Theta(i,j,k) > Me%ThetaField(i, j, k)) then
+                                !m3/s = m3H20/m3cell * m3cell / s
+                                MaxFlow = (Me%Theta(i,j,k) - Me%ThetaField(i, j, k)) * Me%ExtVar%CellVolume(i,j,k) / Me%CV%CurrentDT
+                            else
+                                MaxFlow = 0
+                            endif
                         endif
                         
                         if (abs(Me%lFlowToChannelsLayer(i, j, k)) > abs(MaxFlow)) then
@@ -9956,7 +9993,6 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
     end subroutine ExchangeWithDrainageNet_3
 
     !--------------------------------------------------------------------------
-
     subroutine GetLayersLimits_2
 
         !Arguments-------------------------------------------------------------
