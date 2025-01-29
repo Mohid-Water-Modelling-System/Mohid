@@ -2958,7 +2958,7 @@ cd1:        if (DT>0) then
         integer                                     :: JLB, JUB, j
         integer                                     :: k
         integer                                     :: iClass   
-        real                                        :: DT, Aux
+        real                                        :: DT, Aux, ValueMax
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -2996,13 +2996,28 @@ cd1:    if (DT>0) then
         enddo
 
             !Loops
-            do k = KLB, KUB
+!            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
+                
+                if (WaterPoints3D(i, j, KUB) == WaterPoint) then
+                    
+                    ValueMax = FillValueReal
+                    !Compute the max value in the water column
+                    do k = KLB, KUB
                 if (WaterPoints3D(i, j, k) == WaterPoint) then
+                            if (Value(i, j, k) > ValueMax) ValueMax = Value(i, j, k)
+                        endif
+                    enddo
+                    
+                    !Frequency analysis of the max in the water column
     doClass2:       do iClass = 1, Me%Classification%nClasses
-                        if (Value(i, j, k) >= Me%Classification%Classes(iClass, 1) .and.    &
-                            Value(i, j, k)  < Me%Classification%Classes(iClass, 2)) then
+                        !if (Value(i, j, k) >= Me%Classification%Classes(iClass, 1) .and.    &
+                        !    Value(i, j, k)  < Me%Classification%Classes(iClass, 2)) then
+    
+                        if (ValueMax >= Me%Classification%Classes(iClass, 1) .and.    &
+                            ValueMax  < Me%Classification%Classes(iClass, 2)) then
+    
                             Aux = DT
                         else
                             Aux = 0
@@ -3012,11 +3027,12 @@ cd1:    if (DT>0) then
                             (Me%Classification%Frequency2D(i, j, iClass) *                  &
                                 Me%Classification%RunPeriod + Aux          ) /                 &
                             (Me%Classification%RunPeriod + DT)
+                        
                     enddo doClass2
                 endif
             enddo
             enddo
-            enddo
+!            enddo
 
         Me%Classification%RunPeriod       = Me%Classification%RunPeriod + DT
 
@@ -5013,7 +5029,7 @@ doClass2:           do iClass = 1, nc
                 
                 enddo
             
-                call HDF5WriteData (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",  &
+                call HDF5WriteData (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes2D",  &
                                     "Period_WithData",                                          &
                                     "%", Array2D = AuxMatrix2D,                                 &
                                     STAT = STAT_CALL)
@@ -5021,7 +5037,7 @@ doClass2:           do iClass = 1, nc
             
                 AuxMatrix2D(:,:) = 100. - AuxMatrix2D(:,:)
             
-                call HDF5WriteData (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",  &
+                call HDF5WriteData (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes2D",  &
                                     "Period_WithOutData",                                       &
                                     "%", Array2D = AuxMatrix2D,                                 &
                                      STAT = STAT_CALL)
