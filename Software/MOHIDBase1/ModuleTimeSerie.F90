@@ -1899,7 +1899,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule ='ModuleTimeSerie',                           &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'StartTimeSerieInput - ModuleTimeSerie - ERR05'
-            if (flag      /= 1       ) stop 'StartTimeSerieInput - ModuleTimeSerie - ERR06'
+            if (flag      /= 1       ) then
+                write(*,*) 'Missing keyword SERIE_INITIAL_DATA in time serie'
+                write(*,*) 'file = ', trim(TimeSerieDataFile)
+                stop 'StartTimeSerieInput - ModuleTimeSerie - ERR06'
+            endif
 
             !Time cycle
             call GetData(Me%TimeCycle,                                              &

@@ -815,7 +815,7 @@ d2:     do l= 1, Me%InstantNumber
     
         ! Write as ASC file
         call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAsASCFile - HDF5_2_EsriGridData - ERR10'
         
         ! Open file to write
         open(Unit   = Unit,                                                     &
@@ -824,7 +824,7 @@ d2:     do l= 1, Me%InstantNumber
              STATUS = 'UNKNOWN',                                                &
              Action = 'WRITE',                                                  &
              IOSTAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAsASCFile - HDF5_2_EsriGridData - ERR20'
             
         ! Write header
         write(Unit,'(A14,I6)'   ) 'ncols         ', JUBout - JLBout + 1
@@ -860,7 +860,7 @@ d2:     do l= 1, Me%InstantNumber
         enddo
         
         call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAsASCFile - HDF5_2_EsriGridData - ERR30'
     
     end subroutine WriteAsASCFile
 
@@ -887,7 +887,7 @@ d2:     do l= 1, Me%InstantNumber
                 projref = 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]'
             case default
                 write (*,*) 'Unknown projection for GeoTiff'
-                stop      'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR100'
+                stop      'WriteAsGeoTiff - HDF5_2_EsriGridData - ERR010'
         end select
 
 
