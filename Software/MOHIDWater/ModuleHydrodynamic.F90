@@ -153,8 +153,8 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea, GetConnections, &
                                        GetCornersCoordinates, GetLatitudeLongitude,      &
-                                       GetGeoCoordON , GetXY_Coord_InsideInnerDomain !,     &
-                                       !GetPoly_Coord_InsideInnerDomain
+                                       GetGeoCoordON , GetXY_Coord_InsideInnerDomain,    &
+                                       GetZCoordinates
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay,                    &
                                        UngetTwoWayExternal_Vars, &
@@ -1840,6 +1840,36 @@ Module ModuleHydrodynamic
         real                            :: DtOut = null_real
     end type T_Energy
 
+    type T_PressureObject
+        integer                             :: FileID       = null_int
+        integer                             :: BufferCount  = null_int
+        type (T_Time)                       :: NextOutPut
+        real                                :: DtOut        = null_real
+        logical                             :: FirstTime    = .true. 
+        character(StringLength)             :: NAME         = null_str
+        type (T_polygon), pointer           :: Area         => null()
+        real                                :: Xmass        = null_real 
+        real                                :: Ymass        = null_real  
+        real                                :: Long_Angle   = null_real
+        real                                :: XStern       = null_real 
+        real                                :: YStern       = null_real  
+        real                                :: XBow         = null_real 
+        real                                :: YBow         = null_real  
+        real                                :: Draft        = null_real        
+        !Longitudinal pressure force
+        real                                :: Surge        = null_real         
+        !Lateral pressure force
+        real                                :: Sway         = null_real         
+        !Moment pressure force
+        real                                :: Yaw          = null_real   
+        !Mapping
+        !0 - outside, 1- inside
+        integer,    dimension(:,:), pointer :: MapIn
+        !0 - no boundary, -1 - float object west, 1 - float object east
+        integer,    dimension(:,:), pointer :: MapX
+        !0 - no boundary, -1 - float object south, 1 - float object north
+        integer,    dimension(:,:), pointer :: MapY        
+    end type T_PressureObject    
 
     private :: T_Astro
     type       T_Astro
@@ -2048,6 +2078,7 @@ Module ModuleHydrodynamic
         type(T_OutPut        ) :: OutPut
         type(T_OutW          ) :: OutW
         type(T_Energy        ) :: Energy
+        type(T_PressureObject) :: PressureObject
         type(T_Astro         ) :: TidePotential
         type(T_Relaxation    ) :: Relaxation
         type(T_SubModel      ) :: SubModel
@@ -11757,6 +11788,7 @@ cd5 :           if (opened) then
         integer                             :: STAT_CALL
         integer                             :: iflag, iW
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        logical                             :: AuxLogic
 
         !Begin----------------------------------------------------------------------------
 
@@ -11990,7 +12022,7 @@ cd5 :           if (opened) then
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR100")
         
 
-        call GetData(Me%Output%MohidJetON,                                              &
+        call GetData(AuxLogic,                                                          &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
@@ -12000,6 +12032,8 @@ cd5 :           if (opened) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR110")
+        
+        Me%Output%MohidJetON = AuxLogic
         
 
         call GetData(Me%Output%MohidJetONWindow,                                        &
@@ -16133,6 +16167,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.not. associated(Me%Next))then
                 if (Me%ComputeOptions%TwoWay) call ComputeTwoWay(HydrodynamicID)
             endif
+
+            !if (Me%ComputeOptions%PressureObject) then
+            !    call ComputePressureForces
+            !endif
 
             call Hydrodynamic_OutPut
 
@@ -50591,7 +50629,7 @@ iIn:                    if (InterceptionRatio <= 0.) then
 
         else
         
-            allocate (Aux1DTotal(1:iTotal,7))
+            allocate (Aux1DTotal(1:iTotal,8))
 
             allocate (Aux1D     (1:iTotal  ))
 
@@ -50627,7 +50665,8 @@ iIn:                    if (InterceptionRatio <= 0.) then
                     Aux1DTotal(istart:iend,6) = OutPutMatrix(1:ijet,10)
                     !density [kg/m3]
                     Aux1DTotal(istart:iend,7) = OutPutMatrix(1:ijet,11)
-
+                    !dilution [-]
+                    Aux1DTotal(istart:iend,8) = OutPutMatrix(1:ijet,5)
                     istart = iend + 1
                                             
                     call UngetJet(JetID     = Me%MohidJet%Jetx(dis)%ObjJet,             &
