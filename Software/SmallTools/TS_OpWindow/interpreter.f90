@@ -13,7 +13,7 @@ module interpreter
 	use precision 
 	implicit none
 
-	character(len=10),   dimension(:), allocatable, private :: varnames	
+	character(len=20),   dimension(:), allocatable, private :: varnames	
 	character(len=255),  dimension(:), allocatable, private	:: stokens
 	integer			  ,	 dimension(:), allocatable, private	:: operations
 	integer,										private	:: n 
@@ -38,7 +38,7 @@ contains
 	!	 expression to lowercase and converts exponents signals ** to ^
 	!
 	character(len=*),                intent(inout)		:: func
-	character(len=10), dimension(:), intent(inout)	    :: variablenames	
+	character(len=*), dimension(:), intent(inout)	    :: variablenames	
 	character(len=26)									:: lower = 'abcdefghijklmnopqrstuvwxyz'
 	character(len=26)									:: upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 	integer												:: i, k, funclen
@@ -74,7 +74,7 @@ contains
 	!
 	!	This subroutine recognizes the variables and set their values
 	!
-	character(len=10), dimension(:), intent(in)	    :: variablenames	
+	character(len=*), dimension(:), intent(in)	    :: variablenames	
 	character(len=*), intent(inout)					:: func
 
 	n = size(variablenames)

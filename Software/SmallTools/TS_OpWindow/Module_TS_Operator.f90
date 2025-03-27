@@ -1266,8 +1266,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical                                     :: FillValue
         character(len = 1000)                       :: func, Expression
         character(len = 5)                          :: statusflag
-        character(len = 10)                         :: Name
-        character(len = 10),  dimension(:), allocatable :: variables
+        character(len = 20)                         :: Name
+        character(len = 20),  dimension(:), allocatable :: variables
         real(8),       dimension(:,:), allocatable :: variablesvalues 
         logical                                     :: AssumeFillValue, Conditional
         integer, dimension(5)                       :: ConditionTS

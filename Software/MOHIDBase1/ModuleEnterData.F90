@@ -3950,7 +3950,17 @@ cd3:    if (OutPutsOn) then
 do2 :       do i=1,ReadValuesNumber-1
                 !AppHydrodynamic%OutPut%OutTime(i) = AppHydrodynamic%CurrentTime + AuxDT(i)
                 AuxTime(i) = CurrentTime + AuxDT(i)
+                if (i >1) then
+                    if (AuxTime(i) < AuxTime(i-1)) then
+                        call SetError(FATAL_, INTERNAL_, "OutPutTimeInternal - EnterData - ERR30")
+                    endif
+                endif
             end do do2
+
+            if (AuxDT(ReadValuesNumber) <= 0.) then
+                call SetError(FATAL_, INTERNAL_, "OutPutTimeInternal - EnterData - ERR40")
+            endif
+
 
 do1 :       do i=ReadValuesNumber,OutPutsNumber_
                 !AppHydrodynamic%OutPut%OutTime(i) = AppHydrodynamic%OutPut%OutTime(i-1) + AuxDT(ReadValuesNumber)

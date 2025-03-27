@@ -8341,6 +8341,26 @@ cd1:    if (ObjSediment_ID > 0) then
                            STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleSediment - ERR18'
 
+            if (.not. associated(Me%ExternalVar%WavePeriod)) then
+                write(*,*) 'Missing Wave Period'
+                stop 'ReadLockExternalVar - ModuleSediment - ERR40'
+            endif
+
+            if (.not. associated(Me%ExternalVar%WaveHeight)) then
+                write(*,*) 'Missing Wave Height'
+                stop 'ReadLockExternalVar - ModuleSediment - ERR50'
+            endif
+
+            if (.not. associated(Me%ExternalVar%WaveLength)) then
+                write(*,*) 'Missing Wave Length'
+                stop 'ReadLockExternalVar - ModuleSediment - ERR60'
+            endif            
+            
+            if (.not. associated(Me%ExternalVar%WaveDirection)) then
+                write(*,*) 'Missing Wave Direction'
+                stop 'ReadLockExternalVar - ModuleSediment - ERR70'
+            endif            
+            
         endif
 #endif
 

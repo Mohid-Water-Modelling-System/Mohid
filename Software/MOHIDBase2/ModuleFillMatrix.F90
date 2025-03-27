@@ -7235,6 +7235,15 @@ i0:     if(Me%Dim == Dim2D)then
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
 
+                if (.not. CurrentHDF%Field4D .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+                    
+                    write (*,*) 'You are running in parallel in domain decomposition mode'
+                    write (*,*) 'Need to use option FIELD4D : 1'
+                    write(*,*)'Property '//trim(Me%PropertyID%Name)
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR275'
+                    
+                endif
+
                 call GetData(CurrentHDF%From2Dto3D,                                             &
                              Me%ObjEnterData , iflag,                                           &
                              SearchType   = ExtractType,                                        &
@@ -7263,6 +7272,15 @@ i0:     if(Me%Dim == Dim2D)then
                                  ClientModule = 'ModuleFillMatrix',                             &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
+
+                    if (.not. CurrentHDF%Extrapolate .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+                    
+                        write (*,*) 'You are running in parallel in domain decomposition mode'
+                        write (*,*) 'Need to use option EXTRAPOLATE : 1'
+                        write(*,*)'Property '//trim(Me%PropertyID%Name)     
+                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR285'
+                        
+                    endif
 
                     !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
                     call GetData(CurrentHDF%ExtrapolateMethod,                              &
@@ -7344,6 +7362,16 @@ i0:     if(Me%Dim == Dim2D)then
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'
+
+                
+                if (.not. CurrentHDF%SpatialInterpolON .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+                    
+                    write (*,*) 'You are running in parallel in domain decomposition mode'
+                    write (*,*) 'Need to use option SPATIAL_INTERPOL : 1'
+                    write(*,*)'Property '//trim(Me%PropertyID%Name)
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR325'
+                    
+                endif                
 
                 CurrentHDF%InterpolOnlyVertically = .false.
 
