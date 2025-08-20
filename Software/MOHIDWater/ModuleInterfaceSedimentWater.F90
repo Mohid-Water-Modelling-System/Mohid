@@ -1233,6 +1233,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR41'
 
+if (Me%RunSedimentModule) then
+    if (Me%WaveShear_Stress%Yes .and. Me%Shear_Stress%Method==1) then
+		write(*,*)'SHEAR_STRESS_METHOD must be set to 2 when running ModuleSediment considering wave shear stress (WAVETENSION : 1).'
+		stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR42'
+	endif
+endif	
 
     end subroutine ConstructShearStress
 
