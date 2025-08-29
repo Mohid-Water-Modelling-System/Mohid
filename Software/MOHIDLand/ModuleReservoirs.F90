@@ -1542,9 +1542,21 @@ cd2 :           if (BlockFound) then
         else
 
             if (Me%Continuous) then
+                call ConstructHorizontalGrid(ObjHorizontalGrid, Me%ExtVar%TopographicFile, &
+                                                STAT = STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR010'
                 ! If the property is old then the program is going to try to find a property
-                ! with the same name in the Water properties initial file written in HDF format  
+                ! with the same name in the Water properties initial file written in HDF format
+                call GetHorizontalGridSize (ObjHorizontalGrid,                               &
+                                            Size     = Me%ExtVar%Size2D,                     &
+                                            WorkSize = Me%ExtVar%WorkSize2D,                 &
+                                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR050'
+                
                 call ReadInitialConc(NewProperty)
+                
+                call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR180' 
             else
                 write(*,*)
                 write(*,*)'Cant use OLD keyword on properties if CONTINUOUS is OFF'
@@ -2905,7 +2917,7 @@ cd0:    if (Exist) then
         real                                    :: WaterLevel, ReservoirVolume, PreviousCurveLevel
         real                                    :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
         !Begin----------------------------------------------------------------
-
+        WaterLevel = null_real
         if (associated(CurrentReservoir%Management%AccVolumeCurve)) then        
             
             ReservoirVolume              = CurrentReservoir%VolumeNew
@@ -5596,12 +5608,3 @@ cd1:    if (ObjReservoirs_ID > 0) then
     !--------------------------------------------------------------------------
 
 end module ModuleReservoirs
-
-
-
-
-
-
-
-
-

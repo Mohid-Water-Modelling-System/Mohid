@@ -14788,7 +14788,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         
         !Surface Heat Fluxes             
         call SearchProperty (Temperature, Temperature_, .true., STAT_CALL)
-
+        
         if (STAT_CALL == SUCCESS_ .and. Temperature%ComputeOptions%SurfaceFluxes) then
 
             do NodeID = 1, Me%TotalNodes
@@ -14850,14 +14850,16 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                     TotalHeatFlux   = SurfaceSolarFlux - BottomSolarFlux +                         &
                                       LatentHeat_ + SensibleHeat_ +  InfraRed_ + GroundHeatFlux_
 
-                    ![Celsius]      =  [Celsius]  + [Joules / m^2 / s] * [s] / [kg/m^3] / [Joules/kg/Celsius] / [m]
-                    Temperature%Concentration(NodeID) = Temperature%Concentration(NodeID)   +   &
-                                                        TotalHeatFlux * Me%ExtVar%DT        *   &
-                                                        Me%Nodes(NodeID)%SurfaceArea        /   &
-                                                        ReferenceDensity                    /   &
-                                                        SpecificHeatDefault                 /   & 
-                                                        Me%Nodes(NodeID)%VolumeNew
-                     
+                    !only update if volume > 0
+                    if (Me%Nodes(NodeID)%VolumeNew > 0.0) then
+                        ![Celsius]      =  [Celsius]  + [Joules / m^2 / s] * [s] / [kg/m^3] / [Joules/kg/Celsius] / [m]
+                        Temperature%Concentration(NodeID) = Temperature%Concentration(NodeID)   +   &
+                                                            TotalHeatFlux * Me%ExtVar%DT        *   &
+                                                            Me%Nodes(NodeID)%SurfaceArea        /   &
+                                                            ReferenceDensity                    /   &
+                                                            SpecificHeatDefault                 /   & 
+                                                            Me%Nodes(NodeID)%VolumeNew
+                     endif
                     if (Me%ComputeOptions%MassFluxes) then
 
                         !Calculates Evaporation mass flux (heat flux was already accounted)
@@ -19790,14 +19792,3 @@ end module ModuleDrainageNetwork
 !MOHID Water Modelling System.
 !Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-

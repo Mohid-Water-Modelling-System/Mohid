@@ -1286,10 +1286,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%DZ_Residual(:,:) = 0.
             
             allocate(Me%Residual%BedloadU(ILB:IUB, JLB:JUB))
-            Me%Residual%BedloadU(:,:) = null_real
+            Me%Residual%BedloadU(:,:) = 0.
 
             allocate(Me%Residual%BedloadV(ILB:IUB, JLB:JUB))
-            Me%Residual%BedloadV(:,:) = null_real
+            Me%Residual%BedloadV(:,:) = 0.
             
             if (Me%Evolution%Old) then
                 call ReadResidualStartTime()
@@ -2157,10 +2157,10 @@ cd2 :           if (BlockFound) then
                     Me%SandClass(n)%NDShearStress(:,:) = FillValueReal
                     
                     allocate(Me%SandClass(n)%BedloadU(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%BedloadU(:,:) = null_real
+                    Me%SandClass(n)%BedloadU(:,:) = 0.
                         
                     allocate(Me%SandClass(n)%BedloadV(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%BedloadV(:,:) = null_real
+                    Me%SandClass(n)%BedloadV(:,:) = 0.
                     
                     if (Me%WavesOn) then
                         
@@ -5756,6 +5756,7 @@ do1:    do n=1,Me%NumberOfClasses
         class(T_Sand), pointer :: SandClass
         integer                :: WILB, WIUB, WJLB, WJUB, WKUB
         real(8)                :: correction, MassWithdrawal
+        real                   :: RunPeriod
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -5828,6 +5829,17 @@ do1:    do n=1,Me%NumberOfClasses
             enddo
             enddo
         enddo
+        
+        if (Me%Residual%ON) then
+
+            RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+                
+            Me%Residual%BedloadU(:,:) = ( Me%Residual%BedloadU(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                        Me%BedloadU(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+                                           
+            Me%Residual%BedloadV(:,:) = ( Me%Residual%BedloadV(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                        Me%BedloadV(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+        endif
 
     end subroutine FluxesCorrection
     
@@ -5836,7 +5848,6 @@ do1:    do n=1,Me%NumberOfClasses
     subroutine ComputeEvolution 
         
         !Local-----------------------------------------------------------------
-        real                    :: RunPeriod
         integer                 :: i, j, n
         class(T_Sand), pointer :: SandClass      
         integer                 :: WILB, WIUB, WJLB, WJUB
@@ -5864,17 +5875,6 @@ do1:    do n=1,Me%NumberOfClasses
            SandClass%DM(:, :) = 0.
            
            if (Me%BedloadMethod /= 0) then
-            
-               if (Me%Residual%ON) then
-
-                    RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
-                
-                    Me%Residual%BedloadU(:,:) = ( Me%Residual%BedloadU(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                               SandClass%BedloadU(:,:) * Me%Evolution%SedimentDT) / RunPeriod
-                                           
-                    Me%Residual%BedloadV(:,:) = ( Me%Residual%BedloadV(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                               SandClass%BedloadV(:,:) * Me%Evolution%SedimentDT) / RunPeriod
-                endif
            
                 do j=WJLB, WJUB
                 do i=WILB, WIUB
