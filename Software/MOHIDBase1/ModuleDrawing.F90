@@ -147,6 +147,10 @@ Module ModuleDrawing
     public  :: PercentagePolygonInsidePolygon
     public  :: PercentageXYZPointsInsidePolygon    
     
+    public  :: AddBoundBox2Polygon
+    public  :: Distance_to_polygon
+
+    
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
     integer(4), parameter  :: TypeX_Y_Z_P   =  2    
@@ -197,17 +201,26 @@ Module ModuleDrawing
         type(T_PointF), pointer                 :: EndAt
     end type T_Segment
 
+    type :: T_AABB
+        real                                    :: min_x, max_x, min_y, max_y
+        integer                                 :: start_idx, end_idx  ! Edge indices this box covers
+        type(T_AABB), pointer                   :: left  => null()  ! Child nodes
+        type(T_AABB), pointer                   :: right => null()  ! Child nodes
+    end type T_AABB
+    
+
     public   T_Polygon
     type     T_Polygon
         integer                                 :: ID           = null_int
         type(T_Point ),  dimension(:), pointer  :: Vertices
         type(T_PointF),  dimension(:), pointer  :: VerticesF
         type(T_Limits)                          :: Limits
+        type(T_AABB  ), pointer                 :: AABB
+        logical                                 :: AABB_ON      = .false.  
         integer                                 :: Count
         type(T_Polygon),              pointer   :: Next 
     end type T_Polygon
     
-
 
     public   T_Lines
     type     T_Lines
@@ -312,6 +325,7 @@ if2 :               if (BlockFound) then
                         Polygon%VerticesF(CurrentVertix)%X  = Polygon%VerticesF(1)%X
                         Polygon%VerticesF(CurrentVertix)%Y  = Polygon%VerticesF(1)%Y
 
+                        
                         call SetLimits(Polygon)
                         
                         if (present(PolygonsRef)) then
@@ -4092,7 +4106,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                       !
-! Subroutine goal : computes an area of polygon X using a                               !
+! Function goal : computes an area of polygon X using a                                 !
 !                   Public-domain function by Darel Rex Finley, 2006.                   !
 !                                                                                       !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4248,6 +4262,210 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
             
 
     end function PercentagePolygonInsidePolygon  
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! subroutine goal : add bounding box to a set of polygons                                 !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine AddBoundBox2Polygon(PolygonX)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+        !Local------------------------------------------------------
+        type (T_Polygon), pointer           :: AuxX
+        integer                             :: start_idx, end_idx
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+
+        
+        do while(associated(AuxX)) 
+        
+            if (.not. AuxX%AABB_ON) then            
+                        
+                start_idx = 1
+                end_idx   = AuxX%Count
+            
+                call build_bvh(VerticesF    = AuxX%VerticesF,                           &
+                                N           = AuxX%Count,                               &        
+                                node        = AuxX%AABB,                                &
+                                start_idx   = start_idx,                                &
+                                end_idx     = end_idx)
+                
+                AuxX%AABB_ON = .true. 
+            
+                AuxX => AuxX%Next
+            
+            endif
+        
+        enddo            
+                              
+        
+        nullify(AuxX)
+            
+        
+    end subroutine AddBoundBox2Polygon
+                        
+
+    
+    ! Build the BVH (simplified, recursive)
+    recursive subroutine build_bvh(VerticesF, N, node, start_idx, end_idx)
+    
+        !Arguments----------------------------------------------------------------------
+        type(T_PointF),  dimension(:), pointer  :: VerticesF    
+        !real, dimension(:), intent(in) :: X, Y
+        integer, intent(in)                     :: N, start_idx, end_idx
+        type(T_AABB), pointer, intent(inout)    :: node
+        
+        !Local--------------------------------------------------------------------------
+        integer :: mid_idx, i
+        real :: min_x, max_x, min_y, max_y
+        
+        !Begin--------------------------------------------------------------------------        
+        
+        allocate(node)
+        node%start_idx = start_idx
+        node%end_idx   = end_idx
+        
+        ! Compute bounding box for edges from start_idx to end_idx
+        min_x = huge(1.0d0); max_x = -huge(1.0d0)
+        min_y = huge(1.0d0); max_y = -huge(1.0d0)
+        do i = start_idx, end_idx
+            min_x = min(min_x, VerticesF(i)%X, VerticesF(mod(i, N)+1)%X)
+            max_x = max(max_x, VerticesF(i)%X, VerticesF(mod(i, N)+1)%X)
+            min_y = min(min_y, VerticesF(i)%Y, VerticesF(mod(i, N)+1)%Y)
+            max_y = max(max_y, VerticesF(i)%Y, VerticesF(mod(i, N)+1)%Y)
+        end do
+        node%min_x = min_x; node%max_x = max_x
+        node%min_y = min_y; node%max_y = max_y
+        
+        ! Split into two children if enough edges
+        if (end_idx - start_idx > 100) then
+            mid_idx = (start_idx + end_idx) / 2
+            call build_bvh(VerticesF, N, node%left, start_idx, mid_idx)
+            call build_bvh(VerticesF, N, node%right, mid_idx+1, end_idx)
+        end if
+    end subroutine build_bvh    
+    
+
+    ! Distance from point to AABB (squared)
+    function distance_to_aabb(P_x, P_y, box) result(dist_sq)
+        real, intent(in) :: P_x, P_y
+        type(T_AABB), pointer, intent(in) :: box
+        real :: dist_sq, dx, dy
+        
+        dx = max(box%min_x - P_x, 0.0d0, P_x - box%max_x)
+        dy = max(box%min_y - P_y, 0.0d0, P_y - box%max_y)
+        dist_sq = dx**2 + dy**2
+    end function distance_to_aabb
+
+    ! Distance from point to edge (squared)
+    function distance_to_edge(P_x, P_y, A_x, A_y, B_x, B_y) result(dist_sq)
+        real, intent(in) :: P_x, P_y, A_x, A_y, B_x, B_y
+        real :: dist_sq, Vx, Vy, Wx, Wy, c, denom, closest_x, closest_y
+        
+        Vx = B_x - A_x
+        Vy = B_y - A_y
+        Wx = P_x - A_x
+        Wy = P_y - A_y
+        
+        denom = Vx**2 + Vy**2
+        if (denom == 0.0d0) then
+            closest_x = A_x
+            closest_y = A_y
+        else
+            c = (Wx * Vx + Wy * Vy) / denom
+            if (c < 0.0d0) then
+                closest_x = A_x
+                closest_y = A_y
+            else if (c > 1.0d0) then
+                closest_x = B_x
+                closest_y = B_y
+            else
+                closest_x = A_x + c * Vx
+                closest_y = A_y + c * Vy
+            end if
+        end if
+        
+        dist_sq = (P_x - closest_x)**2 + (P_y - closest_y)**2
+    end function distance_to_edge
+
+    ! Traverse BVH to find minimum distance
+    recursive subroutine find_min_distance(P_x, P_y, VerticesF, N, node, min_dist_sq)
+        real, intent(in) :: P_x, P_y
+        !real, dimension(:), intent(in) :: X, Y
+        type(T_PointF),  dimension(:), pointer  :: VerticesF   
+        integer, intent(in) :: N
+        type(T_AABB), pointer, intent(in) :: node
+        real, intent(inout) :: min_dist_sq
+        real :: dist_sq
+        integer :: i, next_i
+        
+        if (.not. associated(node)) return
+        
+        dist_sq = distance_to_aabb(P_x, P_y, node)
+        if (dist_sq >= min_dist_sq) return  ! Prune this branch
+        
+        if (.not. associated(node%left) .and. .not. associated(node%right)) then
+            ! Leaf node: check all edges in this box
+            do i = node%start_idx, node%end_idx
+                next_i = mod(i, N) + 1
+                dist_sq = distance_to_edge(P_x, P_y, VerticesF(i)%X, VerticesF(i)%Y, VerticesF(next_i)%X, VerticesF(next_i)%Y)
+                if (dist_sq < min_dist_sq) min_dist_sq = dist_sq
+            end do
+        else
+            ! Recurse into children
+            call find_min_distance(P_x, P_y, VerticesF, N, node%left, min_dist_sq)
+            call find_min_distance(P_x, P_y, VerticesF, N, node%right, min_dist_sq)
+        end if
+    end subroutine find_min_distance
+
+    ! Main function to compute distance
+    function Distance_to_polygon(P_x, P_y, PolygonX) result(dist)
+        
+        !Arguments--------------------------------------------------
+        real, intent(in)                    :: P_x, P_y
+        type (T_Polygon), pointer           :: PolygonX
+        !Local------------------------------------------------------
+        type (T_Polygon), pointer           :: AuxX
+        !real, dimension(:), intent(in) :: X, Y
+        !integer, intent(in) :: N
+        real                                :: dist, min_dist_sq, min_dist
+        !type(AABB), pointer :: root => null()        
+        
+        !Begin------------------------------------------------------    
+        
+        ! Build BVH (do this once, store root for reuse if multiple queries)
+        !call build_bvh(X, Y, N, root, 1, N)
+        
+        ! Find minimum distance
+        min_dist_sq = huge(1.0d0)
+        dist        = huge(1.0d0)
+        
+        AuxX => PolygonX 
+        
+
+        do while(associated(AuxX)) 
+            
+            call find_min_distance(P_x, P_y, AuxX%VerticesF, AuxX%Count, AuxX%AABB, min_dist_sq)
+            
+            min_dist = sqrt(min_dist_sq)
+            
+            if (min_dist < dist) dist = min_dist
+            
+            AuxX => AuxX%Next
+            
+        enddo            
+                              
+        
+        nullify(AuxX)
+        
+        
+        ! Clean up (for simplicity, not shown in detail)
+        ! Deallocate BVH tree if not reused
+    end function Distance_to_polygon    
     
 end module ModuleDrawing
 

@@ -2357,7 +2357,7 @@ program Convert2netcdf
                 LongName        = "sea water speed"
                 StandardName    = "sea_water_speed"
                 Units_          = "m s-1"
-                ValidMin        = -5.
+                ValidMin        = 0.
                 ValidMax        = 5.
                 MissingValue    = Me%MissingValue
 

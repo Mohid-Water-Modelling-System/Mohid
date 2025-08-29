@@ -1646,6 +1646,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: Freezed                  = OFF
         logical                                 :: Beached                  = OFF
         real                                    :: BeachedWL                = null_real        
+        real                                    :: BeachedCD                = null_real                
         real                                    :: BeachedPeriod            = null_real                
         logical                                 :: Deposited                = OFF        
         logical                                 :: AtTheBottom              = OFF        
@@ -13710,6 +13711,8 @@ em1:    do em =1, Me%EulerModelNumber
                                  Nomfich        = Me%Files%Nomfich,                     &
                                  ModelDomain    = Me%GridsBounds,                       &
                                  ResultsHDF     = Me%HDF5FileName(emMax),               &
+                                 CoastLineON    = Me%ThinWallsON,                       & 
+                                 CoastLine      = Me%ThinWalls,                         &   
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR80'
         endif  
@@ -26301,7 +26304,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         real(8),    dimension(:), pointer           :: Longitude, Latitude, Age
-        real(8),    dimension(:), pointer           :: WaterLevel, Bathym, Hs, Tp, BeachWL, BeachPeriod
+        real(8),    dimension(:), pointer           :: WaterLevel, Bathym, Hs, Tp, BeachWL, BeachCD, BeachPeriod
         integer,    dimension(:), pointer           :: Origin, ID   
         logical,    dimension(:), pointer           :: Beach, KillPartic        
         type (T_Origin), pointer                    :: CurrentOrigin
@@ -26359,6 +26362,7 @@ dw1:    do while (associated(CurrentOrigin))
         allocate   (ID          (nTotal))                        
         allocate   (Beach       (nTotal))
         allocate   (BeachWL     (nTotal))
+        allocate   (BeachCD     (nTotal))        
         allocate   (BeachPeriod (nTotal))                
         allocate   (KillPartic  (nTotal))
         allocate   (WaterLevel  (nTotal))
@@ -26390,6 +26394,7 @@ dw2:    do while (associated(CurrentOrigin))
                 Hs            (n) = CurrentPartic%WaveHeight
                 Tp            (n) = CurrentPartic%WavePeriod
                 BeachWL       (n) = CurrentPartic%BeachedWL
+                BeachCD       (n) = CurrentPartic%BeachedCD                
                 BeachPeriod   (n) = CurrentPartic%BeachedPeriod
                 
                 CurrentPartic => CurrentPartic%Next
@@ -26411,6 +26416,7 @@ dw2:    do while (associated(CurrentOrigin))
                               ID            = ID,                                       &
                               Beach         = Beach,                                    &
                           BeachWL       = BeachWL,                                      &
+                          BeachCD       = BeachCD,                                      &            
                           BeachPeriod   = BeachPeriod,                                  &
                               KillPartic    = KillPartic,                               &
                           WaterLevel    = WaterLevel,                                   &
@@ -26431,6 +26437,7 @@ dw3:    do while (associated(CurrentOrigin))
 
                 CurrentPartic%Beached    = Beach     (n)
                 CurrentPartic%BeachedWL     = BeachWL     (n)
+                CurrentPartic%BeachedCD     = BeachCD     (n)                
                 CurrentPartic%BeachedPeriod = BeachPeriod (n)                
                 CurrentPartic%KillPartic = KillPartic(n)
                          
@@ -26447,6 +26454,7 @@ dw3:    do while (associated(CurrentOrigin))
             deallocate   (ID          )                        
             deallocate   (Beach       )
             deallocate   (BeachWL     )            
+            deallocate   (BeachCD     )
             deallocate   (BeachPeriod )             
             deallocate   (KillPartic  )            
             deallocate   (WaterLevel  )                        
