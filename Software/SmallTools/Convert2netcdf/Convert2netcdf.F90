@@ -2702,6 +2702,25 @@ program Convert2netcdf
                 ValidMax        = 30.
                 MissingValue    = Me%MissingValue
                 
+            case("Bedload_X")
+                NCDFName        = "QbX"
+                LongName        = "eastward bed load"
+                StandardName    = "eastward_bed_load"
+                Units_          = "kg s-1 m-1"
+                ValidMin        = -1e9
+                ValidMax        = 1e9
+                MissingValue    = Me%MissingValue
+                
+            case("Bedload_Y")
+                NCDFName        = "QbY"
+                LongName        = "northward bed load"
+                StandardName    = "northward_bed_load"
+                Units_          = "kg s-1 m-1"
+                ValidMin        = -1e9
+                ValidMax        = 1e9
+                MissingValue    = Me%MissingValue
+                
+                
             case default
 
                 NCDFName        = trim(adjustl(Name))
@@ -2944,7 +2963,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         !Begin-----------------------------------------------------------------
 
         call h5gopen_f(Me%HDFFile%FileID, "/"//trim(FatherGroupName), gr_id, STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'BrowseGroup - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) then
+            stop 'BrowseGroup - Convert2netcdf - ERR01'
+		endif
 
         !Get number of items in group
         call h5gn_members_f(gr_id, "/"//trim(FatherGroupName), nGItems, STAT_CALL)

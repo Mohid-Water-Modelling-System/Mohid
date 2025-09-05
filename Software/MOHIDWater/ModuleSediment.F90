@@ -384,6 +384,7 @@ Module ModuleSediment
     type       T_Sediment
         character(PathLength)                      :: SedGeometryFile       = null_str
         integer                                    :: InstanceID            = FillValueInt
+        character(PathLength)                      :: ModelName             = null_str        
         type (T_Size2D)                            :: Size, WorkSize
         type (T_Time)                              :: BeginTime, EndTime
         type (T_Evolution)                         :: Evolution
@@ -529,7 +530,8 @@ Module ModuleSediment
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructSediment(ObjSedimentID,                 &
+    subroutine ConstructSediment(ModelName,                             &
+                                 ObjSedimentID,                         &
                          ObjGridDataID,                         &
                          GeometryID,                            &
                          ObjHorizontalGridID,                   &
@@ -544,6 +546,7 @@ Module ModuleSediment
                          STAT)
 
         !Arguments-------------------------------------------------------------
+        character(Len=*)                                :: ModelName    
         integer                                         :: ObjSedimentID 
         integer                                         :: ObjGridDataID
         integer                                         :: GeometryID
@@ -587,6 +590,8 @@ Module ModuleSediment
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+
+            Me%ModelName = ModelName            
 
             Me%ObjTime           = AssociateInstance (mTIME_,           ObjTimeID          )
             Me%ObjBathym         = AssociateInstance (mGRIDDATA_,       ObjGridDataID      )
@@ -1063,7 +1068,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR200'
         
         if (Me%ConsolidationOn) then
-            if (Me%Evolution%Geometry == .false.) then
+            if (.not. Me%Evolution%Geometry) then
                 write(*,*) 'GEOMETRY_EVOLUTION must be activated to run with CONSOLIDATION'
                 stop 'ConstructGlobalParameters - ModuleSediment - ERR205'
             endif
@@ -1816,6 +1821,7 @@ do1:    do n=1,Me%NumberOfClasses
                             trim(TimeSerieLocationFile),                                &
                             PropertyList, "srsed",                                     &
                             WaterPoints2D = Me%ExternalVar%WaterPoints2D,               &
+                            ModelName     = Me%ModelName,                               &            
                             ModelDomain   = ModelDomainLimit,                           & 
                             STAT          = STAT_CALL)
         if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSediment - ERR30'
@@ -1853,12 +1859,18 @@ do1:    do n=1,Me%NumberOfClasses
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
                 
-                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                if (STAT_CALL == OUT_OF_BOUNDS_ERR_) then
+                    !Do nothing
+                
+                else
+                    if (STAT_CALL /= SUCCESS_) then
                     stop 'ConstructTimeSerie - ModuleSediment - ERR90'
                 endif                            
+                endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSediment - ERR100'
+                
             endif
             
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
@@ -1927,9 +1939,7 @@ do1:    do n=1,Me%NumberOfClasses
     
         !Local----------------------------------------------------------------
         real,   dimension(:,:), pointer     :: MappDZ  
-        integer                             :: ClientNumber
         integer                             :: STAT_CALL
-        logical                             :: BlockFound
 
 
         !------------------------------------------------------------------------    
@@ -7794,7 +7804,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
                 !Kills the TimeSerie
-                if (Me%TimeSerie) then
+                if (Me%ObjTimeSerie /= 0) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillSediment - ModuleSediment - ERR20'
                 endif

@@ -787,7 +787,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR351'
 
                 
-                call ConstructSediment(ObjSedimentID           = Me%ObjSediment,                 &
+                call ConstructSediment(ModelName                = trim(Me%ModelName),                   &
+                                       ObjSedimentID            = Me%ObjSediment,                       &
                                    ObjGridDataID               = Me%Water%ObjBathymetry,         &
                                    GeometryID                  = Me%Water%ObjGeometry,           &
                                    ObjHorizontalGridID         = Me%ObjHorizontalGrid,           &
