@@ -3447,6 +3447,7 @@ do1 :   do while (associated(PropertyX))
 
         enddo
         enddo
+        
 
         call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeLatentHeat - ModuleInterfaceWaterAir - ERR04'
