@@ -2176,17 +2176,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call SetMatrixValue(Me%SCSCNRunOffModel%VegGrowthStage%Field, Me%Size, FillValueReal)
 
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
-                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
-        
-        call GetDefaultValue (FillMatrixID = Me%SCSCNRunOffModel%VegGrowthStage%ID%ObjFillMatrix,     &
-                        DefaultValue = VegGrowthStageDefaultValue, &
-                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSCSCNRunOffModel - ModuleBasin - ERR010'
-        
-        call GetInitializationMethod (FillMatrixID = Me%SCSCNRunOffModel%VegGrowthStage%ID%ObjFillMatrix,     &
-                        InitializationMethod = VegGrowthStageInitMethod, &
-                        STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSCSCNRunOffModel - ModuleBasin - ERR020'
+                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>", VegGrowthStageDefaultValue, &
+                                   VegGrowthStageInitMethod)
         
         if (VegGrowthStageDefaultValue == 2.0 .AND. VegGrowthStageInitMethod == 1) then
             Me%SCSCNRunOffModel%VegetationGrowing = .true.
@@ -2271,12 +2262,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------    
     
-    subroutine ConstructOneProperty (NewProperty, PropertyName, BlockBegin, BlockEnd)
+    subroutine ConstructOneProperty (NewProperty, PropertyName, BlockBegin, BlockEnd, DefaultValue, InitMethod)
     
         !Arguments-------------------------------------------------------------
         type (T_PropertyB)                          :: NewProperty
         character(Len=*)                            :: PropertyName, BlockBegin, BlockEnd
-
+        integer, optional, intent(out)              :: InitMethod
+        real, optional, intent(out)                 :: DefaultValue
         !Local-----------------------------------------------------------------
         integer                                     :: ClientNumber
         logical                                     :: BlockFound
@@ -2317,6 +2309,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                  STAT               = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR04'
         
+        if (PropertyName == "VegGrowthStage") then
+            if (present(DefaultValue)) then
+                call GetDefaultValue (FillMatrixID = NewProperty%ID%ObjFillMatrix,     &
+                        DefaultValue = DefaultValue, &
+                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR04a'
+            endif
+            
+            if (present(InitMethod)) then
+                call GetInitializationMethod (FillMatrixID = NewProperty%ID%ObjFillMatrix,     &
+                        InitializationMethod = InitMethod, &
+                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR04b'
+            endif
+        endif
         if (.not. NewProperty%ID%SolutionFromFile) then
             call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR05'
@@ -5014,7 +5021,7 @@ cd0:    if (Exist) then
         real, dimension(:, :), pointer, intent(in)          :: PrecipitationFlux
         real, dimension(:, :), pointer, optional, intent(in):: IrrigationFlux
         !Local-----------------------------------------------------------------     
-        integer                                             :: STAT_CALL
+        integer                                             :: STAT_CALL, i, j
         logical                                             :: IsIrrigationPresent, NeedsOutput
         real, dimension(:, :), pointer                      :: Irri
         !Begin-----------------------------------------------------------------
@@ -5073,6 +5080,14 @@ cd0:    if (Exist) then
         if (Me%ActiveRain) then
             call SetRunOffRainFall(Me%ObjRunoff, Me%ThroughFall, Me%CellHasRain, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR01'
+            write(*,*) 'Start Rainfall set in Runoff Module'
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                write(*,*) 'i, j, rain hasRain', i, j, Me%ThroughFall(i,j), Me%CellHasRain(i,j)
+            enddo
+            enddo
+            write(*,*) 'End Rainfall set in Runoff Module'
         endif
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "DividePrecipitation")
 
