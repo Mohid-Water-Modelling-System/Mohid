@@ -5021,7 +5021,7 @@ cd0:    if (Exist) then
         real, dimension(:, :), pointer, intent(in)          :: PrecipitationFlux
         real, dimension(:, :), pointer, optional, intent(in):: IrrigationFlux
         !Local-----------------------------------------------------------------     
-        integer                                             :: STAT_CALL, i, j
+        integer                                             :: STAT_CALL!, i, j
         logical                                             :: IsIrrigationPresent, NeedsOutput
         real, dimension(:, :), pointer                      :: Irri
         !Begin-----------------------------------------------------------------
@@ -5080,14 +5080,14 @@ cd0:    if (Exist) then
         if (Me%ActiveRain) then
             call SetRunOffRainFall(Me%ObjRunoff, Me%ThroughFall, Me%CellHasRain, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR01'
-            write(*,*) 'Start Rainfall set in Runoff Module'
-            
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                write(*,*) 'i, j, rain hasRain', i, j, Me%ThroughFall(i,j), Me%CellHasRain(i,j)
-            enddo
-            enddo
-            write(*,*) 'End Rainfall set in Runoff Module'
+            !write(*,*) 'Start Rainfall set in Runoff Module'
+            !
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    write(*,*) 'i, j, rain hasRain', i, j, Me%ThroughFall(i,j), Me%CellHasRain(i,j)
+            !enddo
+            !enddo
+            !write(*,*) 'End Rainfall set in Runoff Module'
         endif
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "DividePrecipitation")
 

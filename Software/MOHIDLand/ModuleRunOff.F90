@@ -8096,7 +8096,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_CALL
         real                                        :: SumDT, TotalDischargeFlowVolume_entry
         logical                                     :: Restart
-        integer                                     :: Niter, iter, i, j
+        integer                                     :: Niter, iter!, i, j
         integer                                     :: n_restart
         logical                                     :: firstRestart
         !----------------------------------------------------------------------
@@ -8259,23 +8259,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                     call ComputeFaceVelocityModulus
 
                                     call DynamicWaveXX    (Me%CV%CurrentDT)   !Consider Advection, Friction and Pressure
-                                    write(*,*) 'Start DynamicWaveXX set in Runoff Module'
-            
-                                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                                        write(*,*) 'i, j, waterVolume lFlow', i, j, Me%myWaterVolume (i, j), Me%lFlowX(i, j)
-                                    enddo
-                                    enddo
-                                    write(*,*) 'End DynamicWaveXX set in Runoff Module'
+                                    !write(*,*) 'Start DynamicWaveXX set in Runoff Module'
+                                    !
+                                    !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                                    !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                    !    write(*,*) 'i, j, waterVolume lFlow', i, j, Me%myWaterVolume (i, j), Me%lFlowX(i, j)
+                                    !enddo
+                                    !enddo
+                                    !write(*,*) 'End DynamicWaveXX set in Runoff Module'
                                     call DynamicWaveYY    (Me%CV%CurrentDT)
-                                    write(*,*) 'Start DynamicWaveYY set in Runoff Module'
-            
-                                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                                        write(*,*) 'i, j, waterVolume lFlow', i, j, Me%myWaterVolume (i, j), Me%lFlowY(i, j)
-                                    enddo
-                                    enddo
-                                    write(*,*) 'End DynamicWaveYY set in Runoff Module'
+                                    !write(*,*) 'Start DynamicWaveYY set in Runoff Module'
+                                    !
+                                    !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                                    !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                    !    write(*,*) 'i, j, waterVolume lFlow', i, j, Me%myWaterVolume (i, j), Me%lFlowY(i, j)
+                                    !enddo
+                                    !enddo
+                                    !write(*,*) 'End DynamicWaveYY set in Runoff Module'
                                     call SetWorkSize                            
                             end select
 
@@ -11585,9 +11585,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     if (Me%GridIsConstant) then
         if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
             Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            (.not. Me%AdjustSlope)) then
+            Me%AdjustSlope) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
-            write(*,*) 'Entrei no xx certo'
             call DynamicWaveXX_default_CG(LocalDT)
         else
             !Advection is computed only in selected zones
@@ -11596,7 +11595,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     else
         if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
             Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            (.not. Me%AdjustSlope)) then
+            Me%AdjustSlope) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveXX_default_VG(LocalDT)
         else
@@ -12758,9 +12757,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     if (Me%GridIsConstant) then
         if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
             Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            (.not. Me%AdjustSlope)) then
+            Me%AdjustSlope) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
-            write(*,*) 'Entrei no yy certo'
             call DynamicWaveYY_default_CG(LocalDT)
         else
             !Advection is computed only in selected zones
@@ -12769,7 +12767,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     else
         if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
             Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            (.not. Me%AdjustSlope)) then
+            Me%AdjustSlope) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveYY_default_VG(LocalDT)
         else
