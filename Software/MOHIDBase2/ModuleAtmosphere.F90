@@ -38,7 +38,8 @@ Module ModuleAtmosphere
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix,  &
                                      GetIfMatrixRemainsConstant, GetFillMatrixDTPrediction,  &
                                      GetNextValueForDTPred, GetValuesProcessingOptions,      &
-                                     UngetFillMatrix, ModifyFillMatrixVectorial
+                                     UngetFillMatrix, ModifyFillMatrixVectorial,             &
+                                     GetFoundNegativeValueInTimeSerie
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,     &
                                      GetTimeSerieLocation, CorrectsCellsTimeSerie,      &
                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
@@ -1334,6 +1335,7 @@ cd2 :           if (BlockFound) then
         type (T_Property), pointer                  :: PropertyX        => null()
         real                                        :: Year, Month, Day, Hour, Minute, Second
         integer                                     :: STAT_CALL, i, j
+        logical                                     :: FoundNegativeValue
         !Begin-----------------------------------------------------------------
 
         !Gets Current Time
@@ -1353,7 +1355,7 @@ cd2 :           if (BlockFound) then
                    .or. PropertyX%ID%IDNumber==PBLHeight_          ) then
                 
                 !check always in construction phase. only check in modify if the prop has solution from file
-                if (Constructing .or. PropertyX%ID%SolutionFromFile) then
+                if (Constructing .or. (PropertyX%ID%SolutionFromFile .and. .not. PropertyX%ID%SolutionFromTimeSerie)) then
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
@@ -1366,7 +1368,21 @@ cd2 :           if (BlockFound) then
                         endif    
                     enddo
                     enddo
+                elseif (PropertyX%ID%SolutionFromTimeSerie) then
+                    call GetFoundNegativeValueInTimeSerie(FillMatrixID    = PropertyX%ID%ObjFillMatrix,     &
+                                    Flag = FoundNegativeValue,             &
+                                    STAT            = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'CheckPropertyValues - ModuleAtmosphere - ERR05'
+                        
+                    if (FoundNegativeValue) then
+                        write(*,*) 'Negative values in Atmosphere Property at instant'
+                        write(*,'(6f5.0)') Year, Month, Day, Hour, Minute, Second
+                        write(*,*)'ThisProperty can not be negative: ', trim(PropertyX%ID%Name)
+                        stop 'CheckPropertyValues - ModuleAtmosphere - ERR11'
+                    endif
                 endif
+                
             endif
             PropertyX => PropertyX%Next
         end do 
@@ -2753,7 +2769,7 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             
             call SearchProperty(PropertyX, AtmospDeposReduNH4_, STAT = STAT_CALL)  !LLP
             if (STAT_CALL == SUCCESS_) call ModifyAtmospDeposReduNH4 (PropertyX)
-
+            
             call ModifyRandom
             
             if (Me%PropsAddedByIrri) then
@@ -2771,7 +2787,6 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             
             WarningString = 'Modify'
             call ModifyOutPut (WarningString)
-
             !call RotateAtmosphereVectorFields(Constructing = .false.)
 
             nullify (Me%ExternalVar%MappingPoints2D)
@@ -2876,7 +2891,9 @@ do1 :   do while (associated(PropertyX))
 
         !Output HDF
         if (Me%OutPut%True) then
-            call OutPutResultsHDF5 
+            if (MonitorPerformance) call StartWatch ("ModuleAtmosphere", "OutPutResultsHDF5")
+            call OutPutResultsHDF5
+            if (MonitorPerformance) call StopWatch ("ModuleAtmosphere", "OutPutResultsHDF5")
         endif
 
 
@@ -2887,13 +2904,16 @@ do2 :   do while (associated(PropertyX))
 
    
             !Output TimeSerie
+            if (MonitorPerformance) call StartWatch ("ModuleAtmosphere", "OutPut_TimeSeries")
             call OutPut_TimeSeries(PropertyX)
+            if (MonitorPerformance) call StopWatch ("ModuleAtmosphere", "OutPut_TimeSeries")
 
             !OutPut Statistics
             if (PropertyX%Statistics%ON) then
 
+                if (MonitorPerformance) call StartWatch ("ModuleAtmosphere", "OutPut_Statistics")
                 call OutPut_Statistics(PropertyX%Field, PropertyX%Statistics%ID)
-
+                if (MonitorPerformance) call StopWatch ("ModuleAtmosphere", "OutPut_Statistics")
             endif
             
             if (WarningString == "Modify")  PropertyX%FirstActualization = .false.

@@ -893,9 +893,8 @@ Module ModuleWaterProperties
     type       T_LocalAssimila
         real                                    :: scalar       = FillValueReal
         real, pointer       , dimension(:,:,:)  :: Field
-        !real, allocatable   , dimension(:,:,:)  :: Field_Upscaling!Sobrinho
         real, pointer       , dimension(:,:,:)  :: DecayTime
-        real, pointer       , dimension(:,:)    :: DecayTime2D !Sobrinho
+        real, pointer       , dimension(:,:)    :: DecayTime2D
         character(len=StringLength)             :: GroupOutPutName
     end type T_LocalAssimila
 
@@ -5062,7 +5061,7 @@ do1 :   do while (associated(PropertyX))
 
             Me%Coupled%DataAssimilation%NextCompute = Me%ExternalVar%Now
             
-            call CheckOfflineUpscaling !Sobrinho
+            call CheckOfflineUpscaling
 
         endif
 
@@ -10952,7 +10951,7 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
         do while (associated(Property))
             if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
             call CloseAllAndStop ('CheckOfflineUpscaling; WaterProperties. ERR02')
-            !Sobrinho
+            
             call GetNumberOfPropFields(PropertyID, NumberOfFields, NumberOfFields_Upscaling)
             
             if (Property%Evolution%DataAssimilation /= NoNudging) then
@@ -13438,7 +13437,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         call LocateObjFather (ObjWaterPropertiesFather, WaterPropertiesFatherID)
 
-        JLB = ObjWaterPropertiesFather%WorkSize%JLB; JUB = ObjWaterPropertiesFather%WorkSize%JUB !Sobrinho
+        JLB = ObjWaterPropertiesFather%WorkSize%JLB; JUB = ObjWaterPropertiesFather%WorkSize%JUB
         ILB = ObjWaterPropertiesFather%WorkSize%ILB; IUB = ObjWaterPropertiesFather%WorkSize%IUB
         KLB = ObjWaterPropertiesFather%WorkSize%KLB; KUB = ObjWaterPropertiesFather%WorkSize%KUB
 
@@ -13479,7 +13478,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructTimeInterpolation(PropertySon         = PropertySon,                           &
                                                 PropFatherVariable  = PropertyFather%Evolution%Variable,     &
                                                 DT_Father           = PropertyFather%Evolution%DTInterval)
-                !Sobrinho
+                
                 if (PropertySon%UpscalingSinkSource) allocate(PropertyFather%UpscalingMassLoss(ILB:IUB, JLB:JUB, KLB:KUB))
                 PropertyFather%UpscalingMassLoss = 0.0
                 !Change variable here instead of in construct phase, because user must define everything in son domain.
@@ -14851,7 +14850,6 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
                             if (STAT_CALL .NE. SUCCESS_)                                    &
                                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR290')
 
-                            !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) Sobrinho
                             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                             !$OMP PARALLEL PRIVATE(I,J,K)
                             !$OMP DO SCHEDULE(STATIC, CHUNK)
@@ -14865,7 +14863,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
                             end do do2
                             !$OMP END DO
                             !$OMP END PARALLEL
-                            !Sobrinho
+                            
                             if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
                                 !$OMP PARALLEL PRIVATE(I,J,K)
                                 !$OMP DO SCHEDULE(STATIC, CHUNK)
@@ -20756,7 +20754,6 @@ if2:            if (PropertyX%Evolution%Discharges .and. Me%Discharge%Number > 0
 
         !For all Discharges
 dd:     do dis = 1, Me%Discharge%Number
-            !Sobrinho
             if (IsUpscaling(Me%ObjDischarges, dis)) then
                 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
@@ -21425,7 +21422,6 @@ if2:                                    if (Me%DDecomp%MPI_ID == Me%DDecomp%Disc
                     if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR10')
 
-                    !Sobrinho
                     call GetNumberOfPropFields(PropertyID, NumberOfFields, NumberOfFields_Upscaling)
                     
                     !In offline upscaling of just the discharges, NumberOfFields_Upscaling must be 0, in order to exclude nudging.
@@ -21585,7 +21581,7 @@ if2:                                    if (Me%DDecomp%MPI_ID == Me%DDecomp%Disc
 
         CHUNK = CHUNK_K(KLB, KUB)
         if (Upscaling_) then
-            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)!Sobrinho - adicionar erro
+            call GetSonVolInFather(Me%ObjTwoWay, Matrix3D = SonVolInFather3D, STAT = status)
             !Need to find a way to get connection matrix in order to reduce number of iterations. (carefull with MPI)
             !$OMP PARALLEL PRIVATE(i,j,k, AuxDecay, Vol_Rat)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -22426,7 +22422,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !$OMP END PARALLEL
 
                 case (UNESCOState_)
-                    !Sobrinho
                     WriteNumber = 0
                     !$OMP PARALLEL PRIVATE(k,j,i) FIRSTPRIVATE(WriteNumber)
                     !$OMP DO SCHEDULE(DYNAMIC,ChunkK)
@@ -22542,7 +22537,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                 case (UNESCOState_)
 
-                    !Sobrinho
                     !$OMP PARALLEL PRIVATE(k,j,i,Depth)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do k = KLB, KUB
@@ -22860,15 +22854,12 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
             select case(Me%SpecificHeat%Method)
 
             case (UNESCOState_)
-                !Sobrinho - called a parallelized routine instead of a function inside a
-                !Non parallelized cycle
                 call ComputeSpecificHeatUNESCO (S, T, SZZ, WaterPoints3D)
 
             case default
 
             end select
 
-            !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
             CHUNK = CHUNK_K(KLB, KUB)
 
             if (MonitorPerformance) then
@@ -24629,7 +24620,6 @@ i2:     if (Me%OutPut%Radiation) then
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_BoxTimeSeries")
 
-        !!$ CHUNK = CHUNK_J(JLB, JUB) Sobrinho
         !$ CHUNK = CHUNK_K(KLB, KUB)
 
         PropertyX  => Me%FirstProperty

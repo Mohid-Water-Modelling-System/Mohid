@@ -306,7 +306,6 @@ Module ModuleGeometry
         real                                    :: Zmin = FillValueReal !Former Hmin
     end type T_WaterColumn
     
-    !Sobrinho
     type T_FatherGrid
         integer, dimension(:,:,:), pointer :: KLinkZ => null()
         type (T_FatherGrid),     pointer   :: Next => null()
@@ -344,7 +343,7 @@ Module ModuleGeometry
 
     type T_Geometry
         integer                                 :: InstanceID   = null_int !initialization: Jauch
-        integer                                 :: FacesOption  = 2 !initialization: Joao Sobrinho
+        integer                                 :: FacesOption  = 2
         type (T_External)                       :: ExternalVar
         type (T_Distances)                      :: Distances
         type (T_Areas)                          :: Areas
@@ -1360,7 +1359,6 @@ cd2 :                       if (BlockLayersFound) then
                         if (STATUS /= SUCCESS_)                                         &
                             stop "GetDomainsFromFile - Geometry - ERR230"
                         
-                        !Joao Sobrinho
                         call GetData(NewDomain%RelaxToAverageFactor,                    &
                                      ObjEnterData, iflag,                               &
                                      SearchType     = FromBlock,                        &
@@ -3757,7 +3755,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
      end subroutine ComputeWaterColumn
 
     !--------------------------------------------------------------------------
-    subroutine ComputeVolume2D !Joao Sobrinho
+    subroutine ComputeVolume2D
         !locals-----------------------------------------------------------------
         integer                                 :: i, j, STAT_CALL
         real, dimension(:,:),     pointer       :: DUX, DVY
@@ -4267,7 +4265,6 @@ cd1:    if (FacesOption == MinTickness) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeAreas")
 
         CHUNK = Chunk_K(KLB,KUB)
-        !Sobrinho
         !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLB, KUB
@@ -4286,7 +4283,6 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END PARALLEL
         
         if (Me%Areas%Impermeability) then        
-        !Sobrinho
             !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLB, KUB

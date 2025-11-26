@@ -1688,7 +1688,7 @@ Module ModuleHDF5
 
     subroutine HDF5WriteDataR8_2D (HDF5ID, GroupName, Name, Units,                   &
                                    Array2D, OutputNumber, STAT)
-
+    
         !Arguments-------------------------------------------------------------
         integer                                         :: HDF5ID
         character(len=*)                                :: GroupName
@@ -1697,7 +1697,7 @@ Module ModuleHDF5
         real(8), dimension(:, :)   , pointer            :: Array2D
         integer, optional                               :: OutputNumber
         integer, optional                               :: STAT
-
+    
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_, ready_
         integer(HSIZE_T), dimension(7)                  :: dims
@@ -1709,26 +1709,26 @@ Module ModuleHDF5
         character(StringLength)                         :: AuxChar
         real(4)                                         :: Minimum, Maximum
         logical                                         :: AllocateMatrix
-
-
+    
+    
         STAT_ = UNKNOWN_
-
+    
         call Ready (HDF5ID, ready_)
-
+    
         if (ready_ .EQ. IDLE_ERR_) then
-
+    
             NumType = H5T_NATIVE_DOUBLE 
-
+    
             Rank    = 2
-
-
+    
+    
             Minimum = minival(Array2D,Me%Limits2D)
             Maximum = maxival(Array2D,Me%Limits2D)
-
-
+    
+    
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
-
+    
             !Creates the dataset with default properties
             if (present(OutputNumber)) then
                 call ConstructDSName (Name, OutputNumber, AuxChar)
@@ -1748,7 +1748,7 @@ Module ModuleHDF5
                 
             else if (Me%AuxMatrixes%dims_R8_2D(1) /= dims (1) .or.                      &
                      Me%AuxMatrixes%dims_R8_2D(2) /= dims (2)) then
-
+    
                 deallocate(Me%AuxMatrixes%DataR8_2D)
                 nullify   (Me%AuxMatrixes%DataR8_2D)
                 
@@ -1763,7 +1763,7 @@ Module ModuleHDF5
             endif
         
             call SetMatrixValue(Me%AuxMatrixes%DataR8_2D, Me%Limits2D, Array2D)
-
+    
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR8_2D,                                 &
@@ -1772,24 +1772,25 @@ Module ModuleHDF5
             
             !Creates attributes
             call CreateMinMaxAttribute (dset_id, Units, Minimum, Maximum)
-
+    
             !Updates attributes of Group
             call UpdateMinMaxAttribute (gr_id, Minimum, Maximum)
-
+    
             !Closes Group, Releases Dset, etc
             call FinishWrite (space_id, prp_id, gr_id, dset_id)
-
+    
             STAT_ = SUCCESS_
-
+    
         else
-
+    
             STAT_ = ready_
-
+    
         endif
-
+    
         if (present(STAT)) STAT = STAT_
-
+    
     end subroutine HDF5WriteDataR8_2D
+                                   
     
     !--------------------------------------------------------------------------
 
@@ -2260,8 +2261,13 @@ Module ModuleHDF5
             stop 'PrepareWrite - ModuleHDF5 - ERR03'
         endif
         !Sets the compression
+#ifdef _SEWERGEMSENGINECOUPLER_
+        call h5pset_deflate_f(prp_id, 2, STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR04'
+#else
         call h5pset_deflate_f(prp_id, 6, STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR04'
+#endif _SEWERGEMSENGINECOUPLER_
 
         !Verifies if group exists, if not create it
         call CheckGroupExistence (FileID, GroupName)

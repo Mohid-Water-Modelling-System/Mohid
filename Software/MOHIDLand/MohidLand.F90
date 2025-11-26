@@ -70,6 +70,7 @@ program MohidLand
     
     logical                             :: SyncDT               = .false.      !Sync modules at specified interval?
     real                                :: SyncDTInterval       = null_real    !interval to sync in seconds
+    integer                             :: SyncDTFactor         = 10         !factor to check whento start decresing timestep
     type(T_Time)                        :: NextSyncTime                        !time at wich all modules sync (for output)
                                                                                !use max dt as default
     
@@ -232,11 +233,19 @@ program MohidLand
         
         if(VariableDT .and. SyncDT) NextSyncTime = BeginTime + SyncDTInterval
         
-        !Constructs Basin
-        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &
-                               StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)       
-
-
+        if (SyncDT) then
+            !Constructs Basin
+            call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &
+                                   StopOnBathymetryChange = StopOnBathymetryChange, SyncDT = SyncDTInterval, STAT = STAT_CALL)
+        
+        else!Constructs Basin
+            call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &
+                                   StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
+        endif
+        !Basin updated module time's DT with runoff DT. Now we need to update MohidLand DT
+        call GetComputeTimeStep (ObjComputeTime, DT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidLand - MohidLand - ERR00'
+        
         ModelConstructed = .true.
 
 
@@ -318,7 +327,8 @@ program MohidLand
         !             default      = openmp_num_threads,                                 & 
         !             ClientModule = 'MOHIDLand',                                        &
         !             STAT         = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'        
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'
+#ifdef _SEWERGEMSENGINECOUPLER_      
         !!!$  call omp_set_num_threads(openmp_num_threads)
 
         !$ call GetData(openmp_num_threads, ObjEnterData, iflag, keyword = 'OPENMP_NUM_THREADS',  &
@@ -338,10 +348,33 @@ program MohidLand
         !$       call omp_set_num_threads(openmp_num_threads)
         !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
         !$    else
+        !$       openmp_num_threads = omp_get_max_threads() / 2
+        !$       write(*,*)"OPENMP: Using half of the max number of threads available : ", openmp_num_threads
+        !$    endif        
+#else
+        !$ call GetData(openmp_num_threads, ObjEnterData, iflag, keyword = 'OPENMP_NUM_THREADS',  &
+        !$         SearchType   = FromFile,                                                      &
+        !$         ClientModule = 'MOHIDLand',                                                   &
+        !$         default      = 0,                                                             &
+        !$         STAT         = STAT_CALL)
+        !$ if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050' 
+        !$    write(*,*)
+        !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+        !$    if ( openmp_num_threads .gt. 0 ) then
+        !$       write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+        !$       if (openmp_num_threads .gt. omp_get_max_threads()) then
+        !$        openmp_num_threads = omp_get_max_threads()
+        !$        write(*,*)"<Compilation Options Warning>"
+        !$       endif
+        !$       call omp_set_num_threads(openmp_num_threads)
+        !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+        !$    else
         !$       openmp_num_threads = omp_get_max_threads()
         !$       write(*,*)"OPENMP: Using the max number of threads available"
-        !$    endif        
-        
+        !$    endif   
+
+#endif _SEWERGEMSENGINECOUPLER_ 
+
         !add the option to continue model in case of bathymetry verifications  
         !(geometry check and isolated cells check)
         !for runs on demand it is needed or the model wont run by itself
@@ -367,6 +400,14 @@ program MohidLand
                                             STAT         = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR080'   
+            
+            call GetData                (SyncDTFactor, ObjEnterData, iflag,     &
+                                            keyword      = 'SYNC_DT_FACTOR',    &
+                                            ClientModule = 'MOHIDLand',         &
+                                            default      =  10,                 &
+                                            STAT         = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR080'  
             
             !!DT needs to be multiple of duration
             !!Run period in seconds
@@ -438,7 +479,8 @@ program MohidLand
         !Local-----------------------------------------------------------------
         real                                        :: NewDT
         integer                                     :: STAT_CALL
-        real                                        :: CPUTime
+        real                                        :: CPUTime, DistanceToNextSync, DT_Sync
+        integer                                     :: multiple
 
         !Actualize the CurrentTime with Model time interval DT
         call ActualizeCurrentTime (TimeID    = ObjComputeTime,      &
@@ -505,8 +547,38 @@ program MohidLand
             !The split of difference to synctime in half makes that a lower next DT probably will make the model pass with no dt
             !reduction from Modules (but even increase) and in subsquent DT's the synctime will be surpassed with a DT not very 
             !different from the original (or in the order of half)
+            !if (SyncDT) then
+            !    
+            !    !if passed time to sync, cut dt to sync time
+            !    if (CurrentTime + DT >= NextSyncTime) then
+            !        DT = NextSyncTime - CurrentTime
+            !        NextSyncTime = NextSyncTime + SyncDTInterval
+            !    else
+            !        !to avoid that small timesteps are created when setting the dt to time to sync (previous if)
+            !        !in a proactive way
+            !        
+            !        !if next next dt will be very small, ignore it and increase this dt to next sync time (+1milisecond)
+            !        if ((NextSyncTime - CurrentTime + DT) < 0.001) then
+            !            DT = NextSyncTime - CurrentTime
+            !            NextSyncTime = NextSyncTime + SyncDTInterval
+            !
+            !        !verify if the remainder time to sync is not lower than current step, otherwise
+            !        !divide it by 2
+            !        else if ((NextSyncTime - CurrentTime + DT) < DT) then
+            !            DT = (NextSyncTime - CurrentTime) / 2.0
+            !            
+            !        elseif ((NextSyncTime - CurrentTime) < 2.0 * DT) then
+            !            
+            !            DT = (NextSyncTime - CurrentTime) / 2.0
+            !            
+            !        endif
+            !    endif
+            !    
+            !    
+            !endif
+            
             if (SyncDT) then
-                
+                DistanceToNextSync = NextSyncTime - CurrentTime
                 !if passed time to sync, cut dt to sync time
                 if (CurrentTime + DT >= NextSyncTime) then
                     DT = NextSyncTime - CurrentTime
@@ -519,14 +591,16 @@ program MohidLand
                     if ((NextSyncTime - CurrentTime + DT) < 0.001) then
                         DT = NextSyncTime - CurrentTime
                         NextSyncTime = NextSyncTime + SyncDTInterval
-
-                    !verify if the remainder time to sync is not lower than current step, otherwise
-                    !divide it by 2
-                    else if ((NextSyncTime - CurrentTime + DT) < DT) then
-                        DT = (NextSyncTime - CurrentTime) / 2.0
-                    endif   
+                    elseif (SyncDTFactor * DT >= DistanceToNextSync) then
+do1:                    do multiple = 1, SyncDTFactor
+                            DT_Sync = DistanceToNextSync / multiple
+                            if (DT_Sync <= DT ) then
+                                DT = DT_Sync
+                                exit do1
+                            endif
+                        enddo do1
+                    endif
                 endif
-                
                 
             endif
             

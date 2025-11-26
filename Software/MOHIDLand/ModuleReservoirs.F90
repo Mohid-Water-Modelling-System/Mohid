@@ -655,7 +655,7 @@ do1:    do
 
             call ExtractBlockFromBuffer(Me%ObjEnterDataReservoirFile, ClientNumber,     &
                                         block_begin, block_end, BlockFound,                 &
-                                        FirstLine, LastLine, STAT_CALL) 
+                                        FirstLine, LastLine, STAT = STAT_CALL) 
 
 if1:        if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -3069,7 +3069,7 @@ do2:        do
                 !Nodes--------------------------------------------------------------
                 call ExtractBlockFromBuffer(Me%TimeSerie%ObjEnterData, ClientNumber,    &
                                             block_begin, block_end,       &
-                                            BlockFound, FirstLine, LastLine, STAT_CALL) 
+                                            BlockFound, FirstLine, LastLine, STAT = STAT_CALL) 
 
                 if (STAT_CALL .EQ. SUCCESS_) then    
 

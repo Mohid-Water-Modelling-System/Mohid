@@ -137,6 +137,8 @@ Module ModuleFillMatrix
     public  :: GetAnalyticCelerityON
     public  :: GetAnalyticCelerity
     public  :: GetFilenameHDF
+    public  :: GetFoundNegativeValueInTimeSerie
+    public  :: GetInitializationMethod
 
 
     !Modifier
@@ -492,7 +494,7 @@ Module ModuleFillMatrix
         logical                                     :: InterpolOnlyVertically = .false.
         logical                                     :: GenericYear          = .false.
         logical                                     :: Upscaling            = .false.
-        integer                                     :: UpscalingMethod      =  1 !Volume weighted average Sobrinho
+        integer                                     :: UpscalingMethod      =  1 !Volume weighted average
         integer                                     :: Ncells
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()
@@ -592,6 +594,7 @@ Module ModuleFillMatrix
         logical                                     :: NewDomain = .true.
 
         logical                                     :: CheckHDF5_File   = .false.
+        logical                                     :: FoundNegativeValueOnTimeSerie = .false.
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -639,7 +642,8 @@ Module ModuleFillMatrix
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, Skip_Block, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, Skip_Block, &
+                                     Topography, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -664,12 +668,14 @@ Module ModuleFillMatrix
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
         logical,      optional, intent(IN )             :: NewDomain
+        logical,      optional, intent(IN )             :: Topography
         logical,      optional, intent(OUT )            :: Skip_Block
 
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
         integer                                         :: PredictDTMethod_, Referential
         type (T_PropertyID), pointer                    :: Prop
+        logical                                         :: Topography_
 
         !------------------------------------------------------------------------
 
@@ -710,15 +716,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ValueIsUsedForDTPrediction = .false.
             if (present(ValueIsUsedForDTPrediction)) Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
 
-            !Upscaling - Sobrinho
             if (present(NewDomain))                  Me%NewDomain                  = NewDomain
             if (present(Skip_Block))                 Skip_Block                    = .false.
+            Topography_ = .false.
+            if (present(Topography))                 Topography_                   = Topography
 
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
 
-            !Sobrinho Parent domain IDs
 
             if (present(GeometryID))      Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
@@ -792,25 +798,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%OverrideValueKeywordON = .false.
             end if
 
-            !if (present(ClientID)) then
-            !    call ReadOptions (ExtractType,                          &
-            !                      PointsToFill2D = PointsToFill2D,      &
-            !                      PredictDTMethod = PredictDTMethod_,   &
-            !                      ClientID = ClientID)
-            !else
-            !    call ReadOptions (ExtractType,                          &
-            !                      PointsToFill2D = PointsToFill2D,      &
-            !                      PredictDTMethod = PredictDTMethod_)
-            !endif
-
             call Read_Fill_Options (ExtractType, PredictDTMethod = PredictDTMethod_)
 
             call FillWithDefault (PointsToFill2D = PointsToFill2D)
 
             if (present(ClientID)) then
-                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
+                call FillWithUserOption (ExtractType, Topography_, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
             else
-                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
+                call FillWithUserOption (ExtractType, Topography_, PointsToFill2D = PointsToFill2D)
             endif
 
             if (.not. Me%Skip_Block)  then
@@ -850,6 +845,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             PropertyID%SolutionFromFile  = .true.
             if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
+            
+            if (Me%TimeEvolution == ReadTimeSerie) PropertyID%SolutionFromTimeSerie = .true.
                 
             !Returns ID
             ObjFillMatrix_ = Me%InstanceID
@@ -1042,9 +1039,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call FillWithDefault (PointsToFill2D = PointsToFill2D)
 
             if (present(ClientID)) then
-                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
+                call FillWithUserOption (ExtractType, .false., PointsToFill2D = PointsToFill2D, ClientID = ClientID)
             else
-                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
+                call FillWithUserOption (ExtractType, .false., PointsToFill2D = PointsToFill2D)
             endif
 
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
@@ -1126,7 +1123,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:, :, :), pointer, optional     :: Matrix3DInputRef    !original field (e.g. angle)
         integer                                         :: TypeZUV
         integer, optional, intent(IN)                   :: ClientID
-        integer,      optional, intent(IN )             :: TwoWayID!Sobrinho
+        integer,      optional, intent(IN )             :: TwoWayID
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
@@ -1137,8 +1134,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
-        logical,      optional, intent(IN )             :: NewDomain !Sobrinho
-        logical,      optional, intent(OUT )            :: Skip_Block !Sobrinho
+        logical,      optional, intent(IN )             :: NewDomain
+        logical,      optional, intent(OUT )            :: Skip_Block
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1183,10 +1180,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
                 if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true.
-                !used before Me%PropertyID = PropertyID.... BUG? Sobrinho
             endif
 
-!~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR00'
@@ -1197,7 +1192,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
 
-            !Sobrinho Parent domain IDs
             if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             ! JPW 2012-01-28: Use GeometrySize to set size of the matrix.
@@ -1209,7 +1203,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Size2D       = T_Size2D(null_int, null_int, null_int, null_int)
             Me%Dim          = Dim3D
             Me%TypeZUV      = TypeZUV
-            Me%PropertyID   = PropertyID !Sobrinho - aqui ja estao os IDs para o field4D usar/preencher
+            Me%PropertyID   = PropertyID
 
             Me%Matrix3D       => Matrix3D
             Me%PointsToFill3D => PointsToFill3D
@@ -1272,9 +1266,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call FillWithDefault (PointsToFill3D = PointsToFill3D)
 
             if (present(ClientID)) then
-                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D, ClientID = ClientID)
+                call FillWithUserOption (ExtractType, .false., PointsToFill3D = PointsToFill3D, ClientID = ClientID)
             else
-                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
+                call FillWithUserOption (ExtractType, .false., PointsToFill3D = PointsToFill3D)
             endif
             
             !Needs to be here because it is updated in FillWithUserOption routine
@@ -1303,7 +1297,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
             endif
             
-            if (Me%PropertyID%ObjTwoWay /= null_int) PropertyID = Me%PropertyID !Sobrinho
+            if (Me%PropertyID%ObjTwoWay /= null_int) PropertyID = Me%PropertyID
 
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
@@ -1529,9 +1523,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call FillWithDefault (PointsToFill3D = PointsToFill3D)
 
             if (present(ClientID)) then
-                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D, ClientID = ClientID)
+                call FillWithUserOption (ExtractType, .false., PointsToFill3D = PointsToFill3D, ClientID = ClientID)
             else
-                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
+                call FillWithUserOption (ExtractType, .false., PointsToFill3D = PointsToFill3D)
             endif
                 
             !!Need to rotate input field (Me%Matrix3DX and Me%Matrix3DY) to grid (Me%Matrix3DU and Me%Matrix3DV))
@@ -2660,9 +2654,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine FillWithDefault
     !--------------------------------------------------------------------------
 
-    subroutine FillWithUserOption (ExtractType, PointsToFill2D, PointsToFill3D, ClientID)
+    subroutine FillWithUserOption (ExtractType, Topography, PointsToFill2D, PointsToFill3D, ClientID)
         !Arguments-------------------------------------------------------------
         integer                                                     :: ExtractType
+        logical, intent(IN)                                         :: Topography
         integer, dimension(:, :),    pointer, intent(IN), optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, intent(IN), optional  :: PointsToFill3D
         integer                             , intent(IN), optional  :: ClientID
@@ -2712,9 +2707,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         endif                          
                     case(AsciiFile)
                         if (Me%Dim == Dim2D) then
-                            call ConstructSpaceASCIIFile (ExtractType, PointsToFill2D = PointsToFill2D)
+                            call ConstructSpaceASCIIFile (ExtractType, Topography, PointsToFill2D = PointsToFill2D)
                         else
-                            call ConstructSpaceASCIIFile (ExtractType, PointsToFill3D = PointsToFill3D)
+                            call ConstructSpaceASCIIFile (ExtractType, Topography, PointsToFill3D = PointsToFill3D)
                         endif
                     case(Sponge)
                         if (Me%Dim == Dim2D) then
@@ -4859,13 +4854,13 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructSpaceASCIIFile (ExtractType, PointsToFill2D, PointsToFill3D)
+    subroutine ConstructSpaceASCIIFile (ExtractType, Topography, PointsToFill2D, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ExtractType
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
-
+        logical, intent(IN)                             :: Topography
         !Local----------------------------------------------------------------
         integer                                     :: STAT_CALL, i, j, k
         integer                                     :: iflag, TypeZUV
@@ -4989,13 +4984,22 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
             if (Me%Dim == Dim2D) then
 
-
-                call ConstructGridData(CurrentASCIIFile%GridDataID, Me%ObjHorizontalGrid,        &
-                                       FileName     = CurrentASCIIFile%FileName,                 &
-                                       DefaultValue = Me%DefaultValue(file),                     &
-                                       STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR03'
-
+                if (Topography) then
+                    call ConstructGridData(CurrentASCIIFile%GridDataID, Me%ObjHorizontalGrid,        &
+                                            FileName     = CurrentASCIIFile%FileName,                 &
+                                            DefaultValue = Me%DefaultValue(file),                     &
+                                            Topography   = Topography,                                &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR02'
+                else
+                    
+                    call ConstructGridData(CurrentASCIIFile%GridDataID, Me%ObjHorizontalGrid,        &
+                                           FileName     = CurrentASCIIFile%FileName,                 &
+                                           DefaultValue = Me%DefaultValue(file),                     &
+                                           STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR03'
+                endif
+                
                 call GetGridDataType(CurrentASCIIFile%GridDataID, TypeZUV, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceASCIIFile - ModuleFillMatrix - ERR04'
 
@@ -6719,9 +6723,8 @@ i2:     if (Me%Dim == Dim2D) then
 
 if4D:          if (CurrentHDF%Field4D) then
 
-                    call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
+                    call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)
 
-                    !Sobrinho
                     if (CurrentHDF%Upscaling) then
                         if (Me%NewDomain) call Build_Upscaling(CurrentHDF)
                     endif
@@ -6923,7 +6926,6 @@ i0:     if(Me%Dim == Dim2D)then
 
         !Always search for one filename
         if (.not. Me%ArgumentFileName) then
-            !Sobrinho
             call GetData(Upscaling,                                                         &
                          Me%ObjEnterData , iflag,                                           &
                          SearchType   = ExtractType,                                        &
@@ -7402,7 +7404,6 @@ i0:     if(Me%Dim == Dim2D)then
                 endif
 
                 CurrentHDF%Upscaling = Upscaling
-                !Sobrinho
                 if (CurrentHDF%Upscaling) then
                     call GetData(CurrentHDF%UpscalingMethod,                                              &
                                  Me%ObjEnterData , iflag,                                           &
@@ -7557,7 +7558,7 @@ i0:     if(Me%Dim == Dim2D)then
                                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Failed to construct FatherGridLocation - Build_Upscaling - Module FillMatrix'
         
-        call ConstructFatherKGridLocation(Me%PropertyID%ObjGeometry, Me%ObjGeometry, STAT = STAT_CALL)!Sobrinho
+        call ConstructFatherKGridLocation(Me%PropertyID%ObjGeometry, Me%ObjGeometry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 
         call AllocateTwoWayAux(Me%ObjTwoWay, Me%PropertyID%ObjTwoWay, mFILLMATRIX_)
@@ -7585,7 +7586,7 @@ ifSI:   if (CurrentHDF%SpatialInterpolON) then
 
         elseif  (CurrentHDF%Upscaling) then ifSI
 
-            call ConstructField4DInterpol_Upscaling(ExtractType, ClientID, CurrentHDF) !Sobrinho
+            call ConstructField4DInterpol_Upscaling(ExtractType, ClientID, CurrentHDF)
 
         else ifSI
 
@@ -7740,7 +7741,6 @@ ifMS:       if (MasterOrSlave) then
                                                    MatrixOut        = Me%Matrix3D,                 &
                                                    PointsToFill3D   = PointsToFill3D)
                     if (CurrentHDF%Upscaling .and. CurrentHDF%UpscalingMethod == 3) then
-                        !Sobrinho
                         call InterpolUpscaling_Velocity (Me%PropertyID%ObjTwoWay, Me%PropertyID%IDNumber, now, &
                                                     CurrentHDF%PreviousTime, CurrentHDF%NextTime, PointsToFill3D, &
                                                     STAT = STAT_CALL)
@@ -7784,10 +7784,7 @@ ifMS:       if (MasterOrSlave) then
             CurrentHDF%NextField2D    (:,:) = FillValueReal
         endif
 
-        !AQUI
         call ReadHDF5Values2D(CurrentHDF%PreviousInstant, CurrentHDF%PreviousField2D, CurrentHDF)
-        !Sobrinho
-        !Isto j? ? a matriz com as dimensoes do Pai devolvida ao Assimilation. chamar modifytwoway aqui dentro
         call ReadHDF5Values2D(CurrentHDF%NextInstant,     CurrentHDF%NextField2D,     CurrentHDF)
 
         !limit maximum values
@@ -8438,7 +8435,7 @@ d2:      do while(.not. FoundSecondInstant)
                                       PropertyID        = Me%PropertyID,                    &
                                       ClientID          = ClientID,                         &
                                       FileNameList      = CurrentHDF%FileNameList,          &
-                                      Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
+                                      Upscaling         = CurrentHDF%Upscaling,             &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR120'
             else
@@ -8463,7 +8460,7 @@ d2:      do while(.not. FoundSecondInstant)
                                       PropertyID        = Me%PropertyID,                    &
                                       ClientID          = ClientID,                         &
                                       FileNameList      = CurrentHDF%FileNameList,          &
-                                      Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
+                                      Upscaling         = CurrentHDF%Upscaling,             &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR130'
             endif
@@ -8943,7 +8940,6 @@ if4D:   if (CurrentHDF%Field4D) then
                                            CurrentHDF       = CurrentHDF,               &
                                            Instant          = Instant)
             else
-                !Sobrinho - enviei para aqui pq s? quero interpolar no tempo.Field j? est? nas dim do pai
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           &
                                    CurrentTime      = CurrentTime,                      &
@@ -10275,6 +10271,72 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetFilenameHDF
+
+    !--------------------------------------------------------------------------
+    
+    !Get flag for negative value in timeseries
+    subroutine GetFoundNegativeValueInTimeSerie (FillMatrixID, Flag, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        logical, intent(OUT)                            :: Flag
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_ )) then
+
+            Flag = Me%FoundNegativeValueOnTimeSerie
+
+            STAT_ = SUCCESS_
+
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetFoundNegativeValueInTimeSerie
+    
+!--------------------------------------------------------------------------
+    
+    subroutine GetInitializationMethod (FillMatrixID, InitializationMethod, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        integer, intent(OUT)                            :: InitializationMethod
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            InitializationMethod = Me%InitializationMethod
+
+            STAT_ = SUCCESS_
+
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetInitializationMethod
 
     !--------------------------------------------------------------------------
 
@@ -11790,7 +11852,6 @@ i5:         if (Me%PreviousInstantValues) then
                                                    MatrixOut        = Me%Matrix3D,                 &
                                                    PointsToFill3D   = PointsToFill3D)
                     if (CurrentHDF%Upscaling .and. CurrentHDF%UpscalingMethod == 3) then
-                        !Sobrinho
                         call InterpolUpscaling_Velocity (Me%PropertyID%ObjTwoWay, Me%PropertyID%IDNumber, now, &
                                                     CurrentHDF%PreviousTime, CurrentHDF%NextTime, PointsToFill3D, &
                                                     STAT = STAT_CALL)
@@ -12356,7 +12417,7 @@ i2:         if (Me%PredictDTMethod == 2) then
         endif
 
         ReadNewField_ = .false.
-        Auxtime = CurrentHDF%NextTime !Sobrinho
+        Auxtime = CurrentHDF%NextTime
         if (.not. Me%AccumulateValues) then
         !Backtracking time inversion is also done in the ModuleField4D
             if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
@@ -13062,7 +13123,12 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
 
         endif
 
-
+        if (NewValue < 0.0) then
+            Me%FoundNegativeValueOnTimeSerie = .true.
+        else
+            Me%FoundNegativeValueOnTimeSerie = .false.
+        endif
+        
         if (Me%Dim == Dim2D) then
             call SetMatrixValue(Me%Matrix2D, Me%WorkSize2D, NewValue, PointsToFill2D)
         else

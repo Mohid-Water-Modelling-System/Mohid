@@ -135,12 +135,15 @@ Module ModuleGlobalData
                                                 
     real,    parameter  :: AllmostZeroFraction  = 1.e-5
     real,    parameter  :: AllmostZero          = 1.e-15
+    real,    parameter  :: AllmostZeroNegative  = -1.e-15
     real,    parameter  :: AlmostZero           = 1.e-15
+    real,    parameter  :: AlmostZero_Double    = dble(AlmostZero)
     
     integer, parameter :: dp15 = selected_real_kind(15, 307)    
 
     integer,            parameter :: null_int   = -999999
     real,               parameter :: null_real  = -9.9E15
+    real(4),               parameter :: null_real_4  = -9.9E15
     character(LEN = 5), parameter :: null_str   = '*****'
 
     !Time
@@ -451,7 +454,7 @@ Module ModuleGlobalData
     !1 - low tide, 2 - flood, 3 - high tide, 4 - ebb 
     integer, parameter :: TideState_                        = 940
     integer, parameter :: ShearStressX_                     = 950
-    integer, parameter :: ShearStressY_                     = 960    
+    integer, parameter :: ShearStressY_                     = 960
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -1310,7 +1313,6 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_TideState_           = 'tide state'
 
 
-
 !_______used @ moduleWQ for POM pools (aquaculture cages)_____________________________________________________________
 
     character(StringLength), private, parameter :: Char_PON1                  = 'pon1'
@@ -2036,6 +2038,13 @@ Module ModuleGlobalData
         integer                 :: JLB            = null_int
         integer                 :: JUB            = null_int
     end type T_Size2D
+    
+    type T_LocalWorkSize
+        integer, dimension(:), allocatable           :: ILB
+        integer, dimension(:), allocatable           :: IUB
+        integer                                      :: JLB = null_int
+        integer                                      :: JUB = null_int
+    end type T_LocalWorkSize
 
 #ifdef _USE_CUDA
     ! Bind this type to C if CUDA is used
@@ -2057,17 +2066,18 @@ Module ModuleGlobalData
         character(StringLength) :: Description       = null_str
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
-        integer                 :: ObjHorizontalGrid = null_int !Sobrinho
-        integer                 :: ObjHorizontalMap  = null_int !Sobrinho
-        integer                 :: ObjGeometry       = null_int !Sobrinho
-        integer                 :: ObjMap            = null_int !Sobrinho
-        integer                 :: ObjTwoWay         = null_int !Sobrinho
-        integer                 :: ObjBathymetry     = null_int !Sobrinho
+        integer                 :: ObjHorizontalGrid = null_int
+        integer                 :: ObjHorizontalMap  = null_int
+        integer                 :: ObjGeometry       = null_int
+        integer                 :: ObjMap            = null_int
+        integer                 :: ObjTwoWay         = null_int
+        integer                 :: ObjBathymetry     = null_int
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
         logical                 :: IsParticulate     = OFF
         logical                 :: IsVectorial       = OFF
         logical                 :: IsDynamic         = OFF
+        logical                 :: SolutionFromTimeSerie = .false.
     end type T_PropertyID
 
     type T_Instance
@@ -2921,7 +2931,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
             call AddPropList (TideState_,               Char_TideState_,                ListNumber)            
-           
+            
             !seagrasses rates and limiting functions
             call AddPropList (LeavesUptakeN_ ,          Char_LeavesUptakeN ,            ListNumber)  !Isabella
             call AddPropList (LeavesUptakeP_ ,          Char_LeavesUptakeP ,            ListNumber)

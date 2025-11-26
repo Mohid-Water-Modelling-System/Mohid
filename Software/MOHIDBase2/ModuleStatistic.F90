@@ -311,7 +311,6 @@ Module ModuleStatistic
             
             endif
             
-!João Sobrinho
             if (Me%Methodology == Value3DStatLayers_) then
                 call AllocateLayerMatrixes
             endif
@@ -1227,7 +1226,6 @@ cd2 :            if (BlockFound) then
 
 
             if (Me%Methodology == Value3DStatLayers_) then
-            !João Sobrinho------------------------------------------------------------
                 if (present(Value3D)) then
                 
                     call StatisticAnalysis3D (WaterPoints3D)
