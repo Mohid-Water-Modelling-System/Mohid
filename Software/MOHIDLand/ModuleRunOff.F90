@@ -618,6 +618,7 @@ Module ModuleRunOff
         logical                                     :: UpdateWaterLevel_R4            = .true.
         integer                                     :: TimeSerieNumber                = 0
         logical                                     :: Faces                          = .false.
+        logical                                     :: CumulativeFlowVolume           = .false.
 
         
     end type T_OutPutRunOff
@@ -791,6 +792,8 @@ Module ModuleRunOff
         real(4),    dimension(:,:), pointer         :: FlowModulus_R4           => null()
         real,    dimension(:,:), pointer            :: VelocityModulus          => null()
         real(4),    dimension(:,:), pointer         :: VelocityModulus_R4       => null()
+        real(4),    dimension(:,:), pointer         :: CumulativeFlowX_R4       => null()
+        real(4),    dimension(:,:), pointer         :: CumulativeFlowY_R4       => null()
         integer, dimension(:,:), pointer            :: LowestNeighborI          => null() !Lowest Neighbor in the surroundings
         integer, dimension(:,:), pointer            :: LowestNeighborJ          => null() !Lowest Neighbor in the surroundings       
         integer, dimension(:,:), pointer            :: DFourSinkPoint           => null() !Point which can't drain with in X/Y only
@@ -2342,8 +2345,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR810'
         
+        !Write Fluxes at grid faces (NOT VELOCITIES yet)
+        call GetData(Me%Output%CumulativeFlowVolume,                               &
+                        Me%ObjEnterData, iflag,                                    &
+                        SearchType   = FromFile,                                   &
+                        keyword      = 'WRITE_COMULATIVE_FLOW_VOLUME',             &
+                        default      = .false.,                                    &
+                        ClientModule = 'ModuleRunOff',                             &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR810'
+        
 #ifdef _SEWERGEMSENGINECOUPLER_
         Me%Output%Faces = .true.  !Always output faces in SewerGEMS Engine Coupler
+        Me%Output%CumulativeFlowVolume = .true.  !Always output CumulativeFlowVolume in SewerGEMS Engine Coupler
 #endif _SEWERGEMSENGINECOUPLER_
         call ReadConvergenceParameters
         
@@ -5404,6 +5418,10 @@ do1:                    do k = 1, size(Me%WaterLevelBoundaryValue)
             allocate (Me%CenterFlowX_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%CenterFlowY_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%FlowModulus_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            if (Me%Output%CumulativeFlowVolume)
+                allocate (Me%CumulativeFlowX_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                allocate (Me%CumulativeFlowY_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            endif
             allocate (Me%CenterVelocityX_R4(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%CenterVelocityY_R4(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%VelocityModulus_R4(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -5431,6 +5449,11 @@ do1:                    do k = 1, size(Me%WaterLevelBoundaryValue)
             
             call SetMatrixValue(Me%CenterFlowX_R4, Me%Size, ZeroValue)
             call SetMatrixValue(Me%CenterFlowY_R4, Me%Size, ZeroValue)
+            
+            if (Me%Output%CumulativeFlowVolume)
+                SetMatrixValue(Me%CumulativeFlowX_R4, Me%Size, ZeroValue)
+                SetMatrixValue(Me%CumulativeFlowY_R4, Me%Size, ZeroValue)
+            endif
             call SetMatrixValue(Me%CenterVelocityX_R4, Me%Size, ZeroValue)
             call SetMatrixValue(Me%CenterVelocityY_R4, Me%Size, ZeroValue)
             call SetMatrixValue(Me%FlowModulus_R4, Me%Size, ZeroValue)
@@ -18023,7 +18046,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR040'
             
             !Writes the Water Level
-            !call SetMatrixValue(Me%myWaterLevel_R4, Me%Size, Me%myWaterLevel, Me%ExtVar%BasinPoints)
             call SumMatrixes(Me%myWaterLevel_R4, Me%Size, Me%myWaterColumn, Me%ExtVar%Topography, Me%ExtVar%BasinPoints)
             call HDF5WriteData   (Me%ObjHDF5, "/Results/water level",           &
                                   "water level", "m",                           &
@@ -18076,7 +18098,27 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR70_b'
             endif
             
-
+            if (Me%Output%CumulativeFlowVolume) then
+                !Writes Comulative Flow X
+                call HDF5WriteData   (Me%ObjHDF5,                                       &
+                                      "/Results/comulative flow X",                   &
+                                      "comulative flow X",                             &   
+                                      "m3",                                             &
+                                      Array2D      = Me%CumulativeFlowX_R4,            &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR65'
+                
+                !Writes Comulative Flow Y
+                call HDF5WriteData   (Me%ObjHDF5,                                       &
+                                      "/Results/comulative flow Y",                   &
+                                      "comulative flow Y",                             &   
+                                      "m3",                                             &
+                                      Array2D      = Me%CumulativeFlowY_R4,            &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                    STAT = STAT_CALL)
+            endif
+            
 
              !Writes Flow Modulus
             call HDF5WriteData   (Me%ObjHDF5,                                       &
