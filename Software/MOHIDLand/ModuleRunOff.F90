@@ -5418,7 +5418,7 @@ do1:                    do k = 1, size(Me%WaterLevelBoundaryValue)
             allocate (Me%CenterFlowX_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%CenterFlowY_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate (Me%FlowModulus_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            if (Me%Output%CumulativeFlowVolume)
+            if (Me%Output%CumulativeFlowVolume) then
                 allocate (Me%CumulativeFlowX_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
                 allocate (Me%CumulativeFlowY_R4    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             endif
@@ -5450,9 +5450,9 @@ do1:                    do k = 1, size(Me%WaterLevelBoundaryValue)
             call SetMatrixValue(Me%CenterFlowX_R4, Me%Size, ZeroValue)
             call SetMatrixValue(Me%CenterFlowY_R4, Me%Size, ZeroValue)
             
-            if (Me%Output%CumulativeFlowVolume)
-                SetMatrixValue(Me%CumulativeFlowX_R4, Me%Size, ZeroValue)
-                SetMatrixValue(Me%CumulativeFlowY_R4, Me%Size, ZeroValue)
+            if (Me%Output%CumulativeFlowVolume) then
+                call SetMatrixValue(Me%CumulativeFlowX_R4, Me%Size, ZeroValue)
+                call SetMatrixValue(Me%CumulativeFlowY_R4, Me%Size, ZeroValue)
             endif
             call SetMatrixValue(Me%CenterVelocityX_R4, Me%Size, ZeroValue)
             call SetMatrixValue(Me%CenterVelocityY_R4, Me%Size, ZeroValue)
@@ -7907,6 +7907,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !Me%myWaterLevel (i, j) = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
                             !Here the water column is the uniformly distributed one. Inside 
                             Me%myWaterVolume(i, j) = Me%myWaterColumn(i, j) * Me%GridCellArea
+                            
+                            if (Me%myWaterColumn(i, j) > AlmostZero) then
+                                Me%ActivePoints(i,j) = 1
+                                if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
+                                    Me%OpenPoints(i,j) = 1
+                                endif
+                            else
+                                Me%OpenPoints(i,j) = 0
+                                Me%ActivePoints(i,j) = 0
+                            endif
                         end if
                     
                         Me%myWaterColumnOld(i,j) = Me%myWaterColumn(i,j)
@@ -7938,6 +7948,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             !Me%myWaterLevel (i, j) = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
                             !Here the water column is the uniformly distributed one. Inside 
                             Me%myWaterVolume(i, j) = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+                            
+                            if (Me%myWaterColumn(i, j) > AlmostZero) then
+                                Me%ActivePoints(i,j) = 1
+                                if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
+                                    Me%OpenPoints(i,j) = 1
+                                endif
+                            else
+                                Me%OpenPoints(i,j) = 0
+                                Me%ActivePoints(i,j) = 0
+                            endif
                         end if
                     
                         Me%myWaterColumnOld(i,j) = Me%myWaterColumn(i,j)
@@ -8302,11 +8322,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                     call SetWorkSize                            
                             end select
 
+
                             !Interaction with channels
                             if (.not. Me%Use1D2DInteractionMapping .and. Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then
                                 call FlowIntoChannels       (Me%CV%CurrentDT)
                             endif
-
                             !Inputs Water from discharges
                             if (Me%Discharges) then
                                 call ModifyWaterDischarges  (Me%CV%CurrentDT)
@@ -8338,6 +8358,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         enddo doIter
                                             
                     enddo
+                    
                     !!DB
                     !if (Niter <= Me%LastGoodNiter) then
                     !    Me%CV%NextNiteration = max (min(int(Niter / Me%InternalTimeStepSplit), NIter - 1), 1)
@@ -8403,6 +8424,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         call SetWorkSize
                     endif
                 endif
+                
             
                 if (Me%StormWaterModel) then
                     call ComputeStormWaterModel
@@ -8421,6 +8443,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     endif
                     call SetWorkSize
                 endif
+                
 
                 !Boundary Condition
                 !Only compute if case of waterlevel higher than boundary (overflow)
@@ -17679,6 +17702,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 !write(*,*) "DT from SWMM = ", Me%StormWaterModelDT
             endif
         end if
+        
+        nullify (iFlowX, iflowY)
     
         if (MonitorPerformance) call StopWatch ("ModuleRunOff", "ComputeNextDT")
     
@@ -17772,7 +17797,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real, dimension(:)  , pointer               :: TimePointer
         integer                                     :: dis
         logical                                     :: dbg = .false.
-
+        real(8), dimension(:,:), pointer            :: iFlowX, iflowY
+        
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -17784,6 +17810,15 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         if (Me%ExtVar%Now >= Me%OutPut%OutTime(Me%OutPut%NextOutPut)) then
             !Writes current time
+            
+            if (Me%Restarted) then
+                iFlowX => Me%iFlowX
+                iFlowY => Me%iFlowY
+            else
+                iFlowX => Me%lFlowX
+                iFlowY => Me%lFlowY
+            endif
+            
             call ExtractDate   (Me%ExtVar%Now , AuxTime(1), AuxTime(2),         &
                                                 AuxTime(3), AuxTime(4),         &
                                                 AuxTime(5), AuxTime(6))
@@ -17832,7 +17867,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Writes Flow X
             if (Me%OutPut%Faces) then
-                AuxMatrix => Me%iFlowX
+                AuxMatrix => iFlowX
             else
                 AuxMatrix => Me%CenterFlowX
             endif
@@ -17849,10 +17884,11 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             
             !Writes Flow Y
             if (Me%OutPut%Faces) then
-                AuxMatrix = Me%iFlowY
+                AuxMatrix => iFlowY
             else
-                AuxMatrix = Me%CenterFlowY
+                AuxMatrix => Me%CenterFlowY
             endif
+            
             call HDF5WriteData   (Me%ObjHDF5,                                       &
                                   "/Results/flow Y",                                &
                                   "flow Y",                                         &   
@@ -17949,6 +17985,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
+            nullify (iFlowX, iflowY)
         endif
         
 
@@ -17989,8 +18026,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
         real, dimension(:)  , pointer               :: TimePointer
-        integer                                     :: dis
+        integer                                     :: dis, i, j
         logical                                     :: dbg = .false.
+        real(8), dimension(:,:), pointer            :: iFlowX, iflowY
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
         !Bounds
@@ -18001,6 +18039,31 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         JUB = Me%WorkSize%JUB
 
         Me%OutPut%UpdateWaterLevel_R4 = .true.
+        
+        if (Me%Restarted) then
+            iFlowX => Me%iFlowX
+            iFlowY => Me%iFlowY
+        else
+            iFlowX => Me%lFlowX
+            iFlowY => Me%lFlowY
+        endif
+        
+        if (Me%Output%CumulativeFlowVolume) then
+        
+            !Update cumulativeFlowVolume. Must do it every time step and before output
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+            do j = Me%CurrentWorkSize%JLB, Me%CurrentWorkSize%JUB
+            do i = Me%CurrentWorkSize%ILB, Me%CurrentWorkSize%IUB
+                if (Me%ActivePoints(i,j) == 1) then
+                    Me%CumulativeFlowX_R4(i, j) = Me%CumulativeFlowX_R4(i, j) + iFlowX(i, j) * Me%ExtVar%DT
+                    Me%CumulativeFlowY_R4(i, j) = Me%CumulativeFlowY_R4(i, j) + iFlowY(i, j) * Me%ExtVar%DT
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        endif
         if (Me%ExtVar%Now >= Me%OutPut%OutTime(Me%OutPut%NextOutPut)) then
 
             Me%OutPut%UpdateWaterLevel_R4 = .false.
@@ -18061,7 +18124,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                       "/Results/flow X",                                &
                                       "flow X",                                         &   
                                       "m3/s",                                           &
-                                      Array2D      = Me%iFlowX,                         &
+                                      Array2D      = iFlowX,                            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR60_a'
@@ -18083,7 +18146,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                       "/Results/flow Y",                                &
                                       "flow Y",                                         &   
                                       "m3/s",                                           &
-                                      Array2D      = Me%iFlowY,                         &
+                                      Array2D      = iFlowY,                            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR70_a'
@@ -18099,10 +18162,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
             
             if (Me%Output%CumulativeFlowVolume) then
-                !Writes Comulative Flow X
+                !Writes Cumulative Flow X (uses Flow at faces)
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                      "/Results/comulative flow X",                   &
-                                      "comulative flow X",                             &   
+                                      "/Results/cumulative flow X",                   &
+                                      "cumulative flow X",                             &   
                                       "m3",                                             &
                                       Array2D      = Me%CumulativeFlowX_R4,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
@@ -18111,12 +18174,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
                 !Writes Comulative Flow Y
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                      "/Results/comulative flow Y",                   &
-                                      "comulative flow Y",                             &   
+                                      "/Results/cumulative flow Y",                   &
+                                      "cumulative flow Y",                             &   
                                       "m3",                                             &
                                       Array2D      = Me%CumulativeFlowY_R4,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
-                    STAT = STAT_CALL)
+                                      STAT = STAT_CALL)
             endif
             
 
@@ -18230,7 +18293,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 Me%OutPut%NextOutPutDisch = Me%OutPut%NextOutPutDisch + Me%Output%OutPutDischDT
                 
             endif                
-        endif              
+        endif
+        
+        nullify (iFlowX, iflowY)
 
          if (MonitorPerformance) call StopWatch ("ModuleRunOff", "RunOffOutput")
         
@@ -18243,8 +18308,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL
         real,  dimension(:,:), pointer          :: AuxMatrix
+        real(8), dimension(:,:), pointer        :: iFlowX, iflowY
         !----------------------------------------------------------------------
         if (Me%Output%TimeSerieNumber > 0) then
+            
+            if (Me%Restarted) then
+                iFlowX => Me%iFlowX
+                iFlowY => Me%iFlowY
+            else
+                iFlowX => Me%lFlowX
+                iFlowY => Me%lFlowY
+            endif
+            
             call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                                 Data2D = Me%MyWaterLevel,                                   &
                                 STAT = STAT_CALL)
@@ -18257,7 +18332,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         
             !Write Flow X values
             if (Me%OutPut%Faces) then
-                AuxMatrix = Me%iFlowX
+                AuxMatrix = iFlowX
             else
                 AuxMatrix = Me%CenterFlowX
             endif
@@ -18268,7 +18343,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR03'
 
             if (Me%OutPut%Faces) then
-                AuxMatrix = Me%iFlowY
+                AuxMatrix = iFlowY
             else
                 AuxMatrix = Me%CenterFlowY
             endif
@@ -18323,6 +18398,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR50'            
             
             endif
+            nullify (iFlowX, iflowY)
         endif
     end subroutine OutputTimeSeries
     
@@ -18332,10 +18408,20 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL
         type (T_Time)                           :: NextOutput
+        real(8), dimension(:,:), pointer        :: iFlowX, iflowY
         !----------------------------------------------------------------------
         
         !check timeserie output
         if (Me%Output%TimeSerieNumber > 0) then
+            
+            if (Me%Restarted) then
+                iFlowX => Me%iFlowX
+                iFlowY => Me%iFlowY
+            else
+                iFlowX => Me%lFlowX
+                iFlowY => Me%lFlowY
+            endif
+            
             call GetTimeSerieNextOutput(Me%ObjTimeSerie, 1, NextOutput, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_R4 - ModuleRunOff - ERR010'
         
@@ -18361,7 +18447,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Write Flow X values
             if (Me%OutPut%Faces) then
                 call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                                    Data2D_R8 = Me%iFlowX,                                       &
+                                    Data2D_R8 = iFlowX,                                         &
                                     MapMatrix = Me%OpenPoints,                                  &
                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR03a'
@@ -18377,7 +18463,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Write Flow Y values
             if (Me%OutPut%Faces) then
                 call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                                    Data2D_R8 = Me%iFlowY,                                       &
+                                    Data2D_R8 = iFlowY,                                         &
                                     MapMatrix = Me%OpenPoints,                                  &
                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR04a'
@@ -18438,6 +18524,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR50'            
             
             endif
+            nullify (iFlowX, iflowY)
         endif
     end subroutine OutputTimeSeries_R4
     
@@ -18507,6 +18594,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         deallocate (WaterVolume)
         
+        nullify (iFlowX, iflowY)
         
         if (MonitorPerformance) call StopWatch ("ModuleRunoff", "ComputeBoxesWaterFluxes")
 
