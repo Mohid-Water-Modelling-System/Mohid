@@ -13,7 +13,7 @@
 !
 !------------------------------------------------------------------------------
 !
-!This program is free software; you can redistribute it and/or
+!This program is free software; you can redistribute it and/or'dt
 !modify it under the terms of the GNU General Public License 
 !version 2, as published by the Free Software Foundation.
 !
@@ -424,6 +424,15 @@ Module ModuleLagrangianGlobal
     use ModuleFunctions,        only : SigmaUNESCO, SigmaLeendertse, SigmaUNESCOPressureCorrection,&
                                        InterpolateValueInTime, RodaXY,                      &
                                        ComputeT90_Chapra, ComputeT90_Canteras,              &
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                       ComputeT90_CTL,                                      &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                       ComputeT90_UrBideaGS, ComputeT90_UrBideaNPP,         &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!     
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                       ComputeT90_BertrandFNRAPH,                           &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
                                        GetDataOnlineString, SetMatrixValue, TimeToString,   &
                                        ChangeSuffix, ConstructPropertyID,                   &
                                        DistanceBetweenTwoGPSPoints, WGS84toGoogleMaps,      &
@@ -592,6 +601,7 @@ Module ModuleLagrangianGlobal
     private ::      VerifyParticleBeaching
     private ::      UpdateRemovedVolumes
     private ::      VerifyBeachRemoval   
+    private ::      StoreCoordEmission
     private ::      MovePartic
     private ::          MoveParticHorizontal
     private ::              MoveParticVertical
@@ -729,6 +739,21 @@ Module ModuleLagrangianGlobal
     !T90 Calc Method
     integer, parameter                          :: Canteras                 = 1
     integer, parameter                          :: Chapra                   = 2
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: CtlEcoli             = 4
+    integer, parameter                          :: CtlEntero            = 5
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: UrBideaGSEcoli       = 6
+    integer, parameter                          :: UrBideaGSEntero      = 7
+    integer, parameter                          :: UrBideaNPPEcoli      = 8
+    integer, parameter                          :: UrBideaNPPEntero     = 9
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: BertrandFNRAPHMean   = 10
+    integer, parameter                          :: BertrandFNRAPHMin    = 11
+    integer, parameter                          :: BertrandFNRAPHMax    = 12
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer, parameter                          :: FromTimeSerie            = 3
     
     !Online Emission options 
@@ -1637,6 +1662,8 @@ Module ModuleLagrangianGlobal
         real, dimension(:), pointer             :: ConcentrationInterpol    => null()
         real, dimension(:), pointer             :: AmbientConc              => null()
         real, dimension(:), pointer             :: Mass                     => null()
+        real                                    :: CoordX_Emit              = null_real
+        real                                    :: CoordY_Emit              = null_real
         real                                    :: TpercursoH               = -null_real
         real                                    :: TpercursoZ               = -null_real
         real                                    :: UD_old                   = null_real
@@ -16320,6 +16347,9 @@ iON:        if (CurrentOrigin%EmissionON) then
 
                 end select
 
+                call StoreCoordEmission     (CurrentOrigin)
+
+
             endif iON
 
             CurrentOrigin => CurrentOrigin%Next
@@ -16330,6 +16360,39 @@ iON:        if (CurrentOrigin%EmissionON) then
     end subroutine ParticleEmission
 
    !--------------------------------------------------------------------------
+
+    subroutine StoreCoordEmission (CurrentOrigin)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        !Local-----------------------------------------------------------------
+
+        type (T_Partic), pointer                    :: CurrentPartic
+        !Begin-----------------------------------------------------------------
+        
+        CurrentPartic => CurrentOrigin%FirstPartic
+        
+        do while (associated(CurrentPartic))
+            
+            if (CurrentPartic%CoordX_Emit == null_real) then
+                
+                CurrentPartic%CoordX_Emit = CurrentPartic%Position%CoordX
+                CurrentPartic%CoordY_Emit = CurrentPartic%Position%CoordY
+                
+                if (CurrentPartic%CoordX_Emit == null_real) then
+                    stop 'StoreCoordEmission - ModuleLagrangianGlobal - ERR10' 
+                endif
+            endif
+            
+            CurrentPartic => CurrentPartic%Next
+        enddo
+            
+    
+    end subroutine StoreCoordEmission
+
+
+    !--------------------------------------------------------------------------
+    
 
     subroutine FillGridThickness ()
 
@@ -20843,6 +20906,8 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPo
                 Point%Y = CurrentPartic%Position%CoordY
                 if (IsVisible(Me%ThinWalls, Point)) then
                     write(*,*) 'Rogue particle - inside land - partic id =', CurrentPartic%ID
+                    !Kill rogue particles
+                    CurrentPartic%KillPartic = ON 
                 endif
             endif                        
             
@@ -23894,6 +23959,58 @@ CurrProp:       do while (associated(CurrentProperty))
 
             ComputeT90 = ComputeT90_Chapra (Temp, Sal, Light)  
 
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (Method == CtlEcoli) then
+            
+            ! Calls T90 formulation by CTL for Ecoli
+            ComputeT90 = ComputeT90_CTL (1,Temp,Sal,Radiation)
+
+        elseif (Method == CtlEntero) then
+            
+            ! Calls T90 formulation by CTL for Entero
+            ComputeT90 = ComputeT90_CTL (2,Temp,Sal,Radiation)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (Method == UrBideaGSEcoli) then
+            
+            ! Calls T90 formulation by UrBidea with GenSpot for Ecoli
+            ComputeT90 = ComputeT90_UrBideaGS (1,Temp,Sal,Radiation)
+
+        elseif (Method == UrBideaGSEntero) then
+            
+            ! Calls T90 formulation by UrBidea with GenSpot for Entero
+            ComputeT90 = ComputeT90_UrBideaGS (2,Temp,Sal,Radiation)
+
+        elseif (Method == UrBideaNPPEcoli) then
+            
+            ! Calls T90 formulation by UrBidea with NPP for Ecoli
+            ComputeT90 = ComputeT90_UrBideaNPP (1,Temp,Sal,Radiation)
+
+        elseif (Method == UrBideaNPPEntero) then
+            
+            ! Calls T90 formulation by UrBidea with NPP for Entero
+            ComputeT90 = ComputeT90_UrBideaNPP (2,Temp,Sal,Radiation)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (Method == BertrandFNRAPHMean) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MEAN model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (1,Temp)
+
+        elseif (Method == BertrandFNRAPHMin) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MIN model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (2,Temp)
+
+        elseif (Method == BertrandFNRAPHMax) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MAX model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (3,Temp)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         else
 
             write (*,*) 'T90 calculation method unknown'
@@ -26303,7 +26420,7 @@ CurrOr: do while (associated(CurrentOrigin))
    
 
         !Local-----------------------------------------------------------------
-        real(8),    dimension(:), pointer           :: Longitude, Latitude, Age
+        real(8),    dimension(:), pointer           :: Longitude, Latitude, Age, LongEmit, LatEmit
         real(8),    dimension(:), pointer           :: WaterLevel, Bathym, Hs, Tp, BeachWL, BeachCD, BeachPeriod
         integer,    dimension(:), pointer           :: Origin, ID   
         logical,    dimension(:), pointer           :: Beach, KillPartic        
@@ -26369,8 +26486,8 @@ dw1:    do while (associated(CurrentOrigin))
         allocate   (Bathym      (nTotal))
         allocate   (Hs          (nTotal))
         allocate   (Tp          (nTotal))
-
-        
+        allocate   (LongEmit    (nTotal))    
+        allocate   (LatEmit     (nTotal)) 
             
             n = 1
         
@@ -26384,6 +26501,9 @@ dw2:    do while (associated(CurrentOrigin))
 
                 Longitude   (n) = CurrentPartic%Position%CoordX
                 Latitude    (n) = CurrentPartic%Position%CoordY                
+                LongEmit      (n) = CurrentPartic%CoordX_Emit
+                LatEmit       (n) = CurrentPartic%CoordY_Emit                
+                
                 Age         (n) = CurrentPartic%Age
                 Origin      (n) = CurrentOrigin%ID
                 ID          (n) = CurrentPartic%ID
@@ -26423,6 +26543,8 @@ dw2:    do while (associated(CurrentOrigin))
                           Bathym        = Bathym,                                       &
                           Hs            = Hs,                                           &  
                           Tp            = Tp,                                           &  
+                          LongEmit      = LongEmit,                                     &
+                          LatEmit       = LatEmit,                                      &
                               STAT          = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ProcessLitter - ModuleLagrangianGlobal - ERR10'
 #endif  
@@ -26461,6 +26583,8 @@ dw3:    do while (associated(CurrentOrigin))
             deallocate   (Bathym      )
             deallocate   (Hs          ) 
             deallocate   (Tp          ) 
+            deallocate   (LongEmit    )
+            deallocate   (LatEmit     )
 
         nullify(CurrentPartic)
         nullify(CurrentOrigin)
@@ -29343,6 +29467,14 @@ i1:             if (nP>0) then
                                                      STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
                             endif
+                            
+#ifndef _NO_NETCDF                         
+                            if (Me%OutPut%NetCDF) then
+                                call Write1DNetCDFFile(trim(CurrentProperty%Name), Matrix1D, &
+                                                      trim(CurrentProperty%Units), Me%OutPut%NetCDF_DimID) 
+                            endif
+#endif                               
+                            
                             nProp = nProp + 1
                             CurrentProperty => CurrentProperty%Next
                         enddo
