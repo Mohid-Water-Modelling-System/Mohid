@@ -271,6 +271,15 @@ Module ModuleWaterProperties
                                           OxygenSaturation,OxygenSaturationHenry,               &
                                           CO2PartialPressure, CO2_K0,                           &
                                           ComputeT90_Chapra,                &
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_CTL,                                       &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 07/05/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_UrBideaGS, ComputeT90_UrBideaNPP,          &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!     
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_BertrandFNRAPH,                            &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
@@ -287,6 +296,15 @@ Module ModuleWaterProperties
                                           OxygenSaturation,OxygenSaturationHenry,               &
                                           CO2PartialPressure, CO2_K0,                           &
                                           ComputeT90_Chapra,                &
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_CTL,                                       &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 07/05/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_UrBideaGS, ComputeT90_UrBideaNPP,          &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_BertrandFNRAPH,                            &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
@@ -638,7 +656,21 @@ Module ModuleWaterProperties
     !T90 Calc Method
     integer, parameter                          :: Canteras             = 1
     integer, parameter                          :: Chapra               = 2
-
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: CtlEcoli             = 4
+    integer, parameter                          :: CtlEntero            = 5
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: UrBideaGSEcoli       = 6
+    integer, parameter                          :: UrBideaGSEntero      = 7
+    integer, parameter                          :: UrBideaNPPEcoli      = 8
+    integer, parameter                          :: UrBideaNPPEntero     = 9
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer, parameter                          :: BertrandFNRAPHMean   = 10
+    integer, parameter                          :: BertrandFNRAPHMin    = 11
+    integer, parameter                          :: BertrandFNRAPHMax    = 12
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Filtration
     integer, parameter                          :: GrazeR               = 1
     integer, parameter                          :: GrazeD               = 2
@@ -8852,8 +8884,21 @@ case1 : select case(PropertyID)
                     call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR280')
                 endif
 
+! Modified by Matthias DELPEY - 09/05/2019 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
+                !     NewProperty%evolution%T90Var_Method /= Chapra) then
                 if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
-                    NewProperty%evolution%T90Var_Method /= Chapra) then
+                    NewProperty%evolution%T90Var_Method /= Chapra               .and.   &
+                    NewProperty%evolution%T90Var_Method /= CtlEcoli             .and.   &
+                    NewProperty%evolution%T90Var_Method /= CtlEntero            .and.   &
+                    NewProperty%evolution%T90Var_Method /= UrBideaGSEcoli       .and.   &
+                    NewProperty%evolution%T90Var_Method /= UrBideaGSEntero      .and.   &
+                    NewProperty%evolution%T90Var_Method /= UrBideaNPPEcoli      .and.   &
+                    NewProperty%evolution%T90Var_Method /= UrBideaNPPEntero     .and.   &
+                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMean   .and.   &
+                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMin    .and.   &
+                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMax) then                
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     write (*,*) 'T90 calculation method unknown'
                     call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR290')
                 endif
@@ -20325,6 +20370,57 @@ do1 :   do while (associated(PropertyX))
 
             ComputeT90 = ComputeT90_Chapra (Temp, Sal, Light)
 
+! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (PropertyX%Evolution%T90Var_Method == CtlEcoli) then
+            
+            ! Calls T90 formulation by CTL for Ecoli
+            ComputeT90 = ComputeT90_CTL (1,Temp,Sal,Radiation)
+
+        elseif (PropertyX%Evolution%T90Var_Method == CtlEntero) then
+            
+            ! Calls T90 formulation by CTL for Entero
+            ComputeT90 = ComputeT90_CTL (2,Temp,Sal,Radiation)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (PropertyX%Evolution%T90Var_Method == UrBideaGSEcoli) then
+            
+            ! Calls T90 formulation by UrBidea with GenSpot for Ecoli
+            ComputeT90 = ComputeT90_UrBideaGS (1,Temp,Sal,Radiation)
+
+        elseif (PropertyX%Evolution%T90Var_Method == UrBideaGSEntero) then
+            
+            ! Calls T90 formulation by UrBidea with GenSpot for Entero
+            ComputeT90 = ComputeT90_UrBideaGS (2,Temp,Sal,Radiation)
+
+        elseif (PropertyX%Evolution%T90Var_Method == UrBideaNPPEcoli) then
+            
+            ! Calls T90 formulation by UrBidea with NPP for Ecoli
+            ComputeT90 = ComputeT90_UrBideaNPP (1,Temp,Sal,Radiation)
+
+        elseif (PropertyX%Evolution%T90Var_Method == UrBideaNPPEntero) then
+            
+            ! Calls T90 formulation by UrBidea with NPP for Entero
+            ComputeT90 = ComputeT90_UrBideaNPP (2,Temp,Sal,Radiation)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!     
+
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (PropertyX%Evolution%T90Var_Method == BertrandFNRAPHMean) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MEAN model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (1,Temp)
+
+        elseif (PropertyX%Evolution%T90Var_Method == BertrandFNRAPHMin) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MIN model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (2,Temp)
+
+        elseif (PropertyX%Evolution%T90Var_Method == BertrandFNRAPHMax) then
+            
+            ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MAX model
+            ComputeT90 = ComputeT90_BertrandFNRAPH (3,Temp)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 
         endif
 

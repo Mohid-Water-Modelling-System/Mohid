@@ -274,6 +274,17 @@ Module ModuleFunctions
     !T90 decay time calculation methods
     public  :: ComputeT90_Canteras                  !Function
     public  :: ComputeT90_Chapra                    !Function
+    ! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: ComputeT90_CTL
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: ComputeT90_UrBideaGS
+    public  :: ComputeT90_UrBideaNPP
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: ComputeT90_BertrandFNRAPH
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
     public  ::  normcrossprod
@@ -9687,6 +9698,321 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
 
     end function ComputeT90_Chapra
+
+    ! Modified by Matthias DELPEY - 14/04/2017 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    !----------------------------------------------------------------------------
+    !Computes T90 decay time according to CTL formulation
+    
+    function ComputeT90_CTL (BacteriaType, Temperature, Salinity, Radiation)
+
+        real ::  ComputeT90_CTL
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: Temperature,  Salinity, Radiation
+        integer             :: BacteriaType
+
+        !Local variables---------------------------------------------------------
+        real                :: T90_h, T90_max, T90_min, S_lim, T90_Slim, T90_S0, k 
+        real                :: coef0, coefI, coefS, coefT
+        real                :: coef1, coef2
+
+        ! Ecoli T90
+        if (BacteriaType == 1) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 2.
+            T90_max = 21. * 24.
+            ! Salinity limit value for relation validity (g/L)
+            S_lim = 20.
+            ! Coefficients for the ecoli T90 formulation
+            coef0  = 1224.76
+            coefI = -0.042635
+            coefS = -0.04123
+            coefT = -0.0827
+            ! Adjustment coefficient of T90(S=0) (empirique)
+            coef1 = 5.
+            coef2 = 1.
+        endif
+
+        ! Entero T90
+        if (BacteriaType == 2) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 10.
+            T90_max = 21. * 24.
+            ! Salinity limit value for relation validity (g/L)
+            S_lim = 20.
+            ! Coefficients for the entero T90 formulation
+            coef0  = 1407.26 * 2.
+            coefI = -0.027888
+            coefS = -0.04498
+            coefT = -0.08021
+            ! Adjustment coefficient of T90(S=0) (empirical)
+            coef1 = 2.5
+            coef2 = 2.
+        endif
+
+        if (Salinity .GT. S_lim) then
+        
+            T90_h  = exp(coefI*0.45*Radiation) * exp(coefS*Salinity) * exp(coefT*Temperature)
+
+            ! Maximum value allowed for the T90 
+            ! (to prevent from floating overflow, factor coef0 (~10^3) is only applied after the max value check)
+            if (T90_h .LT. T90_max/coef0) then
+                T90_h = T90_h * coef0
+            else
+                T90_h = T90_max
+            endif
+             
+        else 
+        ! For weak salinities, an alternative formulation is used
+            
+            ! T90 value at the salinity validity limit S_lim
+            T90_Slim = exp(coefI*0.45*Radiation) * exp(coefS*S_lim) * exp(coefT*Temperature)
+            
+            ! Maximum value allowed for the T90 
+            ! (to prevent from floating overflow, factor coef0 (~10^3) is only applied after the max value check)
+            if (T90_Slim .LT. T90_max/coef0) then
+                T90_Slim = T90_Slim * coef0
+            else
+                T90_Slim = T90_max
+            endif
+            ! Minimum value allowed for the T90
+            if (T90_Slim .LT. T90_min) then
+                T90_Slim = T90_min
+            endif
+
+            ! Estimation of the value of T90 when S--> 0 : T90 at the salinity validity limit for 
+            ! radiation = Radiation/coef1 (this is just a "tip", not based on observations)
+            T90_S0 = exp(coefI*0.45*Radiation/coef1) * exp(coefS*S_lim) * exp(coefT*Temperature)
+            ! Maximum value allowed for the T90
+            ! The factor coef2 may be used to increase T90(S=0) empirically if needed 
+            ! (to prevent from floating overflow, factor coef0 and coef2 are only applied after the max value check)
+            if (T90_S0 .LT. T90_max/(coef0*coef2)) then
+                T90_S0 = T90_S0 * coef0 * coef2
+            else
+                T90_S0 = T90_max
+            endif
+            ! Minimum value allowed for the T90
+            if (T90_S0 .LT. T90_min) then
+                T90_S0 = T90_min
+            endif
+
+            k = T90_S0/T90_Slim
+            
+            ! For S < S_lim, the T90 increases exponentially when S decreases until T90(S=0) = T90_S0
+            T90_h = T90_Slim * k**(1 - Salinity/S_lim)
+        
+        endif
+
+        ! Minimum and max values allowed for the T90
+        if (T90_h .LT. T90_min) then
+            T90_h = T90_min
+        elseif (T90_h .GT. T90_max) then
+            T90_h = T90_max
+        endif
+
+        ! Conversion in seconds
+        ComputeT90_CTL = T90_h * 3600.
+
+
+    end function ComputeT90_CTL
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    !----------------------------------------------------------------------------
+    !Computes T90 decay time according to Ur Bidea formulation with GenSpot method
+    
+    function ComputeT90_UrBideaGS (BacteriaType, Temperature, Salinity, Radiation)
+
+        real ::  ComputeT90_UrBideaGS
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: Temperature,  Salinity, Radiation
+        integer             :: BacteriaType
+
+        !Local variables---------------------------------------------------------
+        real                :: T90_h, T90_max, T90_min
+        real                :: coef0, coefI, coefS, coefT
+
+        ! Ecoli T90
+        if (BacteriaType == 1) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 20.
+            T90_max = 3. * 24.
+            ! Coefficients for the ecoli T90 formulation
+            coef0  = 40.88
+            coefI = 0.001946
+            coefS = 0.007632
+            coefT = -0.028732
+        endif
+
+        ! Entero T90
+        if (BacteriaType == 2) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 45.
+            T90_max = 7. * 24.
+            ! Coefficients for the entero T90 formulation
+            coef0  = 340.53
+            coefI = -0.002315
+            coefS = -0.002815
+            coefT = -0.064508
+        endif
+        
+
+        T90_h  = exp(coefI*Radiation) * exp(coefS*Salinity) * exp(coefT*Temperature)
+
+        ! Maximum value allowed for the T90 
+        ! (to prevent from floating overflow, factor coef0 (~10^3) is only applied after the max value check)
+        if (T90_h .LT. T90_max/coef0) then
+           T90_h = T90_h * coef0
+        else
+           T90_h = T90_max
+        endif
+        
+        ! Minimum values allowed for the T90
+        if (T90_h .LT. T90_min) then
+            T90_h = T90_min
+        endif
+
+        ! Conversion in seconds
+        ComputeT90_UrBideaGS = T90_h * 3600.
+
+
+    end function ComputeT90_UrBideaGS
+
+
+    !----------------------------------------------------------------------------
+    !Computes T90 decay time according to Ur Bidea formulation with NPP method
+    
+    function ComputeT90_UrBideaNPP (BacteriaType, Temperature, Salinity, Radiation)
+
+        real ::  ComputeT90_UrBideaNPP
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: Temperature,  Salinity, Radiation
+        integer             :: BacteriaType
+
+        !Local variables---------------------------------------------------------
+        real                :: T90_h, T90_max, T90_min
+        real                :: coef0, coefI, coefS, coefT
+
+        ! Ecoli T90
+        if (BacteriaType == 1) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 2.
+            T90_max = 11. * 24.
+            ! Coefficients for the ecoli T90 formulation
+            coef0  = 418.43
+            coefI = -0.035560*0.9
+            coefS = -0.013677
+            coefT = -0.084466
+        endif
+
+        ! Entero T90
+        if (BacteriaType == 2) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 7.
+            T90_max = 21. * 24.
+            ! Coefficients for the entero T90 formulation
+            coef0  = 410.05
+            coefI = -0.028791*1.1
+            coefS = 0.004615
+            coefT = -0.0916775
+        endif
+        
+        T90_h  = exp(coefI*Radiation) * exp(coefS*Salinity) * exp(coefT*Temperature)
+
+        ! Maximum value allowed for the T90 
+        ! (to prevent from floating overflow, factor coef0 (~10^3) is only applied after the max value check)
+        if (T90_h .LT. T90_max/coef0) then
+           T90_h = T90_h * coef0
+        else
+           T90_h = T90_max
+        endif
+        
+        ! Minimum values allowed for the T90
+        if (T90_h .LT. T90_min) then
+            T90_h = T90_min
+        endif
+
+        ! Conversion in seconds
+        ComputeT90_UrBideaNPP = T90_h * 3600.
+
+
+    end function ComputeT90_UrBideaNPP
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    !----------------------------------------------------------------------------
+    !Computes T90 decay time according to Bertrand et al. 2012 formulations for FNRAPH 
+    
+    function ComputeT90_BertrandFNRAPH (ModelType, Temperature)
+
+        real ::  ComputeT90_BertrandFNRAPH
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: Temperature
+        integer             :: ModelType
+
+        !Local variables---------------------------------------------------------
+        real                :: T90_h, T90_max, T90_min
+        real                :: coef0, coefT
+
+        ! MEAN
+        if (ModelType == 1) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 60.5
+            T90_max = 363.3
+            ! Coefficients for the MEAN T90 formulation
+            coef0  = 19.953
+            coefT = -0.069
+        endif
+        
+        ! MIN
+        if (ModelType == 2) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 28.6
+            T90_max = 166.7
+            ! Coefficients for the MIN T90 formulation
+            coef0  = 9.1109
+            coefT = -0.068
+        endif
+        
+        ! MAX
+        if (ModelType == 3) then
+            ! Min value and max allowed for T90 (h)
+            T90_min = 128.4
+            T90_max = 792.5
+            ! Coefficients for the MAX T90 formulation
+            coef0  = 43.696
+            coefT = -0.070
+        endif     
+
+        T90_h  = 24 * exp(coefT*Temperature)
+
+        ! Maximum value allowed for the T90 
+        ! (to prevent from floating overflow, factor coef0 (~10^3) is only applied after the max value check)
+        if (T90_h .LT. T90_max/coef0) then
+           T90_h = T90_h * coef0
+        else
+           T90_h = T90_max
+        endif
+        
+        ! Minimum values allowed for the T90
+        if (T90_h .LT. T90_min) then
+            T90_h = T90_min
+        endif
+
+        ! Conversion in seconds
+        ComputeT90_BertrandFNRAPH = T90_h * 3600.
+
+
+    end function ComputeT90_BertrandFNRAPH
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !------------------------------------------------------------------------
     !Downward Longwave Radiation (Wunderlich et. al. 1968)

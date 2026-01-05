@@ -87,6 +87,7 @@ program Convert2netcdf
         logical                                             :: ImposeMask       = .false.
         logical                                             :: ResultsAre2D     = .false.
         logical                                             :: OutputIs2D       = .false. 
+        integer                                             :: LayerOut         = FillValueInt
         logical                                             :: HdfMaskVariesInTime = .false.
         character(len=StringLength)                         :: HdfMaskInTimeName = null_str
     end type T_HDFFile                                      
@@ -578,6 +579,15 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR360'
+
+        call GetData(Me%HDFFile%LayerOut,                                               &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'LAYER_OUT',                                        &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = 1,                                                  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR365'        
 
 
         call GetData(Me%HDFFile%SizeDataSet,                                            &
@@ -1862,7 +1872,7 @@ program Convert2netcdf
                 
                     do i=1,Me%HDFFile%Size%IUB
                     do j=1,Me%HDFFile%Size%JUB
-                        k                = 1
+                        k                = Me%HDFFile%LayerOut
                         Me%Int2DIn (i,j) = Me%Int3DIn(i,j,k)                        
                         Me%Int2DOut(j,i) = Me%Int3DIn(i,j,k)
                     enddo                
@@ -3208,7 +3218,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         
                         do i=1,Me%HDFFile%Size%IUB
                         do j=1,Me%HDFFile%Size%JUB
-                            k                  = 1
+                            k                  = Me%HDFFile%LayerOut
                             Me%Float2DIn (i,j) = Me%Float3DIn(i, j, k)                            
                             if (Me%Float2DIn(i, j) /= FillValueReal) then                            
                                 Me%Float2DOut(j,i) = int(Me%Float2DIn(i, j) * DecimalPlaces) / DecimalPlaces
@@ -3222,7 +3232,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                         do i=1,Me%HDFFile%Size%IUB
                         do j=1,Me%HDFFile%Size%JUB
-                            k                  = 1
+                            k                  = Me%HDFFile%LayerOut
                             Me%Float2DIn (i,j) = Me%Float3DIn(i, j, k)
                             if (Me%Float2DIn(i, j) /= FillValueReal) then                                                        
                                 Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
