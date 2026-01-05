@@ -2400,6 +2400,12 @@ Subroutine CloudOutPut_V2
         PointCenter = [Me%Evolution%x, Me%Evolution%y, Me%Evolution%z]
         
         generic_vector = [1., 0., 0.]
+        
+        if (normal_vector(1) == generic_vector(1)  .and.                            &
+            normal_vector(2) == generic_vector(2)  .and.                            &
+            normal_vector(3) == generic_vector(3)) then
+            generic_vector = [0., 1., 0.]
+        endif
             
         surf_vector_1 = normcrossprod_v2 (normal_vector, generic_vector)
         surf_vector_2 = normcrossprod_v2 (normal_vector, surf_vector_1)

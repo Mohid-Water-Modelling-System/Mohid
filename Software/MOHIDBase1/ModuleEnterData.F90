@@ -3849,6 +3849,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         real                                        :: ExtraTime_Seconds
         real, allocatable, dimension (:)            :: AuxDT
         type(T_Time), dimension(:), pointer         :: AuxTime 
+        character(LEN = PathLength)                 :: Filename
 
 
         !----------------------------------------------------------------------
@@ -3870,6 +3871,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         ! 1998 1 1 4 0 0  
         ! 1998 1 1 8 0 0  
         ! 1998 1 1 12 0 0  
+
+        call GetFileName(EnterDataID, FileName, STAT = Status) 
+        if (Status /= SUCCESS_) then
+            call SetError(FATAL_, INTERNAL_, "OutPutTimeInternal - EnterData - ERR100") 
+        endif
 
 
         !Allocate auxliar variable
@@ -3958,6 +3964,7 @@ do2 :       do i=1,ReadValuesNumber-1
             end do do2
 
             if (AuxDT(ReadValuesNumber) <= 0.) then
+                write(*,*) 'Error in file=', trim(FileName)
                 call SetError(FATAL_, INTERNAL_, "OutPutTimeInternal - EnterData - ERR40")
             endif
 

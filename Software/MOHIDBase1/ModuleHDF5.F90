@@ -3253,7 +3253,14 @@ Module ModuleHDF5
             endif
 
             call h5dopen_f (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR05f'
+            if (STAT_CALL /= SUCCESS_) then
+                
+                
+                stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR05f'
+                
+                
+                
+            endif
 
             
             AllocateMatrix = .false.
@@ -6747,7 +6754,7 @@ Module ModuleHDF5
             GetHDF5FileOkToRead = .true.
             
         else
-            
+            write(*,*) 'Not able to read file',trim(FileName)
             GetHDF5FileOkToRead = .false.
         
         endif                                                
