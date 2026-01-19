@@ -9220,7 +9220,11 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                         if (CurrentHDF%NoData(icount)) then
                             if (CurrentHDF%Extrapolate) then
                                 !NeedToExtrapolate = .true.
+                                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
                                 Matrix3D(i, j, k) = Me%DefaultValue(1)
+                                    endif
+                                enddo                                
                             else
                                 write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
                                 stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'

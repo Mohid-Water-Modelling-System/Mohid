@@ -21338,7 +21338,7 @@ ifc:                            if (Me%DDecomp%MPI_ID == Me%DDecomp%Discharges_M
 
 ifdb:                               if (Me%DDecomp%Discharges_MPI_ID(dis) == Me%DDecomp%ByPass_MPI_ID(dis)) then
 
-                                        !call GetXYCellZ(Me%ObjHorizontalGrid, XByPass, YByPass, ib, jb, STAT = STAT_CALL)
+                                        call GetXYCellZ(Me%ObjHorizontalGrid, XByPass, YByPass, ib, jb, STAT = STAT_CALL)
                                 
                                         PropConc = PropertyX%Concentration(ib, jb, kb) 
                                     
