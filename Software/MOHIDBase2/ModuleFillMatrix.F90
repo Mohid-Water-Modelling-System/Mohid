@@ -138,6 +138,7 @@ Module ModuleFillMatrix
     public  :: GetAnalyticCelerity
     public  :: GetFilenameHDF
     public  :: GetFoundNegativeValueInTimeSerie
+    public  :: GetInitializationMethod
 
 
     !Modifier
@@ -10303,6 +10304,39 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetFoundNegativeValueInTimeSerie
+    
+!--------------------------------------------------------------------------
+    
+    subroutine GetInitializationMethod (FillMatrixID, InitializationMethod, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        integer, intent(OUT)                            :: InitializationMethod
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            InitializationMethod = Me%InitializationMethod
+
+            STAT_ = SUCCESS_
+
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetInitializationMethod
 
     !--------------------------------------------------------------------------
 
