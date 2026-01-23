@@ -6737,25 +6737,25 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             if (ReadTimeNumericV2) then
             
                 status = nf90_inquire_variable(ncid, dimid, ndims = numDims)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
                 status = nf90_inquire_variable(ncid, dimid, dimids = DimidArray(:numDims))
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
                 status=NF90_INQUIRE_DIMENSION(ncid, DimidArray(1), len = Me%Date%NumberInst)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR50'      
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'      
             
             else                
         
                 status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
                 
             endif
             
             call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
 
             status = nf90_inq_varid(ncid, trim(Me%Date%NetCDFName), n)
-            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
             call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
             
@@ -6763,7 +6763,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
                 if (Me%Date%RefDateName ==  trim(null_str)) then
                     status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
                 else
                     ref_date = trim(Me%Date%RefDateName) 
                 endif
@@ -6928,7 +6928,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                 if (Aux1 > 1e15) then  
                     write(*,*) 'error in the time instant =',i
                     
-                    stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
                 endif                 
                  
 
