@@ -7276,9 +7276,9 @@ i0:     if(Me%Dim == Dim2D)then
                     if (.not. CurrentHDF%Extrapolate .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                         write (*,*) 'You are running in parallel in domain decomposition mode'
-                        write (*,*) 'Need to use option EXTRAPOLATE : 1'
+                        write (*,*) 'Should use option EXTRAPOLATE : 1'
                         write(*,*)'Property '//trim(Me%PropertyID%Name)     
-                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR285'
+                        !stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR285'
                         
                     endif
 
@@ -7367,9 +7367,9 @@ i0:     if(Me%Dim == Dim2D)then
                 if (.not. CurrentHDF%SpatialInterpolON .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                     write (*,*) 'You are running in parallel in domain decomposition mode'
-                    write (*,*) 'Need to use option SPATIAL_INTERPOL : 1'
+                    write (*,*) 'Should use option SPATIAL_INTERPOL : 1'
                     write(*,*)'Property '//trim(Me%PropertyID%Name)
-                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR325'
+                    !stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR325'
                     
                 endif                
 
