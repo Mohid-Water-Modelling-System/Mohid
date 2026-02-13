@@ -185,6 +185,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Dim3D        = .true.
         logical                                 :: From2D_To_3D = .false. 
         real                                    :: Limit
+        logical                                 :: LimitAbove
         integer                                 :: Instant
         type (T_ValueIn)                        :: ValueIn        
         integer, dimension(:,:,:),   pointer    :: Value3DOut
@@ -3305,6 +3306,25 @@ BF:         if (BlockFound) then
                              default      = 0.5,                                        &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                
+                call GetData(Me%Mapping%LimitAbove,                                          &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'MAPPING_LIMIT_ABOVE',                      &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .true.,                                     &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'   
+                
+                if (iflag == 0) then
+                
+                    if (Me%Mapping%Limit <= 1) then
+                        Me%Mapping%LimitAbove = .true.
+                    else
+                        Me%Mapping%LimitAbove = .false.
+                    endif
+                    
+                endif
                 
                 call GetData(Me%Mapping%Instant,                                        &
                              Me%ObjEnterData, iflag,                                    &
@@ -7452,7 +7472,7 @@ i2:                 if (Me%Depth%Interpolate) then
                     endif i2    
                     
                     
-                    if (Me%Mapping%Limit <= 1) then
+                    if (Me%Mapping%LimitAbove) then
                         if (Aux > Me%Mapping%Limit) then
                             Me%Mapping%Value3DOut(i,j,k) = 1
                         else
@@ -7495,7 +7515,7 @@ i2:                 if (Me%Depth%Interpolate) then
                     endif
                     endif
 
-                    if (Me%Mapping%Limit <= 1) then
+                    if (Me%Mapping%LimitAbove) then
                         if (Aux > Me%Mapping%Limit) then
                             Me%Mapping%Value2DOut(i,j) = 1
                         else
