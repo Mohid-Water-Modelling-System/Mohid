@@ -1952,7 +1952,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         s = len(Expression)    
     
-        i = scan(trim(Expression),'if') 
+        !i = scan(trim(Expression),'if') 
+        i = index(trim(Expression), "if")
     
         !conditional relation (if (a,<=,b,c,d)
         !a and b input and c true, d false
