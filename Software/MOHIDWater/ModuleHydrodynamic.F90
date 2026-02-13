@@ -1743,6 +1743,8 @@ Module ModuleHydrodynamic
                                                      ProfileON          = .false., &
                                                     TurbineON           = .false.
 
+         logical                                  :: Corners3D          = .false. 
+
          logical                                  :: Simple             = .false.
          logical                                  :: MohidJetON         = .false.  
          logical                                  :: MohidJetONWindow   = .false. 
@@ -1795,6 +1797,8 @@ Module ModuleHydrodynamic
          real,          dimension(:,:,:), pointer :: Wave3D_FBreakingAccelU, Wave3D_FBreakingAccelV
          real,          dimension(:,:,:), pointer :: Wave3D_FVortexAccelU, Wave3D_FVortexAccelV
          real,          dimension(:,:,:), pointer :: Wave3D_FPressureAccelU, Wave3D_FPressureAccelV
+
+         
 
     end type T_OutPut
 
@@ -8962,6 +8966,29 @@ cd21:   if (Baroclinic) then
                         STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                               &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_CORNERS_3D
+            !<BeginDescription>
+               !
+               !Checks if outputs in the grid hdf5 output corners 3D
+               !
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .false. 
+            !File keyword     : IN_DAD3D
+            !Multiple Options : .true. , .false.
+            !Search Type      : From File
+        !<EndKeyword>
+        call GetData(Me%Output%Corners3D,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'OUTPUT_CORNERS_3D',                                  &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230.')        
 
 
     End Subroutine Construct_Numerical_Options
@@ -52530,7 +52557,9 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              "m", Array3D = SZZ, OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR60'
 
+        if (Me%Output%Corners3D) then
         call Write_HDF5_Format_3D_Corners(ObjHDF5 = ObjHDF5, OutputNumber = Index)
+        endif
 
 
         !Writes OpenPoints
@@ -53534,7 +53563,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                     Aux3D(ILB:IUB,JLB:JUB,k) = Value2D(ILB:IUB,JLB:JUB)
 
-                else
+                elseif (k < WorkKUB) then
                     Aux3D(ILB:IUB,JLB:JUB,k) = Aux3D(ILB:IUB,JLB:JUB,k+1)
                 endif
 
