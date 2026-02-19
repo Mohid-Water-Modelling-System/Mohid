@@ -965,6 +965,8 @@ Module ModuleRunOff
         real                                        :: DY                       = null_real
         real                                        :: GridCellArea             = null_real
         
+        logical                                     :: UseOptimizations = .false.
+        
         type(T_RunOff), pointer                     :: Next                 => null()
     end type  T_RunOff
 
@@ -1356,7 +1358,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
                      keyword      = 'ADJUST_SLOPE',                             &
-                     default      = .true.,                                     &
+                     default      = .false.,                                    &
                      ClientModule = 'ModuleRunOff',                             &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0130'
@@ -2364,6 +2366,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ConstructTimeSeries
         
         call StartOutputBoxFluxes
+        
+        if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
+            Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
+            .not. Me%AdjustSlope) then
+            Me%UseOptimizations = .true.
+        endif
+            
                 
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
@@ -8377,7 +8386,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Me%CV%CurrentDT = Me%ExtVar%DT / Niter
                     
                     !Interaction with channels
-                    if (.not. Me%Use1D2DInteractionMapping .and. Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then
+                    if (.not. Me%Use1D2DInteractionMapping .and. Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then                        
                         call FlowIntoChannels       (Me%CV%CurrentDT, UpdateWaterLevels = .true.)
                     endif
                     
@@ -11629,9 +11638,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     !Begin---------------------------------------------------------------
         
     if (Me%GridIsConstant) then
-        if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
-            Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            Me%AdjustSlope) then
+        if (Me%UseOptimizations) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveXX_default_CG(LocalDT)
         else
@@ -11639,9 +11646,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             call DynamicWaveXX_CG(LocalDT)
         endif
     else
-        if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
-            Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            Me%AdjustSlope) then
+        if (Me%UseOptimizations) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveXX_default_VG(LocalDT)
         else
@@ -11928,7 +11933,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveXX_default_VG")
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-
+        !write(*,*) "Entrada "
+        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !    write(*,*) "Flow em I J = ", i, j, Me%lFlowX(i, j)
+        !enddo
+        !enddo
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, &
         !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
         !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter, dVol, &
@@ -12148,7 +12158,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleRunOff", "DynamicWaveXX_default_VG")
-        
+        !write(*,*) "Entrada "
+        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !    write(*,*) "Flow em I J = ", i, j, Me%lFlowX(i, j)
+        !enddo
+        !enddo
         
     end subroutine DynamicWaveXX_default_VG
     
@@ -12162,7 +12177,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         real                                        :: Slope
-        real                                        :: level_left, level_right
+        real                                        :: level_left, level_right, waterColumn_left, waterColumn_right
+        real                                        :: topography_left, topography_right
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
@@ -12180,7 +12196,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, &
         !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
-        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter, dVol)
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter, dVol, &
+        !$OMP waterColumn_left, waterColumn_right, topography_left, topography_right)
         
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
@@ -12189,8 +12206,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
             if (Me%ComputeFaceU(i, j) == Compute) then
             
-                level_left  = Me%myWaterLevel(i, j-1)
-                level_right = Me%myWaterLevel(i, j)
+                waterColumn_left = Me%myWaterColumn(i, j-1)
+                waterColumn_right = Me%myWaterColumn(i, j)
+                
+                topography_left = Me%ExtVar%Topography(i, j-1)
+                topography_right = Me%ExtVar%Topography(i, j)
+                
+                level_left  = waterColumn_left + topography_left
+                level_right = waterColumn_right + topography_right
                     
                 !!Slope
                 if (Me%AdjustSlope) then
@@ -12208,7 +12231,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     !Then, is checked if "margins" occur on the cell of the highest water level
                     !water depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%DY
-                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))
+                    MaxBottom = max(Topography_right, topography_left)
                     
                     !to check which cell to use since areaU depends on higher water level
                     if (level_left .gt. level_right) then
@@ -12247,8 +12270,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                            (HydraulicRadius ** (4./3.)) 
                 
                 !Advection (may be limited to water column height)
-                if ((Me%ComputeAdvectionU(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  .and.   &
-                    (Me%myWaterColumn(i,j-1) .gt. Me%MinimumWaterColumnAdvection)) then
+                if ((Me%ComputeAdvectionU(i,j) == 1) .and. (waterColumn_right .gt. Me%MinimumWaterColumnAdvection)  .and.   &
+                    (waterColumn_left .gt. Me%MinimumWaterColumnAdvection)) then
                     
                     
                     !Face XU(i,j+1). Z U Faces have to be open
@@ -12401,18 +12424,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             !can be in opposite direction of height gradient (AreaU uses the higher water level)              
                             !WaterDepth = Me%AreaU(i,j)/Me%DY
                             if (Me%FaceWaterColumn == WCMaxBottom_) then
-                                MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))     
+                                MaxBottom = max(Topography_right, Topography_left)     
                                                             
                                 if (Me%lFlowX(i, j) .gt. 0.0) then           
-                                    WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_left - MaxBottom, 0.0)
                                 else
-                                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_right - MaxBottom, 0.0)
                                 endif
                             elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                                 if (Me%lFlowX(i, j) .gt. 0.0) then           
-                                    WaterDepth = Me%MyWaterColumn(i,j-1)
+                                    WaterDepth = waterColumn_left
                                 else
-                                    WaterDepth = Me%MyWaterColumn(i,j)
+                                    WaterDepth = waterColumn_right
                                 endif                        
                             endif
                         
@@ -12482,7 +12505,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         real                                        :: Slope
-        real                                        :: level_left, level_right
+        real                                        :: level_left, level_right, waterColumn_left, waterColumn_right
+        real                                        :: topography_left, topography_right
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
@@ -12497,10 +12521,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveXX_VG")
     
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !write(*,*) "Entrada "
+        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !    write(*,*) "Flow em I J = ", i, j, Me%lFlowX(i, j)
+        !enddo
+        !enddo
     
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, &
         !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
-        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter, dVol)
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter, dVol, &
+        !$OMP waterColumn_left, waterColumn_right, topography_left, topography_right)
         
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
@@ -12509,8 +12540,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
             if (Me%ComputeFaceU(i, j) == Compute) then
             
-                level_left  = Me%myWaterLevel(i, j-1)
-                level_right = Me%myWaterLevel(i, j)
+                waterColumn_left = Me%myWaterColumn(i, j-1)
+                waterColumn_right = Me%myWaterColumn(i, j)
+                
+                topography_left = Me%ExtVar%Topography(i, j-1)
+                topography_right = Me%ExtVar%Topography(i, j)
+                
+                level_left  = waterColumn_left + topography_left
+                level_right = waterColumn_right + topography_right
                     
                 !!Slope
                 if (Me%AdjustSlope) then
@@ -12528,7 +12565,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     !Then, is checked if "margins" occur on the cell of the highest water level
                     !water depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))
+                    MaxBottom = max(Topography_right, Topography_left)
                     
                     !to check which cell to use since areaU depends on higher water level
                     if (level_left .gt. level_right) then
@@ -12567,8 +12604,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                            (HydraulicRadius ** (4./3.)) 
                 
                 !Advection (may be limited to water column height)
-                if ((Me%ComputeAdvectionU(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  .and.   &
-                    (Me%myWaterColumn(i,j-1) .gt. Me%MinimumWaterColumnAdvection)) then
+                if ((Me%ComputeAdvectionU(i,j) == 1) .and. (waterColumn_right .gt. Me%MinimumWaterColumnAdvection)  .and.   &
+                    (waterColumn_left .gt. Me%MinimumWaterColumnAdvection)) then
                     
                     
                     !Face XU(i,j+1). Z U Faces have to be open
@@ -12721,18 +12758,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             !can be in opposite direction of height gradient (AreaU uses the higher water level)              
                             !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
                             if (Me%FaceWaterColumn == WCMaxBottom_) then
-                                MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i, j-1))     
+                                MaxBottom = max(Topography_right, Topography_left)    
                                                             
                                 if (Me%lFlowX(i, j) .gt. 0.0) then           
-                                    WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_left - MaxBottom, 0.0)
                                 else
-                                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_right - MaxBottom, 0.0)
                                 endif
                             elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                                 if (Me%lFlowX(i, j) .gt. 0.0) then           
-                                    WaterDepth = Me%MyWaterColumn(i,j-1)
+                                    WaterDepth = waterColumn_left
                                 else
-                                    WaterDepth = Me%MyWaterColumn(i,j)
+                                    WaterDepth = waterColumn_right
                                 endif                        
                             endif
                         
@@ -12789,6 +12826,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         
         if (MonitorPerformance) call StopWatch ("ModuleRunOff", "DynamicWaveXX_VG")
         
+        !write(*,*) "Saida "
+        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !    write(*,*) "Flow em I J = ", i, j, Me%lFlowX(i, j)
+        !enddo
+        !enddo
         
     end subroutine DynamicWaveXX_VG
     
@@ -12801,9 +12844,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     !Begin---------------------------------------------------------------
         
     if (Me%GridIsConstant) then
-        if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
-            Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            Me%AdjustSlope) then
+        if (Me%UseOptimizations) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveYY_default_CG(LocalDT)
         else
@@ -12811,9 +12852,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             call DynamicWaveYY_CG(LocalDT)
         endif
     else
-        if (Me%FaceWaterColumn == WCMaxBottom_ .and. Me%CalculateCellMargins .and. &
-            Me%CalculateAdvection .and. (.not. Me%NoAdvectionZones) .and. Me%MinimumWaterColumnAdvection == 0.0 .and. &
-            Me%AdjustSlope) then
+        if (Me%UseOptimizations) then
             !Using most common solution. Compute advection everywhere, dont adjust the slope, use WCMaxBottom_ and calculate cell margins.
             call DynamicWaveYY_default_VG(LocalDT)
         else
@@ -13355,7 +13394,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: Slope
-        real                                        :: level_bottom, level_top
+        real                                        :: level_bottom, level_top, waterColumn_bottom, waterColumn_top
+        real                                        :: topography_bottom, topography_top
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
@@ -13377,7 +13417,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_bottom, level_top, &
         !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
-        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter, dVol)
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter, dVol, &
+        !$OMP waterColumn_bottom, waterColumn_top, topography_bottom, topography_top)
         
         !Y
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
@@ -13385,8 +13426,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         do i = ILB, IUB
             if (Me%ComputeFaceV(i, j) == Compute) then
             
-                level_bottom = Me%myWaterLevel(i-1, j)
-                level_top    = Me%myWaterLevel(i, j)
+                waterColumn_bottom = Me%myWaterColumn(i-1, j)
+                waterColumn_top = Me%myWaterColumn(i, j)
+                
+                topography_bottom = Me%ExtVar%Topography(i-1, j)
+                topography_top = Me%ExtVar%Topography(i, j)
+                
+                level_bottom  = waterColumn_bottom + topography_bottom
+                level_top = waterColumn_top + topography_top
                 
                 !!Slope
                 if (Me%AdjustSlope) then
@@ -13406,7 +13453,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%DX
-                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
+                    MaxBottom = max(topography_top, topography_bottom)
 
                     !to check wich cell to use since areaV depends on higher water level
                     if (level_bottom .gt. level_top) then
@@ -13451,8 +13498,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             (HydraulicRadius ** (4./3.))
 
                 !Advection
-                if ((Me%ComputeAdvectionV(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  &
-                     .and. (Me%myWaterColumn(i-1,j) .gt. Me%MinimumWaterColumnAdvection)) then
+                if ((Me%ComputeAdvectionV(i,j) == 1) .and. (waterColumn_top .gt. Me%MinimumWaterColumnAdvection)  &
+                     .and. (waterColumn_bottom .gt. Me%MinimumWaterColumnAdvection)) then
                     
                     !Face YV(i+1,j)
                     if ((Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j) == 2)) then 
@@ -13586,18 +13633,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             !can be in opposite direction of height gradient (AreaU uses the higher)
                             !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
                             if (Me%FaceWaterColumn == WCMaxBottom_) then
-                                MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
+                                MaxBottom = max(topography_top, topography_bottom)
                                                             
                                 if (Me%lFlowY(i, j) .gt. 0.0) then           
-                                    WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_bottom - MaxBottom, 0.0)
                                 else
-                                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_top - MaxBottom, 0.0)
                                 endif                
                             elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                                 if (Me%lFlowY(i, j) .gt. 0.0) then           
-                                    WaterDepth = Me%MyWaterColumn(i-1,j)
+                                    WaterDepth = waterColumn_bottom
                                 else
-                                    WaterDepth = Me%MyWaterColumn(i,j)
+                                    WaterDepth = waterColumn_top
                                 endif                                        
                             endif
                         
@@ -13665,7 +13712,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: Slope
-        real                                        :: level_bottom, level_top
+        real                                        :: level_bottom, level_top, waterColumn_bottom, waterColumn_top
+        real                                        :: topography_bottom, topography_top
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
@@ -13687,7 +13735,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_bottom, level_top, &
         !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
-        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter, dVol)
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter, dVol, &
+        !$OMP waterColumn_bottom, waterColumn_top, topography_bottom, topography_top)
         
         !Y
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
@@ -13695,8 +13744,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         do i = ILB, IUB
             if (Me%ComputeFaceV(i, j) == Compute) then
             
-                level_bottom = Me%myWaterLevel(i-1, j)
-                level_top    = Me%myWaterLevel(i, j)
+                waterColumn_bottom = Me%myWaterColumn(i-1, j)
+                waterColumn_top = Me%myWaterColumn(i, j)
+                
+                topography_bottom = Me%ExtVar%Topography(i-1, j)
+                topography_top = Me%ExtVar%Topography(i, j)
+                
+                level_bottom  = waterColumn_bottom + topography_bottom
+                level_top = waterColumn_top + topography_top
                 
                 !!Slope
                 if (Me%AdjustSlope) then
@@ -13716,7 +13771,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
+                    MaxBottom = max(topography_top, topography_bottom)
 
                     !to check wich cell to use since areaV depends on higher water level
                     if (level_bottom .gt. level_top) then
@@ -13761,8 +13816,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             (HydraulicRadius ** (4./3.))
 
                 !Advection
-                if ((Me%ComputeAdvectionV(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  &
-                     .and. (Me%myWaterColumn(i-1,j) .gt. Me%MinimumWaterColumnAdvection)) then
+                if ((Me%ComputeAdvectionV(i,j) == 1) .and. (waterColumn_top .gt. Me%MinimumWaterColumnAdvection)  &
+                     .and. (waterColumn_bottom .gt. Me%MinimumWaterColumnAdvection)) then
                     
                     !Face YV(i+1,j)
                     if ((Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j) == 2)) then 
@@ -13896,18 +13951,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             !can be in opposite direction of height gradient (AreaU uses the higher)
                             !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
                             if (Me%FaceWaterColumn == WCMaxBottom_) then
-                                MaxBottom = max(Me%ExtVar%Topography(i, j), Me%ExtVar%Topography(i-1, j))
+                                MaxBottom = max(topography_top, topography_bottom)
                                                             
                                 if (Me%lFlowY(i, j) .gt. 0.0) then           
-                                    WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_bottom - MaxBottom, 0.0)
                                 else
-                                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                                    WaterDepth = max(level_top - MaxBottom, 0.0)
                                 endif                
                             elseif (Me%FaceWaterColumn == WCAverageBottom_) then
                                 if (Me%lFlowY(i, j) .gt. 0.0) then           
-                                    WaterDepth = Me%MyWaterColumn(i-1,j)
+                                    WaterDepth = waterColumn_bottom
                                 else
-                                    WaterDepth = Me%MyWaterColumn(i,j)
+                                    WaterDepth = waterColumn_top
                                 endif                                        
                             endif
                         
@@ -15293,7 +15348,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real                                        :: DifLevel
         real                                        :: Slope, AverageCellLength, dVol
         real                                        :: Area, HydraulicRadius, MaxFlow
-        real                                        :: ChannelFreeVolume
+        real                                        :: ChannelFreeVolume, WaterLevel
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
         real   , dimension(:, :), pointer           :: ChannelsNodeLength 
         integer, dimension(:, :), pointer           :: ChannelsActiveState
@@ -15325,7 +15380,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
         
-        !$OMP PARALLEL PRIVATE(I,J, DifLevel, Slope, AverageCellLength, dVol, Area, HydraulicRadius, MaxFlow, ChannelFreeVolume)
+        !$OMP PARALLEL PRIVATE(I,J, DifLevel, Slope, AverageCellLength, dVol, Area, HydraulicRadius, MaxFlow, ChannelFreeVolume, WaterLevel)
 
 
         !X
@@ -15337,12 +15392,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 !Checks for Flow from Land -> Channel
                 AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
-
+                
+                WaterLevel = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
             
-                if (ChannelsWaterLevel (i, j) < Me%myWaterLevel(i, j) .and. Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
+                if (ChannelsWaterLevel (i, j) < WaterLevel .and. Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
 
                     if (ChannelsWaterLevel (i, j) > Me%ExtVar%Topography(i, j)) then
-                        DifLevel           = Me%myWaterLevel(i, j) - ChannelsWaterLevel (i, j)
+                        DifLevel           = WaterLevel - ChannelsWaterLevel (i, j)
                     else
                         DifLevel           = Me%myWaterColumn(i, j)
                     endif
