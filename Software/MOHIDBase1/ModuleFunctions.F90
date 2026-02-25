@@ -79,6 +79,7 @@ Module ModuleFunctions
         module procedure SumMatrixes_R4
         module procedure SumMatrixes_R8
         module procedure Sum2Matrixes_2D_R4R8
+        module procedure Sum2Matrixes_2D_R8
     end interface  SumMatrixes
 
     public  :: SumMatrixes_jik
@@ -2748,7 +2749,49 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
 
     !End-------------------------------------------------------------------------
 
+    !End-------------------------------------------------------------------------
+    
+    subroutine Sum2Matrixes_2D_R8(MatrixA, Size, MatrixB, MatrixC, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :), pointer, intent (INOUT)       :: MatrixA
+        real(8), dimension(:, :), pointer, intent (IN)          :: MatrixB, MatrixC
+        type (T_Size2D)                                         :: Size
+        integer, dimension(:, :), pointer, optional, intent(IN) :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                                 :: i, j, CHUNK
+        !Begin-----------------------------------------------------------------
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "Sum2Matrixes_2D_R4")
+        if (present(MapMatrix)) then
+            CHUNK = CHUNKJ
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i,j) == 1) then
+                    MatrixA(i, j) = MatrixB(i, j) + MatrixC(i, j)
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(STATIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                MatrixA(i, j) = MatrixB(i, j) + MatrixC(i, j)
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL            
+        endif
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "Sum2Matrixes_2D_R8")
+    end subroutine Sum2Matrixes_2D_R8
 
+
+    !End-------------------------------------------------------------------------
+    
     subroutine SumMatrixes_R4(MatrixA, Size, MatrixB)
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
