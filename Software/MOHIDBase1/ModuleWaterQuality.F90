@@ -6044,9 +6044,8 @@ end subroutine WQOxygenCalculation
 
         DTDay   = Me%DTDay
 
-
-
-
+     !Bowie, G.L. et al. (1985). Rates, Constants, and Kinetics Formulations in Surface Water Quality Modeling. 
+     ! EPA/600/3-85/040. U.S. Environmental Protection Agency, Athens, GA.
     !BODOxidationRate, BOD oxidation rate, 1/T
 cd7 :   if (Me%PropCalc%Oxygen) then
             
