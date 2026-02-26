@@ -3019,7 +3019,7 @@ i1:     if (Me%CompareTimeSerieOn) then
         integer           :: n, STAT_CALL
 
 
-        ! 1. Determine FFT length (largest power of 2 = original length)
+        ! 1. Determine FFT length (largest power of 2 < original length)
         aux = log(real(Me%nvalues)) / log(2.0)
         Me%nftt = 2 ** int(aux)
 
