@@ -548,15 +548,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         auxBeginTime = Me%InitialData + Me%DataMatrix(1,1) 
         auxEndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
         
-        if (Me%BeginTime < auxBeginTime) then
-            write(*,*) "Start  synchronisation date can not be older than the sart date of the raw input time serie"
-            stop "Module_TS_Synch - ConstructRawTimeSerie - ERR50"
-        endif        
-         
-        if (Me%EndTime > auxEndTime) then
-            write(*,*) "End synchronisation date can not be newer than the end date of the raw input time serie"
-            stop "Module_TS_Synch - ConstructRawTimeSerie - ERR60"
-        endif
+        !if (Me%BeginTime < auxBeginTime) then
+        !    write(*,*) "Start  synchronisation date can not be older than the sart date of the raw input time serie"
+        !    stop "Module_TS_Synch - ConstructRawTimeSerie - ERR50"
+        !endif        
+        ! 
+        !if (Me%EndTime > auxEndTime) then
+        !    write(*,*) "End synchronisation date can not be newer than the end date of the raw input time serie"
+        !    stop "Module_TS_Synch - ConstructRawTimeSerie - ERR60"
+        !endif
 
         
         do i=1,Me%DataValues
@@ -937,12 +937,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%TimeTSOutPut(1) = Me%BeginTime
         j                  = 1
         
-        do i=1, Me%nValues 
-        
-            if (i<Me%nValues) then
+        do i=1, Me%nValues - 1
                 Me%TimeTSOutPut(i+1) = Me%TimeTSOutPut(i) + Me%DT_Synch             
-            endif
-
         enddo
 
         do i=1, Me%nValues                             
@@ -959,7 +955,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             DT_Gap =  Time2 - Time1            
             
-            if (DT_Gap > Me%GapLimit) then
+            if     (Me%TimeTSOutPut(i) > Time2) then
+                
+                NewValue = Me%FillValue
+                
+            elseif (Me%TimeTSOutPut(i) < Time1) then 
+                
+                NewValue = Me%FillValue                
+            
+            elseif (DT_Gap > Me%GapLimit) then
                 
                 NewValue = Me%FillValue
                 

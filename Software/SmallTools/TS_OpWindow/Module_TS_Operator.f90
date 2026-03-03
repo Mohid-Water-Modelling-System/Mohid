@@ -1370,6 +1370,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 if (AssumeFillValue) then
                     NewValue = Me%TS_Operation(i)%FillValue
+                    variablesvalues(e1,n)  = Me%TS_Operation(i)%FillValue
             
                 else
                     
@@ -1386,7 +1387,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 Me%TS_Operation(i)%TimeSerie(n) =  NewValue
             
-
             enddo     
             
             if (.not. Conditional) then
@@ -1676,33 +1676,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         l = len(Func)
         
-        p1 = scan(Func,"(")
+        p1 = index(Func,"(")
         if (p1 == 0) then
              statusflag = "err_1"
         endif
 
-        p2 = scan(Func,")")
+        !p2 = scan(Func,")")
+        p2 = index(Func, ')', BACK=.TRUE.)
         if (p2 == 0) then
              statusflag = "err_2"
         endif 
         
         
-        v1 = scan(Func,",")
+        v1 = index(Func,",")
         if (v1 == 0) then
              statusflag = "err_3"
         endif 
 
-        v2 = v1 + scan(Func(v1+1:p2),",")
+        v2 = v1 + index(Func(v1+1:p2),",")
         if (v2 == 0) then
              statusflag = "err_4"
         endif 
         
-        v3 = v2 + scan(Func(v2+1:p2),",")        
+        v3 = v2 + index(Func(v2+1:p2),",")        
         if (v3 == 0) then
              statusflag = "err_5"
         endif 
         
-        v4 = v3 + scan(Func(v3+1:p2),",")                
+        v4 = v3 + index(Func(v3+1:p2),",")                
         if (v4 == 0) then
              statusflag = "err_6"
         endif     
