@@ -3162,7 +3162,7 @@ i1:     if (Me%CompareTimeSerieOn) then
             return
         end if
         
-        ! 1. Determine FFT length (largest power of 2 = original length)
+        ! 1. Determine FFT length (largest power of 2 < original length)
         aux = log(real(Me%nvalues)) / log(2.0)
         Me%nftt = 2 ** int(aux)
         if (Me%nftt < 4 .or. Me%nftt > Me%nvalues) then
@@ -3238,7 +3238,9 @@ i1:     if (Me%CompareTimeSerieOn) then
         !Write time serie after band pass filter
 d111:   do i=1, Me%nftt 
 
-            write(iBandPass,*)  Me%TimeTSOutPut(i)-Me%BeginTime, AuxTimeSerie(i)
+            if (Me%FlagTimeSerie(i) > 0 ) then       
+                write(iBandPass,*)  Me%TimeTSOutPut(i)-Me%BeginTime, AuxTimeSerie(i) + Me%ave
+            endif
                 
         enddo d111
             
