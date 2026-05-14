@@ -529,13 +529,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructLongWaveParameters - ModuleLightExtinction - ERR01'
         
         
-!
+        !Low default value to avoid persistent spatial 2dx noise. The user need to calibrate the value  
         call GetData(Me%LongWave%ExtinctionCoef,                                    &
                      Me%ObjEnterData,                                               &
                      iflag,                                                         &
                      SearchType     = FromFile,                                     &
                      keyword        = 'LW_EXTINCTION_COEF',                         &
-                     Default        = 2.9,                                          &
+                     Default        = 0.333,                                        &
                      ClientModule   = 'ModuleLightExtinction',                      &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructLongWaveParameters - ModuleLightExtinction - ERR02'
