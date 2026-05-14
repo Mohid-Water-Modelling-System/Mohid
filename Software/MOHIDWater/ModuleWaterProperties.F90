@@ -771,6 +771,7 @@ Module ModuleWaterProperties
         real                                    :: StoichiometricRatio
         real                                    :: UnitsCoef
         real                                    :: MinConcentrationToFilter
+        real                                    :: Hmin                 = FillValueReal
     end type   T_Filtration
 
     type       T_Reinitialize
@@ -780,6 +781,7 @@ Module ModuleWaterProperties
         real,          dimension(:),   pointer  :: BoxesValues
         integer                                 :: BoxesNumber
         type (T_time), dimension(:),   pointer  :: Dates
+        logical                                 :: Dry                  = .false. 
     end type   T_Reinitialize
 
     type       T_MacroAlgae
@@ -899,6 +901,7 @@ Module ModuleWaterProperties
         logical                                 :: T90Variable          = .false.
         logical                                 :: T90Hours             = .false.
         integer                                 :: T90Var_Method        = FillValueInt
+        logical                                 :: T90_Dry              = .false. 
         logical                                 :: LagSinksSources
         logical                                 :: OxygenSaturation     = .false.
         logical                                 :: CO2_PP_Output        = .false.
@@ -8867,6 +8870,18 @@ case1 : select case(PropertyID)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR265')
 
+            call GetData(NewProperty%evolution%T90_Dry,                                 &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='T90_DRY',                                   &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR268')            
+            endif
+
             if (NewProperty%evolution%T90Variable) then
 
                 call GetData(NewProperty%evolution%T90Var_Method,                       &
@@ -10220,6 +10235,15 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
             if (STAT_CALL /= SUCCESS_)                                                  &
                  call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR71')
 
+            call GetData(NewProperty%Evolution%Filtration%Hmin,                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'H_MIN_TO_FILTER',                            &
+                         Default        = FillValueReal,                                &
+                         SearchType     = FromBlockInBlock,                             &
+                         ClientModule   = 'ModuleWaterProperties',                      &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                 call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR75')
 
             call GetData(NewProperty%Evolution%Filtration%Excretions,                   &
                          Me%ObjEnterData, iflag,                                        &
@@ -10399,11 +10423,23 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         JLB = Me%Size%JLB
         JUB = Me%Size%JUB
 
+        !Check if the user want to reinitialize also the dry cells values
+        call GetData(NewProperty%Evolution%Reinitialize%Dry,                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'REINITIALIZE_DRY',                                 &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR10')
+        endif
+
 
         allocate(NewProperty%Evolution%Reinitialize%BoxCells(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR10')
-
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR20')
+        endif
 
         !Gets name of the Box definition file
         call GetData(FileName,                                                          &
@@ -10412,7 +10448,10 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      keyword      = 'REINITIALIZE_FILENAME',                            &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR30')
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR30')
+        endif
+        
         if (iflag==0)then
             write(*,*)'Box File Name not given'
             call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR40')
@@ -18773,6 +18812,7 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX, ExcretedProperty, GrazedProperty
+        real,   dimension(:,:), pointer         :: WaterColumnZ        
         real                                    :: DT
         real                                    :: FiltrationRate
         real                                    :: OldConcentration
@@ -18791,6 +18831,13 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         JUB             = Me%WorkSize%JUB
         KUB             = Me%WorkSize%KUB
 
+        
+        !WaterColumnZ
+        call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR10')        
+        endif
+        
         !l/h = 0.001m3/3600s
         !UnitsCoef = 0.001/3600.
 
@@ -18811,7 +18858,7 @@ cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
                             write(*,*)'Cant find property to be grazed by filtration'
                             write(*,*)'Property that  grazes by filtration = ', trim(PropertyX%ID%Name)
                             write(*,*)'Property being grazed by filtration = ', trim(GrazedProperty%ID%Name)
-                            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR10')
+                            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR20')
                         endif
 
                     endif
@@ -18845,7 +18892,8 @@ do3:                        do k = kbottom, KUB
                                     AuxConc = GrazedProperty%Concentration(i, j, k)
                                 endif
 
-                                if(AuxConc .gt. PropertyX%Evolution%Filtration%MinConcentrationToFilter)then
+                                if (AuxConc > PropertyX%Evolution%Filtration%MinConcentrationToFilter .and. &
+                                    WaterColumnZ(i, j) >  PropertyX%Evolution%Filtration%Hmin) then
 
                                     !Adapt the filtration rate in a way that the grazeD property concentration
                                     !is consistent with the the grazeR property
@@ -18915,7 +18963,7 @@ do3:                        do k = kbottom, KUB
                         if (STAT_CALL /= SUCCESS_) then
                             write(*,*)'Cant find property to be excreted after filtration'
                             write(*,*)'Property being filtered = ', trim(PropertyX%ID%Name)
-                            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR01')
+                            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR30')
                         endif
 
                         StoichiometricRatio     = PropertyX%Evolution%Filtration%StoichiometricRatio
@@ -18968,6 +19016,11 @@ do3:                        do k = kbottom, KUB
 
         nullify (PropertyX)
 
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR40')        
+        endif
+
 
     end subroutine Filtration_Processes
 
@@ -18980,6 +19033,7 @@ do3:                        do k = kbottom, KUB
         integer                                 :: ILB, IUB, JLB, JUB, KUB, BN
         integer                                 :: i, j, k, kbottom, BoxCells
         integer                                 :: CHUNK
+        logical                                 :: Mapping
 
         !Begin----------------------------------------------------------------------
 
@@ -19013,7 +19067,19 @@ cd2:                    if(Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitial
 do1:                        do j = JLB, JUB
 do2:                        do i = ILB, IUB
 
-cd3:                            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                                Mapping = .false. 
+                                
+                                if (PropertyX%Evolution%Reinitialize%Dry) then
+                                    if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                                        Mapping = .true.
+                                    endif
+                                else
+                                    if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                                        Mapping = .true.
+                                    endif                                        
+                                endif
+                                
+cd3:                            if (Mapping) then
 
                                     kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
@@ -19635,6 +19701,7 @@ do3:            do k = kbottom, KUB
         integer                                     :: i, j, k, Kbottom, STAT_CALL
         integer                                     :: CHUNK
         character(LEN=StringLength)                 :: AuxName
+        logical                                     :: Mapping
         !Begin----------------------------------------------------------------------
 
         ILB = Me%WorkSize%ILB
@@ -19670,7 +19737,19 @@ do1 :   do while (associated(PropertyX))
                     do j=JLB, JUB
                     do i=ILB, IUB
 
+                        Mapping = .false. 
+                                
+                        if (T90%evolution%T90_Dry) then
+                            if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                                Mapping = .true.
+                            endif
+                        else
                         if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                                Mapping = .true.
+                            endif                                        
+                        endif
+                                
+                        if (Mapping) then
 
                             kbottom = Me%ExternalVar%KFloor_Z(i,j)
 
