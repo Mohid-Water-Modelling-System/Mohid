@@ -3124,34 +3124,24 @@ i1:     if (Me%CompareTimeSerieOn) then
     end subroutine ComputePowerSpectralDensity      
       
     !--------------------------------------------------------------------------   
-    
-    !--------------------------------------------------------------------------
-       
     subroutine FilterTimeSeriesFFT
         ! --------------------------------------------------------------------------
-        ! Purpose: Pure band-pass filter of the time series using FFT.
-        !          Keeps ONLY frequency components with periods (in days) 
-        !          strictly between Me%lower_band_period and Me%upper_band_period.
-        !          DC component (mean) is always removed.
-        !          Rectangular window in frequency domain.
-        !          Overwrites Me%timeserie(1:nftt) with the filtered series.
-        !          No PSD, no amplitude, no phase, no frequency output, 
-        !          no file writing — ONLY the filtered time series.
-        ! Assumes: realft_sp follows Numerical Recipes convention.
+        ! Purpose: Pure band-pass filter using FFT with ZERO-PADDING
+        ! - Removes DC component
+        ! - Explicitly subtracts mean BEFORE filtering -> guarantees null average
+        ! - Preserves the ENTIRE raw time series (no truncation)
         ! --------------------------------------------------------------------------
 
-    
-        ! Local variables
         complex (SPC), dimension(:),   allocatable :: FFT
         real     (SP), dimension(:),   allocatable :: AuxTimeSerie
         
-        real    :: aux
         real    :: df
         real    :: freq
         real    :: f_low, f_high
         integer :: j, i
         integer :: alloc_stat, STAT_CALL
-        integer :: n, iBandPass = 0
+        integer :: n, iBandPass
+        integer :: k
         REAL    :: Year, Month, Day, hour, minute, second
     
         character(len = PathLength) :: BandPassFilterFile
@@ -3162,16 +3152,20 @@ i1:     if (Me%CompareTimeSerieOn) then
             return
         end if
         
-        ! 1. Determine FFT length (largest power of 2 < original length)
-        aux = log(real(Me%nvalues)) / log(2.0)
-        Me%nftt = 2 ** int(aux)
-        if (Me%nftt < 4 .or. Me%nftt > Me%nvalues) then
+        ! 1. Next power of 2 >= original length (zero-padding)
+        k = 1
+        do while (k < Me%nvalues)
+            k = k * 2
+        end do
+        Me%nftt = k
+        n = Me%nftt
+
+        if (Me%nftt < 4) then
             write(*,'(a,i0)') "Error: invalid FFT length = ", Me%nftt
             return
         end if
-        n = Me%nftt
         
-        ! 2. Allocate working arrays (only what is needed for filtering)
+        ! 2. Allocate
         allocate(AuxTimeSerie(n), stat=alloc_stat)
         if (alloc_stat /= 0) then
             write(*,'(a)') "Allocation failed: auxtimeserie"
@@ -3184,20 +3178,21 @@ i1:     if (Me%CompareTimeSerieOn) then
             return
         end if
         
-        ! 3. Copy input data (truncate if necessary)
-        AuxTimeSerie(1:n) = Me%timeserie(1:n)
+        ! 3. Copy data + REMOVE MEAN (null average)
+        AuxTimeSerie(1:Me%nvalues) = Me%timeserie(1:Me%nvalues) - Me%ave
+        if (n > Me%nvalues) then
+            AuxTimeSerie(Me%nvalues+1:n) = 0.0_SP
+        end if
 
         ! 4. Forward real FFT
         call realft_sp(data=AuxTimeSerie, isign=1, zdata=FFT)
 
-        ! 5. Frequency resolution [Hz]
+        ! 5. Frequency resolution
         df = 1.0 / (real(n) * Me%dt_analysis)
+        f_low  = 1.0 / (Me%upper_band_period * 86400.0)
+        f_high = 1.0 / (Me%lower_band_period * 86400.0)
         
-        ! Cutoff frequencies [Hz]
-        f_low  = 1.0 / (Me%upper_band_period * 86400.0)   ! lowest kept frequency
-        f_high = 1.0 / (Me%lower_band_period  * 86400.0)   ! highest kept frequency
-            
-        ! 6. Zero everything outside the band (pure band-pass + remove DC)
+        ! 6. Band-pass filter + remove DC
         do j = 1, n/2
             freq = real(j-1) * df
             if (freq < f_low .or. freq > f_high .or. freq < 1.0e-12) then
@@ -3208,13 +3203,12 @@ i1:     if (Me%CompareTimeSerieOn) then
         ! 7. Inverse real FFT
         call realft_sp(data=AuxTimeSerie, isign=-1, zdata=FFT)
 
-        ! 8. Correct scaling (Numerical Recipes realft convention)
+        ! 8. Scaling
         AuxTimeSerie(1:n) = AuxTimeSerie(1:n) * (2.0 / real(n))
         
-        ! 9. Time series output 
+        ! 9. Output (zero-mean band-pass)
          BandPassFilterFile = AddString2FileName(Me%TimeSerieDataFile,"BandPassFilterOut_")
             
-        !Open Output files
         call UnitsManager(iBandPass, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR10'
             
@@ -3234,30 +3228,20 @@ i1:     if (Me%CompareTimeSerieOn) then
             
         write(iBandPass,*) "<BeginTimeSerie>" 
                
-
-        !Write time serie after band pass filter
-d111:   do i=1, Me%nftt 
-
+        do i = 1, Me%nvalues
             if (Me%FlagTimeSerie(i) > 0 ) then       
-                write(iBandPass,*)  Me%TimeTSOutPut(i)-Me%BeginTime, AuxTimeSerie(i) + Me%ave
+                write(iBandPass,*) Me%TimeTSOutPut(i) - Me%BeginTime, AuxTimeSerie(i)
             endif
-                
-        enddo d111
-            
+        enddo
         
         write(iBandPass,*) "<EndTimeSerie>"  
             
-        !closes Output files
         call UnitsManager(iBandPass, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop "ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR60"            
             
-        
         deallocate(AuxTimeSerie, FFT)
             
-        
-
     end subroutine FilterTimeSeriesFFT
-    
     !--------------------------------------------------------------------------    
     
     subroutine ComputePercentileAnalysis             
