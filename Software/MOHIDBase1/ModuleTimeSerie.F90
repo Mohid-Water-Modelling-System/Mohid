@@ -90,6 +90,7 @@ Module ModuleTimeSerie
     public  :: GetTimeSerieTimeOfDataset
     public  :: GetTimeSerieTimeOfNextDataset
     public  :: GetTimeSerieValueForIndex
+    public  :: GetTimeSeriMaxValue
 
     !Destructor
     public  ::  KillTimeSerie
@@ -4415,6 +4416,98 @@ i1:             if (StartIndex == EndIndex) then
 
     !--------------------------------------------------------------------------
     
+    !--------------------------------------------------------------------------
+
+
+    real function GetTimeSeriMaxValue(TimeSerieID, StartTime, EndTime, DataColumn, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        type(T_Time),      intent(IN)               :: StartTime, EndTime
+        integer,           intent(IN)               :: DataColumn
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+        type(T_Time)                                :: StartTimeSerie, EndTimeSerie
+        integer                                     :: StoredColumn, StartIndex, EndIndex, i
+        real                                        :: MaxAux
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StartTimeSerie = Me%InitialData + Me%DataMatrix(1,             1)
+
+            EndTimeSerie   = Me%InitialData + Me%DataMatrix(Me%DataValues, 1)
+            
+            StoredColumn   = Me%FileColumns(DataColumn)      
+            
+            MaxAux         = FillValueReal
+            
+            if (Me%TimeCycle) then
+                
+                GetTimeSeriMaxValue = TimeSerieCycleMax(StartTime, EndTime, StoredColumn) 
+            
+            else
+
+                if (StartTime > EndTime       ) stop 'GetTimeSeriMaxValue - TimeSerie - ERR10'
+                if (StartTime < StartTimeSerie) stop 'GetTimeSeriMaxValue - TimeSerie - ERR20'
+                if (EndTime   > EndTimeSerie  ) stop 'GetTimeSeriMaxValue - TimeSerie - ERR30'
+
+
+                do i = 1, Me%DataValues
+
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= StartTime) then
+                        StartIndex = i
+                        exit
+                    endif
+                enddo
+
+                do i = 1, Me%DataValues
+
+                    if ((Me%InitialData + Me%DataMatrix(i+1, 1)) >= EndTime  ) then
+                        EndIndex = i
+                        exit
+                    endif
+                enddo
+
+
+                do i=StartIndex, EndIndex
+                    
+                    if (Me%DataMatrix(i,StoredColumn) > MaxAux) then
+                        MaxAux = Me%DataMatrix(i,StoredColumn)
+                    endif
+
+                enddo
+                    
+                GetTimeSeriMaxValue = MaxAux
+                
+            endif                
+
+            
+
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+        
+    end function GetTimeSeriMaxValue
+
+    !--------------------------------------------------------------------------    
+    
 
     real function GetTimeSerieCumulativeValue(TimeSerieID, StartTime, EndTime, DataColumn, STAT) 
 
@@ -4604,7 +4697,70 @@ i1:             if ((EndIndex - StartIndex) == 1) then
 
     !--------------------------------------------------------------------------
     
+    !--------------------------------------------------------------------------    
     
+    real function TimeSerieCycleMax(StartTime, EndTime, StoredColumn) 
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                                :: StartTime, EndTime
+        integer                                     :: StoredColumn
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                               :: CurrentTime
+        real                                        :: DTAux, Year, Month, Day, Value1
+        real                                        :: Hour, Minute, Second, MaxAux
+        integer                                     :: JulDay
+
+        !Begin-----------------------------------------------------------------
+
+        MaxAux      = FillValueReal
+        CurrentTime = StartTime
+        
+        DTaux = EndTime - StartTime
+
+        do while (CurrentTime < EndTime) 
+
+            CurrentTime = CurrentTime + DTaux 
+
+            if (CurrentTime > EndTime) then
+                DTaux       = EndTime - CurrentTime
+                CurrentTime = EndTime 
+            endif
+            
+            call ExtractDate(CurrentTime, Year, Month, Day, Hour, Minute, Second)            
+            
+            select case (trim(Me%CharTimeUnits))
+                case ('MINUTES')
+                    !Hours range from   0 h - 23h59 m
+                    !Minutes range from 0 m -  1439 m
+                    Value1 = Me%DataMatrix(int(Hour)*60+int(Minute+1), StoredColumn)            
+                case ('HOURS')
+                    !Hours range from 0 - 23
+                    Value1 = Me%DataMatrix(int(Hour+1), StoredColumn)
+                case ('DAYS')
+                    !Days range from 1 - 366 - Julian Day
+                    call JulianDay(CurrentTime, JulDay)
+                    Value1 = Me%DataMatrix(JulDay,    StoredColumn)
+                case ('MONTHS')
+                    !Month range from 1- 12
+                    Value1 = Me%DataMatrix(int(Month),  StoredColumn)
+                case default
+                    stop 'TimeSerieCycleIntegral - ModuleTimeSerie - ERR01'
+                end select
+
+            if (Value1 > MaxAux) then   
+                MaxAux = Value1
+            endif
+            
+        enddo                        
+                
+        TimeSerieCycleMax = MaxAux
+                
+        
+    end function TimeSerieCycleMax
+
+
+    !--------------------------------------------------------------------------    
     !--------------------------------------------------------------------------
 
     subroutine GetTimeSerieTimeUnits(TimeSerieID, TimeUnits, STAT) 
