@@ -6293,67 +6293,67 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
 
-                if (MonitorPerformance) then
-                    call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
-                endif
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
+        endif
 
-                if(.not. PropertyX%ID%IsParticulate)then
+        if(.not. PropertyX%ID%IsParticulate)then
 
-                    call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
-                                          ConcentrationX    = WaterPropertyConcentration,       &
-                                          PropertyXIDNumber = PropertyX%ID%IDNumber,            &
-                                          PropertyXUnits    = WaterPropertyUnits,               &
-                                          PropertyXISCoef   = WaterPropertyISCoef,              &
-                                          STAT              = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'InitializeFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR01'
+            call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
+                                    ConcentrationX    = WaterPropertyConcentration,       &
+                                    PropertyXIDNumber = PropertyX%ID%IDNumber,            &
+                                    PropertyXUnits    = WaterPropertyUnits,               &
+                                    PropertyXISCoef   = WaterPropertyISCoef,              &
+                                    STAT              = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'InitializeFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR01'
 
-                    CHUNK = CHUNK_I(ILB, IUB)
-                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do i = ILB, IUB
-                    do j = JLB, JUB
+            CHUNK = CHUNK_I(ILB, IUB)
+            !$OMP PARALLEL PRIVATE(i,j,kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do i = ILB, IUB
+            do j = JLB, JUB
 
-                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+                if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
-                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+                    kbottom = Me%ExtWater%KFloor_Z(i, j)
 
-                            PropertyX%WaterConcentration(i,j) = WaterPropertyConcentration(i,j,kbottom) * &
-                                                                WaterPropertyISCoef
-                        end if
-
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-
-                    call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'InitializeFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR02'
+                    PropertyX%WaterConcentration(i,j) = WaterPropertyConcentration(i,j,kbottom) * &
+                                                        WaterPropertyISCoef
                 end if
 
-                if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
-                    CHUNK = CHUNK_I(ILB, IUB)
-                    !$OMP PARALLEL PRIVATE(i,j)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do i = ILB, IUB
-                    do j = JLB, JUB
+            call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'InitializeFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR02'
+        end if
 
-                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
-                            PropertyX%FluxToWater(i,j) = 0.
-                        end if
+        if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
 
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
+            CHUNK = CHUNK_I(ILB, IUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do i = ILB, IUB
+            do j = JLB, JUB
 
+                if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+                    PropertyX%FluxToWater(i,j) = 0.
                 end if
 
-                if (MonitorPerformance) then
-                    call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
-                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+        end if
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
+        endif
 
     end subroutine InitializeFluxesToWaterColumn
 
