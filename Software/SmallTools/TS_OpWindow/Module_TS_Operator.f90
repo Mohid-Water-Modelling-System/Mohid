@@ -1369,7 +1369,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 enddo
             
                 if (AssumeFillValue) then
-                    NewValue = Me%TS_Operation(i)%FillValue
+                    NewValue               = Me%TS_Operation(i)%FillValue
                     variablesvalues(e1,n)  = Me%TS_Operation(i)%FillValue
             
                 else
@@ -1386,7 +1386,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
             
                 Me%TS_Operation(i)%TimeSerie(n) =  NewValue
-            
+                
             enddo     
             
             if (.not. Conditional) then

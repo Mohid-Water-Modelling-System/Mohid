@@ -48,7 +48,7 @@
 !   SIMPLE_OUTPUT               : logical           1           !By default the output is only for the properties
                                                                 !However, if the user considers the 0 option several secondries properties will be output
 !   SIMPLE_WINDOW_OUTPUT        : logical           1           !The same of SIMPLE_OUTPUT but for the windows output option
-
+    
 !   WC_ANOMALY_OUTPUT           : logical           0           !The can connect a 2D output of the maximum value in the water column 
                                                                 
 !   WC_ANOMALY_WINDOW_OUTPUT    : logical           0           !The can connect a 2D output of the maximum value in the water column for all windows output
@@ -972,7 +972,7 @@ Module ModuleWaterProperties
         integer                                 :: WindowsNumber   = 0
         integer,           dimension(:),pointer :: ObjHDF5         => null()
         logical                                 :: Simple          = .false.
-         logical                                :: WC_Anomaly      = .false.  
+        logical                                 :: WC_Anomaly      = .false.  
     end type  T_OutW
 
     type       T_SubModel
@@ -8869,7 +8869,7 @@ case1 : select case(PropertyID)
                              STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR265')
-
+            
             call GetData(NewProperty%evolution%T90_Dry,                                 &
                              Me%ObjEnterData,                                           &
                              iflag,                                                     &
@@ -8902,7 +8902,7 @@ case1 : select case(PropertyID)
 ! Modified by Matthias DELPEY - 09/05/2019 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
                 !     NewProperty%evolution%T90Var_Method /= Chapra) then
-                if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
+                if (NewProperty%evolution%T90Var_Method /= Canteras             .and.   &
                     NewProperty%evolution%T90Var_Method /= Chapra               .and.   &
                     NewProperty%evolution%T90Var_Method /= CtlEcoli             .and.   &
                     NewProperty%evolution%T90Var_Method /= CtlEntero            .and.   &
@@ -10244,7 +10244,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                  call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR75')
-
+            
             call GetData(NewProperty%Evolution%Filtration%Excretions,                   &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'EXCRETIONS',                                 &
@@ -10422,7 +10422,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         IUB = Me%Size%IUB
         JLB = Me%Size%JLB
         JUB = Me%Size%JUB
-
+        
         !Check if the user want to reinitialize also the dry cells values
         call GetData(NewProperty%Evolution%Reinitialize%Dry,                            &
                      Me%ObjEnterData, iflag,                                            &
@@ -10432,7 +10432,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) then
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR10')
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR10')        
         endif
 
 
@@ -10777,7 +10777,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR07')
-
+        
 
     end subroutine Construct_PropertyOutPut
 
@@ -18830,7 +18830,7 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         JLB             = Me%WorkSize%JLB
         JUB             = Me%WorkSize%JUB
         KUB             = Me%WorkSize%KUB
-
+        
         
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)     
@@ -19015,7 +19015,7 @@ do3:                        do k = kbottom, KUB
 
 
         nullify (PropertyX)
-
+        
         call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
             call CloseAllAndStop ('Filtration_Processes - ModuleWaterProperties - ERR40')        
@@ -19066,7 +19066,7 @@ cd2:                    if(Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitial
                             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                        do j = JLB, JUB
 do2:                        do i = ILB, IUB
-
+    
                                 Mapping = .false. 
                                 
                                 if (PropertyX%Evolution%Reinitialize%Dry) then
@@ -19744,7 +19744,7 @@ do1 :   do while (associated(PropertyX))
                                 Mapping = .true.
                             endif
                         else
-                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
                                 Mapping = .true.
                             endif                                        
                         endif
@@ -23727,30 +23727,30 @@ sp:                     if (.not. SimpleOutPut) then
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')
 
-                    if (Me%WriteHDFReal4 .and. .not. present(iW))then
+                    if (Me%WriteHDFReal4 .and. .not. present(iW)) then
 
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
-
-                    call HDF5WriteData(ObjHDF5,                                         &
-                                       trim(AuxGroup)//PropertyX%ID%Name,               &
-                                       PropertyX%ID%Name,                               &
-                                       PropertyX%ID%Units,                              &
+                                            
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           trim(AuxGroup)//PropertyX%ID%Name,           &
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
                                            Array3D      = Me%Output%Aux3Dreal4,         &
                                            OutputNumber = OutPutNumber,                 &
                                            STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR90')
                     else
-
+                                            
                         call HDF5WriteData(ObjHDF5,                                     &
                                            trim(AuxGroup)//PropertyX%ID%Name,           &
                                            PropertyX%ID%Name,                           &
                                            PropertyX%ID%Units,                          &
-                                       Array3D      = PropertyX%Concentration,          &
+                                           Array3D      = PropertyX%Concentration,      &
                                            OutputNumber = OutPutNumber,                 &
                                            STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                          &
-                        call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
                     
                     endif
 
@@ -23949,19 +23949,19 @@ sp3:                if (.not. SimpleOutPut) then
             end if
 
 
-             if (Me%Coupled%SeagrassesLeaves%Yes .and. .not. SimpleOutPut)then
-
-                       call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                  &
-                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
-                                             STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
+            if (Me%Coupled%SeagrassesLeaves%Yes .and. .not. SimpleOutPut)then
+            
+                call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
+                                     WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
                     call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR240')
 
-                        call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass",   &
-                                             "seagrasses leaves biomass", "gdw/m2",                &
-                                             Array2D = Me%SeagrassesLeaves%Biomass,              &
-                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
+                call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass", &
+                                     "seagrasses leaves biomass", "gdw/m2",             &
+                                     Array2D = Me%SeagrassesLeaves%Biomass,             &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
                     call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR250')
 
            endif
@@ -24013,7 +24013,7 @@ sp3:                if (.not. SimpleOutPut) then
     end subroutine OutPut_Results_HDF
 
     !--------------------------------------------------------------------------
-
+    
     subroutine WaterColumnMaxAnomaly(Matrix3D, VerticalZ, Mask, Size, PositiveAnomaly, Value2D, Depth2D)
         !Arguments-------------------------------------------------------------
         real,       dimension(:, :, :), pointer, intent (IN)    :: Matrix3D, VerticalZ

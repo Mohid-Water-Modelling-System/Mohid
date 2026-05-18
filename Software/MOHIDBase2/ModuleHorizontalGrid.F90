@@ -1374,10 +1374,10 @@ iAuto:  if (Me%DDecomp%Auto) then
                             keyword        = 'CHESS_LINES',                             &
                             SearchType     = FromFile,                                  &
                             default        = -99,                                       &
-                         ClientModule   = 'ModuleHorizontalGrid',                       &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
-
+                            ClientModule   = 'ModuleHorizontalGrid',                    &
+                            STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'   
+                
                 call GetData(Value         = Me%DDecomp%ChessColumns,                   &
                             EnterDataID    = Me%ObjEnterData2,                          &
                             flag           = iflag,                                     &
@@ -1409,11 +1409,11 @@ iAuto:  if (Me%DDecomp%Auto) then
         else
 
             call GetData(Value          = Me%DDecomp%NInterfaces,                       &
-                         EnterDataID    = Me%ObjEnterData2,                                 &
-                         flag           = iflag,                                            &
-                         keyword        = 'INTERFACES_NUMBER',                              &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleHorizontalGrid',                             &
+                         EnterDataID    = Me%ObjEnterData2,                             &
+                         flag           = iflag,                                        &
+                         keyword        = 'INTERFACES_NUMBER',                          &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHorizontalGrid',                       &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
 
@@ -1425,9 +1425,9 @@ iAuto:  if (Me%DDecomp%Auto) then
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
 
             !Searches sub-domains blocks
-            call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
-                                         BeginBlock2, EndBlock2, BlockFound,                &
-                                         FirstLine = FirstLine, LastLine = LastLine,        &
+            call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                &
+                                         BeginBlock2, EndBlock2, BlockFound,            &
+                                         FirstLine = FirstLine, LastLine = LastLine,    &
                                          STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
 
@@ -1451,12 +1451,12 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                 do line = FirstLine + 1, LastLine - 1
 
-                    call GetData(Vector         = Aux1D,                                            &
-                                 EnterDataID    = Me%ObjEnterData2,                                 &
-                                 flag           = iflag,                                            &
-                                 SearchType     = FromBlock,                                        &
-                                 ClientModule   = 'ModuleHorizontalGrid',                             &
-                                 Buffer_Line    = line,                                             &
+                    call GetData(Vector         = Aux1D,                                &
+                                 EnterDataID    = Me%ObjEnterData2,                     &
+                                 flag           = iflag,                                &
+                                 SearchType     = FromBlock,                            &
+                                 ClientModule   = 'ModuleHorizontalGrid',               &
+                                 Buffer_Line    = line,                                 &
                                  STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
                     if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
@@ -1528,12 +1528,12 @@ iAuto:  if (Me%DDecomp%Auto) then
 
                 do line = FirstLine + 1, LastLine - 1
 
-                    call GetData(Vector         = Aux1D,                                            &
-                                 EnterDataID    = Me%ObjEnterData2,                                 &
-                                 flag           = iflag,                                            &
-                                 SearchType     = FromBlock,                                        &
-                                 ClientModule   = 'ModuleHorizontalGrid',                             &
-                                 Buffer_Line    = line,                                             &
+                    call GetData(Vector         = Aux1D,                                &
+                                 EnterDataID    = Me%ObjEnterData2,                     &
+                                 flag           = iflag,                                &
+                                 SearchType     = FromBlock,                            &
+                                 ClientModule   = 'ModuleHorizontalGrid',               &
+                                 Buffer_Line    = line,                                 &
                                  STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR350'
                     if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR360'
@@ -1597,10 +1597,10 @@ iAuto:  if (Me%DDecomp%Auto) then
         if (Me%DDecomp%AutomaticDD < 0) then
             !No Automatic decomposition method was defined
             if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
-            call AutomaticDDecompLines  ()
-        else
-            call AutomaticDDecompColumns()
-        endif
+                call AutomaticDDecompLines  ()
+            else
+                call AutomaticDDecompColumns()
+            endif
         elseif (Me%DDecomp%AutomaticDD == Lines_  ) then
 
             call AutomaticDDecompLines      ()

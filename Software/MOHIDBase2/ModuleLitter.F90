@@ -22,7 +22,7 @@ Module ModuleLitter
 !                                                          the litter particles removed from the lagrangian model]
 !<<BeginBeachArea>>
 !   NAME                    : char                        [Beach Area X]
-!   DESCRIPTION                : char                     [Area where litter can beach]
+!   DESCRIPTION             : char                     [Area where litter can beach]
 !   WATER_COLUMN_THRESHOLD  : m                           [water column limit below which litter can beach]
 !   FILENAME                : char                        [file of polygons delimiting the area where litter can beach]
 !   COAST_TYPE              : integer                     [1 - Type A, 2 - Type B, etc.]
@@ -169,7 +169,7 @@ Module ModuleLitter
         real(8), dimension(:), pointer                  :: WaterLevel           => null()
         real(8), dimension(:), pointer                  :: Bathym               => null()
         real(8), dimension(:), pointer                  :: Hs                   => null()
-        real(8), dimension(:), pointer                  :: Tp                   => null()        
+        real(8), dimension(:), pointer                  :: Tp                   => null()  
         logical                                         :: CoastLineON          = .false.
         type (T_polygon), pointer                       :: CoastLine            => null()
     end type T_ExtVar        
@@ -184,7 +184,7 @@ Module ModuleLitter
                 
         
         real(8)                                         :: Age                  = null_real
-        integer                                         :: Origin               = null_int 
+        integer                                         :: Origin               = null_int
         real(8)                                         :: WaterLevel           = null_real
         real(8)                                         :: Bathym               = null_real
         real(8)                                         :: Hs                   = null_real
@@ -224,10 +224,10 @@ Module ModuleLitter
     type T_OutputGrids
         type (T_Output), dimension(:), pointer          :: Individual           => null()           
         integer                                         :: Number               = null_int
-        type (T_Time),   dimension(:), pointer  :: RestartOutTime       => null()
-        integer                                 :: NextRestartOutPut    = null_int
-        logical                                 :: WriteRestartFile     = .false. 
-        logical                                 :: RestartOverwrite     = .false.
+        type (T_Time),   dimension(:), pointer          :: RestartOutTime       => null()
+        integer                                         :: NextRestartOutPut    = null_int
+        logical                                         :: WriteRestartFile     = .false. 
+        logical                                         :: RestartOverwrite     = .false.
     end type T_OutputGrids       
     
     private :: T_Litter
@@ -240,7 +240,7 @@ Module ModuleLitter
         logical                                         :: KillBeachLitter      = .false.  
         
         type (T_Time)                                   :: LastAtualization
-
+        
         logical                                         :: LinkToCoastLineON    = .false. 
 
         type (T_Files)                                  :: Files
@@ -828,7 +828,7 @@ i1:         if (AreasFound) then
                              ClientModule ='ModuleLitter',                              &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBeachAreas - ModuleLitter - ERR30'
- 
+                
                 call GetData(Me%BeachAreas%Individual(nAreas)%FreeLitterProject,        &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -838,8 +838,8 @@ i1:         if (AreasFound) then
                              ClientModule ='ModuleLitter',                              &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBeachAreas - ModuleLitter - ERR40'
+                
 
- 
                 call GetData(Me%BeachAreas%Individual(nAreas)%Beach_WaterColumn,        &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -904,7 +904,7 @@ i1:         if (AreasFound) then
                         
                         if (.not. Me%LinkToCoastLineON) then
                         
-                        call AddBoundBox2Polygon(Me%ExtVar%CoastLine)
+                            call AddBoundBox2Polygon(Me%ExtVar%CoastLine)
                         
                             Me%LinkToCoastLineON = .true. 
                             
@@ -1075,8 +1075,8 @@ i1:         if (AreasFound) then
                              default      = 0.25,                                       &
                              ClientModule ='ModuleLitter',                              &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBeachAreas - ModuleLitter - ERR130'                      
-
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBeachAreas - ModuleLitter - ERR130'     
+                
                 
                 if (UnBeachProb12h <= 0.0) then
                      write(*,*) 'UnBeaching probability in 12 h need to be above 0' 
@@ -1434,9 +1434,9 @@ i1:         if (GridsFound) then
         Me%ExtVar%BeachWL(nP)   = BeachWaterLevel 
         Me%ExtVar%BeachCD(nP)   = BeachCoastDistance 
         
-        NewPartic%BeachWaterLevel = BeachWaterLevel
+        NewPartic%BeachWaterLevel       = BeachWaterLevel
         NewPartic%BeachCoastDistance    = BeachCoastDistance
-
+        
         NewPartic%BeachAreaID   = Me%BeachAreas%Individual(nArea)%ID
         NewPartic%CoastType     = Me%BeachAreas%Individual(nArea)%CoastType       
         NewPartic%BeachPeriod   = 0
@@ -1590,7 +1590,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
     subroutine ModifyLitterWater(ObjLitterID,                                           &
                             nParticles,                                                 &
                             CurrentTime,                                                &
-                                 NextCompute,                                           &
+                            NextCompute,                                                &
                             Longitude,                                                  &
                             Latitude,                                                   &                
                             Age,                                                        &
@@ -1600,7 +1600,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
                             BeachWL,                                                    &        
                             BeachCD,                                                    &                
                             BeachPeriod,                                                &                              
-                            KillPartic,                                                 &    
+                            KillPartic,                                                 &   
                             WaterLevel,                                                 &  
                             Bathym,                                                     &
                             Hs,                                                         &
@@ -1655,7 +1655,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
             Me%ExtVar%BeachWL       => BeachWL            
             Me%ExtVar%BeachCD       => BeachCD                        
             Me%ExtVar%BeachPeriod   => BeachPeriod            
-            Me%ExtVar%KillPartic    => KillPartic      
+            Me%ExtVar%KillPartic    => KillPartic  
             Me%ExtVar%WaterLevel    => WaterLevel
             Me%ExtVar%Bathym        => Bathym
             Me%ExtVar%Hs            => Hs              
@@ -1665,7 +1665,7 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
 
             
             call CheckBeachLitter
-            
+
             call CheckUnBeachLitter
             
             call DeleteOldLitter
@@ -1791,13 +1791,13 @@ d2:                 do nArea = 1, nAreaTotal
                         Point%X = Me%ExtVar%Longitude(nP)
                         Point%Y = Me%ExtVar%Latitude (nP)
 
-i2:                    if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
-
+i2:                     if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
+    
                         
 i6:                         if (Me%BeachAreas%Individual(nArea)%FreeLitterProject) then
                                 !Free litter project beaching method
                                 if (Me%BeachAreas%Individual(nArea)%Beach_WaterColumn) then
-                                call ComputeWaterColumnBeach(nArea,nP, BeachWaterLevel, Me%ExtVar%Beach(nP)) 
+                                    call ComputeWaterColumnBeach(nArea,nP, BeachWaterLevel, Me%ExtVar%Beach(nP)) 
                                     BeachCoastDistance = FillValueReal
                                 endif
                                 
@@ -1811,29 +1811,29 @@ i6:                         if (Me%BeachAreas%Individual(nArea)%FreeLitterProjec
                                 endif                                
                                     
                                 
-else i6 
+                            else i6 
                             !old beach method - simple probability
     
 
-                            call RANDOM_NUMBER(Rand1)
-                                
-i3:                         if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
+                                call RANDOM_NUMBER(Rand1)    
+
+i3:                             if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
                                     Me%ExtVar%Beach(nP) = .true.
                                 endif i3
-                    
+                                                                
                             endif i6
                         endif i2
 
                                 
 i5:                     if (Me%ExtVar%Beach(nP)) then
-                    
+                        
                             call AllocateNewParticle       (NewPartic, nP, nArea, BeachWaterLevel, BeachCoastDistance)
-                                call InsertParticleToBeachList (NewPartic)                    
+                            call InsertParticleToBeachList (NewPartic)                    
                     
-i4:                             if (Me%KillBeachLitter) then
-                                    Me%ExtVar%KillPartic(nP) = .true.
-                                endif i4
-                                                                
+i4:                         if (Me%KillBeachLitter) then
+                                Me%ExtVar%KillPartic(nP) = .true.
+                            endif i4    
+
                             !If the particle is beached do not test other areas (or coast types)
                             exit 
 
@@ -1901,7 +1901,7 @@ i4:                 if (Me%BeachAreas%Individual(nArea)%RunUpEffect) then
     end subroutine ComputeWaterColumnBeach    
 
     !--------------------------------------------------------------------------
-
+    
     subroutine ComputeBeach(nArea,nP, BeachWaterLevel, Beached)        
         !Arguments-------------------------------------------------------------
         integer, intent(in)                         :: nArea, nP
@@ -2093,18 +2093,18 @@ i5:                 if (.not.Me%ExtVar%Beach(nP)) then
         Bathym     = Me%ExtVar%Bathym(nP)
 
         Beached = .true.
-
+        
         CheckUnbeach = .false. 
         
 i1:     if (Me%BeachAreas%Individual(nArea)%Beach_WaterColumn) then
 
 i2:         if (WaterLevel > FillValueReal .and. Bathym > FillValueReal) then
-            WaterColumn =  WaterLevel + Bathym
+                WaterColumn =  WaterLevel + Bathym
             
 i3:             if (WaterColumn > Me%BeachAreas%Individual(nArea)%WaterColumnThreshold) then
-                
+    
                     CheckUnbeach = .true. 
-
+                
                 endif i3
 
             endif i2
@@ -2126,26 +2126,26 @@ i5:         if (WaterLevel > FillValueReal) then
 i6:     if (CheckUnbeach) then
 
 i7:         if (Me%BeachAreas%Individual(nArea)%RunUpEffectUnbeach) then
-                    Hs         = Me%ExtVar%Hs(nP) 
-                    Tp         = Me%ExtVar%Tp(nP) 
-                    m          = Me%BeachAreas%Individual(nArea)%BeachSlope
+                Hs         = Me%ExtVar%Hs(nP) 
+                Tp         = Me%ExtVar%Tp(nP) 
+                m          = Me%BeachAreas%Individual(nArea)%BeachSlope
 
-                    WaterLevel = WaterLevel + WaveRunUpStockdon2006(Hs,Tp,m)  
+                WaterLevel = WaterLevel + WaveRunUpStockdon2006(Hs,Tp,m)  
             endif i7
 
 i8:         if (WaterLevel > BeachWaterLevel) then
                 
-                    call RANDOM_NUMBER(Rand1)
+                call RANDOM_NUMBER(Rand1)
                     
-                    !dt          = Me%ExtVar%BeachPeriod(nP)  
-                    dt          = Me%ExtVar%CurrentTime - Me%LastAtualization   
-                    Tunbeach    = Me%BeachAreas%Individual(nArea)%UnBeachTimeScale
+                !dt          = Me%ExtVar%BeachPeriod(nP)  
+                dt          = Me%ExtVar%CurrentTime - Me%LastAtualization   
+                Tunbeach    = Me%BeachAreas%Individual(nArea)%UnBeachTimeScale
                     
-                    Probability = 1 - exp(-dt/Tunbeach)
+                Probability = 1 - exp(-dt/Tunbeach)
 
 i9:             if (Probability > Rand1) then
                     
-                        Beached = .false.     
+                    Beached = .false.     
                         
                 endif i9
 
@@ -2186,7 +2186,7 @@ i1:         if (Me%ExtVar%Origin(nP) == CurrentPartic%Origin .and.              
 
 
     !--------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     subroutine DeleteUnBeachLitter(nP)        
@@ -2261,7 +2261,7 @@ i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%Age
             
                 !Atualize the particles beach age if not created in this instant (BeachPeriod = 0)            
                 CurrentPartic%BeachPeriod = CurrentPartic%BeachPeriod + DT
-
+                
                 nP = ParticleID(CurrentPartic)
                 
                 if (nP > 0) then
@@ -2271,7 +2271,7 @@ i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%Age
                 endif
 
             endif i2                
-                    
+            
             CurrentPartic => CurrentPartic%Next            
                     
         enddo   d1
@@ -2641,7 +2641,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer     , dimension(:),   pointer   :: ID          
         real        , dimension(:,:), pointer   :: BeachTime
         real(8)     , dimension(:),   pointer   :: Longitude   
-        real(8)     , dimension(:),   pointer   :: Latitude    
+        real(8)     , dimension(:),   pointer   :: Latitude
         real(8)     , dimension(:),   pointer   :: LongEmit
         real(8)     , dimension(:),   pointer   :: LatEmit        
         real(8)     , dimension(:),   pointer   :: Age         
@@ -2670,7 +2670,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         allocate(Origin     (1:nPtotal))
         allocate(BeachAreaID(1:nPtotal))
         allocate(CoastType  (1:nPtotal))         
-        allocate(BeachPeriod(1:nPtotal))                 
+        allocate(BeachPeriod(1:nPtotal))
         allocate(BeachWLevel(1:nPtotal))                         
         allocate(BeachCD    (1:nPtotal))                                 
          
@@ -2775,7 +2775,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Array1D     = Latitude,                                     &
                             STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR50'
-
+        
         PropertyName = "Particle_ID"    
         UnitsName    = "-"        
         
@@ -3121,7 +3121,7 @@ ex:     if (GroupExists) then
                                 Array1D     = BeachPeriod,                                  &
                                 STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR110'        
-        
+
             PropertyName = "Beach_Water_Level"    
             UnitsName    = "m"              
 
@@ -3131,7 +3131,7 @@ ex:     if (GroupExists) then
                                 Array1D     = BeachWLevel,                                  &
                                 STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR120'                   
-        
+            
 
             PropertyName = "Beach_Coast_Distance"    
             UnitsName    = "m"              
@@ -3192,17 +3192,17 @@ ex:     if (GroupExists) then
                 nullify  (CurrentPartic%Next)
                 nullify  (CurrentPartic%Prev)            
             
-                CurrentPartic%Longitude      = Longitude   (nP) 
-                CurrentPartic%Latitude       = Latitude    (nP) 
+                CurrentPartic%Longitude             = Longitude   (nP) 
+                CurrentPartic%Latitude              = Latitude    (nP) 
                 CurrentPartic%LongEmit              = LongEmit    (nP) 
                 CurrentPartic%LatEmit               = LatEmit     (nP) 
                 
-                CurrentPartic%Age            = Age         (nP) 
-                CurrentPartic%ID             = ID          (nP) 
-                CurrentPartic%Origin         = Origin      (nP) 
-                CurrentPartic%BeachAreaID    = BeachAreaID (nP) 
-                CurrentPartic%CoastType      = CoastType   (nP) 
-                CurrentPartic%BeachPeriod    = BeachPeriod (nP) 
+                CurrentPartic%Age                   = Age         (nP) 
+                CurrentPartic%ID                    = ID          (nP) 
+                CurrentPartic%Origin                = Origin      (nP) 
+                CurrentPartic%BeachAreaID           = BeachAreaID (nP) 
+                CurrentPartic%CoastType             = CoastType   (nP) 
+                CurrentPartic%BeachPeriod           = BeachPeriod (nP) 
                 CurrentPartic%BeachWaterLevel       = BeachWLevel (nP)                 
                 CurrentPartic%BeachCoastDistance    = BeachCD     (nP)                                 
             

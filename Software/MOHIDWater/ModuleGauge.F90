@@ -172,7 +172,7 @@ Module ModuleGauge
         integer                             :: UnitGauge                = FillValueInt
         character(LEN = StringLength)       :: FileName                 = null_str
         character(LEN = StringLength)       :: HDFFileTidalComponents   = null_str
-        character(LEN = StringLength)       :: HDFFileTidalComponentsOut= null_str        
+        character(LEN = StringLength)       :: HDFFileTidalComponentsOut= null_str   
         character(LEN = StringLength)       :: HDFPropertyName          = null_str   
         integer                             :: HDFPropertyID            = FillValueInt
         

@@ -129,7 +129,7 @@ Module Module_TS_Synch
         integer                                                 :: InterpolInTime   = null_int
         
         logical                                                 :: AngleProp        = .false. 
-
+        
         real                                                    :: BackwardDT      = null_real
         real                                                    :: ForwardDT       = null_real        
 
@@ -454,7 +454,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%InterpolInTime /= LinearTS_ .and. Me%AngleProp) then
             stop 'Module_TS_Synch - ReadKeywords - ERR230'
         endif
-            
+        
         call GetData(Me%BackwardDT,                                                     &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -972,9 +972,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         j                  = 1
         
         do i=1, Me%nValues - 1
-                Me%TimeTSOutPut(i+1) = Me%TimeTSOutPut(i) + Me%DT_Synch             
+            Me%TimeTSOutPut(i+1) = Me%TimeTSOutPut(i) + Me%DT_Synch             
         enddo
-
+        
         call GetTimeSerieTimeLimits(TimeSerieID = Me%ObjTimeSerie,                          &
                                     StartTime   = StartTimeTS,                              &
                                     EndTime     = EndTimeTS,                                &
@@ -1058,12 +1058,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         
                         NewValue = Me%FillValue 
                     else
-                    
-                        NewValue = GetTimeSerieCumulativeValue(TimeSerieID    = Me%ObjTimeSerie,      &                
-                                                                StartTime      = Me%TimeTSOutPut(i-1), &
-                                                                EndTime        = Me%TimeTSOutPut(i  ), &
-                                                                DataColumn     = Me%DataColumn,        &
-                                                                STAT           = STAT_CALL)
+                                                                            
+                        NewValue = GetTimeSerieCumulativeValue(TimeSerieID  = Me%ObjTimeSerie,      &                
+                                                                StartTime   = Me%TimeTSOutPut(i-1), &
+                                                                EndTime     = Me%TimeTSOutPut(i  ), &
+                                                                DataColumn  = Me%DataColumn,        &
+                                                                STAT        = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) then
                             stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR50"
                         endif

@@ -1741,8 +1741,8 @@ Module ModuleHydrodynamic
                                                      WriteRestartFile   = .false., &
                                                      TimeSerieON        = .false., &
                                                      ProfileON          = .false., &
-                                                    TurbineON           = .false.
-
+                                                     TurbineON          = .false.
+         
          logical                                  :: Corners3D          = .false. 
 
          logical                                  :: Simple             = .false.
@@ -1797,7 +1797,7 @@ Module ModuleHydrodynamic
          real,          dimension(:,:,:), pointer :: Wave3D_FBreakingAccelU, Wave3D_FBreakingAccelV
          real,          dimension(:,:,:), pointer :: Wave3D_FVortexAccelU, Wave3D_FVortexAccelV
          real,          dimension(:,:,:), pointer :: Wave3D_FPressureAccelU, Wave3D_FPressureAccelV
-
+         
          
 
     end type T_OutPut
@@ -8966,7 +8966,7 @@ cd21:   if (Baroclinic) then
                         STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                               &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
-
+        
         !<BeginKeyword>
             !Keyword          : OUTPUT_CORNERS_3D
             !<BeginDescription>
@@ -9020,17 +9020,17 @@ cd21:   if (Baroclinic) then
             stop "OperationalModelDefaultOptions - Hydrodynamic - ERR10"
         endif
 
-            call GetData(Me%ComputeOptions%AssimilaOneField,                            &
-                          Me%ObjEnterData, iflag,                                       &
-                          keyword      = 'ASSIMILA_ONE_FIELD',                          &
-                          default      = .false.,                                       &
-                          SearchType   = FromFile,                                      &
-                          ClientModule = 'ModuleHydrodynamic',                          &
-                          STAT         = STAT_CALL)
+        call GetData(Me%ComputeOptions%AssimilaOneField,                                &
+                        Me%ObjEnterData, iflag,                                         &
+                        keyword      = 'ASSIMILA_ONE_FIELD',                            &
+                        default      = .false.,                                         &
+                        SearchType   = FromFile,                                        &
+                        ClientModule = 'ModuleHydrodynamic',                            &
+                        STAT         = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) then
-                stop "OperationalModelDefaultOptions - Hydrodynamic - ERR20"
-            endif
+        if (STAT_CALL /= SUCCESS_) then
+            stop "OperationalModelDefaultOptions - Hydrodynamic - ERR20"
+        endif
 
         if (Me%ComputeOptions%OperationalDefault) then
 
@@ -13473,7 +13473,7 @@ i1:         if (CoordON) then
         allocate (Me%TidePotential%Beta     (NComp))
         allocate (Me%TidePotential%m        (NComp))
         allocate (Me%TidePotential%L        (0:2  ))
-
+        
         Me%TidePotential%Arguments(1: NComp) = 0.
 
 !
@@ -16196,7 +16196,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.not. associated(Me%Next))then
                 if (Me%ComputeOptions%TwoWay) call ComputeTwoWay(HydrodynamicID)
             endif
-
+            
             !if (Me%ComputeOptions%PressureObject) then
             !    call ComputePressureForces
             !endif
@@ -29038,7 +29038,7 @@ ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.          
             LocalVel2D_X      (:,:) = 0.
             LocalVel2D_Y      (:,:) = 0.
             AssimilaWaterLevel(:,:) = 0.
-
+            
             if (Me%ComputeOptions%AssimilaOneField) then
                 NFieldsSSH = 1
             endif
@@ -29090,8 +29090,8 @@ diL:        do iL =1, NFieldsSSH
                     NFieldsUV3D = 0
                 else
                     !If no barotropic velocities exist is the assumed the first vel3D solution the only one to be read
-                NFieldsUV3D = 1
-            endif
+                    NFieldsUV3D = 1
+                endif
             endif
 
             if (NFieldsUV3D + NFieldsUV2D /= NFieldsSSH) then
@@ -41520,7 +41520,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             AstroArg(K2 ) = 2*h0
 
             AstroArg(M3 ) = -3*s0 + 3*h0 + 180.
-
+            
             !Conversion of Degrees in Radians
             do n = 1, Ncomp
               AstroArg(n) = AstroArg(n) * Pi / 180.
@@ -41563,12 +41563,12 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             AstroArg(S2 ) = 2*s0 - 2*h0
             AstroArg(N2 ) = -   s0 +   p0
             AstroArg(K2 ) = 2*s0
-
-        !Conversion of Degrees in Radians
+            
+            !Conversion of Degrees in Radians
             do n = 1, 11
-          AstroArg(n) = AstroArg(n) * Pi / 180.
-        enddo
-
+              AstroArg(n) = AstroArg(n) * Pi / 180.
+            enddo
+            
 
         endif
 
@@ -52577,7 +52577,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR60'
 
         if (Me%Output%Corners3D) then
-        call Write_HDF5_Format_3D_Corners(ObjHDF5 = ObjHDF5, OutputNumber = Index)
+            call Write_HDF5_Format_3D_Corners(ObjHDF5 = ObjHDF5, OutputNumber = Index)
         endif
 
 

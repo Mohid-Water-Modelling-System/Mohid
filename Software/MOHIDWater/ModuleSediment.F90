@@ -532,18 +532,18 @@ Module ModuleSediment
 
     subroutine ConstructSediment(ModelName,                             &
                                  ObjSedimentID,                         &
-                         ObjGridDataID,                         &
-                         GeometryID,                            &
-                         ObjHorizontalGridID,                   &
-                         ObjHorizontalMapID,                    &
-                         ObjTimeID,                             &
-                         ObjWavesID,                            &
-                         SedimentGridDataID,                    &
-                         SedimentHorizontalMapID,               &
-                         SedimentMapID,                         &
-                         SedGeometryFile,                       &
-                         SedimentGeometryID,                    &
-                         STAT)
+                                 ObjGridDataID,                         &
+                                 GeometryID,                            &
+                                 ObjHorizontalGridID,                   &
+                                 ObjHorizontalMapID,                    &
+                                 ObjTimeID,                             &
+                                 ObjWavesID,                            &
+                                 SedimentGridDataID,                    &
+                                 SedimentHorizontalMapID,               &
+                                 SedimentMapID,                         &
+                                 SedGeometryFile,                       &
+                                 SedimentGeometryID,                    &
+                                 STAT)
 
         !Arguments-------------------------------------------------------------
         character(Len=*)                                :: ModelName    
@@ -1806,7 +1806,7 @@ do1:    do n=1,Me%NumberOfClasses
             PropertyList(naux) = 'Ref_Concentration(kg/m3)_'//trim(adjustl(Me%SandClass(n)%ID%name))
             
         enddo do1
- 
+
         if (Me%Residual%ON) then
             PropertyList(naux+1) = 'DZ_Residual(m)'
         endif
@@ -1815,7 +1815,7 @@ do1:    do n=1,Me%NumberOfClasses
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'TIME_SERIE_LOCATION',                              &
-                     ClientModule = 'ModuleSediment',                                       &
+                     ClientModule = 'ModuleSediment',                                   &
                      Default      = Me%Files%ConstructData,                             &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
@@ -1830,7 +1830,7 @@ do1:    do n=1,Me%NumberOfClasses
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             trim(TimeSerieLocationFile),                                &
-                            PropertyList, "srsed",                                     &
+                            PropertyList, "srsed",                                      &
                             WaterPoints2D = Me%ExternalVar%WaterPoints2D,               &
                             ModelName     = Me%ModelName,                               &            
                             ModelDomain   = ModelDomainLimit,                           & 
@@ -1869,14 +1869,14 @@ do1:    do n=1,Me%NumberOfClasses
                                   
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                
+
                 if (STAT_CALL == OUT_OF_BOUNDS_ERR_) then
                     !Do nothing
                 
                 else
                     if (STAT_CALL /= SUCCESS_) then
-                    stop 'ConstructTimeSerie - ModuleSediment - ERR90'
-                endif                            
+                        stop 'ConstructTimeSerie - ModuleSediment - ERR90'
+                    endif 
                 endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
@@ -2347,7 +2347,7 @@ cd2 :           if (BlockFound) then
         JUB = Me%SedimentSize3D%JUB
         KLB = Me%SedimentSize3D%KLB
         KUB = Me%SedimentSize3D%KUB
-    
+        
         allocate(Me%TotalPercentage(ILB:IUB, JLB:JUB, KLB:KUB))
         Me%TotalPercentage(:,:,:)=0
         
@@ -2368,13 +2368,13 @@ cd2 :           if (BlockFound) then
                 endif
                 
                 do k=WKLB, Me%KTop(i, j)
-                    
-                if (Me%ExternalVar%WaterPoints3D (i,j,k) == WaterPoint) then
                 
-                    Me%TotalPercentage (i, j, k) = Me%CohesiveClass%Field3D (i,j,k)
+                    if (Me%ExternalVar%WaterPoints3D (i,j,k) == WaterPoint) then
+                
+                        Me%TotalPercentage (i, j, k) = Me%CohesiveClass%Field3D (i,j,k)
                                        
-                endif
-            enddo
+                    endif
+                enddo
             enddo
             enddo
         endif    
@@ -2386,19 +2386,19 @@ cd2 :           if (BlockFound) then
                 stop 'CheckPercentageConsistence - ModuleSediment - ERR40'
             endif            
             
-        do k=WKLB, Me%KTop(i, j)
-                    
-            if (Me%ExternalVar%WaterPoints3D (i,j,k) == WaterPoint) then
+            do k=WKLB, Me%KTop(i, j)
+            
+                if (Me%ExternalVar%WaterPoints3D (i,j,k) == WaterPoint) then
                 
-                do n=1,Me%NumberOfClasses
+                    do n=1,Me%NumberOfClasses
                     
-                    Percentage = Me%SandClass(n)%Field3D (i,j,k)
+                        Percentage = Me%SandClass(n)%Field3D (i,j,k)
                         
-                    Me%TotalPercentage (i, j, k) = Me%TotalPercentage (i, j, k) + Percentage  
+                        Me%TotalPercentage (i, j, k) = Me%TotalPercentage (i, j, k) + Percentage  
                     
-                enddo                
-            endif
-        enddo
+                    enddo                
+                endif
+            enddo
             
         enddo
         enddo
@@ -5869,7 +5869,7 @@ do1:    do n=1,Me%NumberOfClasses
             enddo
             enddo
         enddo
-        
+
         if (Me%Residual%ON) then
 
             RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
@@ -5915,7 +5915,7 @@ do1:    do n=1,Me%NumberOfClasses
            SandClass%DM(:, :) = 0.
            
            if (Me%BedloadMethod /= 0) then
-           
+            
                 do j=WJLB, WJUB
                 do i=WILB, WIUB
                     
@@ -7605,7 +7605,7 @@ do1:            do n=1,Me%NumberOfClasses
         integer                                 :: STAT_CALL, n
 
         !Local-----------------------------------------------------------------
-
+        
         !if (MonitorPerformance) call StartWatch ("ModuleSediment", "OutPut_TimeSeries")
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
@@ -8372,7 +8372,7 @@ cd1:    if (ObjSediment_ID > 0) then
                            WaveDirection = Me%ExternalVar%WaveDirection,                 &                           
                            STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleSediment - ERR18'
-
+            
             if (.not. associated(Me%ExternalVar%WavePeriod)) then
                 write(*,*) 'Missing Wave Period'
                 stop 'ReadLockExternalVar - ModuleSediment - ERR40'

@@ -796,7 +796,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (flag == 0) then
                 call null_time(Me%EndTime)
         endif
-
+        
         !ReadsBand Pass Filter option
         call GetData(Me%BandPassFilter,                                                 &
                      Me%ObjEnterData,                                                   &
@@ -1441,7 +1441,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ModifyTimeSeriesFillAll
             
             call ModifyTimeSeriesSmooth
-
+            
             if (Me%BandPassFilter) then
                 call FilterTimeSeriesFFT
             endif
@@ -2995,7 +2995,7 @@ i1:     if (Me%CompareTimeSerieOn) then
     end subroutine ModifyTimeSeriesPatterns    
 
     !--------------------------------------------------------------------------    
-       
+    
     !--------------------------------------------------------------------------   
         
     subroutine ComputePowerSpectralDensity
@@ -3008,13 +3008,13 @@ i1:     if (Me%CompareTimeSerieOn) then
         ! Local variables
         complex (SPC), dimension(:),   allocatable :: FFT
         real     (SP), dimension(:),   allocatable :: AuxTimeSerie
-
+    
         real              :: aux
         real              :: df
         real              :: abs_fft
         real              :: power_bin
         real              :: psd_val
-        integer                 :: j
+        integer           :: j
         integer           :: alloc_stat
         integer           :: n, STAT_CALL
 
@@ -3123,7 +3123,7 @@ i1:     if (Me%CompareTimeSerieOn) then
 
     end subroutine ComputePowerSpectralDensity      
       
-    !--------------------------------------------------------------------------   
+        !--------------------------------------------------------------------------   
     subroutine FilterTimeSeriesFFT
         ! --------------------------------------------------------------------------
         ! Purpose: Pure band-pass filter using FFT with ZERO-PADDING
@@ -3132,26 +3132,26 @@ i1:     if (Me%CompareTimeSerieOn) then
         ! - Preserves the ENTIRE raw time series (no truncation)
         ! --------------------------------------------------------------------------
 
-        complex (SPC), dimension(:),   allocatable :: FFT
-        real     (SP), dimension(:),   allocatable :: AuxTimeSerie
-        
-        real    :: df
-        real    :: freq
-        real    :: f_low, f_high
+        complex (SPC), dimension(:), allocatable :: FFT
+        real (SP),     dimension(:), allocatable :: AuxTimeSerie
+   
+        real :: df
+        real :: freq
+        real :: f_low, f_high
         integer :: j, i
         integer :: alloc_stat, STAT_CALL
         integer :: n, iBandPass
         integer :: k
-        REAL    :: Year, Month, Day, hour, minute, second
-    
+        REAL :: Year, Month, Day, hour, minute, second
+   
         character(len = PathLength) :: BandPassFilterFile
-        
+
         ! 0. Input validation
         if (Me%lower_band_period <= 0.0 .or. Me%lower_band_period >= Me%upper_band_period) then
             write(*,'(a)') "Error: Me%lower_band_period must be > 0 and < Me%upper_band_period"
             return
         end if
-        
+
         ! 1. Next power of 2 >= original length (zero-padding)
         k = 1
         do while (k < Me%nvalues)
@@ -3164,7 +3164,7 @@ i1:     if (Me%CompareTimeSerieOn) then
             write(*,'(a,i0)') "Error: invalid FFT length = ", Me%nftt
             return
         end if
-        
+
         ! 2. Allocate
         allocate(AuxTimeSerie(n), stat=alloc_stat)
         if (alloc_stat /= 0) then
@@ -3177,7 +3177,7 @@ i1:     if (Me%CompareTimeSerieOn) then
             deallocate(AuxTimeSerie)
             return
         end if
-        
+
         ! 3. Copy data + REMOVE MEAN (null average)
         AuxTimeSerie(1:Me%nvalues) = Me%timeserie(1:Me%nvalues) - Me%ave
         if (n > Me%nvalues) then
@@ -3191,58 +3191,58 @@ i1:     if (Me%CompareTimeSerieOn) then
         df = 1.0 / (real(n) * Me%dt_analysis)
         f_low  = 1.0 / (Me%upper_band_period * 86400.0)
         f_high = 1.0 / (Me%lower_band_period * 86400.0)
-        
+
         ! 6. Band-pass filter + remove DC
         do j = 1, n/2
             freq = real(j-1) * df
             if (freq < f_low .or. freq > f_high .or. freq < 1.0e-12) then
                 FFT(j) = cmplx(0.0, 0.0)
             end if
-        enddo   
-        
+        end do
+
         ! 7. Inverse real FFT
         call realft_sp(data=AuxTimeSerie, isign=-1, zdata=FFT)
 
         ! 8. Scaling
         AuxTimeSerie(1:n) = AuxTimeSerie(1:n) * (2.0 / real(n))
-        
+
         ! 9. Output (zero-mean band-pass)
-         BandPassFilterFile = AddString2FileName(Me%TimeSerieDataFile,"BandPassFilterOut_")
-            
+        BandPassFilterFile = AddString2FileName(Me%TimeSerieDataFile, "BandPassFilterOut_")
+       
         call UnitsManager(iBandPass, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR10'
-            
-        open(unit   = iBandPass, file =trim(BandPassFilterFile), form = 'FORMATTED', status = 'UNKNOWN')
-        
-        write(iBandPass,*) "NAME                    : ", trim(Me%TimeSerieName)
-        write(iBandPass,*) "LOCALIZATION_I          : -999999"
-        write(iBandPass,*) "LOCALIZATION_J          : -999999"
-        write(iBandPass,*) "LOCALIZATION_K          : -999999"
+       
+        open(unit = iBandPass, file = trim(BandPassFilterFile), form = 'FORMATTED', status = 'UNKNOWN')
+       
+        write(iBandPass,*) "NAME : ", trim(Me%TimeSerieName)
+        write(iBandPass,*) "LOCALIZATION_I : -999999"
+        write(iBandPass,*) "LOCALIZATION_J : -999999"
+        write(iBandPass,*) "LOCALIZATION_K : -999999"
         call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
-        write(iBandPass,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
-        write(iBandPass,*) "TIME_UNITS              : SECONDS"
-        write(iBandPass,*) "COORD_X    : ", Me%CoordX
-        write(iBandPass,*) "COORD_Y    : ", Me%CoordY
-            
+        write(iBandPass,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA : ", Year, Month, Day, hour, minute, second
+        write(iBandPass,*) "TIME_UNITS : SECONDS"
+        write(iBandPass,*) "COORD_X : ", Me%CoordX
+        write(iBandPass,*) "COORD_Y : ", Me%CoordY
+       
         write(iBandPass,'(A82)') "Time Band_Pass_Filter"
-            
-        write(iBandPass,*) "<BeginTimeSerie>" 
-               
+       
+        write(iBandPass,*) "<BeginTimeSerie>"
+              
         do i = 1, Me%nvalues
-            if (Me%FlagTimeSerie(i) > 0 ) then       
+            if (Me%FlagTimeSerie(i) > 0 ) then
                 write(iBandPass,*) Me%TimeTSOutPut(i) - Me%BeginTime, AuxTimeSerie(i)
             endif
         enddo
-        
-        write(iBandPass,*) "<EndTimeSerie>"  
-            
+       
+        write(iBandPass,*) "<EndTimeSerie>"
+       
         call UnitsManager(iBandPass, FileClose, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop "ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR60"            
-            
+        if (STAT_CALL /= SUCCESS_) stop "ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR60"
+       
         deallocate(AuxTimeSerie, FFT)
-            
+       
     end subroutine FilterTimeSeriesFFT
-    !--------------------------------------------------------------------------    
+!--------------------------------------------------------------------------
     
     subroutine ComputePercentileAnalysis             
 
@@ -3866,7 +3866,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         
         
-            
+
         
         if (Me%PercentileEvolution) then
            

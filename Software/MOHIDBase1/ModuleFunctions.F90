@@ -15301,7 +15301,7 @@ D2:     do I=imax-1,2,-1
         !Arguments----------------------------------------------------
         real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,tmax,dt
         integer,                         intent(IN)      :: nf
-        real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
+        real, dimension(:), allocatable, intent(OUT)     :: ETA, UU
         real, dimension(:), allocatable, intent(OUT)     :: f, s
         logical,                         intent(IN)      :: EqualEnergy
 
@@ -15344,9 +15344,9 @@ D2:     do I=imax-1,2,-1
             else
                 !df =  constant
                 df =  (fmax-fmin) / (nf - 1) 
-            do i =2, nf
-                f(i) = f(i-1) + df
-            enddo
+                do i =2, nf
+                    f(i) = f(i-1) + df
+                enddo
                 
             endif
             

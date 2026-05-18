@@ -348,7 +348,7 @@ Module ModuleReadSWANNonStationary
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_)                                            &
-         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190' 
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190'
         
         call GetData(Me%RepeatFileInTime,                                     &
                      Me%ObjEnterData, iflag,                                  &
@@ -565,7 +565,7 @@ d2:     do l= 1, Me%NumberUnits
     
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-
+            
             read(Me%Unit,*) Me%PropVector
 
             if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 

@@ -7784,9 +7784,9 @@ i2:                 if (Me%Depth%Interpolate) then
                 
                 else
                     
-                Layer = Me%Field(ip)%LayerNumber
-                LayerDim = Me%Field(ip)%LayerDim
-                call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer, LayerDim)         
+                    Layer       = Me%Field(ip)%LayerNumber
+                    LayerDim    = Me%Field(ip)%LayerDim
+                    call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer, LayerDim)        
                 
                 endif
                 
@@ -8653,7 +8653,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         
                         ValueIn%R84D(JLB:JUB,ILB:IUB,1:1,1:1) = AuxR8D4(1:Dim1,1:Dim2,1:Dim3,1:Dim4)
                     
-                        deallocate(AuxR8D4)                    
+                        deallocate(AuxR8D4)         
                         
                     elseif (present(bottom)) then
                         
