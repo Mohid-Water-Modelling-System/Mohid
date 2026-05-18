@@ -307,6 +307,8 @@ Module ModuleField4D
         type (T_Harmonics)                          :: Harmonics
         type (T_MapIn     )                         :: MapIn
         
+        logical                                     :: CyclicMonths         = .false. 
+        
         logical                                     :: RegGrid              = .false. 
         real                                        :: Xorig                = null_real 
         real                                        :: Yorig                = null_real 
@@ -2036,6 +2038,17 @@ wwd1:       if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR200'
+        
+        
+        call GetData(PropField%CyclicMonths,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'HDF_CYCLIC_MONTHS',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR205'
+                
 
         if (iflag == 0 .and. Me%File%Form == HDF5_) then
 
@@ -2242,7 +2255,13 @@ wwd1:       if (Me%WindowWithData) then
     
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR340'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR430'
+        
+        if (PropField%CyclicMonths .and. Me%Backtracking) then
+            write (*,*) 'OPTION HDF_CYCLIC_MONTHS : 1 can not be use together with BACKTRACKING'
+            stop 'ReadOptions - ModuleField4D - ERR440'
+        endif        
+        
 
         if (Me%Upscaling) PropField%Upscaling = .true.
 
@@ -2259,7 +2278,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = FillValueReal,                                      &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR350'   
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR450'   
         if (iflag == 1) then
             PropField%MappingLimitOn = .true.
         else
@@ -2274,7 +2293,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR350'   
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR460'   
 
     end subroutine ReadOptions
 
@@ -3184,7 +3203,7 @@ it:     if (NewPropField%ChangeInTime) then
 
     
 
-    i4:     if(NewPropField%SpaceDim == Dim2D)then
+    i4:     if(NewPropField%SpaceDim == Dim2D) then
 
                 ILB = Me%Size2D%ILB
                 IUB = Me%Size2D%IUB
@@ -3559,8 +3578,58 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer      , intent(OUT)                      :: n
         !Local----------------------------------------------------------------
         logical                                         :: ReadNewField_
+        real                                            :: Year, Month, Day, Hour, Minute, Second
+        real                                            :: PrevMonth, NextMonth, PrevYear, NextYear
 
         !Begin----------------------------------------------------------------
+        
+        if (PropField%CyclicMonths) then
+            
+            ReadNewField = .true.
+            n = 1
+            
+            call ExtractDate(Me%CurrentTimeInt, Year, Month, Day, Hour, Minute, Second)
+        
+            PrevYear = Year
+            NextYear = Year
+        
+            if (Day >= 15) then
+                if ( Month < 12)  then            
+                    PrevMonth  = Month
+                    NextMonth  = Month + 1
+                else
+                    PrevMonth = 12
+                    NextMonth = 1
+                    NextYear  = Year + 1                
+                endif
+            
+            else
+                if ( Month > 1)  then
+                     PrevMonth  = Month - 1
+                     NextMonth  = Month
+                        
+                else    
+                    PrevMonth = 12
+                    NextMonth = 1
+                    PrevYear  = Year - 1
+                endif
+            endif
+
+            PropField%PreviousInstant = PrevMonth
+            PropField%NextInstant     = NextMonth
+        
+
+            call SetDate(PropField%PreviousTime, Year   = PrevYear, Month  = PrevMonth,    & 
+                                                  Day    = 15.     , Hour   = 0.,           &
+                                                  Minute = 0.      , Second = 0.)
+
+            call SetDate(PropField%NextTime,     Year   = NextYear, Month  = NextMonth,    & 
+                                                  Day    = 15.     , Hour   = 0.,           &
+                                                  Minute = 0.      , Second = 0.)
+            
+            return
+            
+        endif
 
         ReadNewField_ = .false.
         if (Me%BackTracking) then
@@ -3570,9 +3639,11 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         endif
 
         ReadNewField = ReadNewField_
+        
+        
 
         if (ReadNewField_)then
-
+            
             n = 0
 
             do
@@ -3627,7 +3698,8 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             endif
 
         endif
-
+        
+        
     end function ReadNewField
 
     !-------------------------------------------------------------------------

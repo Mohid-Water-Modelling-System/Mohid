@@ -490,7 +490,7 @@ Module ModuleFillMatrix
         real                                        :: HarmonicsDT          = null_real
         logical                                     :: SpatialInterpolON    = .false.
         logical                                     :: InterpolOnlyVertically = .false.
-        logical                                     :: GenericYear          = .false.
+        logical                                     :: CyclicMonths         = .false.
         logical                                     :: Upscaling            = .false.
         integer                                     :: UpscalingMethod      =  1 !Volume weighted average Sobrinho
         integer                                     :: Ncells
@@ -6801,16 +6801,30 @@ if4D:          if (CurrentHDF%Field4D) then
                 else i1
 
     i2:             if(CurrentHDF%NumberOfInstants > 1)then
-
-    i3:                 if (Me%PredictDTMethod == 2) then
-                            call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
-                        else i3
-                            call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
-                        endif i3
+        
+                        if (CurrentHDF%CyclicMonths) then
+                        
+                            if (CurrentHDF%NumberOfInstants /= 12) then
+                                write (*,*) 'If option HDF_CYCLIC_MONTHS is ON'
+                                write (*,*) 'the hdf5 file can only have 12 instants one for each month'
+                                stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
+                            endif
+                            
+                            call ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)
+                
+                        else         
+        
+i3:                         if (Me%PredictDTMethod == 2) then
+                                call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
+                            else i3
+                                call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
+                            endif i3
+                            
+                        endif
 
                     elseif(CurrentHDF%NumberOfInstants == 1)then i2
 
-                        call ConstructHDFOneInstant(Now, CurrentHDF)
+                        call ConstructHDFOneInstant(CurrentHDF)
 
                     else i2
                         write(*,*)
@@ -7234,7 +7248,7 @@ i0:     if(Me%Dim == Dim2D)then
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
-
+                
                 if (.not. CurrentHDF%Field4D .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                     write (*,*) 'You are running in parallel in domain decomposition mode'
@@ -7264,15 +7278,15 @@ i0:     if(Me%Dim == Dim2D)then
 
 
                 if (CurrentHDF%Field4D) then
-                    call GetData(CurrentHDF%Extrapolate,                                            &
-                                 Me%ObjEnterData , iflag,                                       &
-                                 SearchType   = ExtractType,                                    &
-                                 keyword      = 'EXTRAPOLATE',                                  &
-                                 default      = .false.,                                        &
-                                 ClientModule = 'ModuleFillMatrix',                             &
+                    call GetData(CurrentHDF%Extrapolate,                                &
+                                 Me%ObjEnterData , iflag,                               &
+                                 SearchType   = ExtractType,                            &
+                                 keyword      = 'EXTRAPOLATE',                          &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleFillMatrix',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
-
+                    
                     if (.not. CurrentHDF%Extrapolate .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                         write (*,*) 'You are running in parallel in domain decomposition mode'
@@ -7283,16 +7297,16 @@ i0:     if(Me%Dim == Dim2D)then
                     endif
 
                     !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
-                    call GetData(CurrentHDF%ExtrapolateMethod,                              &
-                                 Me%ObjEnterData , iflag,                                   &
-                                 SearchType   = ExtractType,                                &
-                                 keyword      = 'EXTRAPOLATE_METHOD',                       &
-                                 default      = ExtrapolAverage_,                           &
-                                 ClientModule = 'ModuleFillMatrix',                         &
+                    call GetData(CurrentHDF%ExtrapolateMethod,                          &
+                                 Me%ObjEnterData , iflag,                               &
+                                 SearchType   = ExtractType,                            &
+                                 keyword      = 'EXTRAPOLATE_METHOD',                   &
+                                 default      = ExtrapolAverage_,                       &
+                                 ClientModule = 'ModuleFillMatrix',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR290'
 
-                    if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
+                    if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.          &
                         CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
                         stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR300'
                     endif
@@ -7302,7 +7316,7 @@ i0:     if(Me%Dim == Dim2D)then
                     elseif (ExtractType == FromBlockInBlock) then
                         call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)
                     endif
-
+                    
                     
                     call GetData(CurrentHDF%NoDataDefaultValue,                         &
                                  Me%ObjEnterData , iflag,                               &
@@ -7362,7 +7376,7 @@ i0:     if(Me%Dim == Dim2D)then
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'
-
+                
                 
                 if (.not. CurrentHDF%SpatialInterpolON .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
@@ -7388,19 +7402,21 @@ i0:     if(Me%Dim == Dim2D)then
 
                 endif
 
-                call GetData(CurrentHDF%GenericYear,                                            &
+                call GetData(CurrentHDF%CyclicMonths,                                           &
                              Me%ObjEnterData , iflag,                                           &
                              SearchType   = ExtractType,                                        &
-                             keyword      = 'GENERIC_YEAR',                                     &
+                             keyword      = 'HDF_CYCLIC_MONTHS',                                &
                              default      = .false.,                                            &
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR340'
-
-                if (CurrentHDF%GenericYear) then
-                    CurrentHDF%CyclicTimeON = .true.
+                
+                if (CurrentHDF%CyclicMonths .and. Me%Backtracking) then
+                    write (*,*) 'OPTION HDF_CYCLIC_MONTHS : 1 can not be use together with BACKTRACKING'
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR350'
                 endif
-
+                
+                
                 CurrentHDF%Upscaling = Upscaling
                 !Sobrinho
                 if (CurrentHDF%Upscaling) then
@@ -7844,10 +7860,9 @@ ifMS:       if (MasterOrSlave) then
 
     !-----------------------------------------------------------------------------------
 
-    subroutine ConstructHDFOneInstant(Now, CurrentHDF)
+    subroutine ConstructHDFOneInstant(CurrentHDF)
 
          !Arguments------------------------------------------------------------
-        type(T_Time)                                    :: Now
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
 
@@ -7859,18 +7874,6 @@ ifMS:       if (MasterOrSlave) then
 
         CurrentHDF%PreviousTime     = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
 
-        !if(CurrentHDF%GenericYear)then
-            !call SetHDFGenericYear(CurrentHDF%PreviousTime, Now)
-        !endif
-
-        if (CurrentHDF%CyclicTimeON) then
-            call SetHDFCyclicDates(TimeInstant  = CurrentHDF%PreviousTime,                  &
-                                   RefTime      = Now,                                      &
-                                   CurrentHDF   = CurrentHDF)
-
-            CurrentHDF%StartTime = Me%BeginTime
-            CurrentHDF%EndTime   = Me%EndTime
-        endif
 
         CurrentHDF%NextTime         = CurrentHDF%PreviousTime
 
@@ -7886,6 +7889,60 @@ ifMS:       if (MasterOrSlave) then
     !-----------------------------------------------------------------------------------
 
 
+    subroutine ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)
+
+         !Arguments------------------------------------------------------------
+        type(T_Time)                                    :: Now
+        type(T_Field4D)                                 :: CurrentHDF
+        !Local-----------------------------------------------------------------
+
+        real                                            :: Year, Month, Day, Hour, Minute, Second
+        real                                            :: PrevMonth, NextMonth, PrevYear, NextYear
+        !Begin-----------------------------------------------------------------
+        
+        call ExtractDate(Now, Year, Month, Day, Hour, Minute, Second)
+        
+        PrevYear = Year
+        NextYear = Year
+        
+        if (Day >= 15) then
+            if ( Month < 12)  then            
+                PrevMonth  = Month
+                NextMonth  = Month + 1
+            else
+                PrevMonth = 12
+                NextMonth = 1
+                NextYear  = Year + 1                
+            endif
+            
+        else
+            if ( Month > 1)  then
+                 PrevMonth  = Month - 1
+                 NextMonth  = Month
+                        
+            else    
+                PrevMonth = 12
+                NextMonth = 1
+                PrevYear  = Year - 1
+            endif
+        endif
+
+        CurrentHDF%PreviousInstant = PrevMonth
+        CurrentHDF%NextInstant     = NextMonth
+        
+
+        call SetDate(CurrentHDF%PreviousTime, Year   = PrevYear, Month  = PrevMonth,    & 
+                                              Day    = 15.     , Hour   = 0.,           &
+                                              Minute = 0.      , Second = 0.)
+
+        call SetDate(CurrentHDF%NextTime,     Year   = NextYear, Month  = NextMonth,    & 
+                                              Day    = 15.     , Hour   = 0.,           &
+                                              Minute = 0.      , Second = 0.)
+
+    end subroutine ActualizeHDF_12_CyclicMonths
+
+    !-----------------------------------------------------------------------------------    
+
     subroutine ConstructHDFPredictDTMethod1(Now, CurrentHDF)
 
          !Arguments------------------------------------------------------------
@@ -7893,7 +7950,6 @@ ifMS:       if (MasterOrSlave) then
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
         logical                                         :: FoundSecondInstant
-        real                                            :: StartTimeYear, EndTimeYear
         !Begin-----------------------------------------------------------------
 
         if (Me%Backtracking) then
@@ -7906,19 +7962,6 @@ ifMS:       if (MasterOrSlave) then
 
         CurrentHDF%PreviousTime         = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
 
-        !if(CurrentHDF%GenericYear)then
-        !    call SetHDFGenericYear(CurrentHDF%PreviousTime, RefTime = Now)
-        !endif
-
-        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%PreviousTime,                  &
-                               RefTime      = Now,                                      &
-                               CyclicTimeON = CurrentHDF%CyclicTimeON,                  &
-                               CurrentHDF   = CurrentHDF)
-
-         if (CurrentHDF%CyclicTimeON .and. .not. CurrentHDF%GenericYear) then
-            CurrentHDF%StartTime = Me%BeginTime
-            CurrentHDF%EndTime   = Me%EndTime
-         endif
 
 ib:     if (Me%BackTracking) then
 
@@ -7952,26 +7995,6 @@ ib:     if (Me%BackTracking) then
                 stop      'ConstructHDFPredictDTMethod1 - ModuleFillMatrix - ERR30'
             end if
 
-            if(CurrentHDF%GenericYear)then
-
-                call SetHDFGenericYear(CurrentHDF%EndTime,   RefTime = Me%EndTime)
-                call SetHDFGenericYear(CurrentHDF%StartTime, RefTime = Me%BeginTime)
-
-                call ExtractDate(CurrentHDF%StartTime, Year = StartTimeYear)
-                call ExtractDate(CurrentHDF%EndTime,   Year = EndTimeYear  )
-
-                if(StartTimeYear .ne. EndTimeYear)then
-                    write(*,*)
-                    write(*,*)'When using a generic year HDF5 file'
-                    write(*,*)'The year of the start time has to be the same as'
-                    write(*,*)'the year of the end time'
-                    write(*,*)'Matrix name: '//trim(CurrentHDF%FieldName)
-                    stop      'ConstructHDFPredictDTMethod1 - ModuleFillMatrix - ERR40'
-                endif
-
-            endif
-
-
             if(Me%TimeEvolution .ne. None)then
                 if(CurrentHDF%EndTime .lt. Me%EndTime)then
                     write(*,*)
@@ -7996,24 +8019,8 @@ d2:      do while(.not. FoundSecondInstant)
                 CurrentHDF%NextInstant      = CurrentHDF%NextInstant + 1
             endif
 
-            !if (CurrentHDF%CyclicTimeON .and. CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants) then
-            !    CurrentHDF%NextInstant  = 1
-            !end if
-
-
             CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
-
-
-            !if(CurrentHDF%GenericYear)then
-            !    call SetHDFGenericYear(CurrentHDF%NextTime, Now)
-            !endif
-
-            if (CurrentHDF%CyclicTimeON) then
-                call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,                  &
-                                       RefTime      = Now,                                  &
-                                       CurrentHDF   = CurrentHDF)
-            endif
-
+ 
             if (Me%Backtracking) then
                 if(CurrentHDF%PreviousTime .ge. Now .and. CurrentHDF%NextTime .le. Now) then
                     FoundSecondInstant  = .true.
@@ -8028,7 +8035,7 @@ d2:      do while(.not. FoundSecondInstant)
             CurrentHDF%PreviousTime = CurrentHDF%NextTime
 
             if (Me%Backtracking) then
-                if(CurrentHDF%NextInstant .lt. 1 .and. .not. CurrentHDF%CyclicTimeON) then
+                if(CurrentHDF%NextInstant .lt. 1) then
                     write(*,*)
                     write(*,*)'----------Backtracking mode-----------------'
                     write(*,*)'Could not read solution from HDF5 file'
@@ -8038,7 +8045,7 @@ d2:      do while(.not. FoundSecondInstant)
                 end if
 
             else
-                if(CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants .and. .not. CurrentHDF%CyclicTimeON) then
+                if(CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants) then
                     write(*,*)
                     write(*,*)'Could not read solution from HDF5 file'
                     write(*,*)'Could not find second instant in file'
@@ -8069,6 +8076,7 @@ d2:      do while(.not. FoundSecondInstant)
         if (Me%Backtracking) then
             stop 'ConstructHDFPredictDTMethod2 - ModuleFillMatrix - ERR10'
         endif
+        
 
         CurrentHDF%PreviousInstant = 1
         CurrentHDF%PreviousTime    = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
@@ -8592,10 +8600,6 @@ if4D:   if (CurrentHDF%Field4D) then
         call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,                &
                                       Hour = Hour, Minute = Minute, Second = Second)
 
-        !!David
-        !!This does not make sense. get info from hdf but this routine is called from profileTimeSerie and ProfileTSDefault
-        if(Me%HDF%GenericYear) Year = CyclicTime
-
         if (Year == CyclicTime) then
 
             if (present(CyclicTimeON)) CyclicTimeON = .true.
@@ -8629,115 +8633,6 @@ if4D:   if (CurrentHDF%Field4D) then
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine SetHDFCyclicDates(TimeInstant, RefTime, RestartCycle, CyclicTimeON, CurrentHDF)
-
-        !Arguments-------------------------------------------------------------
-        type(T_Time)                            :: TimeInstant
-        type(T_Time)                            :: RefTime
-        logical     , optional, intent(IN)      :: RestartCycle
-        logical     , optional, intent(OUT)     :: CyclicTimeON
-        type(T_Field4D)                         :: CurrentHDF
-
-        !Local-----------------------------------------------------------------
-        logical                                 :: RestartCycle_
-        logical                                 :: CyclicTimeON_
-        real, dimension(6)                      :: AuxTime, AuxTimeRef
-        integer                                 :: i
-
-        !Begin-----------------------------------------------------------------
-
-        call ExtractDate(TimeInstant, Year      = AuxTime(1),                           &
-                                      Month     = AuxTime(2),                           &
-                                      Day       = AuxTime(3),                           &
-                                      Hour      = AuxTime(4),                           &
-                                      Minute    = AuxTime(5),                           &
-                                      Second    = AuxTime(6))
-
-        if(CurrentHDF%GenericYear) AuxTime(1) = CyclicTime
-
-        if (present(RestartCycle)) then
-            RestartCycle_ = RestartCycle
-        else
-            RestartCycle_ = .false.
-        endif
-
-        if (AuxTime(1) == CyclicTime) then
-            CyclicTimeON_  = .true.
-        else
-            CyclicTimeON_  = .false.
-        endif
-
-        if (present(CyclicTimeON)) CyclicTimeON = CyclicTimeON_
-
-i1:     if (CyclicTimeON_) then
-
-            call ExtractDate(RefTime, Year      = AuxTimeRef(1),                        &
-                                      Month     = AuxTimeRef(2),                        &
-                                      Day       = AuxTimeRef(3),                        &
-                                      Hour      = AuxTimeRef(4),                        &
-                                      Minute    = AuxTimeRef(5),                        &
-                                      Second    = AuxTimeRef(6))
-d1:         do i=1,6
-                if (AuxTime(i) == CyclicTime) then
-                    AuxTime(i) = AuxTimeRef(i)
-                else
-                    if (RestartCycle_) then
-                        if (AuxTimeRef(i) > AuxTime(i)) then
-                            AuxTime(i-1) = AuxTime(i-1) + 1
-                        endif
-                    endif
-                    exit
-                endif
-            enddo d1
-
-        endif i1
-
-        call SetDate    (TimeInstant, Year      = AuxTime(1),                           &
-                                      Month     = AuxTime(2),                           &
-                                      Day       = AuxTime(3),                           &
-                                      Hour      = AuxTime(4),                           &
-                                      Minute    = AuxTime(5),                           &
-                                      Second    = AuxTime(6))
-
-    end subroutine SetHDFCyclicDates
-
-    !--------------------------------------------------------------------------
-
-
-    subroutine SetHDFGenericYear(TimeInstant, RefTime, AddYear)
-
-        !Arguments-------------------------------------------------------------
-        type(T_Time)                            :: TimeInstant
-        type(T_Time)                            :: RefTime
-        logical, optional                       :: AddYear
-
-        !Local-----------------------------------------------------------------
-        real                                    :: Year, Month, Day, Hour, Minute, Second
-        logical                                 :: AddYear_
-
-        !Begin-----------------------------------------------------------------
-
-        call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,       &
-                                      Hour = Hour, Minute = Minute, Second = Second)
-
-        call ExtractDate(RefTime, Year = Year)
-
-        if(present(AddYear))then
-            AddYear_ = AddYear
-        else
-            AddYear_ = .false.
-        end if
-
-        if(AddYear_)Year = Year + 1
-
-        call SetDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,           &
-                                  Hour = Hour, Minute = Minute, Second = Second)
-
-    end subroutine SetHDFGenericYear
-
-    !--------------------------------------------------------------------------
 
     real function HDF5Generic4DInstant(Instant, CurrentHDF)
 
@@ -9222,7 +9117,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                 !NeedToExtrapolate = .true.
                                 do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                                     if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-                                Matrix3D(i, j, k) = Me%DefaultValue(1)
+                                        Matrix3D(i, j, k)   = Me%DefaultValue(1)
                                     endif
                                 enddo                                
                             else
@@ -9294,8 +9189,8 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                 if (CurrentHDF%NoDataDefaultValue) then
                                     Matrix3D(i, j, k) = Me%DefaultValue(1)
                                 else
-                                write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
-                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
+                                    write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
+                                    stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
                                 endif
                             endif
                         else
@@ -12380,83 +12275,69 @@ i2:         if (Me%PredictDTMethod == 2) then
         ReadNewField = ReadNewField_
 
         if (ReadNewField_)then
+            
+            if (CurrentHDF%CyclicMonths) then
+                        
+                call ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)            
+                
+                n = 1
+            
+            else
 
-            n = 0
+                n = 0
 
-            do
+                do
 
-                !Backtracking time inversion is also done in the ModuleField4D
-                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                    if (Now .gt. CurrentHDF%NextTime) exit
-                else
-                    if (Now .lt. CurrentHDF%NextTime) exit
-                endif
-
-                CurrentHDF%PreviousInstant  = CurrentHDF%NextInstant
-
-                !Backtracking time inversion is also done in the ModuleField4D
-                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                    if(CurrentHDF%NextInstant .gt. 1)then
-                        CurrentHDF%NextInstant  = CurrentHDF%NextInstant - 1
+                    !Backtracking time inversion is also done in the ModuleField4D
+                    if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                        if (Now .gt. CurrentHDF%NextTime) exit
                     else
-                        exit
+                        if (Now .lt. CurrentHDF%NextTime) exit
                     endif
-                else
-                    if(CurrentHDF%NextInstant .lt. CurrentHDF%NumberOfInstants)then
-                        CurrentHDF%NextInstant  = CurrentHDF%NextInstant + 1
+
+                    CurrentHDF%PreviousInstant  = CurrentHDF%NextInstant
+
+                    !Backtracking time inversion is also done in the ModuleField4D
+                    if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                        if(CurrentHDF%NextInstant .gt. 1)then
+                            CurrentHDF%NextInstant  = CurrentHDF%NextInstant - 1
+                        else
+                            exit
+                        endif
                     else
-                        !if (CurrentHDF%GenericYear) then
-                        if (CurrentHDF%CyclicTimeON) then
-                            CurrentHDF%NextInstant  = 1
+                        if(CurrentHDF%NextInstant .lt. CurrentHDF%NumberOfInstants)then
+                            CurrentHDF%NextInstant  = CurrentHDF%NextInstant + 1
                         else
                             exit
                         endif
                     endif
+
+                    CurrentHDF%PreviousTime     = CurrentHDF%NextTime
+                    CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
+
+                    n = n + 1
+
+
+                enddo
+
+                !Backtracking time inversion is also done in the ModuleField4D
+                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                    if(Now .lt. CurrentHDF%NextTime)then
+                        write(*,*)
+                        write(*,*)'----------Backtracking mode-----------'
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'Time instants inconsistency.'
+                        stop      'ReadNewField - ModuleFillMatrix - ERR20'
+                    end if
+                else
+                    if(Now .gt. CurrentHDF%NextTime)then
+                        write(*,*)
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'Time instants inconsistency.'
+                        stop      'ReadNewField - ModuleFillMatrix - ERR30'
+                    end if
                 endif
-
-                CurrentHDF%PreviousTime     = CurrentHDF%NextTime
-                CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
-
-                !if (CurrentHDF%GenericYear) then
-                if (CurrentHDF%CyclicTimeON) then
-                    if(CurrentHDF%NextInstant > 1)then
-                        !call SetHDFGenericYear(CurrentHDF%NextTime, Now)
-                        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,          &
-                                               RefTime      = Now,                          &
-                                               CurrentHDF   = CurrentHDF)
-                    else
-                        !call SetHDFGenericYear(CurrentHDF%NextTime, Now, AddYear = .true.)
-                        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,          &
-                                               RefTime      = Now,                          &
-                                               RestartCycle = .true.,                       &
-                                               CurrentHDF   = CurrentHDF)
-
-                    endif
-                endif
-
-                n = n + 1
-
-
-            enddo
-
-            !Backtracking time inversion is also done in the ModuleField4D
-            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                if(Now .lt. CurrentHDF%NextTime)then
-                    write(*,*)
-                    write(*,*)'----------Backtracking mode-----------'
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'Time instants inconsistency.'
-                    stop      'ReadNewField - ModuleFillMatrix - ERR20'
-                end if
-            else
-                if(Now .gt. CurrentHDF%NextTime)then
-                    write(*,*)
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'Time instants inconsistency.'
-                    stop      'ReadNewField - ModuleFillMatrix - ERR30'
-                end if
             endif
-
         endif
 
     end function ReadNewField
@@ -12702,9 +12583,6 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
 
         TimeOfNextDatasetInHDF = CurrentHDF%TimeOfNextDataset
 
-!        if (CurrentHDF%CyclicTimeON) then
-!            TimeOfNextDatasetInHDF = CurrentHDF%NextTime
-!        else
 do1:     do while (TimeOfNextDatasetInHDF <= ActualTime)
             if (CurrentHDF%InstantOfNextDataset < CurrentHDF%NumberOfInstants) then
                 CurrentHDF%InstantOfNextDataset = CurrentHDF%InstantOfNextDataset + 1
@@ -12713,7 +12591,6 @@ do1:     do while (TimeOfNextDatasetInHDF <= ActualTime)
                 exit do1
             endif
         enddo do1
-!       endif
 
         !----------------------------------------------------------------------
 
