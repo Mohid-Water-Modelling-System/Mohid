@@ -240,6 +240,14 @@ Module ModuleFillMatrix
     integer, parameter                              :: sponge_linear_             = 2
     integer, parameter                              :: sponge_wave_stress_dump_   = 3
 
+    !spatial interpolation cloud scope (ConstructField4DInterpol)
+    integer, parameter                              :: InterpScopeBoundary_       = 1
+    integer, parameter                              :: InterpScopeSponge_         = 2
+    integer, parameter                              :: InterpScopeFull_           = 3
+    !layers from open boundary face (scope 1): Flather reads centre-cell eta/U/V and
+    !interpolates to open faces; the flux stencil uses cells up to SPONGE_CELLS deep
+    integer, parameter                              :: InterpScopeBoundaryLayers_ = 3
+
     !wave types
     integer, parameter                              :: SineWaveSeaLevel_          = 1
     integer, parameter                              :: CnoidalWaveSeaLevel_       = 2
@@ -494,6 +502,10 @@ Module ModuleFillMatrix
         logical                                     :: Upscaling            = .false.
         integer                                     :: UpscalingMethod      =  1 !Volume weighted average Sobrinho
         integer                                     :: Ncells
+        integer                                     :: InterpScope          = InterpScopeFull_
+        integer, dimension(:), pointer              :: CellI                => null()
+        integer, dimension(:), pointer              :: CellJ                => null()
+        integer, dimension(:), pointer              :: CellK                => null()
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()
         real,    dimension(:), pointer              :: Z                    => null()
@@ -8123,6 +8135,246 @@ d2:      do while(.not. FoundSecondInstant)
     !----------------------------------------------------------------------------------
 
 
+    subroutine BuildInterpMask2D(ExtractType, InterpScope, PointsToFill2D, InterpMask)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType, InterpScope
+        integer, dimension(:, :), pointer               :: PointsToFill2D
+        logical, dimension(:, :), allocatable           :: InterpMask
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(4, 4)                        :: dij
+        integer, dimension(4)                           :: AuxI
+        logical, dimension(1:4)                         :: OpenBordersON
+        integer                                         :: ILB, IUB, JLB, JUB, i, j, l, sp, sp_max
+        integer                                         :: STAT_CALL, iflag, SpongeCells
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize2D%ILB; IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB; JUB = Me%WorkSize2D%JUB
+
+        InterpMask(:,:) = .false.
+
+        select case (InterpScope)
+
+            case (InterpScopeFull_)
+
+                where (PointsToFill2D == WaterPoint) InterpMask = .true.
+                return
+
+            case (InterpScopeBoundary_)
+
+                sp_max = InterpScopeBoundaryLayers_
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+            case (InterpScopeSponge_)
+
+                call GetData(SpongeCells,                                                 &
+                             Me%ObjEnterData , iflag,                                      &
+                             SearchType   = ExtractType,                                   &
+                             keyword      = 'SPONGE_CELLS',                                &
+                             Default      = 10,                                            &
+                             ClientModule = 'ModuleFillMatrix',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask2D - ModuleFillMatrix - ERR10'
+
+                sp_max = SpongeCells
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+                if (sp_max > IUB - ILB + 1 .and. sp_max > JUB - JLB + 1) then
+                    stop 'BuildInterpMask2D - ModuleFillMatrix - ERR20'
+                endif
+
+            case default
+
+                stop 'BuildInterpMask2D - ModuleFillMatrix - ERR15'
+
+        end select
+
+        OpenBordersON = GetDDecompOpenBorders(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask2D - ModuleFillMatrix - ERR30'
+
+        dij(:,:) = 0
+
+dsp:    do sp = 1, sp_max
+
+            AuxI(1) = min(ILB + sp - 1, IUB)
+            AuxI(2) = max(IUB - sp + 1, ILB)
+            AuxI(3) = min(JLB + sp - 1, JUB)
+            AuxI(4) = max(JUB - sp + 1, JLB)
+
+            dij(1,1) = max (1 - sp, 1 - (IUB - ILB))
+            dij(2,2) = min (sp - 1, (IUB - ILB) - 1)
+            dij(3,3) = max (1 - sp, 1 - (JUB - JLB))
+            dij(4,4) = min (sp - 1, (JUB - JLB) - 1)
+
+dl:         do l = 1, 2
+
+                if (.not. OpenBordersON(l)) cycle
+
+                i = AuxI(l)
+
+dj:             do j = JLB, JUB
+
+                    if (CheckSponge(PointsToFill2D = PointsToFill2D, sp = sp,              &
+                                    di1 = dij(l,1), di2 = dij(l,2), dj1 = 0, dj2 = 0,      &
+                                    i = i, j = j, k = 1)) then
+                        if (PointsToFill2D(i, j) == WaterPoint) InterpMask(i, j) = .true.
+                    endif
+
+                enddo dj
+
+            enddo dl
+
+dl2:        do l = 3, 4
+
+                if (.not. OpenBordersON(l)) cycle
+
+                j = AuxI(l)
+
+di:             do i = ILB, IUB
+
+                    if (CheckSponge(PointsToFill2D = PointsToFill2D, sp = sp,              &
+                                    di1 = 0, di2 = 0, dj1 = dij(l,3), dj2 = dij(l,4),      &
+                                    i = i, j = j, k = 1)) then
+                        if (PointsToFill2D(i, j) == WaterPoint) InterpMask(i, j) = .true.
+                    endif
+
+                enddo di
+
+            enddo dl2
+
+        enddo dsp
+
+    end subroutine BuildInterpMask2D
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine BuildInterpMask3D(ExtractType, InterpScope, PointsToFill3D, InterpMask)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType, InterpScope
+        integer, dimension(:, :, :), pointer            :: PointsToFill3D
+        logical, dimension(:, :, :), allocatable       :: InterpMask
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(4, 4)                        :: dij
+        integer, dimension(4)                           :: AuxI
+        logical, dimension(1:4)                         :: OpenBordersON
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                         :: i, j, k, l, sp, sp_max
+        integer                                         :: STAT_CALL, iflag, SpongeCells
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize3D%ILB; IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB; JUB = Me%WorkSize3D%JUB
+        KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+
+        InterpMask(:,:,:) = .false.
+
+        select case (InterpScope)
+
+            case (InterpScopeFull_)
+
+                where (PointsToFill3D == WaterPoint) InterpMask = .true.
+                return
+
+            case (InterpScopeBoundary_)
+
+                sp_max = InterpScopeBoundaryLayers_
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+            case (InterpScopeSponge_)
+
+                call GetData(SpongeCells,                                                 &
+                             Me%ObjEnterData , iflag,                                      &
+                             SearchType   = ExtractType,                                   &
+                             keyword      = 'SPONGE_CELLS',                                &
+                             Default      = 10,                                            &
+                             ClientModule = 'ModuleFillMatrix',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask3D - ModuleFillMatrix - ERR10'
+
+                sp_max = SpongeCells
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+                if (sp_max > IUB - ILB + 1 .and. sp_max > JUB - JLB + 1) then
+                    stop 'BuildInterpMask3D - ModuleFillMatrix - ERR20'
+                endif
+
+            case default
+
+                stop 'BuildInterpMask3D - ModuleFillMatrix - ERR15'
+
+        end select
+
+        OpenBordersON = GetDDecompOpenBorders(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask3D - ModuleFillMatrix - ERR30'
+
+        dij(:,:) = 0
+
+dsp:    do sp = 1, sp_max
+
+            AuxI(1) = min(ILB + sp - 1, IUB)
+            AuxI(2) = max(IUB - sp + 1, ILB)
+            AuxI(3) = min(JLB + sp - 1, JUB)
+            AuxI(4) = max(JUB - sp + 1, JLB)
+
+            dij(1,1) = max (1 - sp, 1 - (IUB - ILB))
+            dij(2,2) = min (sp - 1, (IUB - ILB) - 1)
+            dij(3,3) = max (1 - sp, 1 - (JUB - JLB))
+            dij(4,4) = min (sp - 1, (JUB - JLB) - 1)
+
+dk:         do k = KLB, KUB
+
+dl:             do l = 1, 2
+
+                    if (.not. OpenBordersON(l)) cycle
+
+                    i = AuxI(l)
+
+dj:                 do j = JLB, JUB
+
+                        if (CheckSponge(PointsToFill3D = PointsToFill3D, sp = sp,          &
+                                        di1 = dij(l,1), di2 = dij(l,2), dj1 = 0, dj2 = 0,  &
+                                        i = i, j = j, k = k)) then
+                            if (PointsToFill3D(i, j, k) == WaterPoint) InterpMask(i, j, k) = .true.
+                        endif
+
+                    enddo dj
+
+                enddo dl
+
+dl2:            do l = 3, 4
+
+                    if (.not. OpenBordersON(l)) cycle
+
+                    j = AuxI(l)
+
+di:                 do i = ILB, IUB
+
+                        if (CheckSponge(PointsToFill3D = PointsToFill3D, sp = sp,          &
+                                        di1 = 0, di2 = 0, dj1 = dij(l,3), dj2 = dij(l,4),  &
+                                        i = i, j = j, k = k)) then
+                            if (PointsToFill3D(i, j, k) == WaterPoint) InterpMask(i, j, k) = .true.
+                        endif
+
+                    enddo di
+
+                enddo dl2
+
+            enddo dk
+
+        enddo dsp
+
+    end subroutine BuildInterpMask3D
+
+
+    !--------------------------------------------------------------------------
+
     subroutine ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)
         !Arguments----------------------------------------------------------------------
         integer                                         :: ExtractType, ClientID
@@ -8132,15 +8384,33 @@ d2:      do while(.not. FoundSecondInstant)
 
         !Local--------------------------------------------------------------------------
         real,       dimension(:,:),     pointer         :: CoordX, CoordY
+        logical, dimension(:, :),     allocatable        :: InterpMask2D
+        logical, dimension(:, :, :), allocatable        :: InterpMask3D
         real, dimension(1:2,1:2)                        :: WindowLimitsXY
         real                                            :: West, East, South, North
         real                                            :: LatDefault, LongDefault
-        integer                                         :: STAT_CALL, i, j, k, icount, NCells
+        integer                                         :: STAT_CALL, i, j, k, NCells, nP
         real, dimension(4)                              :: Aux4
         integer                                         :: iflag, ObjHorizontalGridAux
         character(len=PathLength)                       :: BathymetryFile
 
         !Begin--------------------------------------------------------------------------
+
+        call GetData(CurrentHDF%InterpScope,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'INTERP_SCOPE',                                     &
+                     Default      = InterpScopeFull_,                                   &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR05'
+
+        if (CurrentHDF%InterpScope /= InterpScopeBoundary_ .and.                        &
+            CurrentHDF%InterpScope /= InterpScopeSponge_     .and.                      &
+            CurrentHDF%InterpScope /= InterpScopeFull_) then
+            write(*,*) 'INTERP_SCOPE must be 1 (boundary, 3 cells from open face), 2 (sponge), or 3 (full domain)'
+            stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR06'
+        endif
 
         Aux4 (:) = FillValueReal
 
@@ -8193,52 +8463,43 @@ d2:      do while(.not. FoundSecondInstant)
 
         if (Me%Dim == Dim2D) then
 
-            icount = 0
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-                icount = icount + PointsToFill2D(i,j)
-            enddo
-            enddo
+            allocate(InterpMask2D(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB))
+            call BuildInterpMask2D(ExtractType, CurrentHDF%InterpScope, PointsToFill2D, InterpMask2D)
 
-            Ncells        = icount
+            Ncells = count(InterpMask2D)
             CurrentHDF%Ncells = Ncells
 
         else
 
-            icount = 0
+            allocate(InterpMask3D(Me%Size3D%ILB:Me%Size3D%IUB, Me%Size3D%JLB:Me%Size3D%JUB, &
+                                  Me%Size3D%KLB:Me%Size3D%KUB))
+            call BuildInterpMask3D(ExtractType, CurrentHDF%InterpScope, PointsToFill3D, InterpMask3D)
 
             if (CurrentHDF%From2Dto3D) then
 
+                Ncells = 0
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    icount = icount + PointsToFill3D(i,j,Me%WorkSize3D%KUB)
+                    if (InterpMask3D(i, j, Me%WorkSize3D%KUB)) Ncells = Ncells + 1
                 enddo
                 enddo
-
-                Ncells        = icount
-                CurrentHDF%Ncells = Ncells
 
             else
 
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    icount = icount + PointsToFill3D(i,j,k)
-                enddo
-                enddo
-                enddo
-
-                Ncells        = icount
-                CurrentHDF%Ncells = Ncells
+                Ncells = count(InterpMask3D)
 
                 allocate(CurrentHDF%Z(1:NCells))
-
                 CurrentHDF%Z(1:NCells) = FillValueReal
 
             endif
+
+            CurrentHDF%Ncells = Ncells
+
         endif
 
+        allocate(CurrentHDF%CellI(1:NCells), CurrentHDF%CellJ(1:NCells))
         allocate(CurrentHDF%X(1:NCells), CurrentHDF%Y(1:NCells), CurrentHDF%Prop(1:NCells), CurrentHDF%NoData(1:NCells))
+        if (Me%Dim == Dim3D .and. .not. CurrentHDF%From2Dto3D) allocate(CurrentHDF%CellK(1:NCells))
 
         CurrentHDF%X     (1:NCells) = FillValueReal
         CurrentHDF%Y     (1:NCells) = FillValueReal
@@ -8248,38 +8509,42 @@ d2:      do while(.not. FoundSecondInstant)
         call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR70'
 
-        if (Me%Dim == Dim2D) then
+        nP = 0
 
-            icount = 0
+        if (Me%Dim == Dim2D) then
 
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
 
-                if (PointsToFill2D(i,j) == WaterPoint) then
+                if (InterpMask2D(i, j)) then
 
-                    icount           = icount + 1
-                    CurrentHDF%X(icount) = CoordX(i, j)
-                    CurrentHDF%Y(icount) = CoordY(i, j)
+                    nP                  = nP + 1
+                    CurrentHDF%CellI(nP) = i
+                    CurrentHDF%CellJ(nP) = j
+                    CurrentHDF%X(nP)     = CoordX(i, j)
+                    CurrentHDF%Y(nP)     = CoordY(i, j)
 
                 endif
 
             enddo
             enddo
 
-        else
+            deallocate(InterpMask2D)
 
-            icount = 0
+        else
 
             if (CurrentHDF%From2Dto3D) then
 
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
-                    if (PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then
+                    if (InterpMask3D(i, j, Me%WorkSize3D%KUB)) then
 
-                        icount           = icount + 1
-                        CurrentHDF%X(icount) = CoordX(i, j)
-                        CurrentHDF%Y(icount) = CoordY(i, j)
+                        nP                  = nP + 1
+                        CurrentHDF%CellI(nP) = i
+                        CurrentHDF%CellJ(nP) = j
+                        CurrentHDF%X(nP)     = CoordX(i, j)
+                        CurrentHDF%Y(nP)     = CoordY(i, j)
 
                     endif
 
@@ -8292,11 +8557,14 @@ d2:      do while(.not. FoundSecondInstant)
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
-                    if (PointsToFill3D(i,j,k) == WaterPoint) then
+                    if (InterpMask3D(i, j, k)) then
 
-                        icount           = icount + 1
-                        CurrentHDF%X(icount) = CoordX(i, j)
-                        CurrentHDF%Y(icount) = CoordY(i, j)
+                        nP                  = nP + 1
+                        CurrentHDF%CellI(nP) = i
+                        CurrentHDF%CellJ(nP) = j
+                        CurrentHDF%CellK(nP) = k
+                        CurrentHDF%X(nP)     = CoordX(i, j)
+                        CurrentHDF%Y(nP)     = CoordY(i, j)
 
                     endif
 
@@ -8306,7 +8574,13 @@ d2:      do while(.not. FoundSecondInstant)
 
             endif
 
+            deallocate(InterpMask3D)
+
         endif
+
+        if (nP /= Ncells) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR75'
+
+        write(*,'(A,I0,A,I0)') ' ConstructField4DInterpol: INTERP_SCOPE=', CurrentHDF%InterpScope, ' Ncells=', Ncells
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR80'
@@ -9021,7 +9295,7 @@ if4D:   if (CurrentHDF%Field4D) then
         integer,                         optional   :: Instant
         !Local-----------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: ZCellCenter
-        integer                                     :: i, j, k, icount
+        integer                                     :: i, j, k, nP
         integer                                     :: STAT_CALL
         type (T_Size2D)                             :: HaloMap
         integer                                     :: di, dj
@@ -9052,6 +9326,13 @@ ifMS:   if (MasterOrSlave) then
 
         endif ifMS
 
+        if (CurrentHDF%InterpScope /= InterpScopeFull_) then
+            if (Me%Dim == Dim2D) then
+                call FillWithDefault(PointsToFill2D = Me%PointsToFill2D)
+            else
+                call FillWithDefault(PointsToFill3D = Me%PointsToFill3D)
+            endif
+        endif
 
 if2D:   if (Me%Dim == Dim2D) then
 
@@ -9066,28 +9347,23 @@ if2D:   if (Me%Dim == Dim2D) then
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30'
 
-            icount = 0
+            do nP = 1, CurrentHDF%Ncells
 
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                i = CurrentHDF%CellI(nP)
+                j = CurrentHDF%CellJ(nP)
 
-                if (Me%PointsToFill2D(i,j) == WaterPoint) then
-
-                    icount           = icount + 1
-                    if (CurrentHDF%NoData(icount)) then
-                        if (CurrentHDF%Extrapolate) then
-                            Matrix2D(i, j)   = Me%DefaultValue(1)
-                        else
-                            write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
-                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'
-                        endif
+                if (CurrentHDF%NoData(nP)) then
+                    if (CurrentHDF%Extrapolate) then
+                        Matrix2D(i, j) = Me%DefaultValue(1)
                     else
-                        Matrix2D(i, j)   = CurrentHDF%Prop(icount)
+                        write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
+                        write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'
                     endif
+                else
+                    Matrix2D(i, j) = CurrentHDF%Prop(nP)
                 endif
 
-            enddo
             enddo
 
 
@@ -9106,33 +9382,30 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50'
 
-                icount = 0
+                do nP = 1, CurrentHDF%Ncells
 
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    if (Me%PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then
-                        icount           = icount + 1
-                        if (CurrentHDF%NoData(icount)) then
-                            if (CurrentHDF%Extrapolate) then
-                                !NeedToExtrapolate = .true.
-                                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-                                        Matrix3D(i, j, k)   = Me%DefaultValue(1)
-                                    endif
-                                enddo                                
-                            else
-                                write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'
-                            endif
-                        else
+                    i = CurrentHDF%CellI(nP)
+                    j = CurrentHDF%CellJ(nP)
+
+                    if (CurrentHDF%NoData(nP)) then
+                        if (CurrentHDF%Extrapolate) then
                             do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-                                    Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
+                                if (Me%PointsToFill3D(i, j, k) == WaterPoint) then
+                                    Matrix3D(i, j, k) = Me%DefaultValue(1)
                                 endif
                             enddo
+                        else
+                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'
                         endif
+                    else
+                        do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                            if (Me%PointsToFill3D(i, j, k) == WaterPoint) then
+                                Matrix3D(i, j, k) = CurrentHDF%Prop(nP)
+                            endif
+                        enddo
                     endif
-                enddo
+
                 enddo
 
             else F2D3D
@@ -9140,21 +9413,8 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                 call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70'
 
-                icount = 0
-
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-
-                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-
-                        icount           = icount + 1
-                        CurrentHDF%Z(icount) = ZCellCenter(i, j, k)
-
-                    endif
-
-                enddo
-                enddo
+                do nP = 1, CurrentHDF%Ncells
+                    CurrentHDF%Z(nP) = ZCellCenter(CurrentHDF%CellI(nP), CurrentHDF%CellJ(nP), CurrentHDF%CellK(nP))
                 enddo
 
                 call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
@@ -9172,45 +9432,31 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90'
 
-                icount = 0
+                do nP = 1, CurrentHDF%Ncells
 
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                    i = CurrentHDF%CellI(nP)
+                    j = CurrentHDF%CellJ(nP)
+                    k = CurrentHDF%CellK(nP)
 
-                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-
-                        icount           = icount + 1
-                        if (CurrentHDF%NoData(icount)) then
-                            if (CurrentHDF%Extrapolate) then
-                                !NeedToExtrapolate = .true.
+                    if (CurrentHDF%NoData(nP)) then
+                        if (CurrentHDF%Extrapolate) then
+                            Matrix3D(i, j, k) = Me%DefaultValue(1)
+                        else
+                            if (CurrentHDF%NoDataDefaultValue) then
                                 Matrix3D(i, j, k) = Me%DefaultValue(1)
                             else
-                                if (CurrentHDF%NoDataDefaultValue) then
-                                    Matrix3D(i, j, k) = Me%DefaultValue(1)
-                                else
-                                    write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
-                                    stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
-                                endif
+                                write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
+                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
                             endif
-                        else
-                            Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
                         endif
-
+                    else
+                        Matrix3D(i, j, k) = CurrentHDF%Prop(nP)
                     endif
 
-                enddo
-                enddo
                 enddo
 
             endif F2D3D
         endif if2D
-
-        if (icount > CurrentHDF%Ncells) then
-            write(*,*) 'icount =', icount
-            write(*,*) 'CurrentHDF%Ncells =', CurrentHDF%Ncells
-            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR110'
-        endif
 
 
     end subroutine ModifyField4DInterpol
@@ -13471,6 +13717,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          deallocate(CurrentHDF%Z)
                                     endif
 
+                                    if (associated(CurrentHDF%CellI)) deallocate(CurrentHDF%CellI)
+                                    if (associated(CurrentHDF%CellJ)) deallocate(CurrentHDF%CellJ)
+                                    if (associated(CurrentHDF%CellK)) deallocate(CurrentHDF%CellK)
                                     deallocate(CurrentHDF%X, CurrentHDF%Y, CurrentHDF%Prop, CurrentHDF%NoData)
 
                                 endif
