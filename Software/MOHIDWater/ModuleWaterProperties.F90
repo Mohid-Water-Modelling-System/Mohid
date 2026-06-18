@@ -776,11 +776,12 @@ Module ModuleWaterProperties
 
     type       T_Reinitialize
         logical                                 :: On                   = .false.
-        logical,       dimension(:),   pointer  :: OnlyOnce
         integer,       dimension(:,:), pointer  :: BoxCells
         real,          dimension(:),   pointer  :: BoxesValues
         integer                                 :: BoxesNumber
         type (T_time), dimension(:),   pointer  :: Dates
+        integer                                 :: Dates_Number         = FillValueInt
+        integer                                 :: NextDate             = FillValueInt
         logical                                 :: Dry                  = .false. 
     end type   T_Reinitialize
 
@@ -10409,7 +10410,8 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL
         integer                                 :: iflag
-        integer                                 :: BoxesNumber, FirstLine, LastLine, l, n
+        integer                                 :: BoxesNumber, FirstLine, LastLine, l
+        integer                                 :: n, n_dates
         integer, dimension (:, :   ), pointer   :: Boxes2D
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: ObjBoxdif = 0
@@ -10506,23 +10508,25 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         call KillBoxDif(ObjBoxDif, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR130')
 
-        allocate(NewProperty%Evolution%Reinitialize%Dates(BoxesNumber), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR140')
-
-
-        allocate(NewProperty%Evolution%Reinitialize%OnlyOnce(BoxesNumber), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR145')
-
-        NewProperty%Evolution%Reinitialize%OnlyOnce(:) = .true.
-
-
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
                                    '<<begin_reinitializedate>>', '<<end_reinitializedate>>', &
                                    BlockFound, FirstLine, LastLine, STAT = STAT_CALL)
 
-        if (.not. BlockFound) call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR150')
+        if (.not. BlockFound) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR150')
+        endif
+        
+        n_Dates = LastLine - FirstLine - 1
+        
+        if (n_Dates<1) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR160')
+        endif
+        
+        allocate(NewProperty%Evolution%Reinitialize%Dates(n_Dates), STAT = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR170')        
+        endif
 
         n = 0
         do l = FirstLine + 1, LastLine - 1
@@ -10533,10 +10537,36 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                          Buffer_Line  = l,                                              &
                          ClientModule = 'ModuleWaterProperties',                        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR160')
+            if (STAT_CALL .NE. SUCCESS_) then
+                call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR180')
+            endif
 
         enddo
+        
+        do n = 1, n_Dates
 
+            if (NewProperty%Evolution%Reinitialize%Dates(n) > Me%BeginTime) then
+                NewProperty%Evolution%Reinitialize%NextDate = n
+                exit
+            endif
+
+        enddo
+        
+        
+        if (NewProperty%Evolution%Reinitialize%NextDate < 1) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR190')
+        endif
+        
+        if (NewProperty%Evolution%Reinitialize%Dates(n_Dates) < Me%BeginTime) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR200')
+        endif
+        
+        if (NewProperty%Evolution%Reinitialize%Dates(1) > Me%EndTime) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR210')
+        endif        
+        
+        NewProperty%Evolution%Reinitialize%Dates_Number = n_Dates
+        
     end subroutine Read_Reinitialize_Parameters
 
     !-------------------------------------------------------------------------
@@ -19031,7 +19061,7 @@ do3:                        do k = kbottom, KUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB, KUB, BN
-        integer                                 :: i, j, k, kbottom, BoxCells
+        integer                                 :: i, j, k, kbottom, BoxCells, iD
         integer                                 :: CHUNK
         logical                                 :: Mapping
 
@@ -19050,70 +19080,73 @@ do0:    do while(associated(PropertyX))
 cd0:        if (PropertyX%Evolution%Reinitialize%On) then
 
 cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
-
-dbn:                do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
-
-cd2:                    if(Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitialize%Dates(BN)&
-                           .and. PropertyX%Evolution%Reinitialize%OnlyOnce(BN)) then
-
-                            CHUNK = CHUNK_J(JLB, JUB)
-
-                            if (MonitorPerformance) then
-                                call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
-                            endif
-
-                            !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
-                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do1:                        do j = JLB, JUB
-do2:                        do i = ILB, IUB
     
-                                Mapping = .false. 
+                    iD = PropertyX%Evolution%Reinitialize%NextDate
+                    
+cd2:                if (iD <= PropertyX%Evolution%Reinitialize%Dates_Number) then 
+                        
+cd3:                    if (Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitialize%Dates(iD)) then
+
+dbn:                        do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
+
+                                CHUNK = CHUNK_J(JLB, JUB)
                                 
-                                if (PropertyX%Evolution%Reinitialize%Dry) then
-                                    if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
-                                        Mapping = .true.
-                                    endif
-                                else
-                                    if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
-                                        Mapping = .true.
-                                    endif                                        
+                                if (MonitorPerformance) then
+                                    call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
                                 endif
+
+                                !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
+                                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do1:                             do j = JLB, JUB
+do2:                             do i = ILB, IUB
+    
+                                    Mapping = .false. 
                                 
-cd3:                            if (Mapping) then
-
-                                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
-
-do3:                                do k = kbottom, KUB
-
-                                        BoxCells = PropertyX%Evolution%Reinitialize%BoxCells(i, j)
-
-                                        if (BoxCells == BN) then
-
-                                            PropertyX%Concentration(i, j, k) =          &
-                                                PropertyX%Evolution%Reinitialize%BoxesValues(BoxCells)
-
+                                    if (PropertyX%Evolution%Reinitialize%Dry) then
+                                        if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                                            Mapping = .true.
                                         endif
+                                    else
+                                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                                            Mapping = .true.
+                                        endif                                        
+                                    endif
+                                
+cd4:                                if (Mapping) then
 
-                                    enddo do3
+                                        kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
-                                endif cd3
+do3:                                    do k = kbottom, KUB
 
-                            enddo do2
-                            enddo do1
-                            !$OMP END DO
-                            !$OMP END PARALLEL
+                                            BoxCells = PropertyX%Evolution%Reinitialize%BoxCells(i, j)
 
-                            if (MonitorPerformance) then
-                                call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
-                            endif
+                                            if (BoxCells == BN) then
 
-                            PropertyX%Evolution%Reinitialize%OnlyOnce(BN) = .false.
+                                                PropertyX%Concentration(i, j, k) =          &
+                                                    PropertyX%Evolution%Reinitialize%BoxesValues(BoxCells)
 
-                        endif cd2
+                                            endif
 
-                    enddo dbn
+                                        enddo do3
+
+                                    endif cd4
+
+                                enddo do2
+                                enddo do1
+                                !$OMP END DO
+                                !$OMP END PARALLEL
+
+                                if (MonitorPerformance) then
+                                    call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
+                                endif
+
+                            enddo dbn
+
+                            PropertyX%Evolution%Reinitialize%NextDate = iD + 1
+                            
+                        endif cd3
+                    endif cd2
                 endif cd1
-
 
             endif cd0
 
@@ -27677,9 +27710,6 @@ do1 :           do while(associated(PropertyX))
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR286')
 
-                        deallocate(PropertyX%Evolution%Reinitialize%OnlyOnce, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                      &
-                            call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR288')
                     endif
 
                     if (PropertyX%Evolution%MinConcentration) then
