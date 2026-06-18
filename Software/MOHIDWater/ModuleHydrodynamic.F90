@@ -305,6 +305,7 @@ Module ModuleHydrodynamic
     private ::          Open_Surface_HDF5_OutPut_File
     private ::          ConstructEnergy
     private ::          ConstructTidePotential
+    private ::          ConstructTidePotentialSpatial
 
     private ::          ConstructRelaxation
     private ::          ConstructHydroStatistic
@@ -1888,6 +1889,17 @@ Module ModuleHydrodynamic
                                              L          => null()
 
         integer, pointer, dimension (:  ) :: m  => null()
+
+        !Spatial fields precomputed once in ConstructTidePotentialSpatial
+        !(constant in time; depend only on grid latitude/longitude and harmonic constants)
+        logical                           :: SpatialReady   = .false.
+        integer                           :: NWaterCells    = 0
+        integer, pointer, dimension(:)    :: WaterCellI     => null()
+        integer, pointer, dimension(:)    :: WaterCellJ     => null()
+        real,    pointer, dimension(:)    :: FreqOver3600   => null()  !Frequency(n)/3600, Kantha time phase
+        real,    pointer, dimension(:,:,:) :: SpatialCoeff  => null()  !(n,i,j) Beta*Amplitude*L2(m)
+        real,    pointer, dimension(:,:,:) :: CosLonPhase   => null()  !(n,i,j) cos((m-1)*longitude_rad)
+        real,    pointer, dimension(:,:,:) :: SinLonPhase   => null()  !(n,i,j) sin((m-1)*longitude_rad)
 
         type (T_Time)                     :: TimeRef
         real                              :: Alpha      = 1.
@@ -13460,7 +13472,7 @@ i1:         if (CoordON) then
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer               :: ILB, IUB, JLB, JUB, NComp
+        integer               :: ILB, IUB, JLB, JUB, NComp, n
 
         NComp = Me%TidePotential%ComponentsNumber
 
@@ -13555,7 +13567,132 @@ i1:         if (CoordON) then
 
         call SetDate(Me%TidePotential%TimeRef, 1900, 1, 1, 0, 0, 0)
 
+        allocate (Me%TidePotential%FreqOver3600(NComp))
+        do n = 1, NComp
+            Me%TidePotential%FreqOver3600(n) = Me%TidePotential%Frequency(n) / 3600.
+        enddo
+
+        call ConstructTidePotentialSpatial
+
     end subroutine ConstructTidePotential
+
+    !--------------------------------------------------------------------------
+
+    !> Precomputes latitude/longitude-dependent tide-potential spatial factors.
+    !> Invoked from ConstructTidePotential; not repeated each time step.
+    Subroutine ConstructTidePotentialSpatial
+
+        !Local-----------------------------------------------------------------
+        real,    pointer, dimension(:,:) :: GridLatitude, GridLongitude
+        integer, pointer, dimension(:,:,:) :: WaterPoints3D
+        real                               :: LatRad, LongDegree, LongRad, LonPhase, L2(4)
+        integer                            :: ILB, IUB, JLB, JUB, KUB, i, j, n, k, Ncomp, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+
+        Ncomp = Me%TidePotential%ComponentsNumber
+
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTidePotentialSpatial  - ModuleHydrodynamic - ERR10'        
+        
+        WaterPoints3D => Me%External_Var%WaterPoints3D
+
+        Me%TidePotential%NWaterCells = 0
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (WaterPoints3D(i, j, KUB) == WaterPoint) Me%TidePotential%NWaterCells = Me%TidePotential%NWaterCells + 1
+        enddo
+        enddo
+
+        if (Me%TidePotential%NWaterCells > 0) then
+            allocate (Me%TidePotential%WaterCellI(Me%TidePotential%NWaterCells), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR20")
+
+            allocate (Me%TidePotential%WaterCellJ(Me%TidePotential%NWaterCells), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR30")
+        endif
+
+        allocate (Me%TidePotential%SpatialCoeff (Ncomp, ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR40")
+
+        allocate (Me%TidePotential%CosLonPhase  (Ncomp, ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR50")
+
+        allocate (Me%TidePotential%SinLonPhase  (Ncomp, ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR60")
+
+        Me%TidePotential%SpatialCoeff = 0.
+        Me%TidePotential%CosLonPhase  = 0.
+        Me%TidePotential%SinLonPhase  = 0.
+
+        call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                 &
+                                      GridLatitude  = GridLatitude,          &
+                                      GridLongitude = GridLongitude,         &
+                                      STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+            call SetError(FATAL_, INTERNAL_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR70")
+
+        k = 0
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (WaterPoints3D(i, j, KUB) == WaterPoint) then
+
+                k = k + 1
+                Me%TidePotential%WaterCellI(k) = i
+                Me%TidePotential%WaterCellJ(k) = j
+
+                LatRad = GridLatitude(i, j) * Pi / 180.
+
+                LongDegree = GridLongitude(i, j)
+
+                do while (LongDegree >= 360.)
+                    LongDegree = LongDegree - 360.
+                enddo
+                do while (LongDegree <    0.)
+                    LongDegree = LongDegree + 360.
+                enddo
+
+                LongRad = LongDegree * Pi / 180.
+
+                L2(1) = 1.5*cos(LatRad)*cos(LatRad) - 1.
+                L2(2) = sin(2*LatRad)
+                L2(3) = cos(LatRad)*cos(LatRad)
+                L2(4) = cos(LatRad)*cos(LatRad)*cos(LatRad)
+
+                do n = 1, Ncomp
+                    Me%TidePotential%SpatialCoeff(n, i, j) = Me%TidePotential%Beta(n)       * &
+                                                             Me%TidePotential%Amplitude(n) * &
+                                                             L2(Me%TidePotential%m(n))
+                    LonPhase = (real(Me%TidePotential%m(n)) - 1.) * LongRad
+                    Me%TidePotential%CosLonPhase(n, i, j)  = cos(LonPhase)
+                    Me%TidePotential%SinLonPhase(n, i, j)  = sin(LonPhase)
+                enddo
+
+            endif
+
+        enddo
+        enddo
+
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLatitude,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR80")
+
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLongitude, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR90")
+
+        call UngetMap(Me%ObjHorizontalGrid, Array = Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructTidePotentialSpatial - Hydrodynamic - ERR100")
+        
+        
+        nullify(WaterPoints3D, GridLatitude, GridLongitude)
+
+        Me%TidePotential%SpatialReady = .true.
+
+    end subroutine ConstructTidePotentialSpatial
 
     !--------------------------------------------------------------------------
 
@@ -24899,7 +25036,8 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         integer, dimension(:,:,:), pointer  :: ComputeFaces3D_UV, LandBoundaryFacesUV, &
                                                WaterPoints3D
 
-        integer                             :: IJmin, IJmax, JImin, JImax, di, dj
+        integer                             :: IJmin, IJmax, JImin, JImax, IJ, JI
+        integer                             :: di, dj
 
         integer                             :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -25019,26 +25157,51 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Compute_Velocity")
 
 cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in the horizontal
-
+            
             IJmin = ILB * dj + JLB * di
             IJmax = IUB * dj + JUB * di
 
             JImin = ILB * di + JLB * dj
             JImax = IUB * di + JUB * dj
+    
+            if (di == 0 .and. dj == 1) then
+                ! Mimics exactly the cells written by THOMAS_3D_i0_j1_NewType / i0_j1
+                ! (perpendicular = first dim = IJ, along-line = second dim = JI)
+                ! the division by Ecoef_3D is because the bottom fricition is computed implicit
+                do IJ = IJmin, IJmax
+                    do JI = JImin, JImax+1     ! note the +1 as used in the Thomas back-sub
+                        Velocity_UV_New(IJ, JI, 1) = TiCoef_3D(IJ, JI, 1) / ECoef_3D (IJ, JI, 1)
+                    end do
+                end do
 
+            else if (di == 1 .and. dj == 0) then
+                ! Mimics exactly the cells written by THOMAS_3D_i1_j0_NewType / i1_j0
+                ! (along-line = first dim = JI, perpendicular = second dim = IJ)
+                ! the division by Ecoef_3D is because the bottom fricition is computed implicit 
+                do IJ = IJmin, IJmax
+                    do JI = JImin, JImax+1
+                        Velocity_UV_New(JI, IJ, 1) = TiCoef_3D(JI, IJ, 1) / Ecoef_3D(JI, IJ, 1)
+                    end do
+                end do
 
-            !griflet: olds call
-            !call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                 &
-            !               DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D, Velocity_UV_New,     &
-            !               Me%VECG_3D, Me%VECW_3D)
-            !griflet: new call
-            call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                &
-                           Me%THOMAS, Velocity_UV_New                                   &
-#ifdef _ENABLE_CUDA
-                           , Me%ObjCuda,                                                &
-                           .FALSE.                                                      &
-#endif _ENABLE_CUDA
-                           )
+            end if    
+!
+!
+!            !griflet: olds call
+!            !call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                 &
+!            !               DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D, Velocity_UV_New,     &
+!            !               Me%VECG_3D, Me%VECW_3D)
+!            !griflet: new call
+!            call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                &
+!                           Me%THOMAS, Velocity_UV_New                                   &
+!#ifdef _ENABLE_CUDA
+!                           , Me%ObjCuda,                                                &
+!                           .FALSE.                                                      &
+!#endif _ENABLE_CUDA
+!                           )
+    
+
+            
         else cd2D ! The implicit direction is in the vertical
 
 
@@ -41427,42 +41590,40 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
         !Local-----------------------------------------------------------------
 
-        real,    pointer, dimension (:,:)   :: GridLatitude, GridLongitude, &
-                                               TidePotentialLevel
-        real,    pointer, dimension (:  )   :: Beta, EqAmp, Freq, L, AstroArg
-        integer, pointer, dimension (:  )   :: m
-        !griflet: lets make L2 and AstroArg local variables, statically allocated.
-        real, dimension(4)                  :: L2
-        integer, pointer, dimension (:,:,:) :: WaterPoints3D
+        real,    pointer, dimension (:,:)   :: TidePotentialLevel
+        real,    pointer, dimension (:,:,:) :: SpatialCoeff, CosLonPhase, SinLonPhase
+        real,    pointer, dimension (:  )   :: FreqOver3600, AstroArg
+        integer, pointer, dimension (:  )   :: WaterCellI, WaterCellJ, m
+        real                                :: CosTimePhase(12), SinTimePhase(12)
         type (T_Time)                       :: CurrentTime, TimeRef
-        real(8)                             :: UTSeconds, tc, h0, s0, p0, Tau, TimeSeconds !ps, ns,
-        real                                :: LatRad, LongRad, Run_Period, Aux, LongDegree
+        real(8)                             :: UTSeconds, tc, h0, s0, p0, TauTime, TimeSeconds !ps, ns,
+        real                                :: Run_Period, Aux, TimePhase, SlowStart
         real                                :: Year, Month, Day, Hour, Minute, Seconds
-        integer                             :: STATUS, JulDay, D
-        integer                             :: IUB, ILB, JUB, JLB, KUB, i, j, Ncomp, n
-
-        !$ integer                             :: CHUNK
+        integer                             :: JulDay, D
+        integer                             :: IUB, ILB, JUB, JLB, i, j, k, Ncomp, n, NHarm, NWater
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyTidePotential")
 
-        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        if (.not. Me%TidePotential%SpatialReady) call ConstructTidePotentialSpatial
+
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB
         ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
 
         TidePotentialLevel => Me%Forces%TidePotentialLevel
 
-        Beta           => Me%TidePotential%Beta
-        EqAmp          => Me%TidePotential%Amplitude
-        Freq           => Me%TidePotential%Frequency
+        SpatialCoeff   => Me%TidePotential%SpatialCoeff
+        CosLonPhase    => Me%TidePotential%CosLonPhase
+        SinLonPhase    => Me%TidePotential%SinLonPhase
+        FreqOver3600   => Me%TidePotential%FreqOver3600
         AstroArg       => Me%TidePotential%Arguments
-        
+        WaterCellI     => Me%TidePotential%WaterCellI
+        WaterCellJ     => Me%TidePotential%WaterCellJ
         m              => Me%TidePotential%m
-        L              => Me%TidePotential%L
 
         Ncomp          =  Me%TidePotential%ComponentsNumber
-
-        WaterPoints3D  => Me%External_Var%WaterPoints3D
+        NWater         =  Me%TidePotential%NWaterCells
 
         TimeRef        =  Me%TidePotential%TimeRef
 
@@ -41470,13 +41631,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
         Run_Period     = Me%CurrentTime - Me%BeginTime
 
-        call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                 &
-                                      GridLatitude  = GridLatitude,                      &
-                                      GridLongitude = GridLongitude,                     &
-                                      STAT = STATUS)
-
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR01")
+        TidePotentialLevel(:,:) = FillValueReal
 
         call ExtractDate(CurrentTime, Year, Month, Day, Hour, Minute, Seconds)
 
@@ -41525,7 +41680,12 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             do n = 1, Ncomp
               AstroArg(n) = AstroArg(n) * Pi / 180.
             enddo
-            
+
+            do n = 1, Ncomp
+                TimePhase        = AstroArg(n) + FreqOver3600(n) * UTSeconds
+                CosTimePhase(n)  = cos(TimePhase)
+                SinTimePhase(n)  = sin(TimePhase)
+            enddo
 
         else if (Me%TidePotential%Algorithm == Lefevre) then
 
@@ -41568,93 +41728,56 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             do n = 1, 11
               AstroArg(n) = AstroArg(n) * Pi / 180.
             enddo
-            
+
+            TauTime = (UTSeconds / 86400.*360. - s0 + h0) * Pi / 180.
+
+            do n = 1, 11
+                TimePhase        = AstroArg(n) + (real(m(n)) - 1.) * TauTime
+                CosTimePhase(n)  = cos(TimePhase)
+                SinTimePhase(n)  = sin(TimePhase)
+            enddo
 
         endif
 
+        if (Me%TidePotential%Algorithm == Lefevre) then
+            NHarm = 11
+        else
+            NHarm = Ncomp
+        endif
 
-        !$ CHUNK = CHUNK_J(JLB, JUB)
-        !griflet: needs to privatize array L2
-        !griflet: The solution was simply to make L2 a local, *static* array.
-        !
-        !$OMP PARALLEL PRIVATE(i,j,LatRad,LongDegree,LongRad,L2,n,Aux,Tau)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do  j = JLB, JUB
-        do  i = ILB, IUB
+        if (Me%ComputeOptions%TideSlowStartCoef > 0.) then
+            Aux = Run_Period / Me%ComputeOptions%TideSlowStartCoef
+            if (Aux < 1.) then
+                SlowStart = Aux
+            else
+                SlowStart = 1.
+            endif
+        else
+            SlowStart = 1.
+        endif
 
-iw1:        if (WaterPoints3D(i, j, KUB) == WaterPoint)  then
+        if (NWater > 0) then
 
-                LatRad     = GridLatitude (i, j) * Pi / 180.
+            do k = 1, NWater
+                i = WaterCellI(k)
+                j = WaterCellJ(k)
 
-                LongDegree = GridLongitude(i, j)
+                Aux = 0.
 
-                do while (LongDegree>=360.)
-                    LongDegree = LongDegree - 360.
+                do n = 1, NHarm
+                    Aux = Aux + SpatialCoeff(n, i, j) * &
+                                (CosTimePhase(n) * CosLonPhase(n, i, j) - SinTimePhase(n) * SinLonPhase(n, i, j))
                 enddo
-                do while (LongDegree<   0.)
-                    LongDegree = LongDegree + 360.
-                enddo
 
-                LongRad = LongDegree * Pi / 180.
+                TidePotentialLevel(i, j) = Aux * SlowStart
 
-                !griflet: need to make this variable local!
-                !L (changed from L(0), L(1), L(2) to L(1), L(2), L(3).
-                L2(1) = 1.5*cos(LatRad)*cos(LatRad) - 1.
-                L2(2) = sin(2*LatRad)
-                L2(3) = cos(LatRad)*cos(LatRad)
-                L2(4) = cos(LatRad)*cos(LatRad)*cos(LatRad)
+            enddo
 
-                TidePotentialLevel(i,j) = 0.
-
-it1:            if (Me%TidePotential%Algorithm == Kantha) then
-
-                    !griflet: m(n) was taken care of in the construct and yields
-                    !1(Ssa,Mm,Mf),2(Q1,O1,N1,P1), 3(M2,N2,O2,P2), 4(M3).
-                    do n=1, Ncomp
-                        TidePotentialLevel(i,j) = TidePotentialLevel(i,j) +  Beta (n) * EqAmp(n) * L2(m(n)) *     &
-                                                  cos ( AstroArg(n) + Freq(n)*UTSeconds/3600 + (real(m(n))-1)*LongRad)
-                    enddo
-
-                else if (Me%TidePotential%Algorithm == Lefevre) then it1
-
-                    Tau = (UTseconds / 86400.*360. + LongDegree - s0 + h0) * Pi / 180.
-
-                    !griflet: m(n) was taken care of in the construct and yields
-                    !1(Ssa,Mm,Mf),2(Q1,O1,N1,P1) or 3(M2,N2,O2,P2) only.
-                    do n=1, 11
-                        TidePotentialLevel(i,j) = TidePotentialLevel(i,j) +  Beta (n) * EqAmp(n) * L2(m(n)) *     &
-                                                  cos ( AstroArg(n) + (real(m(n))-1)*Tau )
-                    enddo
-
-                endif it1
-
-                if (Me%ComputeOptions%TideSlowStartCoef > 0.)  then
-
-                    Aux = Run_Period / Me%ComputeOptions%TideSlowStartCoef
-
-                    if (Aux < 1) TidePotentialLevel(i,j)= TidePotentialLevel(i,j) * Aux
-
-                endif
-
-            else  iw1
-
-                TidePotentialLevel(i, j) = FillValueReal
-
-            endif iw1
-
-        enddo
-        enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
-
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLatitude, STAT = STATUS)
-        if (STATUS /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR03")
-
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLongitude, STAT = STATUS)
-        if (STATUS /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR04")
+        endif
 
         !nullify auxiliar pointers
-        nullify(TidePotentialLevel, Beta, EqAmp, Freq, AstroArg, m, L, WaterPoints3D)
+        nullify(TidePotentialLevel, SpatialCoeff, CosLonPhase, SinLonPhase, FreqOver3600, AstroArg, &
+               WaterCellI, WaterCellJ, m)
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyTidePotential")
 
@@ -43876,7 +43999,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         real   , dimension(:,:  ), pointer  :: WaterLevel_New, WaterLevel_Old
         integer, dimension(:,:,:), pointer  :: WaterPoints3D
         real                                :: dt
-        integer                             :: IUB,ILB,JUB,JLB,KUB,KLB,i, j, CHUNK
+        integer                             :: IUB,ILB,JUB,JLB,KUB,KLB,i, j, CHUNK, k
         logical                             :: MeshVelocity_, MeshSlope_
         !Begin-----------------------------------------------------------------
 
@@ -43902,10 +44025,17 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         CHUNK = CHUNK_J(JLB, JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
-
-        where (Me%External_Var%ComputeFaces3D_W(:,:,:) == 1) &
-                Velocity_W_Cartesian(:,:,:) = Me%Velocity%Vertical%Across(:,:,:)
-
+        
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%External_Var%ComputeFaces3D_W(i,j,k) == 1) then
+                Velocity_W_Cartesian(i,j,k) = Me%Velocity%Vertical%Across(i,j,k)
+            endif
+        enddo
+        enddo
+        enddo
+        
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
@@ -44464,7 +44594,22 @@ dok:            do k = kbottom + 1, KUB
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
 
         !$OMP PARALLEL PRIVATE(i,j,k, aux)
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
+        ! Bottom interface (k=KLB) is impermeable by default (W=0 at seabed).
+        ! Vertical velocity (Across) is defined at cell interfaces (k=KLB bottom to KUB+1 surface).
+        ! The cell-centered WaterPoints3D(i,j,m) is 1 if layer m is wet.
+        ! For interface k, we test the cell *below* it (k-1). For the bottom interface k=KLB,
+        ! k-1=KLB-1 is not a valid wet cell → the old loop starting at KLB would either skip
+        ! or rely on uninitialized/zero memory for bottom W.
+        ! Correct and cleaner: explicitly set bottom W=0, then compute from the first interface
+        ! above the bottom layer (k=KLB+1) up to the surface (KUB+1).
+        ! Bottom interface (k=KLB) is set to 0 at allocation / initialization time
+        ! (see the block that does = FillValueReal followed by targeted =0 in some paths).
+        ! We must NOT do a full slice assignment here every time step — it is expensive
+        ! (memory bandwidth) and was only added for "documentation".
+        ! Since the computation loop now starts at KLB+1, the bottom value is never
+        ! overwritten by this routine and will keep its initial 0 (or bottom BC value).
+
+        do k = Me%WorkSize%KLB + 1, Me%WorkSize%KUB + 1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -56954,6 +57099,39 @@ i111:  if (Me%Tsunami%ON) then
         if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR05")
         deallocate (Me%TidePotential%L               , STAT = STATUS)
         if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR06")
+
+        if (associated(Me%TidePotential%FreqOver3600)) then
+            deallocate (Me%TidePotential%FreqOver3600, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR07")
+        endif
+
+        if (associated(Me%TidePotential%WaterCellI)) then
+            deallocate (Me%TidePotential%WaterCellI, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR08")
+        endif
+
+        if (associated(Me%TidePotential%WaterCellJ)) then
+            deallocate (Me%TidePotential%WaterCellJ, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR09")
+        endif
+
+        if (associated(Me%TidePotential%SpatialCoeff)) then
+            deallocate (Me%TidePotential%SpatialCoeff, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR10")
+        endif
+
+        if (associated(Me%TidePotential%CosLonPhase)) then
+            deallocate (Me%TidePotential%CosLonPhase, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR11")
+        endif
+
+        if (associated(Me%TidePotential%SinLonPhase)) then
+            deallocate (Me%TidePotential%SinLonPhase, STAT = STATUS)
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR12")
+        endif
+
+        Me%TidePotential%NWaterCells = 0
+        Me%TidePotential%SpatialReady = .false.
 
     end subroutine KillTidePotential
 
