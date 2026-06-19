@@ -9328,9 +9328,15 @@ ifMS:   if (MasterOrSlave) then
 
         if (CurrentHDF%InterpScope /= InterpScopeFull_) then
             if (Me%Dim == Dim2D) then
-                call FillWithDefault(PointsToFill2D = Me%PointsToFill2D)
+                call SetMatrixValue(Matrix      = Matrix2D,                             &
+                                    Size        = Me%WorkSize2D,                        &
+                                    ValueX      = Me%DefaultValue(1),                   &
+                                    MapMatrix   = Me%PointsToFill2D)
             else
-                call FillWithDefault(PointsToFill3D = Me%PointsToFill3D)
+                call SetMatrixValue(Matrix      = Matrix3D,                             &
+                                    Size        = Me%WorkSize3D,                        &
+                                    ValueX      = Me%DefaultValue(1),                   &
+                                    MapMatrix   = Me%PointsToFill3D)
             endif
         endif
 
