@@ -2281,7 +2281,8 @@ cd2 :           if (BlockFound) then
         integer                                 :: ClientNumber
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D 
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D
+        integer, dimension(:,:  ), pointer      :: WaterFaces2D_U, WaterFaces2D_V
         integer, dimension(:,:,:), pointer      :: WaterPoints3D
         integer                                 :: iflag
         logical                                 :: BlockFound
@@ -2293,6 +2294,11 @@ cd2 :           if (BlockFound) then
         
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR10'
+
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                       &
+                             WaterFaces2DU = WaterFaces2D_U,                            &
+                             WaterFaces2DV = WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR11'
         
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR20'
@@ -2333,7 +2339,8 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
                 if (NewProperty%Dim == Dim_2D .or. NewProperty%Upscaling) then
                     !If upscaling, creates decaytime in 2DD as there is no 3D option yet avaliable for filling
                     !this matrix in the vertical coordinate
-                    call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D)
+                    call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D,   &
+                                                          WaterFaces2D_U, WaterFaces2D_V)
                 else if (NewProperty%Dim == Dim_3D) then
                     call ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
                 else
@@ -2350,6 +2357,12 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR15'
 
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR17'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR18'
+
         call UngetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR16'
 
@@ -2362,18 +2375,18 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
     !>@Brief
     !>Constructs property coefficient for a 2D field
     !>@param[in] NewProperty
-    subroutine ConstructPropertyCoefficients_2D (NewProperty, WaterPoints2D)
+    subroutine ConstructPropertyCoefficients_2D (NewProperty, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V)
         !Arguments-------------------------------------------------------------
         type(T_property),     pointer, intent(INOUT)   :: NewProperty
-        integer, dimension(:,:  ), pointer, intent(IN) :: WaterPoints2D
+        integer, dimension(:,:  ), pointer, intent(IN) :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
         !External--------------------------------------------------------------
         integer                                        :: STAT_CALL
         integer, dimension(:,:  ), pointer             :: PointsToFill2D
         !Local-----------------------------------------------------------------
-        integer                                        :: i, j, ILB, JLB, IUB, JUB
+        integer                                        :: ILB, JLB, IUB, JUB
         !----------------------------------------------------------------------
-        !Sobrinho - Passar a parte do upscaling para uma routina à parte em que é feito o fill matrix para a matriz filho e depois
-        ! é feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
+        !Sobrinho - Passar a parte do upscaling para uma routina ? parte em que ? feito o fill matrix para a matriz filho e depois
+        ! ? feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
         ILB = Me%Size%ILB; JLB = Me%Size%JLB
         IUB = Me%Size%IUB; JUB = Me%Size%JUB
         
@@ -2381,28 +2394,11 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         allocate(PointsToFill2D            (ILB:IUB, JLB:JUB))
                     
         if (NewProperty%CoefField%TypeZUV == TypeZ_) then
-            PointsToFill2D (:,:) = WaterPoints2D (:,:)
-            
+            PointsToFill2D(:,:) = WaterPoints2D(:,:)
         else if (NewProperty%CoefField%TypeZUV == TypeU_) then
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints2D(i, j - 1) == WaterPoint .or. WaterPoints2D(i, j) == WaterPoint) then
-                    PointsToFill2D(i,j) = 1
-                else
-                    PointsToFill2D(i,j) = 0
-                endif
-            enddo
-            enddo
+            PointsToFill2D(:,:) = WaterFaces2D_U(:,:)
         else if (NewProperty%CoefField%TypeZUV == TypeV_) then
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints2D(i - 1, j) == WaterPoint .or. WaterPoints2D(i, j) == WaterPoint) then
-                    PointsToFill2D(i,j) = 1
-                else
-                    PointsToFill2D(i,j) = 0
-                endif
-            enddo
-            enddo
+            PointsToFill2D(:,:) = WaterFaces2D_V(:,:)
         endif
 
         NewProperty%CoefField%R2D(:,:) = FillValueReal
@@ -2420,7 +2416,7 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
                                         TimeID               = Me%ObjTime,                   &
                                         HorizontalGridID     = Me%ObjHorizontalGrid,         &
                                         ExtractType          = FromBlockInBlock,             &
-                                        PointsToFill2D       = WaterPoints2D,                &
+                                        PointsToFill2D       = PointsToFill2D,               &
                                         Matrix2D             = NewProperty%CoefField%R2D,    &
                                         TypeZUV              = NewProperty%CoefField%TypeZUV,&
                                         SpongeFILE_DT        = NewProperty%FilenameHDF,      &
