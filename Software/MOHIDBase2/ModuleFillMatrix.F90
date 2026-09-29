@@ -8436,7 +8436,7 @@ di:                 do i = ILB, IUB
                      default      = .false.,                                            &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR07'
 
         !West, East, South, North
         call GetData(Aux4,                                                              &
