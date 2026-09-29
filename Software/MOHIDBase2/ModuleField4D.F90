@@ -85,7 +85,8 @@ Module ModuleField4D
     use ModuleTwoWay,           only : PrepTwoWay, ModifyTwoWay, UngetTwoWayExternal_Vars
 #ifdef _USE_MPI
     use mpi,                    only : MPI_IN_PLACE, MPI_MAX, MPI_MIN, MPI_INTEGER,     &
-                                       MPI_REAL, MPI_DOUBLE_PRECISION
+                                       MPI_REAL, MPI_DOUBLE_PRECISION, MPI_COMM_NULL,   &
+                                       MPI_UNDEFINED
 #endif
 
     implicit none
@@ -426,6 +427,7 @@ Module ModuleField4D
         !fills are done on the union of all ranks' windows (MPIWindowGlobal)
         logical                                     :: MPIWindow            = .false.
         integer                                     :: MPIWindowComm        = null_int
+        logical                                     :: MPIWindowCommOwned   = .false.
         logical                                     :: MPIWindowChecked     = .false.
         logical                                     :: MPIWindowLimitsSet   = .false.
         type (T_Size2D)                             :: MPIWindowGlobal
@@ -492,6 +494,9 @@ Module ModuleField4D
         type (T_PropField), pointer                           :: NewPropField
         integer                                               :: ready_, STAT_, nUsers, STAT_CALL
         logical                                               :: OnlyReadGridFromFile_
+#ifdef _USE_MPI
+        integer                                               :: Color, MyRank, NewComm
+#endif
 
         !------------------------------------------------------------------------
 
@@ -609,10 +614,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             endif
             
-            Me%GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid,  &
-                                              STAT             = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_) then
-                stop 'ConstructField4D - ModuleField4D - ERR55'
+            if (.not. Me%MPIWindow .or. Me%WindowWithData) then
+                Me%GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                                  STAT             = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_) then
+                    stop 'ConstructField4D - ModuleField4D - ERR55'
+                endif
             endif
 
 
@@ -622,6 +629,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 OG:         if (.not. OnlyReadGridFromFile_) then
 
                 if (Me%File%NumberOfInstants == 1) Me%WindowWithData = .false.
+
+#ifdef _USE_MPI
+                !Dataless ranks never fill, so they must not join this instance's reductions
+                if (Me%MPIWindow) then
+                    call MPI_Comm_rank(Me%MPIWindowComm, MyRank, STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'ConstructField4D - ModuleField4D - ERR180'
+
+                    if (Me%WindowWithData) then
+                        Color = 0
+                    else
+                        Color = MPI_UNDEFINED
+                    endif
+
+                    call MPI_Comm_split(Me%MPIWindowComm, Color, MyRank, NewComm, STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'ConstructField4D - ModuleField4D - ERR190'
+
+                    Me%MPIWindowComm = NewComm
+                    if (NewComm == MPI_COMM_NULL) then
+                        Me%MPIWindow = .false.
+                    else
+                        Me%MPIWindowCommOwned = .true.
+                    endif
+                endif
+#endif
 
 wwd:            if (Me%WindowWithData) then
 
@@ -8394,6 +8425,13 @@ wwd:            if (Me%WindowWithData) then
                     endif
 
                 end if wwd
+
+#ifdef _USE_MPI
+                if (Me%MPIWindowCommOwned) then
+                    call MPI_Comm_free(Me%MPIWindowComm, STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'KillField4D - ModuleField4D - ERR170'
+                endif
+#endif
 
                 nUsers = DeassociateInstance (mTIME_,           Me%ObjTime           )
                 if (nUsers == 0) stop 'KillField4D - ModuleField4D - ERR160'
