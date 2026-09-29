@@ -8450,7 +8450,7 @@ di:                 do i = ILB, IUB
         if (iflag < 4 .and. MPIWindow .and. GetDDecompON(Me%ObjHorizontalGrid)) then
 
             !Read only this rank's subdomain (ReadGridFromFile pads it by 3 cells); extrapolation
-            !fills run on the union of all windows (FillLayerMPIWindow) to match the global result.
+            !fills run on the union window (FillLayerMPIWindow) to match the global result.
             call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR15'
 
@@ -8729,12 +8729,17 @@ di:                 do i = ILB, IUB
         if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR60'
 
         call MPI_Group_free(ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR70'
+
         call MPI_Group_free(WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR80'
 #else
-        stop 'ConstructMPIWindowComm - ModuleFillMatrix - FIELD4D_MPI_WINDOW needs _USE_MPI'
+        write(*,*) 'FIELD4D_MPI_WINDOW : 1 needs an MPI build'
+        stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR90'
 #endif
 
     end subroutine ConstructMPIWindowComm
+
     !----------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief

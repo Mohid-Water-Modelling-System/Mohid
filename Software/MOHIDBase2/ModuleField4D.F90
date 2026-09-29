@@ -424,7 +424,7 @@ Module ModuleField4D
         logical                                     :: CheckHDF5_File       = .false.
 
         !FIELD4D_MPI_WINDOW: this rank reads only its window of the file; extrapolation
-        !fills are done on the union of all ranks' windows (MPIWindowGlobal)
+        !fills are done on the union window (MPIWindowGlobal)
         logical                                     :: MPIWindow            = .false.
         integer                                     :: MPIWindowComm        = null_int
         logical                                     :: MPIWindowCommOwned   = .false.
@@ -2230,7 +2230,6 @@ wwd1:       if (Me%WindowWithData) then
             write(*,*) 'EXTRAPOLATE_POINT is not supported with FIELD4D_MPI_WINDOW : 1'
             stop 'ReadOptions - ModuleField4D - ERR275'
         endif
-
 
         call GetData(PropField%Zdepths,                                                 &
                      Me%ObjEnterData , iflag,                                           &
@@ -6446,13 +6445,8 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
     !----------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    !FillMatrix2D/3D statistics (EXTRAPOLATE boundary average, nearest-cell search,
-    !kfirst/klast) need the whole window: a per-rank window would count its edge as
-    !boundary. Fill each layer over the union of all ranks' windows to match the
-    !non-windowed result.
-
+    !FillMatrix2D/3D statistics see a rank window's edge as a boundary; fill over the
+    !union window to match the non-windowed result.
     subroutine FillMatrix2DMPIWindow(Map2D, Values2D, FillGridMethod)
 
         !Arguments-------------------------------------------------------------
@@ -6472,8 +6466,6 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
     !--------------------------------------------------------------------------
 
-    !Same steps as FillMatrix3D, with the per-layer fill and the kfirst/klast searches
-    !done over the union window
     subroutine FillMatrix3DMPIWindow(Map3D, Values3D, FillGridMethod)
 
         !Arguments-------------------------------------------------------------
@@ -6531,12 +6523,12 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
     !--------------------------------------------------------------------------
 
-    subroutine FillLayerMPIWindow(WS, Map2D, Value2D, FillGridMethod, AnyValid, CornerValid)
+    subroutine FillLayerMPIWindow(WS, Map2D, Values2D, FillGridMethod, AnyValid, CornerValid)
 
         !Arguments-------------------------------------------------------------
         type (T_Size2D)                                 :: WS
         integer, dimension(:,:), pointer                :: Map2D
-        real,    dimension(:,:), pointer                :: Value2D
+        real,    dimension(:,:), pointer                :: Values2D
         integer                                         :: FillGridMethod
         logical, intent(OUT)                            :: AnyValid, CornerValid
 
@@ -6553,9 +6545,6 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         !Begin-----------------------------------------------------------------
 
         CheckOverlap = .not. Me%MPIWindowChecked
-
-        call MPI_Comm_rank(Me%MPIWindowComm, MyRank, STAT_CALL)
-        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR10'
 
         if (.not. Me%MPIWindowLimitsSet) then
 
@@ -6574,13 +6563,13 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         allocate(GVal   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
         allocate(GMap   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
 
-        !Only WorkSize cells are sent: masks are zero in each window's halo
+        !Only WorkSize cells are copied in; masks are zero in the window's halo
         GVal   (:,:) = -huge(1.)
         GMap   (:,:) =  0
 
         do j = WS%JLB, WS%JUB
         do i = WS%ILB, WS%IUB
-            GVal   (i, j) = Value2D(i, j)
+            GVal   (i, j) = Values2D(i, j)
             GMap   (i, j) = Map2D  (i, j)
         enddo
         enddo
@@ -6594,7 +6583,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
             do j = WS%JLB, WS%JUB
             do i = WS%ILB, WS%IUB
-                GValMin(i, j) = Value2D(i, j)
+                GValMin(i, j) = Values2D(i, j)
                 GMapMin(i, j) = Map2D  (i, j)
             enddo
             enddo
@@ -6641,10 +6630,14 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
             stop 'FillLayerMPIWindow - ModuleField4D - ERR70'
         endif
 
-        if (nMismatch > 0 .and. .not. Me%MPIWindowChecked .and. MyRank == 0) then
-            write(*,*) 'FIELD4D_MPI_WINDOW: overlapping windows disagree on cells', nMismatch
-            write(*,*) trim(Me%File%FileName)
-            write(*,*) 'FillLayerMPIWindow - ModuleField4D - WRN80'
+        if (nMismatch > 0) then
+            call MPI_Comm_rank(Me%MPIWindowComm, MyRank, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR75'
+            if (MyRank == 0) then
+                write(*,*) 'FIELD4D_MPI_WINDOW: overlapping windows disagree on cells', nMismatch
+                write(*,*) trim(Me%File%FileName)
+                write(*,*) 'FillLayerMPIWindow - ModuleField4D - WRN80'
+            endif
         endif
         Me%MPIWindowChecked = .true.
 
@@ -6658,7 +6651,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
         do j = max(WS%JLB-1, G%JLB), min(WS%JUB+1, G%JUB)
         do i = max(WS%ILB-1, G%ILB), min(WS%IUB+1, G%IUB)
-            Value2D(i, j) = GVal(i, j)
+            Values2D(i, j) = GVal(i, j)
         enddo
         enddo
 
@@ -6666,7 +6659,8 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         if (CheckOverlap) deallocate(GValMin, GMapMin)
 #else
         AnyValid = .false.; CornerValid = .false.
-        stop 'FillLayerMPIWindow - ModuleField4D - FIELD4D_MPI_WINDOW needs _USE_MPI'
+        write(*,*) 'FIELD4D_MPI_WINDOW : 1 needs an MPI build'
+        stop 'FillLayerMPIWindow - ModuleField4D - ERR90'
 #endif
 
     end subroutine FillLayerMPIWindow
@@ -8453,7 +8447,7 @@ wwd:            if (Me%WindowWithData) then
 #ifdef _USE_MPI
                 if (Me%MPIWindowCommOwned) then
                     call MPI_Comm_free(Me%MPIWindowComm, STAT_CALL)
-                    if (STAT_CALL /= 0) stop 'KillField4D - ModuleField4D - ERR170'
+                    if (STAT_CALL /= 0) stop 'KillField4D - ModuleField4D - ERR155'
                 endif
 #endif
 
