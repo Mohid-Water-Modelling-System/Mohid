@@ -614,7 +614,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             endif
             
-            if (.not. Me%MPIWindow .or. Me%WindowWithData) then
+            if (Me%WindowWithData) then
                 Me%GhostCorners = GetGhostCorners(HorizontalGridID = Me%ObjHorizontalGrid,  &
                                                   STAT             = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) then
