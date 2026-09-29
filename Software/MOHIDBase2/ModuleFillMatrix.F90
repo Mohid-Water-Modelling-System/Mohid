@@ -63,6 +63,7 @@ Module ModuleFillMatrix
                                        GetGridBorderCartPolygon,                        &
                                        GetHorizontalGrid, ConstructHorizontalGrid,      &
                                        KillHorizontalGrid, GetDDecompON,                &
+                                       GetDDecompSlaves,                                &
                                        GetCellRotation,                                 &
                                        ConstructFatherGridLocation,                     &
                                        GetCellZInterceptByLine, GetGeoCoordON,          &
@@ -88,6 +89,9 @@ Module ModuleFillMatrix
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
     use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay, InterpolUpscaling_Velocity
+#ifdef _USE_MPI
+    use mpi,                    only : MPI_COMM_WORLD
+#endif
 
 
     implicit none
@@ -635,6 +639,9 @@ Module ModuleFillMatrix
     !large bathymetries; reuse the limits of the last file read.
     character(len=PathLength)                       :: BorderLimitsFile     = ' '
     real, dimension(4)                              :: BorderLimitsCache    = 0.
+
+    !Communicator over this model's ranks, for FIELD4D_MPI_WINDOW extrapolation fills
+    integer                                         :: MPIWindowComm        = null_int
 
     !--------------------------------------------------------------------------
 
@@ -8399,6 +8406,7 @@ di:                 do i = ILB, IUB
         integer                                         :: iflag, ObjHorizontalGridAux
         character(len=PathLength)                       :: BathymetryFile
         logical                                         :: MPIWindow
+        integer                                         :: WindowComm
 
         !Begin--------------------------------------------------------------------------
 
@@ -8419,6 +8427,7 @@ di:                 do i = ILB, IUB
         endif
 
         Aux4 (:) = FillValueReal
+        WindowComm = null_int
 
         call GetData(MPIWindow,                                                         &
                      Me%ObjEnterData , iflag,                                           &
@@ -8440,12 +8449,13 @@ di:                 do i = ILB, IUB
 
         if (iflag < 4 .and. MPIWindow .and. GetDDecompON(Me%ObjHorizontalGrid)) then
 
-            !Window the file to this rank's subdomain instead of the whole model domain, so
-            !the Field4D grid, geometry, map and fields scale with 1/nranks. ReadGridFromFile
-            !pads the window by 3 file cells. Not bit-identical to the global window: the
-            !EXTRAPOLATE average fill is computed over the window.
+            !Read only this rank's subdomain (ReadGridFromFile pads it by 3 cells); extrapolation
+            !fills run on the union of all windows (FillLayerMPIWindow) to match the global result.
             call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR15'
+
+            call ConstructMPIWindowComm
+            WindowComm = MPIWindowComm
 
         elseif (iflag < 4) then
 
@@ -8668,12 +8678,63 @@ di:                 do i = ILB, IUB
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
                                   CheckHDF5_File    = Me%CheckHDF5_File,                &
+                                  MPIWindowComm     = WindowComm,                       &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
 
         endif
 
     end subroutine ConstructField4DInterpol
+
+    !----------------------------------------------------------------------------
+
+    subroutine ConstructMPIWindowComm
+
+        !Local--------------------------------------------------------------------------
+#ifdef _USE_MPI
+        integer,  dimension(:),     pointer             :: Slaves_MPI_ID
+        integer,  dimension(3,1)                        :: Ranks
+        integer                                         :: Master_MPI_ID, Nslaves
+        integer                                         :: WorldGroup, ModelGroup, STAT_CALL
+#endif
+        !Begin--------------------------------------------------------------------------
+
+#ifdef _USE_MPI
+        if (MPIWindowComm /= null_int) return
+
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  Master_MPI_ID    = Master_MPI_ID,                     &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR10'
+
+        call GetDDecompSlaves(Me%ObjHorizontalGrid, Nslaves, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR20'
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR30'
+
+        !Model ranks are Master_MPI_ID..Master_MPI_ID+Nslaves of MPI_COMM_WORLD. Create the
+        !communicator from the group so only this model's ranks take part (nested models
+        !construct at different times).
+        Ranks(:,1) = (/Master_MPI_ID, Master_MPI_ID + Nslaves, 1/)
+
+        call MPI_Comm_group(MPI_COMM_WORLD, WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR40'
+
+        call MPI_Group_range_incl(WorldGroup, 1, Ranks, ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR50'
+
+        call MPI_Comm_create_group(MPI_COMM_WORLD, ModelGroup, Master_MPI_ID,           &
+                                   MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR60'
+
+        call MPI_Group_free(ModelGroup, STAT_CALL)
+        call MPI_Group_free(WorldGroup, STAT_CALL)
+#else
+        stop 'ConstructMPIWindowComm - ModuleFillMatrix - FIELD4D_MPI_WINDOW needs _USE_MPI'
+#endif
+
+    end subroutine ConstructMPIWindowComm
     !----------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief

@@ -83,6 +83,10 @@ Module ModuleField4D
     use ModuleTask2000,         only : Task2000Level
 
     use ModuleTwoWay,           only : PrepTwoWay, ModifyTwoWay, UngetTwoWayExternal_Vars
+#ifdef _USE_MPI
+    use mpi,                    only : MPI_IN_PLACE, MPI_MAX, MPI_MIN, MPI_INTEGER,     &
+                                       MPI_REAL, MPI_DOUBLE_PRECISION
+#endif
 
     implicit none
 
@@ -418,6 +422,14 @@ Module ModuleField4D
 
         logical                                     :: CheckHDF5_File       = .false.
 
+        !FIELD4D_MPI_WINDOW: this rank reads only its window of the file; extrapolation
+        !fills are done on the union of all ranks' windows (MPIWindowGlobal)
+        logical                                     :: MPIWindow            = .false.
+        integer                                     :: MPIWindowComm        = null_int
+        logical                                     :: MPIWindowChecked     = .false.
+        logical                                     :: MPIWindowLimitsSet   = .false.
+        type (T_Size2D)                             :: MPIWindowGlobal
+
         type(T_Field4D), pointer                    :: Next                 => null()
     end type  T_Field4D
 
@@ -445,7 +457,7 @@ Module ModuleField4D
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
                                 FileNameList, FieldName, FieldName_2,                   &
                                 OnlyReadGridFromFile, DiscardFillValues,                &
-                                CheckHDF5_File, Upscaling, STAT)
+                                CheckHDF5_File, Upscaling, MPIWindowComm, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -473,6 +485,7 @@ Module ModuleField4D
         logical,                              optional, intent(IN )   :: DiscardFillValues
         logical,                              optional, intent(IN )   :: CheckHDF5_File
         logical,                              optional, intent(IN )   :: Upscaling
+        integer,                              optional, intent(IN )   :: MPIWindowComm
         integer,                              optional, intent(OUT)   :: STAT
 
         !Local-------------------------------------------------------------------
@@ -512,6 +525,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(ExtrapolateMethod)) Me%ExtrapolateMethod = ExtrapolateMethod
             if (present(DiscardFillValues)) Me%DiscardFillValues = DiscardFillValues
             if (present(Upscaling))         Me%Upscaling         = Upscaling
+            if (present(MPIWindowComm)) then
+                if (MPIWindowComm /= null_int) then
+                    Me%MPIWindow     = .true.
+                    Me%MPIWindowComm = MPIWindowComm
+                endif
+            endif
 
             Me%File%FileListON      = .false.
 
@@ -6391,6 +6410,214 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
 
     !----------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    !FillMatrix2D/3D statistics (EXTRAPOLATE boundary average, nearest-cell search,
+    !kfirst/klast) need the whole window: a per-rank window would count its edge as
+    !boundary. Fill each layer over the union of all ranks' windows to match the
+    !non-windowed result.
+
+    subroutine FillMatrix2DMPIWindow(Map2D, Values2D, FillGridMethod)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:,:), pointer                :: Map2D
+        real,    dimension(:,:), pointer                :: Values2D
+        integer                                         :: FillGridMethod
+
+        !Local-----------------------------------------------------------------
+        logical                                         :: AnyValid, CornerValid
+
+        !Begin-----------------------------------------------------------------
+
+        call FillLayerMPIWindow(Me%WorkSize2D, Map2D, Values2D, FillGridMethod,         &
+                                AnyValid, CornerValid)
+
+    end subroutine FillMatrix2DMPIWindow
+
+    !--------------------------------------------------------------------------
+
+    !Same steps as FillMatrix3D, with the per-layer fill and the kfirst/klast searches
+    !done over the union window
+    subroutine FillMatrix3DMPIWindow(Map3D, Values3D, FillGridMethod)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:,:,:), pointer              :: Map3D
+        real,    dimension(:,:,:), pointer              :: Values3D
+        integer                                         :: FillGridMethod
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:  ), pointer              :: Map2D
+        real,    dimension(:,:  ), pointer              :: Value2D
+        type (T_Size2D)                                 :: WS
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                         :: k, kfirst, klast
+        logical                                         :: AnyValid, CornerValid
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize3D%ILB; IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB; JUB = Me%WorkSize3D%JUB
+        KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+
+        WS%ILB = ILB; WS%IUB = IUB; WS%JLB = JLB; WS%JUB = JUB
+
+        allocate(Value2D(ILB-1:IUB+1, JLB-1:JUB+1))
+        allocate(Map2D  (ILB-1:IUB+1, JLB-1:JUB+1))
+
+        kfirst = -FillValueInt
+        klast  = -FillValueInt
+
+        do k = KLB, KUB
+
+            Map2D  (ILB-1:IUB+1, JLB-1:JUB+1) = Map3D   (ILB-1:IUB+1, JLB-1:JUB+1, k)
+            Value2D(ILB-1:IUB+1, JLB-1:JUB+1) = Values3D(ILB-1:IUB+1, JLB-1:JUB+1, k)
+
+            call FillLayerMPIWindow(WS, Map2D, Value2D, FillGridMethod, AnyValid, CornerValid)
+
+            Values3D(ILB-1:IUB+1, JLB-1:JUB+1, k) = Value2D(ILB-1:IUB+1, JLB-1:JUB+1)
+
+            if (AnyValid .and. kfirst == -FillValueInt) kfirst = k
+            if (CornerValid) klast = k
+
+        enddo
+
+        do k = KLB, kfirst - 1
+            Values3D(ILB-1:IUB+1, JLB-1:JUB+1, k) = Values3D(ILB-1:IUB+1, JLB-1:JUB+1, kfirst)
+        enddo
+
+        do k = klast + 1, KUB
+            Values3D(ILB-1:IUB+1, JLB-1:JUB+1, k) = Values3D(ILB-1:IUB+1, JLB-1:JUB+1, klast)
+        enddo
+
+        deallocate(Map2D, Value2D)
+
+    end subroutine FillMatrix3DMPIWindow
+
+    !--------------------------------------------------------------------------
+
+    subroutine FillLayerMPIWindow(WS, Map2D, Value2D, FillGridMethod, AnyValid, CornerValid)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Size2D)                                 :: WS
+        integer, dimension(:,:), pointer                :: Map2D
+        real,    dimension(:,:), pointer                :: Value2D
+        integer                                         :: FillGridMethod
+        logical, intent(OUT)                            :: AnyValid, CornerValid
+
+#ifdef _USE_MPI
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:), pointer                :: GMap, GMapMin
+        real,    dimension(:,:), pointer                :: GVal, GValMin
+        type (T_Size2D)                                 :: G
+        integer, dimension(4)                           :: Aux
+        integer                                         :: i, j, n, RType, STAT_CALL
+        integer                                         :: nUncovered, nMismatch, MyRank
+
+        !Begin-----------------------------------------------------------------
+
+        call MPI_Comm_rank(Me%MPIWindowComm, MyRank, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR10'
+
+        if (.not. Me%MPIWindowLimitsSet) then
+
+            Aux = (/WS%ILB, -WS%IUB, WS%JLB, -WS%JUB/)
+            call MPI_Allreduce(MPI_IN_PLACE, Aux, 4, MPI_INTEGER, MPI_MIN,              &
+                               Me%MPIWindowComm, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR20'
+
+            Me%MPIWindowGlobal%ILB =  Aux(1); Me%MPIWindowGlobal%IUB = -Aux(2)
+            Me%MPIWindowGlobal%JLB =  Aux(3); Me%MPIWindowGlobal%JUB = -Aux(4)
+            Me%MPIWindowLimitsSet  = .true.
+        endif
+
+        G = Me%MPIWindowGlobal
+
+        allocate(GVal   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+        allocate(GValMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+        allocate(GMap   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+        allocate(GMapMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+
+        !Only WorkSize cells are sent: masks are zero in each window's halo
+        GVal   (:,:) = -huge(1.)
+        GValMin(:,:) =  huge(1.)
+        GMap   (:,:) =  0
+        GMapMin(:,:) =  huge(1)
+
+        do j = WS%JLB, WS%JUB
+        do i = WS%ILB, WS%IUB
+            GVal   (i, j) = Value2D(i, j)
+            GValMin(i, j) = Value2D(i, j)
+            GMap   (i, j) = Map2D  (i, j)
+            GMapMin(i, j) = Map2D  (i, j)
+        enddo
+        enddo
+
+        n = size(GVal)
+        if (kind(GVal) == 8) then
+            RType = MPI_DOUBLE_PRECISION
+        else
+            RType = MPI_REAL
+        endif
+
+        !Overlapping windows hold the same file cells; MIN is kept to check that
+        call MPI_Allreduce(MPI_IN_PLACE, GVal,    n, RType,       MPI_MAX, Me%MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR30'
+        call MPI_Allreduce(MPI_IN_PLACE, GValMin, n, RType,       MPI_MIN, Me%MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR40'
+        call MPI_Allreduce(MPI_IN_PLACE, GMap,    n, MPI_INTEGER, MPI_MAX, Me%MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR50'
+        call MPI_Allreduce(MPI_IN_PLACE, GMapMin, n, MPI_INTEGER, MPI_MIN, Me%MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR60'
+
+        nUncovered = 0
+        nMismatch  = 0
+        do j = G%JLB, G%JUB
+        do i = G%ILB, G%IUB
+            if (GVal(i, j) == -huge(1.)) then
+                nUncovered = nUncovered + 1
+            elseif (GVal(i, j) /= GValMin(i, j) .or. GMap(i, j) /= GMapMin(i, j)) then
+                nMismatch  = nMismatch + 1
+            endif
+        enddo
+        enddo
+
+        if (nUncovered > 0) then
+            write(*,*) 'FIELD4D_MPI_WINDOW: cells of the union window read by no rank', nUncovered
+            write(*,*) trim(Me%File%FileName)
+            stop 'FillLayerMPIWindow - ModuleField4D - ERR70'
+        endif
+
+        if (nMismatch > 0 .and. .not. Me%MPIWindowChecked .and. MyRank == 0) then
+            write(*,*) 'FIELD4D_MPI_WINDOW: overlapping windows disagree on cells', nMismatch
+            write(*,*) trim(Me%File%FileName)
+            write(*,*) 'FillLayerMPIWindow - ModuleField4D - WRN80'
+        endif
+        Me%MPIWindowChecked = .true.
+
+        GVal(G%ILB-1, :) = FillValueReal; GVal(G%IUB+1, :) = FillValueReal
+        GVal(:, G%JLB-1) = FillValueReal; GVal(:, G%JUB+1) = FillValueReal
+
+        call FillMatrix2D(G%ILB, G%IUB, G%JLB, G%JUB, GMap, GVal, FillGridMethod)
+
+        AnyValid    = any(GVal(G%ILB:G%IUB, G%JLB:G%JUB) > FillValueReal/1e4)
+        CornerValid = GVal(G%ILB, G%JLB) > FillValueReal/1e4
+
+        do j = max(WS%JLB-1, G%JLB), min(WS%JUB+1, G%JUB)
+        do i = max(WS%ILB-1, G%ILB), min(WS%IUB+1, G%IUB)
+            Value2D(i, j) = GVal(i, j)
+        enddo
+        enddo
+
+        deallocate(GVal, GValMin, GMap, GMapMin)
+#else
+        AnyValid = .false.; CornerValid = .false.
+        stop 'FillLayerMPIWindow - ModuleField4D - FIELD4D_MPI_WINDOW needs _USE_MPI'
+#endif
+
+    end subroutine FillLayerMPIWindow
+
+    !--------------------------------------------------------------------------
+
     subroutine Interpolate2DCloud (PropField, X, Y, Field, NoData)
 
         !Arguments------------------------------------------------------------
@@ -6419,7 +6646,10 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
             stop 'Interpolate2DCloud - ModuleField4D - ERR10'
         endif
 
-        if (PropField%ExtrapolateGrid) then
+        if (PropField%ExtrapolateGrid .and. Me%MPIWindow) then
+            call FillMatrix2DMPIWindow(Me%ExternalVar%Waterpoints2D, Me%Matrix2D,     &
+                                       PropField%ExtrapolateMethod)
+        elseif (PropField%ExtrapolateGrid) then
             call FillMatrix2D(Me%WorkSize2D%ILB,                             &
                               Me%WorkSize2D%IUB,                             &
                               Me%WorkSize2D%JLB,                             &
@@ -6786,7 +7016,10 @@ dnP:    do nP = 1,nPoints
                               STAT              = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud3DMatrix - ModuleField4D - ERR10'
 
-        if (PropField%ExtrapolateGrid) then
+        if (PropField%ExtrapolateGrid .and. Me%MPIWindow) then
+            call FillMatrix3DMPIWindow(Me%ExternalVar%Waterpoints3D, Me%Matrix3D,    &
+                                       PropField%ExtrapolateMethod)
+        elseif (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
@@ -7076,7 +7309,10 @@ dnP:    do nP = 1,nPoints
 
         Me%Matrix2D(:,:) =  Me%ExternalVar%Bathymetry(:,:)
 
-        if (Me%ExtrapolateGrid) then
+        if (Me%ExtrapolateGrid .and. Me%MPIWindow) then
+            call FillMatrix2DMPIWindow(Me%ExternalVar%Waterpoints2D, Me%Matrix2D,     &
+                                       Me%ExtrapolateMethod)
+        elseif (Me%ExtrapolateGrid) then
             call FillMatrix2D(Me%WorkSize2D%ILB,                             &
                               Me%WorkSize2D%IUB,                             &
                               Me%WorkSize2D%JLB,                             &
@@ -7197,7 +7433,10 @@ dnP:    do nP = 1,nPoints
                               STAT              = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR10'
 
-        if (PropField%ExtrapolateGrid) then
+        if (PropField%ExtrapolateGrid .and. Me%MPIWindow) then
+            call FillMatrix3DMPIWindow(Me%ExternalVar%Waterpoints3D, Me%Matrix3D,    &
+                                       PropField%ExtrapolateMethod)
+        elseif (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
@@ -7245,7 +7484,10 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                                     STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR30'
 
-        if (PropField%ExtrapolateGrid) then
+        if (PropField%ExtrapolateGrid .and. Me%MPIWindow) then
+            call FillMatrix3DMPIWindow(Me%ExternalVar%Waterpoints3D, Me%Depth3D,    &
+                                       PropField%ExtrapolateMethod)
+        elseif (PropField%ExtrapolateGrid) then
             call FillMatrix3D(Me%WorkSize3D%ILB,                             &
                               Me%WorkSize3D%IUB,                             &
                               Me%WorkSize3D%JLB,                             &
