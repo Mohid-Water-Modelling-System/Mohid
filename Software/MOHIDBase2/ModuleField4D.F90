@@ -6543,8 +6543,11 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         integer, dimension(4)                           :: Aux
         integer                                         :: i, j, n, RType, STAT_CALL
         integer                                         :: nUncovered, nMismatch, MyRank
+        logical                                         :: CheckOverlap
 
         !Begin-----------------------------------------------------------------
+
+        CheckOverlap = .not. Me%MPIWindowChecked
 
         call MPI_Comm_rank(Me%MPIWindowComm, MyRank, STAT_CALL)
         if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR10'
@@ -6564,24 +6567,33 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         G = Me%MPIWindowGlobal
 
         allocate(GVal   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
-        allocate(GValMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
         allocate(GMap   (G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
-        allocate(GMapMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
 
         !Only WorkSize cells are sent: masks are zero in each window's halo
         GVal   (:,:) = -huge(1.)
-        GValMin(:,:) =  huge(1.)
         GMap   (:,:) =  0
-        GMapMin(:,:) =  huge(1)
 
         do j = WS%JLB, WS%JUB
         do i = WS%ILB, WS%IUB
             GVal   (i, j) = Value2D(i, j)
-            GValMin(i, j) = Value2D(i, j)
             GMap   (i, j) = Map2D  (i, j)
-            GMapMin(i, j) = Map2D  (i, j)
         enddo
         enddo
+
+        if (CheckOverlap) then
+            allocate(GValMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+            allocate(GMapMin(G%ILB-1:G%IUB+1, G%JLB-1:G%JUB+1))
+
+            GValMin(:,:) =  huge(1.)
+            GMapMin(:,:) =  huge(1)
+
+            do j = WS%JLB, WS%JUB
+            do i = WS%ILB, WS%IUB
+                GValMin(i, j) = Value2D(i, j)
+                GMapMin(i, j) = Map2D  (i, j)
+            enddo
+            enddo
+        endif
 
         n = size(GVal)
         if (kind(GVal) == 8) then
@@ -6590,15 +6602,19 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
             RType = MPI_REAL
         endif
 
-        !Overlapping windows hold the same file cells; MIN is kept to check that
+        !Overlapping windows hold the same file cells; MIN checks that on the first fill
         call MPI_Allreduce(MPI_IN_PLACE, GVal,    n, RType,       MPI_MAX, Me%MPIWindowComm, STAT_CALL)
         if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR30'
-        call MPI_Allreduce(MPI_IN_PLACE, GValMin, n, RType,       MPI_MIN, Me%MPIWindowComm, STAT_CALL)
-        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR40'
+        if (CheckOverlap) then
+            call MPI_Allreduce(MPI_IN_PLACE, GValMin, n, RType,       MPI_MIN, Me%MPIWindowComm, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR40'
+        endif
         call MPI_Allreduce(MPI_IN_PLACE, GMap,    n, MPI_INTEGER, MPI_MAX, Me%MPIWindowComm, STAT_CALL)
         if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR50'
-        call MPI_Allreduce(MPI_IN_PLACE, GMapMin, n, MPI_INTEGER, MPI_MIN, Me%MPIWindowComm, STAT_CALL)
-        if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR60'
+        if (CheckOverlap) then
+            call MPI_Allreduce(MPI_IN_PLACE, GMapMin, n, MPI_INTEGER, MPI_MIN, Me%MPIWindowComm, STAT_CALL)
+            if (STAT_CALL /= 0) stop 'FillLayerMPIWindow - ModuleField4D - ERR60'
+        endif
 
         nUncovered = 0
         nMismatch  = 0
@@ -6606,8 +6622,10 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         do i = G%ILB, G%IUB
             if (GVal(i, j) == -huge(1.)) then
                 nUncovered = nUncovered + 1
-            elseif (GVal(i, j) /= GValMin(i, j) .or. GMap(i, j) /= GMapMin(i, j)) then
-                nMismatch  = nMismatch + 1
+            elseif (CheckOverlap) then
+                if (GVal(i, j) /= GValMin(i, j) .or. GMap(i, j) /= GMapMin(i, j)) then
+                    nMismatch  = nMismatch + 1
+                endif
             endif
         enddo
         enddo
@@ -6639,7 +6657,8 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         enddo
         enddo
 
-        deallocate(GVal, GValMin, GMap, GMapMin)
+        deallocate(GVal, GMap)
+        if (CheckOverlap) deallocate(GValMin, GMapMin)
 #else
         AnyValid = .false.; CornerValid = .false.
         stop 'FillLayerMPIWindow - ModuleField4D - FIELD4D_MPI_WINDOW needs _USE_MPI'
