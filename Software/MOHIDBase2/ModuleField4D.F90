@@ -2226,6 +2226,11 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR270'            
 
+        if (PropField%ExtrapolatePoint .and. Me%MPIWindow) then
+            write(*,*) 'EXTRAPOLATE_POINT is not supported with FIELD4D_MPI_WINDOW : 1'
+            stop 'ReadOptions - ModuleField4D - ERR275'
+        endif
+
 
         call GetData(PropField%Zdepths,                                                 &
                      Me%ObjEnterData , iflag,                                           &
