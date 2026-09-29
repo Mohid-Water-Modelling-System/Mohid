@@ -631,6 +631,11 @@ Module ModuleFillMatrix
     type (T_FillMatrix), pointer                    :: FirstObjFillMatrix   => null()
     type (T_FillMatrix), pointer                    :: Me                   => null()
 
+    !Building the full grid from IN_BATIM just to read its border limits is costly for
+    !large bathymetries; reuse the limits of the last file read.
+    character(len=PathLength)                       :: BorderLimitsFile     = ' '
+    real, dimension(4)                              :: BorderLimitsCache    = 0.
+
     !--------------------------------------------------------------------------
 
     contains
@@ -8393,6 +8398,7 @@ di:                 do i = ILB, IUB
         real, dimension(4)                              :: Aux4
         integer                                         :: iflag, ObjHorizontalGridAux
         character(len=PathLength)                       :: BathymetryFile
+        logical                                         :: MPIWindow
 
         !Begin--------------------------------------------------------------------------
 
@@ -8414,6 +8420,15 @@ di:                 do i = ILB, IUB
 
         Aux4 (:) = FillValueReal
 
+        call GetData(MPIWindow,                                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FIELD4D_MPI_WINDOW',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR05'
+
         !West, East, South, North
         call GetData(Aux4,                                                              &
                      Me%ObjEnterData , iflag,                                           &
@@ -8423,26 +8438,47 @@ di:                 do i = ILB, IUB
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
 
-        if (iflag < 4) then
+        if (iflag < 4 .and. MPIWindow .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+
+            !Window the file to this rank's subdomain instead of the whole model domain, so
+            !the Field4D grid, geometry, map and fields scale with 1/nranks. ReadGridFromFile
+            !pads the window by 3 file cells. Not bit-identical to the global window: the
+            !EXTRAPOLATE average fill is computed over the window.
+            call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR15'
+
+        elseif (iflag < 4) then
 
             call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR20'
 
-            ObjHorizontalGridAux = 0
+            if (trim(BathymetryFile) /= trim(BorderLimitsFile)) then
 
-            !Entire grid
-            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
-                                         DataFile         = BathymetryFile,             &
-                                         STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+                ObjHorizontalGridAux = 0
+
+                !Entire grid
+                call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,   &
+                                             DataFile         = BathymetryFile,         &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
 
 
-            call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+                call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
 
-            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,            &
-                                    STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+                call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,        &
+                                        STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+
+                BorderLimitsFile  = BathymetryFile
+                BorderLimitsCache = (/West, East, South, North/)
+
+            else
+
+                West  = BorderLimitsCache(1); East  = BorderLimitsCache(2)
+                South = BorderLimitsCache(3); North = BorderLimitsCache(4)
+
+            endif
 
         elseif (iflag == 4) then
 
