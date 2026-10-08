@@ -264,7 +264,8 @@ END FUNCTION RM_Create
 !> Default is a one-to-one mapping--all user grid cells are reaction cells (equivalent to @a grid2chem values of 0,1,2,3,...,
 !>                                                                          @a nxyz-1).
 !> @param id               The instance @a id returned from @ref RM_Create.
-!> @param grid2chem        An array of integers: Nonnegative is a reaction cell number (0 based), negative is an inactive cell. Array of size @a nxyz (number of grid cells).
+!> @param grid2chem        An array of integers: Nonnegative is a reaction cell number (0 based), 
+!>                         negative is an inactive cell. Array of size @a nxyz (number of grid cells).
 !> @retval IRM_RESULT      0 is success, negative is failure (See @ref RM_DecodeError).
 !> @par Fortran Example:
 !> @htmlonly
@@ -4424,7 +4425,8 @@ END FUNCTION RM_SetUnitsSolution
 !> If a single SOLID_SOLUTION definition is used for cells with different initial porosity, 
 !>    the three options scale quite differently. 
 !> For option 0, the number of moles of a solid-solution component will be the same regardless of porosity. 
-!> For option 1, the number of moles of a solid-solution component will be vary directly with porosity and inversely with rock volume. 
+!> For option 1, the number of moles of a solid-solution component will be vary directly with porosity and 
+!>                                                                              inversely with rock volume. 
 !> For option 2, the number of moles of a solid-solution component will vary directly with rock volume and inversely with porosity.
 !> 
 !> @par Fortran Example:
