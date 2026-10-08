@@ -342,7 +342,9 @@ Module ModuleLagrangianGlobal
 !   (next keyword is read if T90_VARIABLE = 1)
 !   T90_VAR_METHOD          : int                       [1]                     !1 - Fecal decay according to Canteras et al. (1995)    
 !                                                                               !2 - Fecal decay according to Chapra (1997)
-                                                                                !3 - T90 decay from a timeserie            
+                                                                                !3 - T90 decay from a timeserie
+!                                                                               !4-5 CTL E.coli/Entero; 6-9 UrBidea; 10-12 Bertrand MEAN/MIN/MAX
+!                                                                               !13 - Bertrand MEAN if SR<40 W/m2; else T90[h]=3887.2/SR
 !   (Following 2 keywords are read if T90_VAR_METHOD = 3)
 !   T90_FILE                : char                      []                        !filename with timeserie of T90 values
 !   T90_COLUMN              : int                       []                        !number of with T90 values in timeserie
@@ -432,6 +434,7 @@ Module ModuleLagrangianGlobal
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!     
 ! Modified by Amandine DECLERCK - 07/05/2018 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                                        ComputeT90_BertrandFNRAPH,                           &
+                                       ComputeT90_BertrandFNRAPH_SR,                        &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
                                        GetDataOnlineString, SetMatrixValue, TimeToString,   &
                                        ChangeSuffix, ConstructPropertyID,                   &
@@ -753,6 +756,10 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: BertrandFNRAPHMean   = 10
     integer, parameter                          :: BertrandFNRAPHMin    = 11
     integer, parameter                          :: BertrandFNRAPHMax    = 12
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Bertrand MEAN if SR < 40 W/m2; T90[h] = 3887.2/SR if SR >= 40 W/m2
+    integer, parameter                          :: BertrandFNRAPH_SR    = 13
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer, parameter                          :: FromTimeSerie            = 3
     
@@ -24008,6 +24015,14 @@ CurrProp:       do while (associated(CurrentProperty))
             
             ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MAX model
             ComputeT90 = ComputeT90_BertrandFNRAPH (3,Temp)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (Method == BertrandFNRAPH_SR) then
+            
+            ! Bertrand MEAN if SR < 40 W/m2; T90[h] = 3887.2/SR if SR >= 40 W/m2
+            ComputeT90 = ComputeT90_BertrandFNRAPH_SR (Temp, Radiation)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
