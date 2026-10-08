@@ -1787,7 +1787,8 @@ iAuto:  if (Me%DDecomp%Auto) then
 
         write(*,*) 'Limits i_l, i_u, J_l, J_u', Me%DDecomp%MPI_ID, ilb_map, iub_map, jlb_map, jub_map
 
-        Me%DDecomp%NInterfaces = (Me%DDecomp%ChessLines - 1) * Me%DDecomp%ChessColumns + (Me%DDecomp%ChessColumns - 1) * Me%DDecomp%ChessLines
+        Me%DDecomp%NInterfaces = (Me%DDecomp%ChessLines   - 1) * Me%DDecomp%ChessColumns + &
+                                 (Me%DDecomp%ChessColumns - 1) * Me%DDecomp%ChessLines
 
         allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
@@ -3330,10 +3331,12 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         real,    dimension(2)               :: AuxReal
         real                                :: Aux, XY_Aux
         integer                             :: flag, flag1, flag2
-        integer                             :: ClientNumber
         logical                             :: BlockFound
-        integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
+        integer                             :: FirstLine, line, i, j, ii, jj, iflag
+        integer                             :: grid_unit, nread, grid_line
+        logical                             :: end_block
         logical                             :: CornersOverlap
+        real, dimension(4)                  :: grid_reals
 
         !----------------------------------------------------------------------
 
@@ -3371,7 +3374,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
 
         !Opens Data File
-        call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)
+        call ConstructEnterData(Me%ObjEnterData, Me%FileName, SkipGridBlocks = .true., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
 
 
@@ -3672,15 +3675,9 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         Me%DefineCellsMap(:,:)  = 1
 
-        !Reads XX_YE, YY_IE
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR190'
-
-        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
-                                    BeginCornersXY, EndCornersXY, BlockFound,   &
-                                    FirstLine = FirstLine, LastLine = LastLine, &
-                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR200'
+        !Reads corner coordinates from the file, one line at a time.
+        call OpenAsciiGridBlock(Me%FileName, BeginCornersXY, grid_unit, BlockFound, grid_line)
+        FirstLine = grid_line
 
 BF:     if (BlockFound) then
 
@@ -3691,25 +3688,18 @@ BF:     if (BlockFound) then
             endif
 
 
-            line = FirstLine
-
             do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
             do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
 
-                line = line+1
-
-                !Last line found before end?
-                if (line == LastLine) then
+                call ReadAsciiGridReals(grid_unit, EndCornersXY, grid_reals, 2,        &
+                                        nread, end_block, grid_line, Me%FileName)
+                if (end_block .or. nread /= 2) then
                     write(*,*)
                     write(*,*) 'Error reading Corners X Y'
                     stop 'ConstructGlobalVariables - HorizontalGrid - ERR220'
                 end if
-
-                !Reads XX_IE , YY_IE
-                call GetData(AuxReal, Me%ObjEnterData, flag,                            &
-                             Buffer_Line  = Line,                                       &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR230'
+                AuxReal(1) = grid_reals(1)
+                AuxReal(2) = grid_reals(2)
 
                 if (Me%DDecomp%Master) then
 
@@ -3913,8 +3903,7 @@ BF:     if (BlockFound) then
             end do
             end do
 
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR240'
+            call CloseAsciiGridBlock(grid_unit)
 
         else BF
 
@@ -3970,33 +3959,21 @@ iconY:      if (Me%ConstantSpacingY) Then
             else iconY
 
                 !Reads YY
-                call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR270'
-
-                call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
-                                            BeginYY, EndYY, BlockFound,                 &
-                                            FirstLine = FirstLine, LastLine = LastLine, &
-                                            STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR280'
+                call OpenAsciiGridBlock(Me%FileName, BeginYY, grid_unit, BlockFound, grid_line)
 
                 if (BlockFound) then
 
-                    line = FirstLine
                     ii   = 0
                     do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
-                        line = line+1
 
-                        !Last line found before end?
-                        if (line == LastLine) then
+                        call ReadAsciiGridReals(grid_unit, EndYY, grid_reals, 1,         &
+                                                nread, end_block, grid_line, Me%FileName)
+                        if (end_block .or. nread /= 1) then
                             write(*,*)
                             write(*,*) 'Error reading YY'
                             stop 'ConstructGlobalVariables - HorizontalGrid - ERR290'
                         end if
-
-                        call GetData(Aux, Me%ObjEnterData, flag,                           &
-                                     Buffer_Line  = Line,                               &
-                                     STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR300'
+                        Aux = grid_reals(1)
 
                         if (Me%DDecomp%Master) then
 
@@ -4027,8 +4004,7 @@ iconY:      if (Me%ConstantSpacingY) Then
                     end do
                 end if
 
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR310'
+                call CloseAsciiGridBlock(grid_unit)
 
             end if iconY
 
@@ -4081,35 +4057,21 @@ iconX:      if (Me%ConstantSpacingX) Then
 
 
                 !Reads XX
-                call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR340'
-
-                call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
-                                            BeginXX, EndXX, BlockFound,                 &
-                                            FirstLine = FirstLine, LastLine = LastLine, &
-                                            STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR350'
+                call OpenAsciiGridBlock(Me%FileName, BeginXX, grid_unit, BlockFound, grid_line)
 
                 if (BlockFound) then
-
-                    line = FirstLine
 
                     jj = 0
                     do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
 
-                        line = line+1
-
-                        !Last line found before end?
-                        if (line == LastLine) then
+                        call ReadAsciiGridReals(grid_unit, EndXX, grid_reals, 1,         &
+                                                nread, end_block, grid_line, Me%FileName)
+                        if (end_block .or. nread /= 1) then
                             write(*,*)
                             write(*,*) 'Error reading XX'
                             stop 'ConstructGlobalVariables - HorizontalGrid - ERR360'
                         end if
-
-                        call GetData(Aux, Me%ObjEnterData, flag,                           &
-                                     Buffer_Line  = Line,                               &
-                                     STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR370'
+                        Aux = grid_reals(1)
 
 
                         if (Me%DDecomp%Master) then
@@ -4143,8 +4105,7 @@ iconX:      if (Me%ConstantSpacingX) Then
                     end do
                 end if
 
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR380'
+                call CloseAsciiGridBlock(grid_unit)
 
 
             endif iconX
@@ -4153,16 +4114,8 @@ iconX:      if (Me%ConstantSpacingX) Then
         end if BF
 
 
-        !Reads XX_YE, YY_IE
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR390'
-
-        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                         &
-                                    BeginCartCornersXY, EndCartCornersXY,               &
-                                    Me%ReadCartCorners,                                 &
-                                    FirstLine = FirstLine, LastLine = LastLine,         &
-                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR400'
+        !Reads Cartesian corners from the file, one line at a time.
+        call OpenAsciiGridBlock(Me%FileName, BeginCartCornersXY, grid_unit, Me%ReadCartCorners, grid_line)
 
 BF1:    if (Me%ReadCartCorners) then
 
@@ -4171,32 +4124,23 @@ BF1:    if (Me%ReadCartCorners) then
             endif
 
 
-            line = FirstLine
-
             Me%LatitudeConn  (:, :) = Me%YY_IE(:, :)
             Me%LongitudeConn (:, :) = Me%XX_IE(:, :)
-
-
 
             ii = 0
             jj = 0
             do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
             do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
 
-                line = line+1
-
-                !Last line found before end?
-                if (line == LastLine) then
+                call ReadAsciiGridReals(grid_unit, EndCartCornersXY, grid_reals, 2,      &
+                                        nread, end_block, grid_line, Me%FileName)
+                if (end_block .or. nread /= 2) then
                     write(*,*)
                     write(*,*) 'Error reading Cartesian Corners X Y'
                     stop 'ConstructGlobalVariables - HorizontalGrid - ERR420'
                 end if
-
-                !Reads XX_IE , YY_IE
-                call GetData(AuxReal, Me%ObjEnterData, flag,                                &
-                             Buffer_Line  = Line,                                        &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR430'
+                AuxReal(1) = grid_reals(1)
+                AuxReal(2) = grid_reals(2)
                 
                             
 
@@ -4227,6 +4171,8 @@ BF1:    if (Me%ReadCartCorners) then
 
             end do
             end do
+
+            call CloseAsciiGridBlock(grid_unit)
 
         else  BF1
 
@@ -5335,24 +5281,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         real(8), intent(Out)            :: Lat, Lon
 
         !Local-----------------------------------------------------------------
-        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
         real(8)                         :: LatRef, LonRef
         !Begin-----------------------------------------------------------------
                 
-       !radians      = Pi / 180.0
-       !EarthRadius  = 6378000.
-       !
-       !Lat          = Y / (EarthRadius * radians) + Me%Latitude
-       !
-       !Rad_Lat      = Lat * radians
-       !CosenLat     = cos(Rad_Lat) 
-
-       !if (CosenLat == 0.) then
-       !    stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
-       !endif    
-       !
-       !Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
-
         LonRef = Me%Longitude
         LatRef = Me%Latitude
         
@@ -9262,7 +9193,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Source    =  Me%DDecomp%Slaves_MPI_ID(i)
 
                     !Receive logical from slaves
-                    call MPI_Recv (LogicalAux, iSize, Precision, Source, 999003, MPI_COMM_WORLD, status, STAT_CALL)
+                    call MPI_Recv (LogicalAux, iSize, Precision, Source, 31001, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR10'
 
                     if (LogicalAux) LogicalOut = .true.
@@ -9275,7 +9206,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
 
                     !Send logical to slaves
-                    call MPI_Send (LogicalOut, iSize, Precision, Destination, 999004, MPI_COMM_WORLD, status, STAT_CALL)
+                    call MPI_Send (LogicalOut, iSize, Precision, Destination, 31002, MPI_COMM_WORLD, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR20'
 
                 enddo
@@ -9284,18 +9215,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                 iSize       = 1
 
-                Precision   = MPI_INTEGER
+                Precision   = MPI_LOGICAL
 
                 Destination = Me%DDecomp%Master_MPI_ID
 
                 !Send logical to master
-                call MPI_Send (LogicalIn, iSize, Precision, Destination, 999003, MPI_COMM_WORLD, STAT_CALL)
+                call MPI_Send (LogicalIn, iSize, Precision, Destination, 31001, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR30'
 
                 Source      = Me%DDecomp%Master_MPI_ID
 
                 !Receive logical from master
-                call MPI_Recv (LogicalOut, iSize, Precision, Source, 999004, MPI_COMM_WORLD, status, STAT_CALL)
+                call MPI_Recv (LogicalOut, iSize, Precision, Source, 31002, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendLogicalMPI - ModuleHorizontalGrid - ERR40'
 
             endif
@@ -9353,7 +9284,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         Source    =  Me%DDecomp%Slaves_MPI_ID(i)
 
                         !Receive logical from slaves
-                        call MPI_Recv (IntMinAux, iSize, Precision, Source, 999903, MPI_COMM_WORLD, status, STAT_CALL)
+                        call MPI_Recv (IntMinAux, iSize, Precision, Source, 31003, MPI_COMM_WORLD, status, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR10'
 
                         if (IntMinAux < IntMinout) IntMinout = IntMinAux
@@ -9366,7 +9297,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
 
                         !Send logical to slaves
-                        call MPI_Send (IntMinout, iSize, Precision, Destination, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                        call MPI_Send (IntMinout, iSize, Precision, Destination, 31004, MPI_COMM_WORLD, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR20'
 
                     enddo
@@ -9380,13 +9311,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Destination = Me%DDecomp%Master_MPI_ID
 
                     !Send integer to master
-                    call MPI_Send (IntMinin, iSize, Precision, Destination, 999903, MPI_COMM_WORLD, STAT_CALL)
+                    call MPI_Send (IntMinin, iSize, Precision, Destination, 31003, MPI_COMM_WORLD, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR30'
 
                     Source      = Me%DDecomp%Master_MPI_ID
 
                     !Receive logical from master
-                    call MPI_Recv (IntMinout, iSize, Precision, Source, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                    call MPI_Recv (IntMinout, iSize, Precision, Source, 31004, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendIntMinMPI - ModuleHorizontalGrid - ERR40'
 
                 endif
@@ -9440,7 +9371,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
 
                         !Send integer to slaves
-                        call MPI_Send (IntInOut, iSize, Precision, Destination, 999905, MPI_COMM_WORLD, STAT_CALL)
+                        call MPI_Send (IntInOut, iSize, Precision, Destination, 31005, MPI_COMM_WORLD, STAT_CALL)
 
                         if (STAT_CALL /= SUCCESS_) stop 'IntMaster2Slaves - ModuleHorizontalGrid - ERR10'
 
@@ -9456,7 +9387,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     Source      = Me%DDecomp%Master_MPI_ID
 
                     !Receive integer from master
-                    call MPI_Recv (IntInOut, iSize, Precision, Source, 999905, MPI_COMM_WORLD, status, STAT_CALL)
+                    call MPI_Recv (IntInOut, iSize, Precision, Source, 31005, MPI_COMM_WORLD, status, STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_) stop 'IntMaster2Slaves - ModuleHorizontalGrid - ERR20'
 
