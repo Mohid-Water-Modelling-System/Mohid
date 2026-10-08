@@ -63,6 +63,7 @@ Module ModuleFillMatrix
                                        GetGridBorderCartPolygon,                        &
                                        GetHorizontalGrid, ConstructHorizontalGrid,      &
                                        KillHorizontalGrid, GetDDecompON,                &
+                                       GetDDecompSlaves,                                &
                                        GetCellRotation,                                 &
                                        ConstructFatherGridLocation,                     &
                                        GetCellZInterceptByLine, GetGeoCoordON,          &
@@ -88,6 +89,9 @@ Module ModuleFillMatrix
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
     use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay, InterpolUpscaling_Velocity
+#ifdef _USE_MPI
+    use mpi,                    only : MPI_COMM_WORLD
+#endif
 
 
     implicit none
@@ -630,6 +634,14 @@ Module ModuleFillMatrix
     !Global Module Variables
     type (T_FillMatrix), pointer                    :: FirstObjFillMatrix   => null()
     type (T_FillMatrix), pointer                    :: Me                   => null()
+
+    !Building the full grid from IN_BATIM just to read its border limits is costly for
+    !large bathymetries; reuse the limits of the last file read.
+    character(len=PathLength)                       :: BorderLimitsFile     = ' '
+    real, dimension(4)                              :: BorderLimitsCache    = 0.
+
+    !Communicator over this model's ranks, for FIELD4D_MPI_WINDOW extrapolation fills
+    integer                                         :: MPIWindowComm        = null_int
 
     !--------------------------------------------------------------------------
 
@@ -8393,6 +8405,8 @@ di:                 do i = ILB, IUB
         real, dimension(4)                              :: Aux4
         integer                                         :: iflag, ObjHorizontalGridAux
         character(len=PathLength)                       :: BathymetryFile
+        logical                                         :: MPIWindow
+        integer                                         :: WindowComm
 
         !Begin--------------------------------------------------------------------------
 
@@ -8413,6 +8427,16 @@ di:                 do i = ILB, IUB
         endif
 
         Aux4 (:) = FillValueReal
+        WindowComm = null_int
+
+        call GetData(MPIWindow,                                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FIELD4D_MPI_WINDOW',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR07'
 
         !West, East, South, North
         call GetData(Aux4,                                                              &
@@ -8423,26 +8447,48 @@ di:                 do i = ILB, IUB
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
 
-        if (iflag < 4) then
+        if (iflag < 4 .and. MPIWindow .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+
+            !Read only this rank's subdomain (ReadGridFromFile pads it by 3 cells); extrapolation
+            !fills run on the union window (FillLayerMPIWindow) to match the global result.
+            call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR15'
+
+            call ConstructMPIWindowComm
+            WindowComm = MPIWindowComm
+
+        elseif (iflag < 4) then
 
             call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR20'
 
-            ObjHorizontalGridAux = 0
+            if (trim(BathymetryFile) /= trim(BorderLimitsFile)) then
 
-            !Entire grid
-            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
-                                         DataFile         = BathymetryFile,             &
-                                         STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+                ObjHorizontalGridAux = 0
+
+                !Entire grid
+                call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,   &
+                                             DataFile         = BathymetryFile,         &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
 
 
-            call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+                call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
 
-            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,            &
-                                    STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+                call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,        &
+                                        STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+
+                BorderLimitsFile  = BathymetryFile
+                BorderLimitsCache = (/West, East, South, North/)
+
+            else
+
+                West  = BorderLimitsCache(1); East  = BorderLimitsCache(2)
+                South = BorderLimitsCache(3); North = BorderLimitsCache(4)
+
+            endif
 
         elseif (iflag == 4) then
 
@@ -8632,12 +8678,75 @@ di:                 do i = ILB, IUB
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
                                   CheckHDF5_File    = Me%CheckHDF5_File,                &
+                                  MPIWindowComm     = WindowComm,                       &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
 
         endif
 
     end subroutine ConstructField4DInterpol
+
+    !----------------------------------------------------------------------------
+
+    subroutine ConstructMPIWindowComm
+
+        !Local--------------------------------------------------------------------------
+#ifdef _USE_MPI
+        integer,  dimension(:),     pointer             :: Slaves_MPI_ID
+        integer,  dimension(3,1)                        :: Ranks
+        integer                                         :: Master_MPI_ID, Nslaves
+        integer                                         :: WorldGroup, ModelGroup, STAT_CALL
+
+        !Begin--------------------------------------------------------------------------
+
+        if (MPIWindowComm /= null_int) return
+
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  Master_MPI_ID    = Master_MPI_ID,                     &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR10'
+
+        call GetDDecompSlaves(Me%ObjHorizontalGrid, Nslaves, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR20'
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR30'
+
+        !Model ranks are Master_MPI_ID..Master_MPI_ID+Nslaves of MPI_COMM_WORLD. Create the
+        !communicator from the group so only this model's ranks take part (nested models
+        !construct at different times).
+        Ranks(:,1) = (/Master_MPI_ID, Master_MPI_ID + Nslaves, 1/)
+
+        call MPI_Comm_group(MPI_COMM_WORLD, WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR40'
+
+        call MPI_Group_range_incl(WorldGroup, 1, Ranks, ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR50'
+        
+#ifdef _USE_INTEL_MPI
+
+        call MPI_Comm_create_group(MPI_COMM_WORLD, ModelGroup, Master_MPI_ID,           &
+                                   MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR60'
+#else        
+
+        call MPI_Comm_create(MPI_COMM_WORLD, ModelGroup, MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR70'
+        
+#endif
+
+        call MPI_Group_free(ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR80'
+
+        call MPI_Group_free(WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR100'
+#else
+        write(*,*) 'FIELD4D_MPI_WINDOW : 1 needs an MPI build'
+        stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR110'
+#endif
+
+    end subroutine ConstructMPIWindowComm
+
     !----------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
