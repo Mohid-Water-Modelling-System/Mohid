@@ -1657,7 +1657,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
     character(StringLength), private, parameter :: Char_PeakWaveLength           = 'peak wave length'
     character(StringLength), private, parameter :: Char_TotalEnergyDissipation   = 'total energy dissipation'
-    character(StringLength), private, parameter :: Char_EnergyDissipationDuetoSurfBreaking = 'energy dissipation due to surf breaking'
+    character(StringLength), private, parameter :: Char_EnergyDissipationDuetoSurfBreaking &
+                                                                                 = 'energy dissipation due to surf breaking'
     character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
     character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
     character(StringLength), private, parameter :: Char_Swell01_WaveDirection         = 'primary swell wave direction'
@@ -1897,7 +1898,7 @@ Module ModuleGlobalData
     integer, parameter  :: UserDefined_             = 1
     integer, parameter  :: Computed_Half_D50_       = 2
     integer, parameter  :: Computed_Classes_Random_ = 3
-	integer, parameter  :: Computed_Johansen_       = 4												
+    integer, parameter  :: Computed_Johansen_       = 4
 
     !Module IDs
     integer, parameter ::  mGLOBALDATA_             =  1        
