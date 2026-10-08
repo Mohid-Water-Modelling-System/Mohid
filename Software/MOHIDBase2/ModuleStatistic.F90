@@ -3241,7 +3241,6 @@ cd1:    if (DT>0) then
         integer                                     :: ILB, IUB, i
         integer                                     :: JLB, JUB, j
         real                                        :: DT, DX, AuxValue
-        real                                        :: OldDay, PresentDay    
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -3349,9 +3348,6 @@ cd1:    if (DT>0) then
 
         !Verifies if the present time is a new output
 
-!        call ExtractDate (Me%ExternalVar%Now,       Day = PresentDay)
-!        call ExtractDate (Me%Daily%LastCalculation, Day = OldDay)
-!        if (int(PresentDay) /= int(OldDay)) then
 
         if (Me%ExternalVar%Now .GT. Me%Daily%NextOutputTime) then
 
