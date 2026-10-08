@@ -144,9 +144,15 @@
 !   FIRST_ORDER_DECAY           : 0/1               [0]         !Computes the effect of a first order decay
 !   T90_VARIABLE                : 0/1               [0]         !Check if the user wants to compute T90 function
 !                                                                of ambient properties: salinity,temperature,light
-!   T90_VAR_METHOD              : 1/2               [1]         !Fecal decay according to Canteras et al. (1995)
+!   T90_VAR_METHOD              : 1/2/.../13        [1]         !Fecal decay according to Canteras et al. (1995)
 !                                                   [2]         !Fecal decay according to Chapra (1997)
 !                                                   [3]         !T90 defined using a time serie
+!                                                   [4]/[5]    !CTL E.coli / Enterococci
+!                                                   [6]..[9]    !UrBidea GS/NPP E.coli / Enterococci
+!                                                   [10]        !Bertrand FNRAPH MEAN (T only)
+!                                                   [11]        !Bertrand FNRAPH MIN  (T only)
+!                                                   [12]        !Bertrand FNRAPH MAX  (T only)
+!                                                   [13]        !Bertrand MEAN if SR<40 W/m2; else T90[h]=3887.2/SR
                                                                 !0 - No
                                                                 !1 - (P-Pref)/Tdecay
                                                                 !2 - (P(i-1)-P(i))/Tdecay
@@ -189,7 +195,8 @@ Module ModuleWaterProperties
     use ModuleHDF5
     use ModuleEnterData,            only: ReadFileName, ConstructEnterData, GetData,            &
                                           ExtractBlockFromBuffer, Block_Unlock, GetOutPutTime,  &
-                                          ExtractBlockFromBlock, KillEnterData, RewindBuffer,   &
+                                          ExtractBlockFromBlock, ExtractBlockFromBlockFromBlock,&
+                                          KillEnterData, RewindBuffer, RewindBlockinBlock,     &
                                           GetOutPutTimeWindows, GetNumberOfBlocks, RewindBlock
     use ModuleStopWatch,            only: StartWatch, StopWatch
     use ModuleDrawing
@@ -279,6 +286,9 @@ Module ModuleWaterProperties
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!     
 ! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                                           ComputeT90_BertrandFNRAPH,                            &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_BertrandFNRAPH_SR,                         &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
@@ -304,6 +314,9 @@ Module ModuleWaterProperties
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 ! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                                           ComputeT90_BertrandFNRAPH,                            &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                          ComputeT90_BertrandFNRAPH_SR,                         &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
@@ -651,6 +664,11 @@ Module ModuleWaterProperties
     character(LEN = StringLength), parameter    :: SW_Kd_2D_begin       = '<begin_SW_Kd_2D>'
     character(LEN = StringLength), parameter    :: SW_Kd_2D_end         = '<end_SW_Kd_2D>'
 
+    character(LEN = StringLength), parameter    :: begin_reinit_date    = '<<begin_reinitializedate>>'
+    character(LEN = StringLength), parameter    :: end_reinit_date      = '<<end_reinitializedate>>'
+    character(LEN = StringLength), parameter    :: begin_reinit_box     = '<<<begin_box>>>'
+    character(LEN = StringLength), parameter    :: end_reinit_box       = '<<<end_box>>>'
+
 
 
     !T90 Calc Method
@@ -670,6 +688,10 @@ Module ModuleWaterProperties
     integer, parameter                          :: BertrandFNRAPHMean   = 10
     integer, parameter                          :: BertrandFNRAPHMin    = 11
     integer, parameter                          :: BertrandFNRAPHMax    = 12
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Bertrand MEAN if SR < 40 W/m2; T90[h] = 3887.2/SR if SR >= 40 W/m2
+    integer, parameter                          :: BertrandFNRAPH_SR    = 13
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Filtration
     integer, parameter                          :: GrazeR               = 1
@@ -772,17 +794,25 @@ Module ModuleWaterProperties
         real                                    :: UnitsCoef
         real                                    :: MinConcentrationToFilter
         real                                    :: Hmin                 = FillValueReal
+        logical                                 :: HMinUseBoxes         = .false.
+        integer, pointer, dimension(:,:)        :: HMinBoxCells         => null()
+        real,    pointer, dimension(:)          :: HMinBoxesValues      => null()
+        integer                                 :: HMinBoxesNumber      = 0
     end type   T_Filtration
+
+    type       T_BoxReinitializeDates
+        type (T_time), dimension(:), allocatable :: Dates
+        integer                                  :: Dates_Number = 0
+        integer                                  :: NextDate     = 1
+    end type   T_BoxReinitializeDates
 
     type       T_Reinitialize
         logical                                 :: On                   = .false.
         integer,       dimension(:,:), pointer  :: BoxCells
         real,          dimension(:),   pointer  :: BoxesValues
         integer                                 :: BoxesNumber
-        type (T_time), dimension(:),   pointer  :: Dates
-        integer                                 :: Dates_Number         = FillValueInt
-        integer                                 :: NextDate             = FillValueInt
-        logical                                 :: Dry                  = .false. 
+        type (T_BoxReinitializeDates), dimension(:), allocatable :: BoxDates
+        logical                                 :: Dry                  = .false.
     end type   T_Reinitialize
 
     type       T_MacroAlgae
@@ -8913,7 +8943,8 @@ case1 : select case(PropertyID)
                     NewProperty%evolution%T90Var_Method /= UrBideaNPPEntero     .and.   &
                     NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMean   .and.   &
                     NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMin    .and.   &
-                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMax) then                
+                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPHMax    .and.   &
+                    NewProperty%evolution%T90Var_Method /= BertrandFNRAPH_SR) then                
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     write (*,*) 'T90 calculation method unknown'
                     call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR290')
@@ -10158,6 +10189,10 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         logical                                 :: BlockFound
         character(len=StringLength)             :: Excreted_Property, GrazedProperty
+        integer                                 :: ObjBoxDif
+        integer, dimension (:, :   ), pointer   :: Boxes2D
+        integer                                 :: BoxesNumber
+        character(len=StringLength)             :: FileName
 
         !----------------------------------------------------------------------
 
@@ -10167,6 +10202,9 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         JUB = Me%Size%JUB
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
+
+        nullify(Boxes2D)
+        ObjBoxDif = 0
 
        !Begin-----------------------------------------------------------------
 
@@ -10207,6 +10245,20 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                                    STAT = STAT_CALL)
 
         if (BlockFound) then
+            ! Inside <<begin_filtrationrate>> / <<end_filtrationrate>> the following are accepted:
+            !   RATE                        : real, or use FillMatrix keywords (FILENAME, BOXES_VALUES, etc)
+            !   MIN_CONCENTRATION_TO_FILTER : real        [0]
+            !   H_MIN_TO_FILTER             : real        [FillValue -> no depth limit]
+            !
+            ! To use a different H_MIN_TO_FILTER per box (using a standard MOHID boxes file):
+            !   H_MIN_TO_FILTER_FILENAME    : char
+            !   H_MIN_TO_FILTER_BOXES_VALUES: real array  (one value per box number, order as in boxes file)
+            !
+            ! Example:
+            !   H_MIN_TO_FILTER_FILENAME    : ../GeneralData/FiltrationDepthBoxes.dat
+            !   H_MIN_TO_FILTER_BOXES_VALUES: 2.0  5.0  1.0
+            !
+            ! Cells not belonging to any box (box ID <= 0) will use a very low threshold (always filter).
             call ConstructFillMatrix  ( PropertyID           = NewProperty%Evolution%Filtration%ID,  &
                                         EnterDataID          = Me%ObjEnterData,                      &
                                         TimeID               = Me%ObjTime,                           &
@@ -10245,7 +10297,73 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                  call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR75')
-            
+
+            !--- Optional per-box H_MIN_TO_FILTER support --------------------------------
+            call GetData(FileName,                                                      &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'H_MIN_TO_FILTER_FILENAME',                   &
+                         SearchType     = FromBlockInBlock,                             &
+                         ClientModule   = 'ModuleWaterProperties',                      &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                 call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR76')
+
+            if (iflag /= 0) then
+                NewProperty%Evolution%Filtration%HMinUseBoxes = .true.
+
+                ObjBoxDif = 0
+                nullify(Boxes2D)
+                call StartBoxDif(BoxDifID           = ObjBoxDif,                        &
+                                 TimeID             = Me%ObjTime,                       &
+                                 HorizontalGridID   = Me%ObjHorizontalGrid,             &
+                                 BoxesFilePath      = FileName,                         &
+                                 WaterPoints2D      = Me%ExternalVar%WaterPoints2D,     &
+                                 STAT               = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR77')
+
+                allocate(NewProperty%Evolution%Filtration%HMinBoxCells(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR78')
+
+                call GetBoxes(ObjBoxDif, Boxes2D = Boxes2D, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR79')
+
+                NewProperty%Evolution%Filtration%HMinBoxCells(:,:) = Boxes2D(:,:)
+
+                call GetNumberOfBoxes(ObjBoxDif, NumberOfBoxes2D = BoxesNumber, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR81')
+
+                NewProperty%Evolution%Filtration%HMinBoxesNumber = BoxesNumber
+
+                allocate (NewProperty%Evolution%Filtration%HMinBoxesValues(BoxesNumber))
+
+                call GetData(NewProperty%Evolution%Filtration%HMinBoxesValues,          &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'H_MIN_TO_FILTER_BOXES_VALUES',             &
+                             ClientModule = 'ModuleWaterProperties',                    &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR82')
+
+                if (iflag == 0) then
+                    write(*,*) 'H_MIN_TO_FILTER_BOXES_VALUES not given'
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR83')
+                end if
+
+                call UngetBoxDif(ObjBoxDif, Boxes2D, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR84')
+
+                call KillBoxDif(ObjBoxDif, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('Read_Filtration_Parameters - ModuleWaterProperties - ERR85')
+            endif
+            !-----------------------------------------------------------------------------
+
             call GetData(NewProperty%Evolution%Filtration%Excretions,                   &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'EXCRETIONS',                                 &
@@ -10411,12 +10529,13 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         integer                                 :: STAT_CALL
         integer                                 :: iflag
         integer                                 :: BoxesNumber, FirstLine, LastLine, l
-        integer                                 :: n, n_dates
+        integer                                 :: n, n_dates, b, n_BoxBlocks
         integer, dimension (:, :   ), pointer   :: Boxes2D
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: ObjBoxdif = 0
         character(len=StringLength)             :: Filename
-        logical                                 :: BlockFound
+        logical                                 :: BlockFound, BlockInBlockFound
+        logical                                 :: HasActiveBox
 
        !Begin-----------------------------------------------------------------
 
@@ -10509,64 +10628,113 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR130')
 
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
-                                   '<<begin_reinitializedate>>', '<<end_reinitializedate>>', &
-                                   BlockFound, FirstLine, LastLine, STAT = STAT_CALL)
+                                   begin_reinit_date, end_reinit_date,                  &
+                                   BlockFound, STAT = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR145')
+        endif
 
         if (.not. BlockFound) then
             call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR150')
         endif
-        
-        n_Dates = LastLine - FirstLine - 1
-        
-        if (n_Dates<1) then
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR160')
-        endif
-        
-        allocate(NewProperty%Evolution%Reinitialize%Dates(n_Dates), STAT = STAT_CALL)
-        
-        if (STAT_CALL /= SUCCESS_) then
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR170')        
+
+        call GetNumberOfBlocks(Me%ObjEnterData, begin_reinit_box, end_reinit_box,         &
+                               FromBlockInBlock_, n_BoxBlocks, ClientNumber,             &
+                               STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR155')
         endif
 
-        n = 0
-        do l = FirstLine + 1, LastLine - 1
+        if (n_BoxBlocks /= BoxesNumber) then
+            write(*,*) 'Number of <<<begin_box>>> blocks (', n_BoxBlocks,               &
+                        ') must equal number of boxes (', BoxesNumber, ')'
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR156')
+        endif
 
-            n = n + 1
-            call GetData(NewProperty%Evolution%Reinitialize%Dates(n),                   &
-                         Me%ObjEnterData, iflag,                                        &
-                         Buffer_Line  = l,                                              &
-                         ClientModule = 'ModuleWaterProperties',                        &
-                         STAT         = STAT_CALL)
+        allocate(NewProperty%Evolution%Reinitialize%BoxDates(BoxesNumber), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR157')
+        endif
+
+        call RewindBlockinBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR158')
+        endif
+
+        HasActiveBox = .false.
+
+db:     do b = 1, BoxesNumber
+
+            call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,          &
+                                                begin_reinit_box, end_reinit_box,        &
+                                                BlockInBlockFound, FirstLine, LastLine,  &
+                                                STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) then
-                call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR180')
+                call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR159')
             endif
 
-        enddo
-        
-        do n = 1, n_Dates
-
-            if (NewProperty%Evolution%Reinitialize%Dates(n) > Me%BeginTime) then
-                NewProperty%Evolution%Reinitialize%NextDate = n
-                exit
+            if (.not. BlockInBlockFound) then
+                call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR160')
             endif
 
-        enddo
-        
-        
-        if (NewProperty%Evolution%Reinitialize%NextDate < 1) then
+            n_Dates = LastLine - FirstLine - 1
+            NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates_Number = n_Dates
+            NewProperty%Evolution%Reinitialize%BoxDates(b)%NextDate     = n_Dates + 1
+
+            if (n_Dates > 0) then
+
+                allocate(NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates(n_Dates),   &
+                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR170')
+                endif
+
+                n = 0
+                do l = FirstLine + 1, LastLine - 1
+
+                    n = n + 1
+                    call GetData(NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates(n), &
+                                 Me%ObjEnterData, iflag,                                  &
+                                 Buffer_Line  = l,                                          &
+                                 ClientModule = 'ModuleWaterProperties',                    &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) then
+                        call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR180')
+                    endif
+
+                enddo
+
+                do n = 1, n_Dates
+                    if (NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates(n) > Me%BeginTime) then
+                        NewProperty%Evolution%Reinitialize%BoxDates(b)%NextDate = n
+                        exit
+                    endif
+                enddo
+
+                if (NewProperty%Evolution%Reinitialize%BoxDates(b)%NextDate <= n_Dates) then
+                    HasActiveBox = .true.
+                    if (NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates(n_Dates) < Me%BeginTime) then
+                        call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR200')
+                    endif
+                    if (NewProperty%Evolution%Reinitialize%BoxDates(b)%Dates(1) > Me%EndTime) then
+                        call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR210')
+                    endif
+                endif
+
+            endif
+
+        enddo db
+
+        call RewindBlockinBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR165')
+        endif
+
+        if (.not. HasActiveBox) then
             call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR190')
         endif
-        
-        if (NewProperty%Evolution%Reinitialize%Dates(n_Dates) < Me%BeginTime) then
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR200')
-        endif
-        
-        if (NewProperty%Evolution%Reinitialize%Dates(1) > Me%EndTime) then
-            call CloseAllAndStop ('Read_Reinitialize_Parameters - ModuleWaterProperties - ERR210')
-        endif        
-        
-        NewProperty%Evolution%Reinitialize%Dates_Number = n_Dates
-        
+
     end subroutine Read_Reinitialize_Parameters
 
     !-------------------------------------------------------------------------
@@ -18851,6 +19019,8 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         integer                                 :: STAT_CALL, Excreted_Property_ID
         real                                    :: StoichiometricRatio, AssimilationEfficiency
         real                                    :: FilteredMass, AuxConc
+        real                                    :: HminCell
+        integer                                 :: Box
         integer                                 :: CHUNK
 
         !Begin----------------------------------------------------------------------
@@ -18902,7 +19072,7 @@ cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
                         call StartWatch ("ModuleWaterProperties", "Filtration_Processes")
                     endif
 
-                    !$OMP PARALLEL PRIVATE(i,j,k,kbottom,OldConcentration,FiltrationRate,FilteredMass)
+                    !$OMP PARALLEL PRIVATE(i,j,k,kbottom,OldConcentration,FiltrationRate,FilteredMass,HminCell,Box)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                do j = JLB, JUB
 do2:                do i = ILB, IUB
@@ -18922,13 +19092,32 @@ do3:                        do k = kbottom, KUB
                                     AuxConc = GrazedProperty%Concentration(i, j, k)
                                 endif
 
-                                if (AuxConc > PropertyX%Evolution%Filtration%MinConcentrationToFilter .and. &
-                                    WaterColumnZ(i, j) >  PropertyX%Evolution%Filtration%Hmin) then
+                                if (AuxConc > PropertyX%Evolution%Filtration%MinConcentrationToFilter) then
 
-                                    !Adapt the filtration rate in a way that the grazeD property concentration
-                                    !is consistent with the the grazeR property
-                                    FiltrationRate  = PropertyX%Evolution%Filtration%Rate(i, j, k) * &
-                                                      PropertyX%Evolution%Filtration%UnitsCoef
+                                    ! Get effective Hmin for cell (i,j) - supports per-box values
+                                    if (PropertyX%Evolution%Filtration%HMinUseBoxes) then
+                                        Box = PropertyX%Evolution%Filtration%HMinBoxCells(i, j)
+                                        if (Box > 0 .and. Box <= PropertyX%Evolution%Filtration%HMinBoxesNumber) then
+                                            HminCell = PropertyX%Evolution%Filtration%HMinBoxesValues(Box)
+                                        else
+                                            HminCell = FillValueReal   ! no box -> always apply (very high threshold)
+                                        endif
+                                    else
+                                        HminCell = PropertyX%Evolution%Filtration%Hmin
+                                    endif
+
+                                    if (WaterColumnZ(i, j) > HminCell) then
+
+                                        !Adapt the filtration rate in a way that the grazeD property concentration
+                                        !is consistent with the the grazeR property
+                                        FiltrationRate  = PropertyX%Evolution%Filtration%Rate(i, j, k) * &
+                                                          PropertyX%Evolution%Filtration%UnitsCoef
+
+                                    else
+
+                                        FiltrationRate = 0.
+
+                                    end if
 
                                 else
 
@@ -19080,72 +19269,76 @@ do0:    do while(associated(PropertyX))
 cd0:        if (PropertyX%Evolution%Reinitialize%On) then
 
 cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
-    
-                    iD = PropertyX%Evolution%Reinitialize%NextDate
-                    
-cd2:                if (iD <= PropertyX%Evolution%Reinitialize%Dates_Number) then 
-                        
-cd3:                    if (Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitialize%Dates(iD)) then
 
-dbn:                        do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
+dbn:                    do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
 
-                                CHUNK = CHUNK_J(JLB, JUB)
-                                
-                                if (MonitorPerformance) then
-                                    call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
-                                endif
+                            if (PropertyX%Evolution%Reinitialize%BoxDates(BN)%Dates_Number < 1) cycle dbn
 
-                                !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
-                                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do1:                             do j = JLB, JUB
-do2:                             do i = ILB, IUB
-    
-                                    Mapping = .false. 
-                                
-                                    if (PropertyX%Evolution%Reinitialize%Dry) then
-                                        if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
-                                            Mapping = .true.
-                                        endif
-                                    else
-                                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
-                                            Mapping = .true.
-                                        endif                                        
+                            iD = PropertyX%Evolution%Reinitialize%BoxDates(BN)%NextDate
+
+cd2:                        if (iD <= PropertyX%Evolution%Reinitialize%BoxDates(BN)%Dates_Number) then
+
+cd3:                            if (Me%ExternalVar%Now .GE.                                      &
+                                PropertyX%Evolution%Reinitialize%BoxDates(BN)%Dates(iD)) then
+
+                                    CHUNK = CHUNK_J(JLB, JUB)
+
+                                    if (MonitorPerformance) then
+                                        call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
                                     endif
-                                
-cd4:                                if (Mapping) then
 
-                                        kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                                    !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
+                                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do1:                                 do j = JLB, JUB
+do2:                                 do i = ILB, IUB
 
-do3:                                    do k = kbottom, KUB
+                                        Mapping = .false.
 
-                                            BoxCells = PropertyX%Evolution%Reinitialize%BoxCells(i, j)
-
-                                            if (BoxCells == BN) then
-
-                                                PropertyX%Concentration(i, j, k) =          &
-                                                    PropertyX%Evolution%Reinitialize%BoxesValues(BoxCells)
-
+                                        if (PropertyX%Evolution%Reinitialize%Dry) then
+                                            if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                                                Mapping = .true.
                                             endif
+                                        else
+                                            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                                                Mapping = .true.
+                                            endif
+                                        endif
 
-                                        enddo do3
+cd4:                                    if (Mapping) then
 
-                                    endif cd4
+                                            kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
-                                enddo do2
-                                enddo do1
-                                !$OMP END DO
-                                !$OMP END PARALLEL
+do3:                                        do k = kbottom, KUB
 
-                                if (MonitorPerformance) then
-                                    call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
-                                endif
+                                                BoxCells = PropertyX%Evolution%Reinitialize%BoxCells(i, j)
 
-                            enddo dbn
+                                                if (BoxCells == BN) then
 
-                            PropertyX%Evolution%Reinitialize%NextDate = iD + 1
-                            
-                        endif cd3
-                    endif cd2
+                                                    PropertyX%Concentration(i, j, k) =          &
+                                                        PropertyX%Evolution%Reinitialize%BoxesValues(BoxCells)
+
+                                                endif
+
+                                            enddo do3
+
+                                        endif cd4
+
+                                    enddo do2
+                                    enddo do1
+                                    !$OMP END DO
+                                    !$OMP END PARALLEL
+
+                                    if (MonitorPerformance) then
+                                        call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
+                                    endif
+
+                                    PropertyX%Evolution%Reinitialize%BoxDates(BN)%NextDate = iD + 1
+
+                                endif cd3
+                            endif cd2
+
+                        enddo dbn
+
                 endif cd1
 
             endif cd0
@@ -20531,6 +20724,14 @@ do1 :   do while (associated(PropertyX))
             
             ! Calls T90 formulation by Bertrand et al 2019 for FNRAPH with MAX model
             ComputeT90 = ComputeT90_BertrandFNRAPH (3,Temp)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
+! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif (PropertyX%Evolution%T90Var_Method == BertrandFNRAPH_SR) then
+            
+            ! Bertrand MEAN if SR < 40 W/m2; T90[h] = 3887.2/SR if SR >= 40 W/m2
+            ComputeT90 = ComputeT90_BertrandFNRAPH_SR (Temp, Radiation)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 
@@ -27453,7 +27654,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         type (T_WQRate  ),  pointer                 :: WQRateX
         type (T_DischargeTimeSerie), pointer        :: DischargeTimeSerieToKill
         type (T_DischargeTimeSerie), pointer        :: DischargeTimeSerie
-        integer                                     :: iClass
+        integer                                     :: iClass, BN
 
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
@@ -27698,9 +27899,38 @@ do1 :           do while(associated(PropertyX))
                             nullify   (PropertyX%Evolution%Filtration%Rate)
                         endif
 
+                        if (PropertyX%Evolution%Filtration%HMinUseBoxes) then
+                            if (associated(PropertyX%Evolution%Filtration%HMinBoxCells)) then
+                                deallocate(PropertyX%Evolution%Filtration%HMinBoxCells, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) &
+                                    call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR281b')
+                                nullify   (PropertyX%Evolution%Filtration%HMinBoxCells)
+                            endif
+                            if (associated(PropertyX%Evolution%Filtration%HMinBoxesValues)) then
+                                deallocate(PropertyX%Evolution%Filtration%HMinBoxesValues, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) &
+                                    call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR282b')
+                                nullify   (PropertyX%Evolution%Filtration%HMinBoxesValues)
+                            endif
+                        endif
+
                     endif
 
                     if (PropertyX%Evolution%Reinitialize%ON) then
+
+                        if (allocated(PropertyX%Evolution%Reinitialize%BoxDates)) then
+                            do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
+                                if (allocated(PropertyX%Evolution%Reinitialize%BoxDates(BN)%Dates)) then
+                                    deallocate(PropertyX%Evolution%Reinitialize%BoxDates(BN)%Dates, &
+                                               STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)                              &
+                                        call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR281')
+                                endif
+                            enddo
+                            deallocate(PropertyX%Evolution%Reinitialize%BoxDates, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_)                                      &
+                                call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR282')
+                        endif
 
                         deallocate(PropertyX%Evolution%Reinitialize%BoxCells, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
