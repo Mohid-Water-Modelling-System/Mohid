@@ -285,6 +285,9 @@ Module ModuleFunctions
     ! Modified by Amandine DECLERCK - 30/09/2025 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     public  :: ComputeT90_BertrandFNRAPH
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Modified for RivagesProtech - method 13 (Bertrand MEAN + solar radiation) - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!
+    public  :: ComputeT90_BertrandFNRAPH_SR
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
     public  ::  normcrossprod
@@ -10011,6 +10014,40 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
 
     end function ComputeT90_BertrandFNRAPH
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    ! Modified for RivagesProtech - 31/07/2026 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !----------------------------------------------------------------------------
+    ! T90 decay as a function of temperature and surface solar radiation (SR):
+    !   if SR <  40 W/m2 : Bertrand MEAN formula (same as ComputeT90_BertrandFNRAPH ModelType=1)
+    !   if SR >= 40 W/m2 : T90 [hours] = 3887.2 / SR
+    ! Returns T90 in seconds.
+    !----------------------------------------------------------------------------
+    function ComputeT90_BertrandFNRAPH_SR (Temperature, Radiation)
+
+        real ::  ComputeT90_BertrandFNRAPH_SR
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: Temperature
+        real, intent(IN)    :: Radiation
+
+        !Local variables---------------------------------------------------------
+        real, parameter     :: SR_Threshold = 40.0      ! W/m2
+        real, parameter     :: SR_Coef      = 3887.2    ! hours * W/m2
+        real                :: T90_h
+
+        if (Radiation < SR_Threshold) then
+            ! Night / low light: Bertrand MEAN (temperature only)
+            ComputeT90_BertrandFNRAPH_SR = ComputeT90_BertrandFNRAPH (1, Temperature)
+        else
+            ! Daytime / high light: inverse of solar radiation
+            ! Guard against non-physical non-positive SR when >= threshold
+            T90_h = SR_Coef / max(Radiation, SR_Threshold)
+            ComputeT90_BertrandFNRAPH_SR = T90_h * 3600.
+        endif
+
+    end function ComputeT90_BertrandFNRAPH_SR
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
