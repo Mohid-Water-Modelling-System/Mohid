@@ -41,6 +41,9 @@ Module ModuleEnterData
 
     !Constructor
     public  ::  ConstructEnterData
+    public  ::  OpenAsciiGridBlock
+    public  ::  ReadAsciiGridReals
+    public  ::  CloseAsciiGridBlock
     private ::      AllocateInstance
 
     !Modifier
@@ -137,6 +140,10 @@ Module ModuleEnterData
     integer, parameter :: FORMATTED_     = 1
     integer, parameter :: UNFORMATTED_   = 2
 
+    !ASCII grid blocks are one or a few numbers per line. They are not stored
+    !in the keyword buffer. Time series keep the compile-time line_length.
+    integer, parameter :: grid_ascii_line = 256
+
     !Type----------------------------------------------------------------------
     Type       T_Dataline
         character(LEN = line_length) :: full_line
@@ -168,6 +175,9 @@ Module ModuleEnterData
     type (T_EnterData), pointer         :: FirstEnterData
     type (T_EnterData), pointer         :: Me
 
+    !Sequential client id, so block locking leaves the Fortran RNG stream unchanged.
+    integer                             :: NextBlockClientID = 0
+
     !--------------------------------------------------------------------------
 
     contains
@@ -187,7 +197,7 @@ Module ModuleEnterData
     ! This soubroutine extracts, the whole data from unit "Me%unit"          
     ! and stores them in sring "ObjEnterData" !
 
-    subroutine ConstructEnterData(EnterDataID, FileName, ErrorMessage, FORM, STAT)
+    subroutine ConstructEnterData(EnterDataID, FileName, ErrorMessage, FORM, STAT, SkipGridBlocks)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: EnterDataID
@@ -195,6 +205,7 @@ Module ModuleEnterData
         character(LEN = *), optional, intent(IN )   :: ErrorMessage
         integer, optional,  intent(OUT)             :: STAT    
         integer, optional,  intent(IN )             :: FORM
+        logical, optional,  intent(IN )             :: SkipGridBlocks
 
         !Local-----------------------------------------------------------------
         integer                                     :: ready_     
@@ -202,11 +213,15 @@ Module ModuleEnterData
         logical                                     :: exists
         character(LEN = line_length)                :: string, ErrorMessage_
         character(LEN = 10000)                      :: auxstring
-        character(LEN = 1)                          :: one_char
         integer                                     :: STAT_
         integer                                     :: I, line
         integer                                     :: FORM_
         logical                                     :: FoundComment = .false.
+        logical                                     :: skip_blocks
+        integer                                     :: max_line
+        integer                                     :: inside
+        integer                                     :: line_no
+        integer                                     :: stored
 
         !----------------------------------------------------------------------
 
@@ -276,20 +291,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 end if if8
 
 
-                !Counts the number of lines
+                !Grid files store keywords only. Numeric blocks are streamed later.
+                skip_blocks = .false.
+                if (present(SkipGridBlocks)) skip_blocks = SkipGridBlocks
+                if (skip_blocks) then
+                    max_line = grid_ascii_line
+                else
+                    max_line = line_length
+                endif
+
+                !Counts the number of lines that are kept in the keyword buffer
                 Me%BufferSize = 0
+                inside        = 0
+                line_no       = 0
                 rewind(Me%unit)
     do2 :       do 
                     read (Me%unit, "(A)", end=100) auxstring
-                    if(len_trim(trim(auxstring)) > line_length)then
-                        write(*,*) 'Maximum of ', len(string),' characters is supported.'
-                        write(*,*) 'String: '//trim(auxstring)
-                        write(*,*) 'File  : '//trim(adjustl(Me%FileName))
-                        write(*,*) 'Line  : ', Me%BufferSize + 1
-                        stop 'ModuleEnterData - ConstructEnterData - ERR05' 
-                    end if
-                    
-                    Me%BufferSize = Me%BufferSize + 1
+                    line_no = line_no + 1
+                    if (KeepAsciiGridLine(auxstring, skip_blocks, max_line, inside, Me%FileName, line_no)) then
+                        Me%BufferSize = Me%BufferSize + 1
+                    endif
                 end do do2
 
     100         continue
@@ -302,11 +323,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     nullify(Me%BufferLines)
                 end if cd3
 
-                !Copy file to buffer
+                !Copy the kept lines to the buffer. Grid-block lines are not copied.
                 rewind(Me%unit)
+                inside  = 0
+                line_no = 0
+                stored  = 0
     do3 :       do I = 1, Me%BufferSize
-                    read (Me%unit, "(A)") string
-                    string = adjustl(string)
+                    do
+                        read (Me%unit, "(A)", end=101) auxstring
+                        line_no = line_no + 1
+                        if (KeepAsciiGridLine(auxstring, skip_blocks, max_line, inside, Me%FileName, line_no)) exit
+                    enddo
+                    stored = stored + 1
+                    string = adjustl(auxstring)
                     
                     FoundComment = .false.
  
@@ -335,6 +364,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         
                 end do do3
 
+    101         continue
+                if (stored /= Me%BufferSize) then
+                    write(*,*) 'ASCII file ended before the keyword buffer was filled'
+                    write(*,*) 'File  : '//trim(adjustl(Me%FileName))
+                    stop 'ModuleEnterData - ConstructEnterData - ERR05b'
+                endif
+
                 call UnitsManager          (Me%unit, CLOSE_FILE, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR06' 
 
@@ -358,6 +394,320 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine ConstructEnterData
+
+    !--------------------------------------------------------------------------
+
+    logical function KeepAsciiGridLine(raw_line, skip_blocks, max_line, inside, file_name, line_no)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent(IN)                :: raw_line
+        logical,          intent(IN)                :: skip_blocks
+        integer,          intent(IN)                :: max_line
+        integer,          intent(INOUT)             :: inside
+        character(len=*), intent(IN)                :: file_name
+        integer,          intent(IN)                :: line_no
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: begin_id
+        integer                                     :: end_id
+
+        !----------------------------------------------------------------------
+
+        KeepAsciiGridLine = .true.
+
+        if (len_trim(trim(raw_line)) > max_line) then
+            write(*,*) 'Maximum of ', max_line, ' characters is supported.'
+            write(*,*) 'String: '//trim(raw_line)
+            write(*,*) 'File  : '//trim(adjustl(file_name))
+            write(*,*) 'Line  : ', line_no
+            stop 'ModuleEnterData - ConstructEnterData - ERR05'
+        endif
+
+        if (.not. skip_blocks) return
+
+        call GridTagIds(raw_line, begin_id, end_id)
+
+        if (inside == 0) then
+            if (begin_id > 0) then
+                inside = begin_id
+                KeepAsciiGridLine = .false.
+            endif
+        else
+            KeepAsciiGridLine = .false.
+            if (end_id == inside) inside = 0
+        endif
+
+    end function KeepAsciiGridLine
+
+    !--------------------------------------------------------------------------
+
+    subroutine GridTagIds(text, begin_id, end_id)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent(IN)                :: text
+        integer,          intent(OUT)               :: begin_id
+        integer,          intent(OUT)               :: end_id
+
+        !Local-----------------------------------------------------------------
+        character(len=32)                           :: tag
+        integer                                     :: bang
+        integer                                     :: nblank
+        integer                                     :: i
+
+        !----------------------------------------------------------------------
+
+        begin_id = 0
+        end_id   = 0
+        tag = text
+        do i = 1, len(tag)
+            if (tag(i:i) == tab) tag(i:i) = space
+        enddo
+        tag = adjustl(tag)
+        bang = index(tag, exclamation)
+        if (bang > 1) tag = tag(1:bang-1)
+        if (bang == 1) tag = ' '
+        tag = adjustl(tag)
+        nblank = index(trim(tag), space)
+        if (nblank > 1) tag = tag(1:nblank-1)
+        tag = trim(tag)
+
+        if      (tag == '<BeginXX>') then
+            begin_id = 1
+        else if (tag == '<EndXX>') then
+            end_id = 1
+        else if (tag == '<BeginYY>') then
+            begin_id = 2
+        else if (tag == '<EndYY>') then
+            end_id = 2
+        else if (tag == '<CornersXY>') then
+            begin_id = 3
+        else if (tag == '<'//backslash//'CornersXY>') then
+            end_id = 3
+        else if (tag == '<CartCornersXY>') then
+            begin_id = 4
+        else if (tag == '<'//backslash//'CartCornersXY>') then
+            end_id = 4
+        else if (tag == '<BeginGridData2D>') then
+            begin_id = 5
+        else if (tag == '<EndGridData2D>') then
+            end_id = 5
+        else if (tag == '<BeginGridData3D>') then
+            begin_id = 6
+        else if (tag == '<EndGridData3D>') then
+            end_id = 6
+        else if (tag == '<BeginBathymetry>') then
+            begin_id = 7
+        else if (tag == '<EndBathymetry>') then
+            end_id = 7
+        endif
+
+    end subroutine GridTagIds
+
+    !--------------------------------------------------------------------------
+
+    subroutine CleanAsciiGridLine(line)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent(INOUT)             :: line
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i
+        logical                                     :: FoundComment
+
+        !----------------------------------------------------------------------
+
+        FoundComment = .false.
+        do i = 1, len(line)
+            if (FoundComment) then
+                line(i:i) = space
+            else if (line(i:i) == tab) then
+                line(i:i) = space
+            else if (line(i:i) == exclamation) then
+                FoundComment = .true.
+                line(i:i) = space
+            endif
+        enddo
+        line = adjustl(line)
+
+    end subroutine CleanAsciiGridLine
+
+    !--------------------------------------------------------------------------
+
+    subroutine OpenAsciiGridBlock(FileName, BeginTag, FileUnit, BlockFound, LineNumber)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent(IN)                :: FileName
+        character(len=*), intent(IN)                :: BeginTag
+        integer,          intent(OUT)               :: FileUnit
+        logical,          intent(OUT)               :: BlockFound
+        integer,          intent(OUT)               :: LineNumber
+
+        !Local-----------------------------------------------------------------
+        character(len=10000)                        :: raw_line
+        character(len=grid_ascii_line)              :: line
+        integer                                     :: ios
+        integer                                     :: STAT_CALL
+        integer                                     :: begin_id
+        integer                                     :: end_id
+        integer                                     :: want_begin
+        integer                                     :: want_end
+        logical                                     :: exists
+
+        !----------------------------------------------------------------------
+
+        BlockFound = .false.
+        LineNumber = 0
+        FileUnit   = 0
+
+        inquire(FILE = trim(adjustl(FileName)), EXIST = exists)
+        if (.not. exists) then
+            write(*,*) 'ASCII grid file not found: '//trim(adjustl(FileName))
+            stop 'ModuleEnterData - OpenAsciiGridBlock - ERR01'
+        endif
+
+        call UnitsManager(FileUnit, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleEnterData - OpenAsciiGridBlock - ERR02'
+
+        open(UNIT = FileUnit, FILE = trim(adjustl(FileName)), FORM = 'FORMATTED',       &
+             STATUS = 'OLD', ACTION = 'READ', IOSTAT = ios)
+        if (ios /= 0) stop 'ModuleEnterData - OpenAsciiGridBlock - ERR03'
+
+        call GridTagIds(BeginTag, want_begin, want_end)
+
+        do
+            read(FileUnit, '(A)', iostat = ios) raw_line
+            if (ios /= 0) exit
+            LineNumber = LineNumber + 1
+            if (len_trim(trim(raw_line)) > grid_ascii_line) then
+                write(*,*) 'Maximum of ', grid_ascii_line, ' characters is supported for an ASCII grid line.'
+                write(*,*) 'File  : '//trim(adjustl(FileName))
+                write(*,*) 'Line  : ', LineNumber
+                stop 'ModuleEnterData - OpenAsciiGridBlock - ERR04'
+            endif
+            line = adjustl(raw_line)
+            call GridTagIds(line, begin_id, end_id)
+            if (want_begin > 0 .and. begin_id == want_begin) then
+                BlockFound = .true.
+                exit
+            endif
+        enddo
+
+        if (.not. BlockFound) call CloseAsciiGridBlock(FileUnit)
+
+    end subroutine OpenAsciiGridBlock
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadAsciiGridReals(FileUnit, EndTag, Values, NValues, NRead, EndOfBlock, LineNumber, FileName)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN)               :: FileUnit
+        character(len=*),  intent(IN)               :: EndTag
+        real, dimension(:),intent(INOUT)            :: Values
+        integer,           intent(IN)               :: NValues
+        integer,           intent(OUT)              :: NRead
+        logical,           intent(OUT)              :: EndOfBlock
+        integer,           intent(INOUT)            :: LineNumber
+        character(len=*),  intent(IN)               :: FileName
+
+        !Local-----------------------------------------------------------------
+        character(len=10000)                        :: raw_line
+        character(len=grid_ascii_line)              :: line
+        character(len=64)                           :: token
+        integer                                     :: ios
+        integer                                     :: p
+        integer                                     :: q
+        integer                                     :: n
+        integer                                     :: begin_id
+        integer                                     :: end_id
+        integer                                     :: tag_id
+
+        !----------------------------------------------------------------------
+
+        if (NValues < 1 .or. NValues > size(Values)) stop 'ModuleEnterData - ReadAsciiGridReals - ERR01'
+
+        call GridTagIds(EndTag, begin_id, tag_id)
+
+        do
+            read(FileUnit, '(A)', iostat = ios) raw_line
+            if (ios /= 0) then
+                ! NRead -1 is end of file. NRead 0 is the matching end tag.
+                EndOfBlock = .true.
+                NRead = -1
+                return
+            endif
+
+            LineNumber = LineNumber + 1
+            if (len_trim(trim(raw_line)) > grid_ascii_line) then
+                write(*,*) 'Maximum of ', grid_ascii_line, ' characters is supported for an ASCII grid line.'
+                write(*,*) 'File  : '//trim(adjustl(FileName))
+                write(*,*) 'Line  : ', LineNumber
+                stop 'ModuleEnterData - ReadAsciiGridReals - ERR02'
+            endif
+            line = adjustl(raw_line)
+
+            call GridTagIds(line, begin_id, end_id)
+            if (tag_id > 0 .and. end_id == tag_id) then
+                EndOfBlock = .true.
+                NRead = 0
+                return
+            endif
+
+            call CleanAsciiGridLine(line)
+            if (len_trim(line) == 0) cycle
+
+            EndOfBlock = .false.
+            NRead = 0
+            p = 1
+            n = len_trim(line)
+            do while (p <= n)
+                do while (p <= n .and. (line(p:p) == space .or. line(p:p) == ','))
+                    p = p + 1
+                enddo
+                if (p > n) exit
+                q = p
+                do while (q <= n .and. line(q:q) /= space .and. line(q:q) /= ',')
+                    q = q + 1
+                enddo
+                if (NRead == NValues) then
+                    NRead = NRead + 1
+                    return
+                endif
+                token = line(p:q-1)
+                NRead = NRead + 1
+                read(token, *, iostat = ios) Values(NRead)
+                if (ios /= 0) then
+                    write(*,*) 'Error reading a number from an ASCII grid line.'
+                    write(*,*) 'File  : '//trim(adjustl(FileName))
+                    write(*,*) 'Line  : ', LineNumber
+                    write(*,*) 'String: '//trim(line)
+                    stop 'ModuleEnterData - ReadAsciiGridReals - ERR03'
+                endif
+                p = q
+            enddo
+            return
+        enddo
+
+    end subroutine ReadAsciiGridReals
+
+    !--------------------------------------------------------------------------
+
+    subroutine CloseAsciiGridBlock(FileUnit)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(INOUT)                      :: FileUnit
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        if (FileUnit <= 0) return
+        call UnitsManager(FileUnit, CLOSE_FILE, STAT = STAT_CALL)
+        FileUnit = 0
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleEnterData - CloseAsciiGridBlock - ERR01'
+
+    end subroutine CloseAsciiGridBlock
 
     !--------------------------------------------------------------------------
 
@@ -4398,19 +4748,14 @@ cd1:    if (EnterDataID > 0) then
 
         !Arguments-------------------------------------------------------------
 
-        !Local-----------------------------------------------------------------
-        integer :: number
-        real    :: x
-
        !-----------------------------------------------------------------------
 
 cd1 :   if (.NOT. Me%BLOCK_LOCK) then     
             Me%BLOCK_LOCK = ACTIVE
 
-            call RANDOM_NUMBER(x)
-            number = int(100000.0 * x)
-
-            Me%BlockClientIDnumber = number
+            NextBlockClientID = NextBlockClientID + 1
+            if (NextBlockClientID <= 0) NextBlockClientID = 1
+            Me%BlockClientIDnumber = NextBlockClientID
         else
             stop "ModuleEnterData - Block_Lock - ERR01."
         end if cd1
