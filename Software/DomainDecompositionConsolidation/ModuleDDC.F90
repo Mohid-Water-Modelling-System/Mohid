@@ -40,15 +40,18 @@ Module ModuleDDC
 
     !Modifier
     public  :: ModifyDDC
+    private ::      OpenDirectoryList
+    private ::          OpenDecomposedFiles
+    private ::              OpenDecomposedFiles2
+    private ::                  ScanDecomposedFiles
+    private ::                      AddOutputFile
+    private ::                      GetDomainDecomposition
+    private ::                          GetHDF5ReadFileAccessCode
+    private ::                          GetMappingValues
+    private ::      DistributeOutputFiles
     private ::      ScanDirectoryList
     private ::          ScanFileList
-    private ::              OpenDecomposedFiles
-    private ::                  OpenDecomposedFiles2
-    private ::                      ScanDecomposedFiles
-    private ::                          GetHDF5ReadWriteFileAccessCode
-    private ::                          GetDomainDecomposition
-    private ::                              GetHDF5ReadFileAccessCode
-    private ::                                 GetMappingValues
+    private ::              GetHDF5ReadWriteFileAccessCode
     private ::          WriteConsolidatedHDF
     private ::              ReadHDFDataSet
     private ::              AuxArrayAllocation
@@ -65,8 +68,6 @@ Module ModuleDDC
     public  :: KillDDC
     private ::      DeAllocateInstance
     private ::          deallocateDirectoryList
-    private ::               KillConsolidatedFiles
-    private ::                    KillConsolidatedFiles2
 
     !Management
     private ::      Ready
@@ -121,6 +122,21 @@ Module ModuleDDC
         type (T_MPIMatrixes), pointer                   :: MPIMatrixes
     end type  T_DirectoryList
 
+    !Work distribution---------------------------------------------------------
+    !Each consolidated file is independent, so the consolidated files are split
+    !among the MPI processes (ranks). Each consolidated file is written by one
+    !rank only. Without MPI there is one rank (0) that does all files.
+    integer                                             :: myRank           = 0
+    integer                                             :: nRanks           = 1
+    integer                                             :: nOutputFiles     = 0
+    !Sum of the sizes (bytes) of the decomposed files of each consolidated file,
+    !used as an estimate of the work needed to consolidate it
+    integer(8), dimension(:), allocatable               :: OutputFileSize
+    !Rank responsible for each consolidated file
+    integer,    dimension(:), allocatable               :: OutputFileOwner
+    !Max number of decomposed files (subdomains) per consolidated file
+    integer, parameter                                  :: MaxFilesIn       = 1000
+
     !--------------------------------------------------------------------------
 
     contains
@@ -134,10 +150,14 @@ Module ModuleDDC
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    function ConstructDDC()
+    function ConstructDDC(Rank, NumberOfRanks)
 
         !Function----------------------------------------------------------------
         type (T_DDC), pointer                       :: ConstructDDC
+
+        !Arguments---------------------------------------------------------------
+        integer, optional, intent(IN)               :: Rank
+        integer, optional, intent(IN)               :: NumberOfRanks
 
         !External----------------------------------------------------------------
         type (T_DDC), pointer                       :: Me
@@ -147,6 +167,9 @@ Module ModuleDDC
         integer                                     :: STAT_CALL    = NULL_INT
 
         !------------------------------------------------------------------------
+
+        if (present(Rank         )) myRank = Rank
+        if (present(NumberOfRanks)) nRanks = NumberOfRanks
 
         allocate(NewObjDDC)
         NewObjDDC%nbrModels = 0         !Initializes model count
@@ -431,8 +454,15 @@ if3 :           if (iMPI > 0) then
 
 !        if (ready_ .EQ. IDLE_ERR_) then
 if1 :       if (associated(Me%DirectoryList)) then
-                call ScanDirectoryList(DirectoryList = Me%DirectoryList,    &
+                !1st pass: reads the decomposition of every MPI_ file (metadata only)
+                call OpenDirectoryList(DirectoryList = Me%DirectoryList,    &
                                        nbrModels     = Me%nbrModels)
+
+                !Decides which rank consolidates each file
+                call DistributeOutputFiles
+
+                !2nd pass: each rank consolidates its own files
+                call ScanDirectoryList(DirectoryList = Me%DirectoryList)
             endif if1
 
             STAT_ = SUCCESS_
@@ -448,40 +478,104 @@ if1 :       if (associated(Me%DirectoryList)) then
 
     !--------------------------------------------------------------------------
 
-    recursive subroutine ScanDirectoryList(DirectoryList, nbrModels)
+    recursive subroutine OpenDirectoryList(DirectoryList, nbrModels)
 
         !Arguments-------------------------------------------------------------
         type(T_DirectoryList), pointer                          :: DirectoryList
         integer, intent(IN)                                     :: nbrModels
 
-        !Local--------------------------------------------------------------
-
-        !External--------------------------------------------------------------
-        CHARACTER(PathLength)                   :: FirstHDFFileIn
-        CHARACTER(PathLength)                   :: FirstHDFFileOut
-        INTEGER                                 :: TID
-        INTEGER                                 :: OMP_GET_THREAD_NUM  , i, j, k
-
-        integer omp_get_nested
         !------------------------------------------------------------------------
 
-!$OMP PARALLEL
-!$OMP SECTIONS
-!$OMP SECTION
-!        TID = OMP_GET_THREAD_NUM()
-!        k= omp_get_nested()
-!        PRINT *, 'ScanDirectoryList 1, OpenMP thread = ', TID
-!        PRINT *, 'omp_get_nested = ', k
         call OpenDecomposedFiles(hash_map_out = DirectoryList%hash_map_out,        &
                                  hash_map_in  = DirectoryList%hash_map_in,         &
-                                 Directory = DirectoryList%Directory,              &
-                                 nbrModels = nbrModels)
+                                 Directory    = DirectoryList%Directory,           &
+                                 nbrModels    = nbrModels)
+
+        if (associated(DirectoryList%Next)) call OpenDirectoryList(DirectoryList = DirectoryList%Next,  &
+                                                                   nbrModels     = nbrModels)
+
+        !------------------------------------------------------------------------
+
+    end subroutine OpenDirectoryList
+
+    !--------------------------------------------------------------------------
+
+    subroutine DistributeOutputFiles
+
+        !Local-----------------------------------------------------------------
+        integer(8), dimension(:), allocatable                   :: RankLoad
+        logical,    dimension(:), allocatable                   :: Assigned
+        integer                                                 :: n, i, iMax, iRank
+
+        !------------------------------------------------------------------------
+
+        if (nOutputFiles == 0) return
+
+        allocate(OutputFileOwner(nOutputFiles))
+        allocate(Assigned       (nOutputFiles))
+        allocate(RankLoad       (0:nRanks-1))
+
+        Assigned = .false.
+        RankLoad = 0
+
+        !Largest file first, always to the rank with less work so far.
+        !All ranks compute the same distribution because they read the same files.
+do1 :   do n = 1, nOutputFiles
+
+            iMax = 0
+            do i = 1, nOutputFiles
+                if (Assigned(i)) cycle
+                if (iMax == 0) then
+                    iMax = i
+                elseif (OutputFileSize(i) > OutputFileSize(iMax)) then
+                    iMax = i
+                endif
+            enddo
+
+            iRank                 = minloc(RankLoad, dim = 1) - 1
+            OutputFileOwner(iMax) = iRank
+            RankLoad(iRank)       = RankLoad(iRank) + OutputFileSize(iMax)
+            Assigned(iMax)        = .true.
+
+        enddo do1
+
+if1 :   if (myRank == 0) then
+            write(*,'(1x,a,i0,a,i0,a)') "Consolidating ", nOutputFiles, " files using ", nRanks, " process(es)"
+            if (nRanks > 1) then
+                do iRank = 0, nRanks-1
+                    write(*,'(1x,a,i4,a,i5,a,f12.1,a)') "  Rank ", iRank, " : ",            &
+                        count(OutputFileOwner == iRank), " file(s), ",                      &
+                        real(RankLoad(iRank), 8) / 1048576.d0, " MB to read"
+                enddo
+            endif
+            print *, ""
+        endif if1
+
+        deallocate(Assigned)
+        deallocate(RankLoad)
+
+        !------------------------------------------------------------------------
+
+    end subroutine DistributeOutputFiles
+
+    !--------------------------------------------------------------------------
+
+    recursive subroutine ScanDirectoryList(DirectoryList)
+
+        !Arguments-------------------------------------------------------------
+        type(T_DirectoryList), pointer                          :: DirectoryList
+
+        !Local-----------------------------------------------------------------
+        CHARACTER(PathLength)                                   :: FirstHDFFileIn
+        CHARACTER(PathLength)                                   :: FirstHDFFileOut
+
+        !------------------------------------------------------------------------
 
 if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
 
-            FirstHDFFileIn = hash_get_first_key(DirectoryList%hash_map_in)
+            FirstHDFFileIn  = hash_get_first_key(DirectoryList%hash_map_in)
             FirstHDFFileOut = hash_get_first_key(DirectoryList%hash_map_out)
-            
+
             call ScanFileList (HDFFileIn    = FirstHDFFileIn,                   &
                                hash_map_in  = DirectoryList%hash_map_in,        &
                                HDFFileOut   = FirstHDFFileOut,                  &
@@ -490,11 +584,7 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                                MPIMatrixes  = DirectoryList%MPIMatrixes)
         endif if1
 
-        if (associated(DirectoryList%Next)) call ScanDirectoryList(DirectoryList = DirectoryList%Next,  &
-                                                                   nbrModels     = nbrModels)
-!$OMP END SECTIONS NOWAIT
-!$OMP END PARALLEL
-
+        if (associated(DirectoryList%Next)) call ScanDirectoryList(DirectoryList = DirectoryList%Next)
 
         !------------------------------------------------------------------------
 
@@ -508,129 +598,105 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
         !Arguments-------------------------------------------------------------
         CHARACTER(PathLength), intent(IN)                       :: HDFFileIn
         CHARACTER(PathLength), intent(IN)                       :: HDFFileOut
-        type(T_HashTable), pointer                              :: hash_map_in 
+        type(T_HashTable), pointer                              :: hash_map_in
         type(T_HashTable), pointer                              :: hash_map_out
         type(T_AuxMatrixes), pointer                            :: AuxMatrixes
         type(T_MPIMatrixes), pointer                            :: MPIMatrixes
-         
+
         !Local--------------------------------------------------------------
-        integer                                                 :: STAT_CALL 
+        integer                                                 :: STAT_CALL
         CHARACTER(PathLength)                                   :: HDFFileNext
         CHARACTER(PathLength)                                   :: HDFFileNextOut
-        integer                                                 :: IDOut                   
+        integer                                                 :: OutputFile
+        integer                                                 :: IDOut
         integer                                                 :: ObjHDF5_Out
-        integer                                                 :: CountInFiles                   
-        integer                                                 :: TotalFiles
-        integer                                                 :: IDin                   
+        integer                                                 :: IDin
         integer                                                 :: ObjHDF5_In
-        integer                                                 :: AuxIDOut                            
-        integer                                                 :: AuxObjHDF5_Out
         CHARACTER(PathLength), dimension(:), pointer            :: FileArrayIn
         integer, dimension(:), pointer                          :: IdInArray
         integer, dimension(:), pointer                          :: ObjHDF5_InArray
-        integer                                                 :: TotalFilesIn                   
-        integer                                                 :: AuxLoop                   
+        integer                                                 :: TotalFilesIn
         integer                                                 :: i
-        character(StringLength)                                 :: GroupName  
-        
+        character(StringLength)                                 :: GroupName
+
         !------------------------------------------------------------------------
-        
-        allocate(FileArrayIn(1000))
-        allocate(IdInArray(1000))
-        allocate(ObjHDF5_InArray(1000))
-        
-        FileArrayIn     = null_str
-        IdInArray       = null_int
-        ObjHDF5_InArray = null_int
-        TotalFilesIn    = null_int
-        
-        GroupName    = ""
-        CountInFiles=1.
-        TotalFiles = 0.
-        AuxLoop = 0.
-        HDFFileNext=HDFFileIn
-        
-        IDOut       = hash_get     (hash_map_out, HDFFileOut)
-        ObjHDF5_Out = hash_getObjID(hash_map_out, HDFFileOut)
-        
-        AuxIDOut       = hash_get     (hash_map_in, HDFFileNext)
-        AuxObjHDF5_Out = hash_getObjID(hash_map_in, HDFFileNext)
-                                        
-if1 :   if (AuxObjHDF5_Out == ObjHDF5_Out) then
 
-            TotalFiles = TotalFiles + 1. 
-        
-            !Get access to first MPI file 
-            call GetHDF5ReadFileAccessCode( HDFFile    = HDFFileNext,                       &
-                                            IDIn       = IDIn,                              &
-                                            ObjHDF5_In = ObjHDF5_In)
-            
-            FileArrayIn(TotalFiles)     = HDFFileNext
-            IdInArray(TotalFiles)       = IDIn
-            ObjHDF5_InArray(TotalFiles) = ObjHDF5_In
-            TotalFilesIn                = TotalFiles
-            
-        endif if1
-        
-do1 :   do while(AuxLoop == 0)
-            
-if2 :       if (hash_get_next_exists(hash_map_in, HDFFileNext)) then
+        !Index of this consolidated file (see AddOutputFile)
+        OutputFile = hash_getObjID(hash_map_out, HDFFileOut)
 
-                HDFFileNext = hash_get_next_key(hash_map_in, HDFFileNext)
-                
-                AuxIDOut       = hash_get     (hash_map_in, HDFFileNext)
-                AuxObjHDF5_Out = hash_getObjID(hash_map_in, HDFFileNext)
-                                                
-if3 :           if (AuxObjHDF5_Out == ObjHDF5_Out) then 
-                
-                    !Get access to the MPI file 
+if1 :   if (OutputFileOwner(OutputFile) == myRank) then
+
+            allocate(FileArrayIn    (MaxFilesIn))
+            allocate(IdInArray      (MaxFilesIn))
+            allocate(ObjHDF5_InArray(MaxFilesIn))
+
+            FileArrayIn     = null_str
+            IdInArray       = null_int
+            ObjHDF5_InArray = null_int
+            TotalFilesIn    = 0
+            GroupName       = ""
+
+            !Opens every decomposed file that belongs to this consolidated file
+            HDFFileNext = HDFFileIn
+do1 :       do
+if2 :           if (hash_getObjID(hash_map_in, HDFFileNext) == OutputFile) then
+
+                    TotalFilesIn = TotalFilesIn + 1
+                    if (TotalFilesIn > MaxFilesIn) stop 'ScanFileList - ModuleDDC - ERR01'
+
                     call GetHDF5ReadFileAccessCode( HDFFile    = HDFFileNext,               &
                                                     IDIn       = IDIn,                      &
                                                     ObjHDF5_In = ObjHDF5_In)
-                
-                    TotalFiles = TotalFiles + 1.
-                    
-                    FileArrayIn(TotalFiles)     = HDFFileNext
-                    IdInArray(TotalFiles)       = IDIn
-                    ObjHDF5_InArray(TotalFiles) = ObjHDF5_In
-                    TotalFilesIn                = TotalFiles
-                    
-                endif if3
-                
-            else if2
-            
-                AuxLoop = 1
-            
-            endif if2
-            
-        enddo do1
-        
-        print *, adjustl(trim(HDFFileOut))
-        print *, ""
-        
-        call WriteConsolidatedHDF(  IDOut           = IDOut,                            &
-                                    ObjHDF5_Out     = ObjHDF5_Out,                      & 
-                                    GroupName       = adjustl(trim(GroupName)),         &
-                                    IdInArray       = IdInArray,                        &
-                                    ObjHDF5_InArray = ObjHDF5_InArray,                  &
-                                    FileArrayIn     = FileArrayIn,                      &
-                                    NumberOfFiles   = TotalFilesIn,                     &
-                                    hash_map_in     = hash_map_in,                      &
-                                    AuxMatrixes     = AuxMatrixes,                      &
-                                    MPIMatrixes     = MPIMatrixes)
-                        
-do2 :   do i=1,TotalFilesIn
 
-            call KillHDF5(  HDF5ID   = ObjHDF5_InArray(i),              &
+                    FileArrayIn    (TotalFilesIn) = HDFFileNext
+                    IdInArray      (TotalFilesIn) = IDIn
+                    ObjHDF5_InArray(TotalFilesIn) = ObjHDF5_In
+
+                endif if2
+
+                if (.not. hash_get_next_exists(hash_map_in, HDFFileNext)) exit do1
+                HDFFileNext = hash_get_next_key(hash_map_in, HDFFileNext)
+            enddo do1
+
+            if (nRanks > 1) then
+                write(*,'(1x,a,i4,2a)') "Rank ", myRank, " : ", trim(adjustl(HDFFileOut))
+            else
+                print *, adjustl(trim(HDFFileOut))
+                print *, ""
+            endif
+
+            !Creates the consolidated file only now, and only on the rank that writes it
+            call GetHDF5ReadWriteFileAccessCode(ConsolidatedFile = HDFFileOut,      &
+                                                IDOut            = IDOut,           &
+                                                ObjHDF5_Out      = ObjHDF5_Out)
+
+            call WriteConsolidatedHDF(  IDOut           = IDOut,                            &
+                                        ObjHDF5_Out     = ObjHDF5_Out,                      &
+                                        GroupName       = adjustl(trim(GroupName)),         &
+                                        IdInArray       = IdInArray,                        &
+                                        ObjHDF5_InArray = ObjHDF5_InArray,                  &
+                                        FileArrayIn     = FileArrayIn,                      &
+                                        NumberOfFiles   = TotalFilesIn,                     &
+                                        hash_map_in     = hash_map_in,                      &
+                                        AuxMatrixes     = AuxMatrixes,                      &
+                                        MPIMatrixes     = MPIMatrixes)
+
+do2 :       do i=1,TotalFilesIn
+                call KillHDF5(  HDF5ID   = ObjHDF5_InArray(i),              &
+                                STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ScanFileList - ModuleDDC - ERR02'
+            enddo do2
+
+            !Closing the file writes everything to disk
+            call KillHDF5(  HDF5ID   = ObjHDF5_Out,                         &
                             STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ScanFileList - ModuleDDC - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ScanFileList - ModuleDDC - ERR03'
 
+            deallocate(FileArrayIn)
+            deallocate(IdInArray)
+            deallocate(ObjHDF5_InArray)
 
-        enddo do2 
-        
-        deallocate(FileArrayIn)
-        deallocate(IdInArray)
-        deallocate(ObjHDF5_InArray)      
+        endif if1
 
 if4 :   if (hash_get_next_exists(hash_map_out, HDFFileOut)) then
 
@@ -641,9 +707,9 @@ if4 :   if (hash_get_next_exists(hash_map_out, HDFFileOut)) then
                                 hash_map_out = hash_map_out,                &
                                 AuxMatrixes  = AuxMatrixes,                 &
                                 MPIMatrixes  = MPIMatrixes)
-            
+
         endif if4
-        
+
         !------------------------------------------------------------------------
 
     end subroutine ScanFileList
@@ -1506,9 +1572,8 @@ if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         
         endif if1
         
-        !Writes everything to disk
-        call HDF5FlushMemory (HDF5ID, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteHDFDataSet - ModuleDDC - ERR10'
+        !No HDF5FlushMemory here: it closes and reopens the file after every
+        !dataset, which is very slow. The file is closed once in ScanFileList.
           
         !------------------------------------------------------------------------
     
@@ -1645,29 +1710,24 @@ if14 :      if (DataType .EQ. H5T_NATIVE_INTEGER) then
         type(T_HashTable), pointer                              :: hash_map_in
 
         !Local-----------------------------------------------------------------
-        integer                                                 :: iUnderScore      
-        integer                                                 :: IDOut            
-        integer                                                 :: iUnderScore2     
-        integer                                                 :: STAT_            
-        integer                                                 :: STAT_CALL        
-        character(PathLength)                                   :: HDFinfile        
-        character(PathLength)                                   :: MPIResultsFile   
-        character(PathLength)                                   :: ConsolidatedFile 
-        integer                                                 :: ObjHDF5_Out 
-        integer                                                 :: FirstTime     
-               
+        integer                                                 :: iUnderScore
+        integer                                                 :: OutputFile
+        integer                                                 :: iUnderScore2
+        integer                                                 :: STAT_CALL
+        character(PathLength)                                   :: HDFinfile
+        character(PathLength)                                   :: MPIResultsFile
+        character(PathLength)                                   :: ConsolidatedFile
+        integer(8)                                              :: FileSize
+
         !------------------------------------------------------------------------
 
-        FirstTime        =  1
         iUnderScore      =  NULL_INT
-        IDOut            =  NULL_INT
+        OutputFile       =  NULL_INT
         iUnderScore2     =  NULL_INT
-        STAT_            =  NULL_INT
         STAT_CALL        =  NULL_INT
         HDFinfile        =  null_str
         MPIResultsFile   =  null_str
         ConsolidatedFile =  null_str
-        ObjHDF5_Out      =  NULL_INT
 
 
         read(unit = iHDFFile, fmt='(a256)', IOSTAT = STAT_CALL) HDFinfile
@@ -1680,41 +1740,39 @@ if1 :   if (STAT_CALL .EQ. SUCCESS_) then
 if2 :       if (iUnderScore > 0) then
                 iUnderScore2 = scan(MPIResultsFile(5:),"_")
 
-                
+
 if3 :           if (iUnderScore2 > 0) then
                     ConsolidatedFile = adjustl(trim(Directory)) // '/' // MPIResultsFile(5+iUnderScore2:)
-                    
-                    IDOut = hash_get(hash_map_out, ConsolidatedFile)
-                    
-if4 :               if (IDOut <0) then
 
-                        IDOut = NULL_INT
-                        
-                        call GetHDF5ReadWriteFileAccessCode(ConsolidatedFile = ConsolidatedFile, &
-                                                            IDOut           = IDOut,             &
-                                                            ObjHDF5_Out     = ObjHDF5_Out)
+                    !The consolidated file is not created here: only the rank that
+                    !writes it will create it. Here it just gets an index.
+                    OutputFile = hash_get(hash_map_out, ConsolidatedFile)
 
-                        call hash_set(hash_map_out, key = ConsolidatedFile, value_ = IDOut)
-                        
-                        call hash_setObjID(hash_map_out, key = ConsolidatedFile, ObjID = ObjHDF5_Out)
-                        
-                    else if4
-                    
-                        ObjHDF5_Out = hash_getObjID(Me = hash_map_out, key = ConsolidatedFile)
-                        
+if4 :               if (OutputFile <0) then
+
+                        call AddOutputFile(OutputFile)
+
+                        call hash_set(hash_map_out, key = ConsolidatedFile, value_ = OutputFile)
+
+                        call hash_setObjID(hash_map_out, key = ConsolidatedFile, ObjID = OutputFile)
+
                     endif if4
 
-                    call hash_set(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, value_ = IDOut)
-                
-                    call hash_setObjID(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, ObjID = ObjHDF5_Out)
-                
+                    !The work of a consolidated file is estimated by the size of its decomposed files
+                    inquire(file = trim(adjustl(trim(Directory)) // '/' // HDFinfile), size = FileSize)
+                    if (FileSize < 0) FileSize = 1
+                    OutputFileSize(OutputFile) = OutputFileSize(OutputFile) + FileSize
+
+                    call hash_set(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, value_ = OutputFile)
+
+                    call hash_setObjID(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, ObjID = OutputFile)
+
                     call GetDomainDecomposition(HDFFile = adjustl(trim(Directory)) // '/' // HDFinfile,   &
-                                                hash_map_in = hash_map_in,                                &
-                                                FirstTime = FirstTime)
-                                    
+                                                hash_map_in = hash_map_in)
+
                 endif if3
             endif if2
-            
+
             call ScanDecomposedFiles(iHDFFile = iHDFFile,                       &
                                      hash_map_out = hash_map_out,               &
                                      hash_map_in = hash_map_in,                 &
@@ -1724,6 +1782,35 @@ if4 :               if (IDOut <0) then
         !------------------------------------------------------------------------
 
     end subroutine ScanDecomposedFiles
+
+    !--------------------------------------------------------------------------
+
+    subroutine AddOutputFile(OutputFile)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(OUT)                                    :: OutputFile
+
+        !Local-----------------------------------------------------------------
+        integer(8), dimension(:), allocatable                   :: AuxSize
+
+        !------------------------------------------------------------------------
+
+        nOutputFiles = nOutputFiles + 1
+        OutputFile   = nOutputFiles
+
+        if (.not. allocated(OutputFileSize)) then
+            allocate(OutputFileSize(100))
+            OutputFileSize = 0
+        elseif (nOutputFiles > size(OutputFileSize)) then
+            allocate(AuxSize(2 * size(OutputFileSize)))
+            AuxSize = 0
+            AuxSize(1:size(OutputFileSize)) = OutputFileSize
+            call move_alloc(AuxSize, OutputFileSize)
+        endif
+
+        !------------------------------------------------------------------------
+
+    end subroutine AddOutputFile
     
     !--------------------------------------------------------------------------
 
@@ -1769,93 +1856,65 @@ if4 :               if (IDOut <0) then
     
     !--------------------------------------------------------------------------
     
-    recursive subroutine GetDomainDecomposition(HDFFile,hash_map_in,FirstTime)
+    subroutine GetDomainDecomposition(HDFFile,hash_map_in)
 
         !Arguments-------------------------------------------------------------
         CHARACTER(PathLength)                       :: HDFFile
         type(T_HashTable), pointer                  :: hash_map_in
-        integer                                     :: FirstTime            
-            
+
         !Local-------------------------------------------------------------------
-        CHARACTER(PathLength)                       :: DecompositionGroup 
-        integer                                     :: Group               
-        character(PathLength)                       :: GroupName           
-        integer                                     :: IDIn               
-        integer                                     :: ObjHDF5_In         
-        integer, pointer,   dimension(:)            :: DataVal1D   
-        integer                                     :: STAT_CALL  
-        integer, dimension(4)                       :: DomainSize         
-        integer, dimension(4)                       :: WindowPosition
-        integer                                     :: i 
+        integer                                     :: IDIn
+        integer                                     :: ObjHDF5_In
+        integer, pointer,   dimension(:)            :: DataVal1D
+        integer                                     :: STAT_CALL
 
         !------------------------------------------------------------------------
 
         IDIn       = NULL_INT
         ObjHDF5_In = NULL_INT
-        Group      = NULL_INT
-        GroupName  = NULL_STR
         allocate(DataVal1D(1:4))
 
-if1 :   if(FirstTime .EQ. 1) then
-            DecompositionGroup = "/Grid/Decomposition/Global/"            
-        elseif (FirstTime .EQ. 2) then if1
-            DecompositionGroup = "/Grid/Decomposition/InnerMapping/"
-        elseif (FirstTime .EQ. 3) then if1
-            DecompositionGroup = "/Grid/Decomposition/Mapping/"
-        endif if1
-        
+        !Opens the file only once to read the 3 decomposition groups
         call GetHDF5ReadFileAccessCode(HDFFile = HDFFile,               &
                                        IDIn = IDIn,                     &
                                        ObjHDF5_In = ObjHDF5_In)
 
         call GetMappingValues(ObjHDF5_In = ObjHDF5_In,                  &
                               IDIn = IDIn,                              &
-                              GroupName = DecompositionGroup,           &
-                              DataVal1D = DataVal1D) 
-         
-if2 :   if(FirstTime .EQ. 1) then
-            call hash_setDomainSize(Me = hash_map_in,                   &
-                                    key = HDFFile,                      &  
-                                    DomainSize = DataVal1D)            
-        
-            call KillHDF5(HDF5ID   = ObjHDF5_In,                                                  &
-                          STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR01'
-       
-        elseif (FirstTime .EQ. 2) then if2
+                              GroupName = "/Grid/Decomposition/Global/",&
+                              DataVal1D = DataVal1D)
 
-            call hash_setWindowPosition(Me = hash_map_in,               &
-                                        key = HDFFile,                  &  
-                                        WindowPosition = DataVal1D)
-                                        
-        elseif (FirstTime .EQ. 3) then if2
-        
-            call hash_setWindowFrame(Me = hash_map_in,                  &
-                                        key = HDFFile,                  &  
-                                        WindowFrame = DataVal1D)
-                                        
-            call KillHDF5(HDF5ID   = ObjHDF5_In,                                                  &
-                          STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR02'
-        
-        endif if2
-        
-if3 :   if (FirstTime .LE. 2) then
+        call hash_setDomainSize(Me = hash_map_in,                       &
+                                key = HDFFile,                          &
+                                DomainSize = DataVal1D)
 
-            deallocate(DataVal1D)
-    
-            call GetDomainDecomposition(HDFFile = HDFFile,   &
-                                            hash_map_in = hash_map_in,                                &
-                                            FirstTime = FirstTime+1)
-        endif if3
-        
-if4 :   if (associated (DataVal1D)) then 
-            deallocate(DataVal1D) 
-        endif if4
-        
+        call GetMappingValues(ObjHDF5_In = ObjHDF5_In,                  &
+                              IDIn = IDIn,                              &
+                              GroupName = "/Grid/Decomposition/InnerMapping/", &
+                              DataVal1D = DataVal1D)
+
+        call hash_setWindowPosition(Me = hash_map_in,                   &
+                                    key = HDFFile,                      &
+                                    WindowPosition = DataVal1D)
+
+        call GetMappingValues(ObjHDF5_In = ObjHDF5_In,                  &
+                              IDIn = IDIn,                              &
+                              GroupName = "/Grid/Decomposition/Mapping/",&
+                              DataVal1D = DataVal1D)
+
+        call hash_setWindowFrame(Me = hash_map_in,                      &
+                                 key = HDFFile,                         &
+                                 WindowFrame = DataVal1D)
+
+        call KillHDF5(HDF5ID   = ObjHDF5_In,                            &
+                      STAT     = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetDomainDecomposition - ModuleDDC - ERR01'
+
+        deallocate(DataVal1D)
+
         !------------------------------------------------------------------------
 
-        end subroutine GetDomainDecomposition
+    end subroutine GetDomainDecomposition
         !--------------------------------------------------------------------------
 
         subroutine GetMappingValues(ObjHDF5_In, IDIn, GroupName, DataVal1D)
@@ -2092,6 +2151,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         if (associated(Me%DirectoryList)) call deallocateDirectoryList(Me%DirectoryList)
 
+        if (allocated(OutputFileSize )) deallocate(OutputFileSize )
+        if (allocated(OutputFileOwner)) deallocate(OutputFileOwner)
+        nOutputFiles = 0
+
         deallocate (Me)
         nullify    (Me)
 
@@ -2111,8 +2174,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !------------------------------------------------------------------------
 
 if1 :   if (associated(DirectoryList%Next)) then
-            call KillConsolidatedFiles(DirectoryList%hash_map_out)
-
             call KillHash_map           (DirectoryList%hash_map_out)
             nullify   (DirectoryList%hash_map_out)
             call KillHash_map           (DirectoryList%hash_map_in)
@@ -2127,57 +2188,7 @@ if1 :   if (associated(DirectoryList%Next)) then
 
     end subroutine deallocateDirectoryList
     
-    !------------------------------------------------------------------------
 
-    recursive subroutine KillConsolidatedFiles (hash_map_out)
-
-        !Arguments-------------------------------------------------------------
-        type(T_HashTable), pointer                      :: hash_map_out
-        
-        !Local-----------------------------------------------------------------
-        CHARACTER(StringLength)                         :: key
-
-        !------------------------------------------------------------------------
-
-if1 :   if (hash_get_first_exists(hash_map_out)) then
-
-            key = hash_get_first_key(hash_map_out)
-            
-            call KillConsolidatedFiles2(hash_map_out, key)
-
-        endif if1
-
-        !------------------------------------------------------------------------
-
-    end subroutine KillConsolidatedFiles
-    
-    !------------------------------------------------------------------------
-
-    recursive subroutine KillConsolidatedFiles2 (hash_map_out, key)
-
-        !Arguments-------------------------------------------------------------
-        type(T_HashTable), pointer                      :: hash_map_out
-        CHARACTER(*), INTENT(IN)                        :: key
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: ObjHDF5_Out      = NULL_INT
-        integer                                         :: STAT_CALL        = NULL_INT
-        CHARACTER(StringLength)                         :: key2             = NULL_STR
-        !------------------------------------------------------------------------
-
-            ObjHDF5_Out = hash_getObjID(hash_map_out, key)
-            
-            call KillHDF5(HDF5ID   = ObjHDF5_Out,                                    &
-                          STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'KillConsolidatedFiles2 - ModuleDDC - ERR001'
-
-if1 :       if (hash_get_next_exists(hash_map_out, key)) then
-                key2 = hash_get_next_key(hash_map_out, Key)
-                call KillConsolidatedFiles2(hash_map_out, key2)
-            endif if1
-        !------------------------------------------------------------------------
-
-    end subroutine KillConsolidatedFiles2
 
     !--------------------------------------------------------------------------
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
