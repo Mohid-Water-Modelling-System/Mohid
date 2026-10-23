@@ -702,6 +702,7 @@ Module ModuleHorizontalGrid
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_, ready_
         integer                                 :: STAT_CALL, NLinesInFile_
+        logical                                 :: UseTopographyReader
 
         !----------------------------------------------------------------------
 
@@ -758,16 +759,15 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             !Construct the variable common to all module
-            if (present(Topography)) then
-                if (present(NLinesInFile)) then
-                    call ConstructGlobalVariables(Topography, NLinesInFile)
-                else
-                    call ConstructGlobalVariables(Topography)
-                    NLinesInFile = 0 !0 will serve as flag
-                endif
-                
+            UseTopographyReader = .false.
+            if (present(Topography)) UseTopographyReader = Topography
+
+            if (UseTopographyReader) then
+                call ConstructGlobalVariables_Topography(Topography, NLinesInFile_)
+                if (present(NLinesInFile)) NLinesInFile = NLinesInFile_
             else
-                call ConstructGlobalVariables 
+                call ConstructGlobalVariables
+                if (present(NLinesInFile)) NLinesInFile = 0
             endif
 
             call GenerateGrid
@@ -4238,6 +4238,974 @@ BF1:    if (Me%ReadCartCorners) then
 
     end subroutine ConstructGlobalVariables
 
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructGlobalVariables_Topography(Topography, NLinesInFile)
+        !Buffered reader for large MOHID Land topography files (faster than the streaming reader)
+
+        !Arguments-------------------------------------------------------------
+        logical, intent(IN), optional       :: Topography
+        integer, intent(OUT), optional      :: NLinesInFile
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, ZoneLong, NLinesInFile_
+        integer, dimension(2)               :: AuxInt
+        real,    dimension(2)               :: AuxReal
+        real                                :: Aux, XY_Aux
+        integer                             :: flag, flag1, flag2
+        integer                             :: ClientNumber
+        logical                             :: BlockFound
+        integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
+        logical                             :: CornersOverlap
+
+        !----------------------------------------------------------------------
+
+        !Nullify T_Distances
+        nullify (Me%XX )
+        nullify (Me%YY )
+        nullify (Me%DXX)
+        nullify (Me%DYY)
+        nullify (Me%DZX)
+        nullify (Me%DZY)
+        nullify (Me%DUX)
+        nullify (Me%DUY)
+        nullify (Me%DVX)
+        nullify (Me%DVY)
+        nullify (Me%XX_IE)
+        nullify (Me%YY_IE)
+        nullify (Me%Compute%XX_Z )
+        nullify (Me%Compute%YY_Z )
+        nullify (Me%Compute%XX_U )
+        nullify (Me%Compute%YY_U )
+        nullify (Me%Compute%XX_V )
+        nullify (Me%Compute%YY_V )
+        nullify (Me%Compute%XX_Cross)
+        nullify (Me%Compute%YY_Cross)
+        nullify (Me%XX_AlongGrid)
+        nullify (Me%YY_AlongGrid)
+
+        !Nullify Other
+        nullify (Me%LatitudeZ    )
+        nullify (Me%LongitudeZ   )
+        nullify (Me%F            )
+        nullify (Me%GridCellArea )
+        nullify (Me%LatitudeConn )
+        nullify (Me%LongitudeConn)
+
+        !Opens Data File
+        if (present(Topography))then
+            if (Topography) then
+                NLinesInFile_ = 0
+                call ConstructEnterData_Topography(Me%ObjEnterData, Me%FileName, NLinesInFile = NLinesInFile_, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
+                NLinesInFile = NLinesInFile_
+            else
+                call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
+            endif
+        else
+            
+            call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
+        endif
+        !Reads ILB_IUB
+        call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
+                     keyword      = 'ILB_IUB',                                          &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR20'
+        if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR30'
+
+        Me%GlobalWorkSize%ILB = AuxInt(1)
+        Me%GlobalWorkSize%IUB = AuxInt(2)
+
+        !Reads JLB_JUB
+        call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
+                     keyword      = 'JLB_JUB',                                          &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR40'
+        if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR50'
+        Me%GlobalWorkSize%JLB = AuxInt(1)
+        Me%GlobalWorkSize%JUB = AuxInt(2)
+        
+        !Write cells area in the Grid Group of hdf5 output files
+        call GetData(Value          = Me%WriteCellsArea,                                &
+                     EnterDataID    = Me%ObjEnterData,                                  &
+                     flag           = iflag,                                            &
+                     keyword        = 'WRITE_CELLS_AREA',                               &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'HorizontalGrid',                                 &
+                     default        = .false.,                                          &
+                     StopAt         = '<BeginGridData2D>',                              &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR55'
+        
+        call GetData(Value          = Me%DDecomp%Halo_Points,                           &
+                     EnterDataID    = Me%ObjEnterData,                                  &
+                     flag           = iflag,                                            &
+                     keyword        = 'HALOPOINTS',                                     &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'HorizontalGrid',                                 &
+                     default        = 3,                                                &
+                     StopAt         = '<BeginGridData2D>',                              &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'
+
+        if (Me%DDecomp%Halo_Points < 2) then
+            write(*,*) 'HALOPOINTS must equal to 2 or bigger'
+            stop 'ConstructGlobalVariables - HorizontalGrid - ERR445'
+        endif
+        !Intialization of domain decomposition procedure
+        if (Me%DDecomp%ON) then
+            call ConstructDDecomp
+        endif
+
+
+        if (Me%DDecomp%MasterOrSlave)  then
+
+            Me%Size%ILB     = Me%WorkSize%ILB-1
+            Me%Size%IUB     = Me%WorkSize%IUB+1
+
+            if (Me%GlobalWorkSize%ILB /= Me%DDecomp%Global%ILB) then
+                write(*,*) "Me%GlobalWorkSize%ILB",Me%GlobalWorkSize%ILB
+                write(*,*) "Me%DDecomp%Global%ILB",Me%DDecomp%Global%ILB
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR32'
+            endif
+
+            if (Me%GlobalWorkSize%IUB /= Me%DDecomp%Global%IUB) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR34'
+            endif
+
+        else
+
+            Me%Size%ILB     = Me%GlobalWorkSize%ILB-1
+            Me%Size%IUB     = Me%GlobalWorkSize%IUB+1
+
+            Me%WorkSize%ILB = Me%GlobalWorkSize%ILB
+            Me%WorkSize%IUB = Me%GlobalWorkSize%IUB
+
+        endif
+
+
+        if (Me%DDecomp%MasterOrSlave)  then
+
+            Me%Size%JLB     = Me%WorkSize%JLB-1
+            Me%Size%JUB     = Me%WorkSize%JUB+1
+
+            if (Me%GlobalWorkSize%JLB /= Me%DDecomp%Global%JLB) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR52'
+            endif
+
+            if (Me%GlobalWorkSize%JUB /= Me%DDecomp%Global%JUB) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR54'
+            endif
+
+        else
+
+            Me%Size%JLB     = Me%GlobalWorkSize%JLB-1
+            Me%Size%JUB     = Me%GlobalWorkSize%JUB+1
+
+            Me%WorkSize%JLB = Me%GlobalWorkSize%JLB
+            Me%WorkSize%JUB = Me%GlobalWorkSize%JUB
+
+        endif
+
+
+        !Reads COORD_TIP
+        call GetData(Me%CoordType, Me%ObjEnterData, flag,                               &
+                     keyword      = 'COORD_TIP',                                        &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR60'
+
+        if (.NOT. ((Me%CoordType == GEOG_       ) .OR.                                  &
+                   (Me%CoordType == UTM_        ) .OR.                                  &
+                   (Me%CoordType == MIL_PORT_   ) .OR.                                  &
+                   (Me%CoordType == SIMPLE_GEOG_) .OR.                                  &
+                   (Me%CoordType == GRID_COORD_ ) .OR.                                  &
+                   (Me%CoordType == CIRCULAR_   ) .OR.                                  &
+                   (Me%CoordType == NLRD_       ))) then
+            call SetError (FATAL_, INTERNAL_, "Invalid Coordinates")
+        endif
+
+        !Reads Latitude (Reference latitude. If externally specificed is the center of domain)
+        call GetData(Me%Latitude, Me%ObjEnterData, flag,                                &
+                     keyword      = 'LATITUDE',                                         &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR70'
+
+        if (flag == 1) then
+            if (Me%Latitude < -90. .or. Me%Latitude > 90.) then
+                write(*,*) 'Wrong Latitude =', Me%Latitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR75'
+            endif
+        endif 
+        !Reads Longitude (Reference longitude. If externally specificed is the center of domain)
+        call GetData(Me%Longitude, Me%ObjEnterData, flag,                                  &
+                     keyword      = 'LONGITUDE',                                        &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
+
+        if (flag == 1) then
+            if (Me%Longitude < -360. .or. Me%Longitude > 360.) then
+                write(*,*) 'Wrong Longitude =', Me%Longitude
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR85'
+            endif
+        endif         
+        call GetData(Me%Datum, Me%ObjEnterData, flag,                                   &
+                     keyword      = 'DATUM',                                            &
+                     default      = WGS_84_DATUM,                                       &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR90'
+
+        !Valor metrico a acrescentar as coordenadas na direccao x
+        call GetData(Me%Easting, Me%ObjEnterData, flag,                                 &
+                     keyword      = 'EASTING',                                          &
+                     default      = 0.0,                                                &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR100'
+
+        !Valor metrico a acrescentar as coordenadas na direccao x
+        call GetData(Me%Northing, Me%ObjEnterData, flag,                                &
+                     keyword      = 'NORTHING',                                         &
+                     default      = 0.0,                                                &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR110'
+
+        !Projection Type to convert to cartesian coordinates
+        call GetData(Me%ProjType, Me%ObjEnterData, flag,                                &
+                     keyword      = 'PROJ_TYPE',                                        &
+                     default      = PAULO_PROJECTION_,                                  &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR120'
+
+        !Lambert Conformal Conic Projection
+        call GetData(Me%SP1, Me%ObjEnterData, flag1,                                    &
+                     keyword      = 'SP1',                                              &
+                     default      = 30.,                                                &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR120'
+
+        !Lambert Conformal Conic Projection
+        call GetData(Me%SP2, Me%ObjEnterData, flag2,                                    &
+                     keyword      = 'SP2',                                              &
+                     default      = 60.,                                                &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR130'
+
+#ifdef _USE_PROJ4
+#else
+        if (flag1 + flag2 == 2) then  !estao la
+            Me%UseLambert = .TRUE.
+        else
+            Me%UseLambert = .FALSE.
+        endif
+#endif
+
+         !Reads ZoneLong
+        if (Me%CoordType == UTM_ ) then
+            call ComputeGridZone (dble(Me%Longitude), dble(Me%Latitude), Me%Grid_Zone)
+
+            Me%ZoneLong = Me%Grid_Zone(1)
+            Me%ZoneLat  = Me%Grid_Zone(2)
+            call GetData(ZoneLong, Me%ObjEnterData, flag,                               &
+                         keyword      = 'ZONE',                                         &
+                         ClientModule = 'HorizontalGrid',                               &
+                         StopAt       = '<BeginGridData2D>',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR140'
+            if (flag == 1) then
+                if (ZoneLong /= Me%ZoneLong) stop 'ConstructGlobalVariables - HorizontalGrid - ERR150'
+            endif
+
+        else if (Me%CoordType .EQ. MIL_PORT_) then
+            Me%ZoneLong = PORTUGUESE_UTM_ZONE_
+        else
+            Me%ZoneLong = null_int
+        endif
+
+
+        !Reads ORIGIN
+        call GetData(AuxReal,Me%ObjEnterData, flag,                                     &
+                     keyword      = 'ORIGIN',                                           &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR160'
+        if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR170'
+
+        Me%Xorig = AuxReal(1)
+        Me%Yorig = AuxReal(2)
+
+        !Reads GridAngle
+        call GetData(Me%Grid_Angle, Me%ObjEnterData, flag,                              &
+                     keyword      = 'GRID_ANGLE',                                       &
+                     default      = 0.0,                                                &
+                     ClientModule = 'HorizontalGrid',                                   &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR180'
+        
+
+        !Allocates XX and YY
+        allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
+        allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
+    
+        allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        if (Me%DDecomp%Master) then
+
+            allocate(Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB-1: Me%GlobalWorkSize%IUB+1, &
+                                             Me%GlobalWorkSize%JLB-1: Me%GlobalWorkSize%JUB+1))
+
+            allocate(Me%DDecomp%YY_IE_Global(Me%GlobalWorkSize%ILB-1: Me%GlobalWorkSize%IUB+1, &
+                                             Me%GlobalWorkSize%JLB-1: Me%GlobalWorkSize%JUB+1))
+            
+            Me%DDecomp%XX_IE_Global(:,:) = FillValueReal
+            Me%DDecomp%YY_IE_Global(:,:) = FillValueReal 
+            
+        endif        
+
+        allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%DefineCellsMap(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%XX_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+
+        Me%XX    = null_real
+        Me%YY    = null_real
+        Me%XX_IE = null_real
+        Me%YY_IE = null_real
+
+        Me%LatitudeConn  = null_real
+        Me%LongitudeConn = null_real
+
+
+        Me%DefineCellsMap(:,:)  = 1
+
+        !Reads XX_YE, YY_IE
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR190'
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
+                                    BeginCornersXY, EndCornersXY, BlockFound,   &
+                                    FirstLine = FirstLine, LastLine = LastLine, &
+                                    StopAt = '<BeginGridData2D>', STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR200'
+BF:     if (BlockFound) then
+
+            Me%CornersXYInput = .true.
+
+            if (Me%CoordType == CIRCULAR_ .and. Me%CoordType == GEOG_) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR210'
+            endif
+
+
+            line = FirstLine
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
+
+                line = line+1
+
+                !Last line found before end?
+                if (line == LastLine) then
+                    write(*,*)
+                    write(*,*) 'Error reading Corners X Y'
+                    stop 'ConstructGlobalVariables - HorizontalGrid - ERR220'
+                end if
+
+                !Reads XX_IE , YY_IE
+                call GetData(AuxReal, Me%ObjEnterData, flag,                            &
+                             Buffer_Line  = Line,                                       &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR230'
+
+                if (Me%DDecomp%Master) then
+
+                    Me%DDecomp%XX_IE_Global(i, j) = AuxReal(1)
+                    Me%DDecomp%YY_IE_Global(i, j) = AuxReal(2)                
+
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+
+                Me%XX_IE(ii, jj) = AuxReal(1)
+                Me%YY_IE(ii, jj) = AuxReal(2)
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Me%GhostCorners = .true. 
+                endif                
+
+            end do
+            end do
+
+            CornersOverlap = .false.
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = i - Me%DDecomp%HaloMap%ILB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = j - Me%DDecomp%HaloMap%JLB + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+                
+                if (Me%XX_IE(ii, jj) < FillValueReal/2) then
+                    Cycle
+                endif
+
+                 line = FirstLine + (i-1)*(Me%GlobalWorkSize%JUB+1) + j
+
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii, jj+1) .and.                        &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i,j+1
+                    write(*,*) 'Line =', Line
+                    CornersOverlap = .true.
+                    
+                endif                    
+                    
+                if (Me%XX_IE(ii, jj) == Me%XX_IE(ii+1, jj+1) .and.                      &
+                    Me%YY_IE(ii, jj) == Me%YY_IE(ii+1, jj+1)) then
+                    
+                    write(*,*) 'Corners (i,j) overlap',i,j,'vs',i+1,j+1
+                    write(*,*) 'Line =', Line                    
+                    CornersOverlap = .true.
+                    
+                endif                                        
+
+            end do
+            end do            
+            
+            if (CornersOverlap) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR235'
+            endif
+
+
+            if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
+
+                Me%Distortion      = .true.
+                Me%RegularRotation = .false.
+
+            else
+
+                Me%Distortion = .false.
+
+                if (abs(Me%Grid_Angle)>0.) then
+                    Me%RegularRotation = .true.
+                else
+                    Me%RegularRotation = .false.
+                endif
+
+            endif
+
+
+            allocate(Me%DefineFacesUMap(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+            allocate(Me%DefineFacesVMap(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+            allocate(Me%DefineCrossMap (Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+
+            Me%DefineFacesUMap(:,:) = 1
+            Me%DefineFacesVMap(:,:) = 1
+            Me%DefineCrossMap (:,:) = 1
+
+            Me%NotDefinedCells       = .false.
+
+            !If one corner has FillValue Real, the point is not to consider
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                if (Me%XX_IE(i  , j  ) <= FillValueReal / 2. .or.       &
+                    Me%XX_IE(i  , j+1) <= FillValueReal / 2. .or.       &
+                    Me%XX_IE(i+1, j+1) <= FillValueReal / 2. .or.       &
+                    Me%XX_IE(i+1, j  ) <= FillValueReal / 2.) then
+                    Me%DefineCellsMap(i, j)  = 0
+                    Me%NotDefinedCells       = .true.
+                endif
+
+            end do
+            end do
+
+
+            do i = Me%WorkSize%ILB  , Me%WorkSize%IUB
+
+                if (Me%DefineCellsMap(i, Me%WorkSize%JLB) == 0) Me%DefineFacesUMap(i, Me%WorkSize%JLB  )  = 0
+                if (Me%DefineCellsMap(i, Me%WorkSize%JUB) == 0) Me%DefineFacesUMap(i, Me%WorkSize%JUB+1)  = 0
+
+                do j = Me%WorkSize%JLB+1, Me%WorkSize%JUB
+
+
+                    !if (Me%XX_IE(i  , j  ) <= FillValueReal / 2.  .or.      &
+                    !    Me%XX_IE(i+1, j  ) <= FillValueReal / 2. ) then
+                    !    Me%DefineFacesUMap(i,j)  = 0
+                    !endif
+                    if (Me%DefineCellsMap(i, j-1) == 0 .and. Me%DefineCellsMap(i, j) == 0) Me%DefineFacesUMap(i,j)  = 0
+
+                end do
+            end do
+
+
+            do j = Me%WorkSize%JLB,   Me%WorkSize%JUB
+
+                if (Me%DefineCellsMap(Me%WorkSize%ILB, j) == 0) Me%DefineFacesVMap(Me%WorkSize%ILB,j  )  = 0
+                if (Me%DefineCellsMap(Me%WorkSize%IUB, j) == 0) Me%DefineFacesVMap(Me%WorkSize%IUB+1,j)  = 0
+
+                do i = Me%WorkSize%ILB+1, Me%WorkSize%IUB
+
+                    !if (Me%XX_IE(i  , j+1) <= FillValueReal / 2.  .or.      &
+                    !    Me%XX_IE(i  , j  ) <= FillValueReal / 2. ) then
+                    !    Me%DefineFacesVMap(i,j)  = 0
+                    !endif
+                    if (Me%DefineCellsMap(i-1, j) == 0 .and. Me%DefineCellsMap(i, j) == 0) Me%DefineFacesVMap(i,j)  = 0
+
+                end do
+            end do
+
+            do i = Me%WorkSize%ILB+1, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB+1, Me%WorkSize%JUB
+
+
+                !if (Me%XX_IE(i  , j  ) <= FillValueReal / 2. ) then
+                !    Me%DefineCrossMap(i, j)  = 0
+                !endif
+                if (Me%DefineCellsMap(i-1, j  ) == 0 .and. Me%DefineCellsMap(i, j  ) == 0 .or. &
+                    Me%DefineCellsMap(i-1, j-1) == 0 .and. Me%DefineCellsMap(i, j-1) == 0) then
+                    Me%DefineCrossMap(i, j)  = 0
+                endif
+
+            end do
+            end do
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR240'
+
+        else BF
+            
+            if (abs(Me%Grid_Angle)>0.) then
+                Me%RegularRotation = .true.
+            else
+                Me%RegularRotation = .false.
+            endif
+
+           !Check if the spacing in Y is constant
+            call GetData(Me%ConstantSpacingY,                                           &
+                         Me%ObjEnterData, flag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='CONSTANT_SPACING_Y',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR250'
+
+iconY:      if (Me%ConstantSpacingY) Then
+                !Get grid origin
+                call GetData(Me%DY,                                                     &
+                             Me%ObjEnterData, flag,                                     &
+                             SearchType   = FromFile,                                   &
+                             keyword      ='DY',                                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR260'
+                XY_Aux   = -Me%DY
+                ii       = 0
+                
+                if (Me%DDecomp%Master .or. Me%DDecomp%MasterOrSlave) then
+                    !MPI
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1
+
+                        XY_Aux   = XY_Aux + Me%DY
+
+                        if (Me%DDecomp%Master) then
+
+                            Me%DDecomp%YY_IE_Global(i, Me%GlobalWorkSize%JLB) = XY_Aux
+
+                        endif                            
+
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and.                &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = ii + 1
+                            else
+                                cycle
+                            endif
+                        else
+                            ii = i
+                        endif
+
+                        Me%YY(ii) = XY_Aux
+                    end do
+                else
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1
+
+                        XY_Aux   = XY_Aux + Me%DY
+
+                        Me%YY(i) = XY_Aux
+                    end do
+                endif
+
+            else iconY
+
+                !Reads YY
+                call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR270'
+
+                call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
+                                            BeginYY, EndYY, BlockFound,                 &
+                                            FirstLine = FirstLine, LastLine = LastLine, &
+                                            StopAt = '<BeginGridData2D>', STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR280'
+
+                if (BlockFound) then
+
+                    line = FirstLine
+                    ii   = 0
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
+                        line = line+1
+
+                        !Last line found before end?
+                        if (line == LastLine) then
+                            write(*,*)
+                            write(*,*) 'Error reading YY'
+                            stop 'ConstructGlobalVariables - HorizontalGrid - ERR290'
+                        end if
+
+                        call GetData(Aux, Me%ObjEnterData, flag,                           &
+                                     Buffer_Line  = Line,                               &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR300'
+
+                        if (Me%DDecomp%Master) then
+
+                            Me%DDecomp%YY_IE_Global(i, Me%GlobalWorkSize%JLB) = Aux
+
+                        endif                               
+
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = ii + 1
+                            else
+                                cycle
+                            endif
+                        else
+                            ii = i
+                        endif
+
+                        Me%YY(ii) = Aux
+
+                        if (ii >1) then
+                            if (Me%YY(ii) <  Me%YY(ii-1)) then
+                                write(*,*) 'Block <BeginYY>/<EndYY> need to be written in an ascending way'
+                                stop       'ConstructGlobalVariables - HorizontalGrid - ERR305'
+                            endif
+                        endif
+
+                    end do
+                end if
+
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR310'
+
+            end if iconY
+
+           !Check if the spacing in X is constant
+            call GetData(Me%ConstantSpacingX,                                           &
+                         Me%ObjEnterData, flag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='CONSTANT_SPACING_X',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR320'
+
+iconX:      if (Me%ConstantSpacingX) Then
+                !Get grid spacing dx
+                call GetData(Me%DX,                                                     &
+                             Me%ObjEnterData, flag,                                     &
+                             SearchType   = FromFile,                                   &
+                             keyword      ='DX',                                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR330'
+
+                XY_Aux   = -Me%DX
+                jj       = 0
+                
+                if (Me%DDecomp%Master .or. Me%DDecomp%MasterOrSlave) then
+
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1
+
+                        XY_Aux = XY_Aux + Me%DX
+
+                        if (Me%DDecomp%Master) then
+                            Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB, j) = XY_Aux
+                        endif                    
+
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = jj + 1
+                            else
+                                cycle
+                            endif
+                        else
+                            jj = j
+                        endif
+
+                        Me%XX(jj) = XY_Aux
+                    end do 
+                    
+                else
+                    
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1
+                        XY_Aux = XY_Aux + Me%DX
+                        Me%XX(j) = XY_Aux
+                    end do
+                    
+                endif
+            else iconX
+
+
+                !Reads XX
+                call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR340'
+
+                call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
+                                            BeginXX, EndXX, BlockFound,                 &
+                                            FirstLine = FirstLine, LastLine = LastLine, &
+                                            StopAt = '<BeginGridData2D>', STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR350'
+                if (BlockFound) then
+
+                    line = FirstLine
+
+                    jj = 0
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
+
+                        line = line+1
+
+                        !Last line found before end?
+                        if (line == LastLine) then
+                            write(*,*)
+                            write(*,*) 'Error reading XX'
+                            stop 'ConstructGlobalVariables - HorizontalGrid - ERR360'
+                        end if
+
+                        call GetData(Aux, Me%ObjEnterData, flag,                           &
+                                     Buffer_Line  = Line,                               &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR370'
+
+
+                        if (Me%DDecomp%Master) then
+
+                            Me%DDecomp%XX_IE_Global(Me%GlobalWorkSize%ILB, j) = Aux
+
+                        endif                    
+
+
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = jj + 1
+                            else
+                                cycle
+                            endif
+                        else
+                            jj = j
+                        endif
+
+                        Me%XX(jj) = Aux
+
+                        
+                        if (jj >1) then
+                            if (Me%XX(jj) <  Me%XX(jj-1)) then
+                                write(*,*) 'Block <BeginXX>/<EndXX> need to be written in an ascending way'
+                                stop       'ConstructGlobalVariables - HorizontalGrid - ERR375'
+                            endif
+                        endif
+                        
+                    end do
+                end if
+
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR380'
+
+
+            endif iconX
+
+
+        end if BF
+
+
+        !Reads XX_YE, YY_IE
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR390'
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                         &
+                                    BeginCartCornersXY, EndCartCornersXY,               &
+                                    Me%ReadCartCorners,                                 &
+                                    FirstLine = FirstLine, LastLine = LastLine,         &
+                                    StopAt = '<BeginGridData2D>', STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR400'
+        
+BF1:    if (Me%ReadCartCorners) then
+
+            if (Me%CoordType /= SIMPLE_GEOG_) then
+                stop 'ConstructGlobalVariables - HorizontalGrid - ERR410'
+            endif
+
+
+            line = FirstLine
+
+            Me%LatitudeConn  (:, :) = Me%YY_IE(:, :)
+            Me%LongitudeConn (:, :) = Me%XX_IE(:, :)
+
+
+
+            ii = 0
+            jj = 0
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
+
+                line = line+1
+
+                !Last line found before end?
+                if (line == LastLine) then
+                    write(*,*)
+                    write(*,*) 'Error reading Cartesian Corners X Y'
+                    stop 'ConstructGlobalVariables - HorizontalGrid - ERR420'
+                end if
+
+                !Reads XX_IE , YY_IE
+                call GetData(AuxReal, Me%ObjEnterData, flag,                                &
+                             Buffer_Line  = Line,                                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR430'
+                
+                            
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                        i<= Me%DDecomp%HaloMap%IUB+1) then
+                        ii = ii + 1
+                    else
+                        cycle
+                    endif
+                else
+                    ii = i
+                endif
+
+                if (Me%DDecomp%MasterOrSlave) then
+                    if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                        j<= Me%DDecomp%HaloMap%JUB+1) then
+                        jj = jj + 1
+                    else
+                        cycle
+                    endif
+                else
+                    jj = j
+                endif
+
+                Me%XX_IE(ii, jj) = AuxReal(1)
+                Me%YY_IE(ii, jj) = AuxReal(2)
+
+            end do
+            end do
+
+        else  BF1
+
+
+
+        endif BF1
+        
+
+        !Impose boder ,limits do not compute automatically from grid
+        !West, East, South, North
+        call GetData(Me%BorderLimits%Values,                                            &
+                     Me%ObjEnterData ,  flag,                                           &
+                     keyword      = 'BORDER_LIMITS',                                    &
+                     ClientModule = 'ModuleHorizontalGrid',                             &
+                     StopAt       = '<BeginGridData2D>',                                &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'
+        
+        if (flag == 4) then
+            Me%BorderLimits%ON = .true.
+        else
+            Me%BorderLimits%ON = .false.
+        endif            
+
+
+        !Closes Data File
+        call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR450'
+
+
+        !Allocates variables common to the module
+        call AllocateVariables
+
+    end subroutine ConstructGlobalVariables_Topography
     !--------------------------------------------------------------------------
 
 

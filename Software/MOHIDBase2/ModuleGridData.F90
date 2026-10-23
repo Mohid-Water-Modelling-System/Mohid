@@ -512,14 +512,25 @@ Module ModuleGridData
         integer                                     :: ObjEnterData = 0
         integer                                     :: STAT_CALL
         integer                                     :: flag, NumberOfLines_
+        logical                                     :: UseTopographyReader
         character(len=StringLength)                 :: Char_TypeZUV, Message
 
         !----------------------------------------------------------------------
 
         !Opens File
         if (MonitorPerformance) call StartWatch ("ModuleGridData", "ReadGridDataFile")
-        call ConstructEnterData(ObjEnterData, Me%FileName, SkipGridBlocks = .true., STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadGridDataFile - ModuleGridData - ERR10'
+        UseTopographyReader = .false.
+        if (present(Topography)) UseTopographyReader = Topography
+
+        if (UseTopographyReader) then
+            NumberOfLines_ = 0
+            if (present(NumberOfLines)) NumberOfLines_ = NumberOfLines
+            call ConstructEnterData_Topography(ObjEnterData, Me%FileName, NLinesInFile = NumberOfLines_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadGridDataFile - ModuleGridData - ERR05'
+        else
+            call ConstructEnterData(ObjEnterData, Me%FileName, SkipGridBlocks = .true., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadGridDataFile - ModuleGridData - ERR10'
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleGridData", "ReadGridDataFile")
        
@@ -639,7 +650,11 @@ Module ModuleGridData
 
         if (.not.Me%ConstantInSpace) then
             !Looks for data block
-            call ReadGridBlocksFromFile
+            if (UseTopographyReader) then
+                call ReadFromBlocks(ObjEnterData)
+            else
+                call ReadGridBlocksFromFile
+            endif
         endif
             
         call KillEnterData(ObjEnterData, STAT = STAT_CALL)
@@ -832,6 +847,413 @@ Module ModuleGridData
 
     end subroutine ReadGridBlocksFromFile
 
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadFromBlocks(ObjEnterData)
+
+        !Arguments-------------------------------------------------------------                                                    
+        integer                                     :: ObjEnterData
+        !Local-----------------------------------------------------------------
+        integer                                     :: ClientNumber
+        integer                                     :: FirstLine, LastLine
+        logical                                     :: BlockFound
+        integer                                     :: STAT_CALL
+        integer                                     :: flag
+        integer                                     :: line
+        integer                                     :: i, j, k, l, ii, jj, auxline, CHUNK
+        real, dimension(:), allocatable             :: Aux
+        real                                        :: AuxValue, NumberOfCells
+        logical                                     :: Start3DFrom2D 
+        type (T_Dataline), pointer                  :: BufferLines(:)
+        Type (T_Dataline)                           :: string
+        integer                                     :: STAT_              !Auxiliar local variable
+        integer                                     :: length          
+                                        
+        character (len=line_length)                 :: aux_str = ""
+        !----------------------------------------------------------------------
+
+        !Looks for data block
+        if (.not. Me%Is3D) then
+
+            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                      &
+                                        BeginGridData2D, EndGridData2D, BlockFound,      &
+                                        FirstLine = FirstLine, LastLine = LastLine,      &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR110'
+            if (.not. BlockFound) then
+
+                call SetError (WARNING_, KEYWORD_, 'Block <BeginGridData2D>, <EndGridData2D> not found', OFF)
+                call SetError (WARNING_, KEYWORD_, 'Are you using the old format <BeginBathymetry>, <EndBathymetry>?', OFF)
+                call SetError (WARNING_, KEYWORD_, 'File : '//trim(adjustl(Me%FileName)), OFF)
+
+                !Tries to read 2D Data (New Format)
+                call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
+                                            '<BeginBathymetry>', '<EndBathymetry>', BlockFound,  &
+                                            FirstLine = FirstLine, LastLine = LastLine,          &
+                                            STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR120'
+            endif
+
+        else
+
+            Start3DFrom2D = .false.
+            call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                      &
+                                        BeginGridData3D, EndGridData3D, BlockFound,      &
+                                        FirstLine = FirstLine, LastLine = LastLine,      &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR130'
+            !Verifies if there is a 2D block to initialize 3D filed (constant in vertical)
+            if (.not. BlockFound) then
+                call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                      &
+                                            BeginGridData2D, EndGridData2D, BlockFound,      &
+                                            FirstLine = FirstLine, LastLine = LastLine,      &
+                                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR140'
+                if (BlockFound) Start3DFrom2D = .true.
+            endif
+        endif
+        
+BF:     if (BlockFound) then 
+            
+Is3D:       if (.not. Me%Is3D) then
+
+
+                line = FirstLine + 1
+
+                allocate  (Aux(3))
+
+                call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
+
+                if (.not.(STAT_CALL == SUCCESS_ .or. STAT_CALL == SIZE_ERR_))            &
+                    stop 'ReadFromBlocks - ModuleGridData - ERR150'
+
+Coln1:          if      (flag == 3) then 
+
+                    do  l = Line, LastLine - 1
+
+                        call GetData(Aux, ObjEnterData,                                  &
+                                     flag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_)                                       &
+                            stop 'ReadFromBlocks - ModuleGridData - ERR160'
+
+                        i = int(Aux(1))
+                        j = int(Aux(2))
+
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and.            &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            ii = i
+                        endif    
+                                
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            jj = j
+                        endif    
+                        
+
+                        Me%GridData2D(ii, jj) = Aux(3)
+
+                    enddo
+
+                else if (flag == 1) then Coln1
+
+                    line = FirstLine
+                    
+                    !Reached last line before end?
+                    NumberOfCells = Me%GlobalWorkSize%IUB * Me%GlobalWorkSize%JUB
+                    if (NumberOfCells > (LastLine - 1 - FirstLine)) then
+                        write(*,*) 'Error in File=', trim(Me%FileName)
+                        write(*,*) 'Error reading GridData2D - reached end of griddata block before complete fill of grid'
+                        stop       'ReadFromBlocks - ModuleGridData - ERR170'
+                    end if
+                    
+                    if (Me%DDecomp%MasterOrSlave) then
+                        
+                        do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                        do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+                            line = line+1
+
+                            call GetData(AuxValue, ObjEnterData,  flag,                     &
+                                         Buffer_Line  = Line,                               &
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR180'
+                        
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                    
+                                
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                            else
+                                cycle
+                            endif                         
+
+                            Me%GridData2D(ii,jj) = AuxValue
+
+                        enddo
+                        enddo 
+                    else
+                    
+                        do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                        do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+                            line = line + 1
+
+                            call GetData(AuxValue, ObjEnterData,  flag,                     &
+                                         Buffer_Line  = line,                               &
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR180'
+
+                            Me%GridData2D(i,j) = AuxValue
+                        enddo
+                        enddo
+                    endif
+
+                endif Coln1
+
+                deallocate(Aux)
+            else Is3D
+
+                if (Start3DFrom2D) then
+
+                    line = FirstLine
+
+                    allocate(Aux(1))
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+                        line = line+1
+                
+                        !Reached last line before end?
+                        if (line .EQ. LastLine) then
+                            write(*,*) 'Error in File=', trim(Me%FileName)
+                            write(*,*) 'Error in Line=', line
+                            write(*,*) 'Error reading GridData2D'
+                            stop       'ReadFromBlocks - ModuleGridData - ERR190'
+                        end if
+
+                        call GetData(Aux, ObjEnterData,  flag,         & 
+                                     Buffer_Line  = Line,              &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR200'
+                        
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                i<= Me%DDecomp%HaloMap%IUB+1) then
+                                ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            ii = i
+                        endif    
+                                
+                        if (Me%DDecomp%MasterOrSlave) then
+                            if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                j<= Me%DDecomp%HaloMap%JUB+1) then
+                                jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                            else
+                                cycle
+                            endif                                
+                        else
+                            jj = j
+                        endif                            
+
+                        Me%GridData3D(ii, jj,:) = Aux(1)
+                        
+                    enddo
+                    enddo
+
+                else
+
+
+                    line = FirstLine + 1
+                    allocate(Aux(4))
+
+
+                    call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
+
+                    if (.not.(STAT_CALL == SUCCESS_ .or. STAT_CALL == SIZE_ERR_))            &
+                        stop 'ReadFromBlocks - ModuleGridData - ERR210'
+
+
+Coln:               if (flag == 4)  then
+                        do  l = Line, LastLine - 1
+
+                            call GetData(Aux, ObjEnterData, flag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                            if (STAT_CALL /= SUCCESS_)                                       &
+                                stop 'ReadFromBlocks - ModuleGridData - ERR220'
+
+                            i = int(Aux(1))
+                            j = int(Aux(2))
+                            k = int(Aux(3))
+                            
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
+
+                            Me%GridData3D(ii, jj, k) = Aux(4)
+                       
+                        enddo
+
+                        deallocate(Aux)
+
+                    else if (flag == 3) then Coln
+
+                        deallocate(Aux) 
+
+                        allocate  (Aux(3))
+
+                        do  l = Line, LastLine - 1
+
+                            call GetData(Aux, ObjEnterData,                                  &
+                                         flag, Buffer_Line  = l, STAT = STAT_CALL)
+
+                            if (STAT_CALL /= SUCCESS_)                                       &
+                                stop 'ReadFromBlocks - ModuleGridData - ERR230'
+
+                            i = int(Aux(1))
+                            j = int(Aux(2))
+                            
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
+
+                            !Next line crashes in debug.... replaced by do loop - Frank
+                            !Me%GridData3D(i, j, Me%KLB : Me%KUB) = Aux(3)
+                            do k = Me%KLB, Me%KUB
+                                Me%GridData3D(ii, jj, k) = Aux(3)
+                            enddo
+
+                        enddo
+
+                        deallocate(Aux)
+
+                    else if (flag == 1) then Coln
+
+
+                        line = FirstLine
+
+                        do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB
+                        do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB
+                        do k = Me%KLB,       Me%KUB
+                            line = line+1
+                
+                            !Reached last line before end?
+                            if (line .EQ. LastLine) then
+                                write(*,*) 
+                                write(*,*) 'Error reading GridData3D'
+                                stop       'ReadFromBlocks - ModuleGridData - ERR240'
+                            end if
+
+                            call GetData(AuxValue, ObjEnterData,  flag,                 & 
+                                         Buffer_Line  = Line,                           &
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR250'
+                            
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (i>= Me%DDecomp%HaloMap%ILB .and. &
+                                    i<= Me%DDecomp%HaloMap%IUB+1) then
+                                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                ii = i
+                            endif    
+                                    
+                            if (Me%DDecomp%MasterOrSlave) then
+                                if (j>= Me%DDecomp%HaloMap%JLB .and. &
+                                    j<= Me%DDecomp%HaloMap%JUB+1) then
+                                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                                else
+                                    cycle
+                                endif                                
+                            else
+                                jj = j
+                            endif                            
+
+                            Me%GridData3D(ii,jj,k) = AuxValue                            
+
+                        enddo
+                        enddo
+                        enddo
+
+                    endif Coln
+
+                endif
+
+
+            endif Is3D
+
+        else BF
+            
+            write(*,*)'Invalid Grid Data File'
+            write(*,*)'File :',trim(adjustl(Me%FileName))
+            stop 'ReadFromBlocks - ModuleGridData - ERR260'
+
+        endif BF
+
+        call Block_Unlock(ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR270'
+
+
+        !----------------------------------------------------------------------
+
+    end subroutine ReadFromBlocks
     !--------------------------------------------------------------------------
 
     logical function StoreGridCell(i, j, ii, jj)
