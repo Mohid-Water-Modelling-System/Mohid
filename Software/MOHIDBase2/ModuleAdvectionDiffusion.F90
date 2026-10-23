@@ -1656,7 +1656,6 @@ cd5 :       if (Me%State%CellFluxes) then
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
 
-        !Inicializacao dos coeficientes DCOEF3,ECOEF3,FCOEF3 e independent term
         if (Me%ExternalVar%Optimize) then
             if (Me%FirstProperty) then
                 call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
@@ -1703,22 +1702,10 @@ cd2 :   if (Me%State%HorAdv) then
 
         if (.not. Me%Vertical1D) then
 
-            ! Calculo dos fluxos difusivos horizontais da propriedade e actualizacao                         
-            ! imediata do termo independente
             call HorizontalDiffusion()
 
-            ! Calculo dos fluxos advectivos da propriedade 
-            !if (Me%ExternalVar%AdvMethodH == UpwindOrder1       .and.                   &
-            !    ImpExp_AdvXX == ExplicitScheme .and. ImpExp_AdvYY == ExplicitScheme) then
-                
-            !    call HorizontalAdvectionUpwindExplict          
-                      
-            !else
-            
             call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
                 
-            !endif                
-
         endif
 
 

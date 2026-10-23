@@ -228,7 +228,7 @@ Module ModuleDrawing
         real, dimension(:), pointer             :: X
         real, dimension(:), pointer             :: Y
         type(T_Limits)                          :: Limits        
-        integer                                 :: nNodes    
+        integer                                 :: nNodes
         type(T_Lines) , pointer                 :: Next
     end type T_Lines
 

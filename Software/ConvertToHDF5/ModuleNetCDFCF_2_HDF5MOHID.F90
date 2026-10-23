@@ -185,6 +185,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Dim3D        = .true.
         logical                                 :: From2D_To_3D = .false. 
         real                                    :: Limit
+        logical                                 :: LimitAbove
         integer                                 :: Instant
         type (T_ValueIn)                        :: ValueIn        
         integer, dimension(:,:,:),   pointer    :: Value3DOut
@@ -3305,6 +3306,25 @@ BF:         if (BlockFound) then
                              default      = 0.5,                                        &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                
+                call GetData(Me%Mapping%LimitAbove,                                          &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'MAPPING_LIMIT_ABOVE',                      &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .true.,                                     &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'   
+                
+                if (iflag == 0) then
+                
+                    if (Me%Mapping%Limit <= 1) then
+                        Me%Mapping%LimitAbove = .true.
+                    else
+                        Me%Mapping%LimitAbove = .false.
+                    endif
+                    
+                endif
                 
                 call GetData(Me%Mapping%Instant,                                        &
                              Me%ObjEnterData, iflag,                                    &
@@ -6737,25 +6757,25 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             if (ReadTimeNumericV2) then
             
                 status = nf90_inquire_variable(ncid, dimid, ndims = numDims)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
                 status = nf90_inquire_variable(ncid, dimid, dimids = DimidArray(:numDims))
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
                 status=NF90_INQUIRE_DIMENSION(ncid, DimidArray(1), len = Me%Date%NumberInst)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR50'      
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'      
             
             else                
         
                 status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
                 
             endif
             
             call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
 
             status = nf90_inq_varid(ncid, trim(Me%Date%NetCDFName), n)
-            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
             call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
             
@@ -6763,7 +6783,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
                 if (Me%Date%RefDateName ==  trim(null_str)) then
                     status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
                 else
                     ref_date = trim(Me%Date%RefDateName) 
                 endif
@@ -6928,7 +6948,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                 if (Aux1 > 1e15) then  
                     write(*,*) 'error in the time instant =',i
                     
-                    stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
                 endif                 
                  
 
@@ -7452,7 +7472,7 @@ i2:                 if (Me%Depth%Interpolate) then
                     endif i2    
                     
                     
-                    if (Me%Mapping%Limit <= 1) then
+                    if (Me%Mapping%LimitAbove) then
                         if (Aux > Me%Mapping%Limit) then
                             Me%Mapping%Value3DOut(i,j,k) = 1
                         else
@@ -7495,7 +7515,7 @@ i2:                 if (Me%Depth%Interpolate) then
                     endif
                     endif
 
-                    if (Me%Mapping%Limit <= 1) then
+                    if (Me%Mapping%LimitAbove) then
                         if (Aux > Me%Mapping%Limit) then
                             Me%Mapping%Value2DOut(i,j) = 1
                         else
@@ -7764,9 +7784,9 @@ i2:                 if (Me%Depth%Interpolate) then
                 
                 else
                     
-                Layer = Me%Field(ip)%LayerNumber
-                LayerDim = Me%Field(ip)%LayerDim
-                call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer, LayerDim)         
+                    Layer       = Me%Field(ip)%LayerNumber
+                    LayerDim    = Me%Field(ip)%LayerDim
+                    call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst, Layer, LayerDim)        
                 
                 endif
                 
@@ -8633,7 +8653,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         
                         ValueIn%R84D(JLB:JUB,ILB:IUB,1:1,1:1) = AuxR8D4(1:Dim1,1:Dim2,1:Dim3,1:Dim4)
                     
-                        deallocate(AuxR8D4)                    
+                        deallocate(AuxR8D4)         
                         
                     elseif (present(bottom)) then
                         

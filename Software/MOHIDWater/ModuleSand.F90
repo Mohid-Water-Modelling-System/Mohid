@@ -6806,7 +6806,7 @@ ifMS:   if (MasterOrSlave) then
                                               DischargeFlow, DischargeConc
         integer                            :: i, j, DischargesNumber, STAT_CALL
         integer                            :: DischargeID 
-        logical                            :: PropFromIntake, IgnoreOK, CoordinatesON
+        logical                            :: IgnoreOK, CoordinatesON
         real                               :: CoordinateX, CoordinateY
         
         
@@ -7324,8 +7324,10 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                 
                 if (Me%Evolution%BathymCohesive) then
                 
-                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ_Residual_Cohesive%ID%Name), trim(Me%DZ_Residual_Cohesive%ID%Name),  &
-                                         trim(Me%DZ_Residual_Cohesive%ID%Units), Array2D = Me%DZ_Residual_Cohesive%Field2D,   &
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ_Residual_Cohesive%ID%Name),&
+                                         trim(Me%DZ_Residual_Cohesive%ID%Name),                         &
+                                         trim(Me%DZ_Residual_Cohesive%ID%Units),                        &
+                                         Array2D = Me%DZ_Residual_Cohesive%Field2D,                     &
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR72'
                 

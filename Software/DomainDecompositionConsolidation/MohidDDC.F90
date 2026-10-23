@@ -17,6 +17,9 @@ program MohidDDC
 
     use ModuleDDC
     use ModuleGlobalData
+#ifdef _USE_MPI
+    use mpi
+#endif _USE_MPI
 
     implicit none
 
@@ -31,6 +34,10 @@ program MohidDDC
     end type  T_MohidDDC
     type(T_MohidDDC), pointer       :: Me
 
+    !Rank of this process and number of processes (1 when running without MPI)
+    integer                         :: myRank = 0
+    integer                         :: nRanks = 1
+
     call ConstructMohidDDC
     call ModifyMohidDDC
     call KillMohidDDC
@@ -41,7 +48,23 @@ program MohidDDC
 
     subroutine ConstructMohidDDC
     
+        !Local-----------------------------------------------------------------
+#ifdef _USE_MPI
+        integer                                     :: STAT_CALL
+#endif _USE_MPI
+
         !----------------------------------------------------------------------
+
+#ifdef _USE_MPI
+        call MPI_INIT(STAT_CALL)
+        if (STAT_CALL /= MPI_SUCCESS) stop 'MohidDDC - ConstructMohidDDC - ERR01'
+
+        call MPI_COMM_RANK(MPI_COMM_WORLD, myRank, STAT_CALL)
+        if (STAT_CALL /= MPI_SUCCESS) stop 'MohidDDC - ConstructMohidDDC - ERR02'
+
+        call MPI_COMM_SIZE(MPI_COMM_WORLD, nRanks, STAT_CALL)
+        if (STAT_CALL /= MPI_SUCCESS) stop 'MohidDDC - ConstructMohidDDC - ERR03'
+#endif _USE_MPI
 
         !This Option Control the HDF5 instance Output visualization on cmd window
         !Comment the next Nile to show HDF5 instante on cmd
@@ -52,7 +75,7 @@ program MohidDDC
 
         call StartCPUTime
 
-        Me%ObjDDC => ConstructDDC()
+        Me%ObjDDC => ConstructDDC(Rank = myRank, NumberOfRanks = nRanks)
 
         !----------------------------------------------------------------------
 
@@ -102,12 +125,25 @@ program MohidDDC
 
         STAT_CALL = KillDDC(Me%ObjDDC)
         if (STAT_CALL /= SUCCESS_) stop 'MohidDDC - KillMohidDDC - ERR01'
+
+#ifdef _USE_MPI
+        !Waits for all ranks so the elapsed time is the time of the slowest one
+        call MPI_BARRIER(MPI_COMM_WORLD, STAT_CALL)
+        if (STAT_CALL /= MPI_SUCCESS) stop 'MohidDDC - KillMohidDDC - ERR02'
+#endif _USE_MPI
         
         call StopCPUTime  
-        call ShutdownDDC(ModelName      = "MohidDDC",                           &
-                         ElapsedSeconds = Me%ElapsedSeconds,           &
-                         TotalCPUTime   = Me%TotalCPUTime)
+        if (myRank == 0) then
+            call ShutdownDDC(ModelName      = "MohidDDC",                       &
+                             ElapsedSeconds = Me%ElapsedSeconds,                &
+                             TotalCPUTime   = Me%TotalCPUTime)
+        endif
         call DeallocateInstance
+
+#ifdef _USE_MPI
+        call MPI_FINALIZE(STAT_CALL)
+        if (STAT_CALL /= MPI_SUCCESS) stop 'MohidDDC - KillMohidDDC - ERR03'
+#endif _USE_MPI
 
         !----------------------------------------------------------------------
 

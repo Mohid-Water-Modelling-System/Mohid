@@ -81,7 +81,7 @@ Module Module_TS_Synch
     integer, parameter  :: FileOpen = 1, FileClose = 0
     
     !Interpolation methods
-    integer, parameter  :: LinearTS_ = 1, BackwardTS_ = 2, CumulativeTS_ = 3
+    integer, parameter  :: LinearTS_ = 1, BackwardTS_ = 2, CumulativeTS_ = 3, MaxTS_ = 4
     
     !Types---------------------------------------------------------------------
 
@@ -129,6 +129,9 @@ Module Module_TS_Synch
         integer                                                 :: InterpolInTime   = null_int
         
         logical                                                 :: AngleProp        = .false. 
+        
+        real                                                    :: BackwardDT      = null_real
+        real                                                    :: ForwardDT       = null_real        
 
         type(T__TS_Synch), pointer                     :: Next
 
@@ -443,18 +446,49 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%InterpolInTime /= LinearTS_      .and.                                   &
             Me%InterpolInTime /= BackwardTS_    .and.                                   &
-            Me%InterpolInTime /= CumulativeTS_) then
+            Me%InterpolInTime /= CumulativeTS_  .and.                                   &
+            Me%InterpolInTime /= MaxTS_) then
             stop 'Module_TS_Synch - ReadKeywords - ERR220'
         endif
             
         if (Me%InterpolInTime /= LinearTS_ .and. Me%AngleProp) then
             stop 'Module_TS_Synch - ReadKeywords - ERR230'
         endif
+        
+        call GetData(Me%BackwardDT,                                                     &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        &
+                     keyword      ='BACKWARD_DT',                                       &
+                     Default      = FillValueReal,                                      &
+                     ClientModule ='Module_TS_Synch',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'Module_TS_Synch - ReadKeywords - ERR240'  
+        
+        if (Me%InterpolInTime == MaxTS_ .and. flag == 0) then
+            write(*,*) 'Need to define the keyword BACKWARD_DT' 
+            stop 'Module_TS_Synch - ReadKeywords - ERR250'
+        endif
+        
+        call GetData(Me%ForwardDT,                                                      &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = ExtractType,                                        &
+                     keyword      ='FORWARD_DT',                                        &
+                     Default      = FillValueReal,                                      &
+                     ClientModule ='Module_TS_Synch',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'Module_TS_Synch - ReadKeywords - ERR260'
+        
+        if (Me%InterpolInTime == MaxTS_ .and. flag == 0) then
+            write(*,*) 'Need to define the keyword FORWARD_DT' 
+            stop 'Module_TS_Synch - ReadKeywords - ERR270'
+        endif
             
         if (ExtractType == FromFile) then
         
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'Module_TS_Synch - ReadKeywords - ERR240'        
+            if(STAT_CALL /= SUCCESS_) stop 'Module_TS_Synch - ReadKeywords - ERR280'
             
         endif
                 
@@ -548,15 +582,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         auxBeginTime = Me%InitialData + Me%DataMatrix(1,1) 
         auxEndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
         
-        if (Me%BeginTime < auxBeginTime) then
-            write(*,*) "Start  synchronisation date can not be older than the sart date of the raw input time serie"
-            stop "Module_TS_Synch - ConstructRawTimeSerie - ERR50"
-        endif        
-         
-        if (Me%EndTime > auxEndTime) then
-            write(*,*) "End synchronisation date can not be newer than the end date of the raw input time serie"
-            stop "Module_TS_Synch - ConstructRawTimeSerie - ERR60"
-        endif
+        !if (Me%BeginTime < auxBeginTime) then
+        !    write(*,*) "Start  synchronisation date can not be older than the sart date of the raw input time serie"
+        !    stop "Module_TS_Synch - ConstructRawTimeSerie - ERR50"
+        !endif        
+        ! 
+        !if (Me%EndTime > auxEndTime) then
+        !    write(*,*) "End synchronisation date can not be newer than the end date of the raw input time serie"
+        !    stop "Module_TS_Synch - ConstructRawTimeSerie - ERR60"
+        !endif
 
         
         do i=1,Me%DataValues
@@ -916,7 +950,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, STAT_CALL
-        type (T_Time)                               :: Time1, Time2
+        type (T_Time)                               :: Time1, Time2, StartTimeTS, EndTimeTS
         real                                        :: Value1, Value2, NewValue
         real                                        :: Year, Month, Day, hour, minute, second
         real                                        :: DT_Gap
@@ -937,20 +971,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%TimeTSOutPut(1) = Me%BeginTime
         j                  = 1
         
-        do i=1, Me%nValues 
-        
-            if (i<Me%nValues) then
-                Me%TimeTSOutPut(i+1) = Me%TimeTSOutPut(i) + Me%DT_Synch             
-            endif
-
+        do i=1, Me%nValues - 1
+            Me%TimeTSOutPut(i+1) = Me%TimeTSOutPut(i) + Me%DT_Synch             
         enddo
+        
+        call GetTimeSerieTimeLimits(TimeSerieID = Me%ObjTimeSerie,                          &
+                                    StartTime   = StartTimeTS,                              &
+                                    EndTime     = EndTimeTS,                                &
+                                    STAT        = STAT_CALL) 
+            
+        if (STAT_CALL /= SUCCESS_) then
+            stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR10"
+        endif
 
         do i=1, Me%nValues                             
 
             call GetTimeSerieValue(Me%ObjTimeSerie, Me%TimeTSOutPut(i), Me%DataColumn, Time1, Value1,   &
                                     Time2, Value2, TimeCycle, STAT= STAT_CALL) 
             
-            if (STAT_CALL /= SUCCESS_) stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR10"
+            if (STAT_CALL /= SUCCESS_) then
+                stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR20"
+            endif
             
             if (TimeCycle) then
                 Me%TimeSerie(i) =  Value1            
@@ -959,7 +1000,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             DT_Gap =  Time2 - Time1            
             
-            if (DT_Gap > Me%GapLimit) then
+            if     (Me%TimeTSOutPut(i) > Time2) then
+                
+                NewValue = Me%FillValue
+                
+            elseif (Me%TimeTSOutPut(i) < Time1) then 
+                
+                NewValue = Me%FillValue                
+            
+            elseif (DT_Gap > Me%GapLimit) then
                 
                 NewValue = Me%FillValue
                 
@@ -967,29 +1016,57 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 write(*,*) ' Raw time series can not have FillValues or abnormal values'
                 write(*,*) ' please filter the raw time serie with the NAME =', trim(Me%Name)
-                stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR20"
+                stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR30"
                 
             else
             
                 !Interpolates Value for current instant
                 if      (Me%InterpolInTime == LinearTS_) then
+                    
                     call InterpolateValueInTimeAngleProof(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
                                                             Value2, NewValue)
+                    
                 else if (Me%InterpolInTime == BackwardTS_) then
+                    
                     NewValue = Value1
+                    
+                else if (Me%InterpolInTime == MaxTS_) then
+                    
+                    Time1 = Me%TimeTSOutPut(i) - Me%BackwardDT
+                    Time2 = Me%TimeTSOutPut(i) + Me%ForwardDT
+                    
+                    if     (Time1 < StartTimeTS .or. Time2 > Me%EndTime) then
+                        
+                        NewValue = Me%FillValue 
+                        
+                    else 
+                        
+                        NewValue = GetTimeSeriMaxValue (TimeSerieID = Me%ObjTimeSerie,  &
+                                                        StartTime   = Time1,            &
+                                                        EndTime     = Time2,            &
+                                                        DataColumn  = Me%DataColumn,    &
+                                                        STAT        = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR40"
+                        endif
+                        
+                    endif
+                        
                 else if (Me%InterpolInTime == CumulativeTS_) then
                     
                     if (i==1) then
                         
                         NewValue = Me%FillValue 
                     else
-                    
-                        NewValue = GetTimeSerieCumulativeValue(TimeSerieID    = Me%ObjTimeSerie,      &                
-                                                                StartTime      = Me%TimeTSOutPut(i-1), &
-                                                                EndTime        = Me%TimeTSOutPut(i  ), &
-                                                                DataColumn     = Me%DataColumn,        &
-                                                                STAT           = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR30"                    
+                                                                            
+                        NewValue = GetTimeSerieCumulativeValue(TimeSerieID  = Me%ObjTimeSerie,      &                
+                                                                StartTime   = Me%TimeTSOutPut(i-1), &
+                                                                EndTime     = Me%TimeTSOutPut(i  ), &
+                                                                DataColumn  = Me%DataColumn,        &
+                                                                STAT        = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR50"
+                        endif
                         
                     endif
                     
@@ -1028,7 +1105,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Open Output files
         call UnitsManager(Me%iInterpol, FileClose, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR40"
+        if (STAT_CALL /= SUCCESS_) then
+            stop "Module_TS_Synch_TS_Synch - ModifyInterpolTimeSeries - ERR60"
+        endif
 
 
         

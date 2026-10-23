@@ -63,6 +63,7 @@ Module ModuleFillMatrix
                                        GetGridBorderCartPolygon,                        &
                                        GetHorizontalGrid, ConstructHorizontalGrid,      &
                                        KillHorizontalGrid, GetDDecompON,                &
+                                       GetDDecompSlaves,                                &
                                        GetCellRotation,                                 &
                                        ConstructFatherGridLocation,                     &
                                        GetCellZInterceptByLine, GetGeoCoordON,          &
@@ -88,6 +89,9 @@ Module ModuleFillMatrix
     use ModuleStopWatch,        only : StartWatch, StopWatch
 
     use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay, InterpolUpscaling_Velocity
+#ifdef _USE_MPI
+    use mpi,                    only : MPI_COMM_WORLD
+#endif
 
 
     implicit none
@@ -241,6 +245,14 @@ Module ModuleFillMatrix
     integer, parameter                              :: sponge_exp_                = 1
     integer, parameter                              :: sponge_linear_             = 2
     integer, parameter                              :: sponge_wave_stress_dump_   = 3
+
+    !spatial interpolation cloud scope (ConstructField4DInterpol)
+    integer, parameter                              :: InterpScopeBoundary_       = 1
+    integer, parameter                              :: InterpScopeSponge_         = 2
+    integer, parameter                              :: InterpScopeFull_           = 3
+    !layers from open boundary face (scope 1): Flather reads centre-cell eta/U/V and
+    !interpolates to open faces; the flux stencil uses cells up to SPONGE_CELLS deep
+    integer, parameter                              :: InterpScopeBoundaryLayers_ = 3
 
     !wave types
     integer, parameter                              :: SineWaveSeaLevel_          = 1
@@ -492,10 +504,14 @@ Module ModuleFillMatrix
         real                                        :: HarmonicsDT          = null_real
         logical                                     :: SpatialInterpolON    = .false.
         logical                                     :: InterpolOnlyVertically = .false.
-        logical                                     :: GenericYear          = .false.
+        logical                                     :: CyclicMonths         = .false.
         logical                                     :: Upscaling            = .false.
         integer                                     :: UpscalingMethod      =  1 !Volume weighted average
         integer                                     :: Ncells
+        integer                                     :: InterpScope          = InterpScopeFull_
+        integer, dimension(:), pointer              :: CellI                => null()
+        integer, dimension(:), pointer              :: CellJ                => null()
+        integer, dimension(:), pointer              :: CellK                => null()
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()
         real,    dimension(:), pointer              :: Z                    => null()
@@ -621,6 +637,14 @@ Module ModuleFillMatrix
     !Global Module Variables
     type (T_FillMatrix), pointer                    :: FirstObjFillMatrix   => null()
     type (T_FillMatrix), pointer                    :: Me                   => null()
+
+    !Building the full grid from IN_BATIM just to read its border limits is costly for
+    !large bathymetries; reuse the limits of the last file read.
+    character(len=PathLength)                       :: BorderLimitsFile     = ' '
+    real, dimension(4)                              :: BorderLimitsCache    = 0.
+
+    !Communicator over this model's ranks, for FIELD4D_MPI_WINDOW extrapolation fills
+    integer                                         :: MPIWindowComm        = null_int
 
     !--------------------------------------------------------------------------
 
@@ -6804,16 +6828,30 @@ if4D:          if (CurrentHDF%Field4D) then
                 else i1
 
     i2:             if(CurrentHDF%NumberOfInstants > 1)then
-
-    i3:                 if (Me%PredictDTMethod == 2) then
-                            call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
-                        else i3
-                            call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
-                        endif i3
+        
+                        if (CurrentHDF%CyclicMonths) then
+                        
+                            if (CurrentHDF%NumberOfInstants /= 12) then
+                                write (*,*) 'If option HDF_CYCLIC_MONTHS is ON'
+                                write (*,*) 'the hdf5 file can only have 12 instants one for each month'
+                                stop 'ConstructHDFInput - ModuleFillMatrix - ERR210'
+                            endif
+                            
+                            call ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)
+                
+                        else         
+        
+i3:                         if (Me%PredictDTMethod == 2) then
+                                call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
+                            else i3
+                                call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
+                            endif i3
+                            
+                        endif
 
                     elseif(CurrentHDF%NumberOfInstants == 1)then i2
 
-                        call ConstructHDFOneInstant(Now, CurrentHDF)
+                        call ConstructHDFOneInstant(CurrentHDF)
 
                     else i2
                         write(*,*)
@@ -7236,7 +7274,7 @@ i0:     if(Me%Dim == Dim2D)then
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR270'
-
+                
                 if (.not. CurrentHDF%Field4D .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                     write (*,*) 'You are running in parallel in domain decomposition mode'
@@ -7266,35 +7304,35 @@ i0:     if(Me%Dim == Dim2D)then
 
 
                 if (CurrentHDF%Field4D) then
-                    call GetData(CurrentHDF%Extrapolate,                                            &
-                                 Me%ObjEnterData , iflag,                                       &
-                                 SearchType   = ExtractType,                                    &
-                                 keyword      = 'EXTRAPOLATE',                                  &
-                                 default      = .false.,                                        &
-                                 ClientModule = 'ModuleFillMatrix',                             &
+                    call GetData(CurrentHDF%Extrapolate,                                &
+                                 Me%ObjEnterData , iflag,                               &
+                                 SearchType   = ExtractType,                            &
+                                 keyword      = 'EXTRAPOLATE',                          &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleFillMatrix',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR280'
-
+                    
                     if (.not. CurrentHDF%Extrapolate .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                         write (*,*) 'You are running in parallel in domain decomposition mode'
-                        write (*,*) 'Need to use option EXTRAPOLATE : 1'
+                        write (*,*) 'Should use option EXTRAPOLATE : 1'
                         write(*,*)'Property '//trim(Me%PropertyID%Name)     
-                        stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR285'
+                        !stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR285'
                         
                     endif
 
                     !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
-                    call GetData(CurrentHDF%ExtrapolateMethod,                              &
-                                 Me%ObjEnterData , iflag,                                   &
-                                 SearchType   = ExtractType,                                &
-                                 keyword      = 'EXTRAPOLATE_METHOD',                       &
-                                 default      = ExtrapolAverage_,                           &
-                                 ClientModule = 'ModuleFillMatrix',                         &
+                    call GetData(CurrentHDF%ExtrapolateMethod,                          &
+                                 Me%ObjEnterData , iflag,                               &
+                                 SearchType   = ExtractType,                            &
+                                 keyword      = 'EXTRAPOLATE_METHOD',                   &
+                                 default      = ExtrapolAverage_,                       &
+                                 ClientModule = 'ModuleFillMatrix',                     &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR290'
 
-                    if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
+                    if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.          &
                         CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
                         stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR300'
                     endif
@@ -7304,7 +7342,7 @@ i0:     if(Me%Dim == Dim2D)then
                     elseif (ExtractType == FromBlockInBlock) then
                         call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)
                     endif
-
+                    
                     
                     call GetData(CurrentHDF%NoDataDefaultValue,                         &
                                  Me%ObjEnterData , iflag,                               &
@@ -7364,14 +7402,14 @@ i0:     if(Me%Dim == Dim2D)then
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR320'
-
+                
                 
                 if (.not. CurrentHDF%SpatialInterpolON .and. GetDDecompON(Me%ObjHorizontalGrid)) then
                     
                     write (*,*) 'You are running in parallel in domain decomposition mode'
-                    write (*,*) 'Need to use option SPATIAL_INTERPOL : 1'
+                    write (*,*) 'Should use option SPATIAL_INTERPOL : 1'
                     write(*,*)'Property '//trim(Me%PropertyID%Name)
-                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR325'
+                    !stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR325'
                     
                 endif                
 
@@ -7390,19 +7428,21 @@ i0:     if(Me%Dim == Dim2D)then
 
                 endif
 
-                call GetData(CurrentHDF%GenericYear,                                            &
+                call GetData(CurrentHDF%CyclicMonths,                                           &
                              Me%ObjEnterData , iflag,                                           &
                              SearchType   = ExtractType,                                        &
-                             keyword      = 'GENERIC_YEAR',                                     &
+                             keyword      = 'HDF_CYCLIC_MONTHS',                                &
                              default      = .false.,                                            &
                              ClientModule = 'ModuleFillMatrix',                                 &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR340'
-
-                if (CurrentHDF%GenericYear) then
-                    CurrentHDF%CyclicTimeON = .true.
+                
+                if (CurrentHDF%CyclicMonths .and. Me%Backtracking) then
+                    write (*,*) 'OPTION HDF_CYCLIC_MONTHS : 1 can not be use together with BACKTRACKING'
+                    stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR350'
                 endif
-
+                
+                
                 CurrentHDF%Upscaling = Upscaling
                 if (CurrentHDF%Upscaling) then
                     call GetData(CurrentHDF%UpscalingMethod,                                              &
@@ -7841,10 +7881,9 @@ ifMS:       if (MasterOrSlave) then
 
     !-----------------------------------------------------------------------------------
 
-    subroutine ConstructHDFOneInstant(Now, CurrentHDF)
+    subroutine ConstructHDFOneInstant(CurrentHDF)
 
          !Arguments------------------------------------------------------------
-        type(T_Time)                                    :: Now
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
 
@@ -7856,18 +7895,6 @@ ifMS:       if (MasterOrSlave) then
 
         CurrentHDF%PreviousTime     = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
 
-        !if(CurrentHDF%GenericYear)then
-            !call SetHDFGenericYear(CurrentHDF%PreviousTime, Now)
-        !endif
-
-        if (CurrentHDF%CyclicTimeON) then
-            call SetHDFCyclicDates(TimeInstant  = CurrentHDF%PreviousTime,                  &
-                                   RefTime      = Now,                                      &
-                                   CurrentHDF   = CurrentHDF)
-
-            CurrentHDF%StartTime = Me%BeginTime
-            CurrentHDF%EndTime   = Me%EndTime
-        endif
 
         CurrentHDF%NextTime         = CurrentHDF%PreviousTime
 
@@ -7883,6 +7910,60 @@ ifMS:       if (MasterOrSlave) then
     !-----------------------------------------------------------------------------------
 
 
+    subroutine ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)
+
+         !Arguments------------------------------------------------------------
+        type(T_Time)                                    :: Now
+        type(T_Field4D)                                 :: CurrentHDF
+        !Local-----------------------------------------------------------------
+
+        real                                            :: Year, Month, Day, Hour, Minute, Second
+        real                                            :: PrevMonth, NextMonth, PrevYear, NextYear
+        !Begin-----------------------------------------------------------------
+        
+        call ExtractDate(Now, Year, Month, Day, Hour, Minute, Second)
+        
+        PrevYear = Year
+        NextYear = Year
+        
+        if (Day >= 15) then
+            if ( Month < 12)  then            
+                PrevMonth  = Month
+                NextMonth  = Month + 1
+            else
+                PrevMonth = 12
+                NextMonth = 1
+                NextYear  = Year + 1                
+            endif
+            
+        else
+            if ( Month > 1)  then
+                 PrevMonth  = Month - 1
+                 NextMonth  = Month
+                        
+            else    
+                PrevMonth = 12
+                NextMonth = 1
+                PrevYear  = Year - 1
+            endif
+        endif
+
+        CurrentHDF%PreviousInstant = PrevMonth
+        CurrentHDF%NextInstant     = NextMonth
+        
+
+        call SetDate(CurrentHDF%PreviousTime, Year   = PrevYear, Month  = PrevMonth,    & 
+                                              Day    = 15.     , Hour   = 0.,           &
+                                              Minute = 0.      , Second = 0.)
+
+        call SetDate(CurrentHDF%NextTime,     Year   = NextYear, Month  = NextMonth,    & 
+                                              Day    = 15.     , Hour   = 0.,           &
+                                              Minute = 0.      , Second = 0.)
+
+    end subroutine ActualizeHDF_12_CyclicMonths
+
+    !-----------------------------------------------------------------------------------    
+
     subroutine ConstructHDFPredictDTMethod1(Now, CurrentHDF)
 
          !Arguments------------------------------------------------------------
@@ -7890,7 +7971,6 @@ ifMS:       if (MasterOrSlave) then
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
         logical                                         :: FoundSecondInstant
-        real                                            :: StartTimeYear, EndTimeYear
         !Begin-----------------------------------------------------------------
 
         if (Me%Backtracking) then
@@ -7903,19 +7983,6 @@ ifMS:       if (MasterOrSlave) then
 
         CurrentHDF%PreviousTime         = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
 
-        !if(CurrentHDF%GenericYear)then
-        !    call SetHDFGenericYear(CurrentHDF%PreviousTime, RefTime = Now)
-        !endif
-
-        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%PreviousTime,                  &
-                               RefTime      = Now,                                      &
-                               CyclicTimeON = CurrentHDF%CyclicTimeON,                  &
-                               CurrentHDF   = CurrentHDF)
-
-         if (CurrentHDF%CyclicTimeON .and. .not. CurrentHDF%GenericYear) then
-            CurrentHDF%StartTime = Me%BeginTime
-            CurrentHDF%EndTime   = Me%EndTime
-         endif
 
 ib:     if (Me%BackTracking) then
 
@@ -7949,26 +8016,6 @@ ib:     if (Me%BackTracking) then
                 stop      'ConstructHDFPredictDTMethod1 - ModuleFillMatrix - ERR30'
             end if
 
-            if(CurrentHDF%GenericYear)then
-
-                call SetHDFGenericYear(CurrentHDF%EndTime,   RefTime = Me%EndTime)
-                call SetHDFGenericYear(CurrentHDF%StartTime, RefTime = Me%BeginTime)
-
-                call ExtractDate(CurrentHDF%StartTime, Year = StartTimeYear)
-                call ExtractDate(CurrentHDF%EndTime,   Year = EndTimeYear  )
-
-                if(StartTimeYear .ne. EndTimeYear)then
-                    write(*,*)
-                    write(*,*)'When using a generic year HDF5 file'
-                    write(*,*)'The year of the start time has to be the same as'
-                    write(*,*)'the year of the end time'
-                    write(*,*)'Matrix name: '//trim(CurrentHDF%FieldName)
-                    stop      'ConstructHDFPredictDTMethod1 - ModuleFillMatrix - ERR40'
-                endif
-
-            endif
-
-
             if(Me%TimeEvolution .ne. None)then
                 if(CurrentHDF%EndTime .lt. Me%EndTime)then
                     write(*,*)
@@ -7993,24 +8040,8 @@ d2:      do while(.not. FoundSecondInstant)
                 CurrentHDF%NextInstant      = CurrentHDF%NextInstant + 1
             endif
 
-            !if (CurrentHDF%CyclicTimeON .and. CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants) then
-            !    CurrentHDF%NextInstant  = 1
-            !end if
-
-
             CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
-
-
-            !if(CurrentHDF%GenericYear)then
-            !    call SetHDFGenericYear(CurrentHDF%NextTime, Now)
-            !endif
-
-            if (CurrentHDF%CyclicTimeON) then
-                call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,                  &
-                                       RefTime      = Now,                                  &
-                                       CurrentHDF   = CurrentHDF)
-            endif
-
+ 
             if (Me%Backtracking) then
                 if(CurrentHDF%PreviousTime .ge. Now .and. CurrentHDF%NextTime .le. Now) then
                     FoundSecondInstant  = .true.
@@ -8025,7 +8056,7 @@ d2:      do while(.not. FoundSecondInstant)
             CurrentHDF%PreviousTime = CurrentHDF%NextTime
 
             if (Me%Backtracking) then
-                if(CurrentHDF%NextInstant .lt. 1 .and. .not. CurrentHDF%CyclicTimeON) then
+                if(CurrentHDF%NextInstant .lt. 1) then
                     write(*,*)
                     write(*,*)'----------Backtracking mode-----------------'
                     write(*,*)'Could not read solution from HDF5 file'
@@ -8035,7 +8066,7 @@ d2:      do while(.not. FoundSecondInstant)
                 end if
 
             else
-                if(CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants .and. .not. CurrentHDF%CyclicTimeON) then
+                if(CurrentHDF%NextInstant .gt. CurrentHDF%NumberOfInstants) then
                     write(*,*)
                     write(*,*)'Could not read solution from HDF5 file'
                     write(*,*)'Could not find second instant in file'
@@ -8066,6 +8097,7 @@ d2:      do while(.not. FoundSecondInstant)
         if (Me%Backtracking) then
             stop 'ConstructHDFPredictDTMethod2 - ModuleFillMatrix - ERR10'
         endif
+        
 
         CurrentHDF%PreviousInstant = 1
         CurrentHDF%PreviousTime    = HDF5TimeInstant(CurrentHDF%PreviousInstant, CurrentHDF)
@@ -8112,6 +8144,246 @@ d2:      do while(.not. FoundSecondInstant)
     !----------------------------------------------------------------------------------
 
 
+    subroutine BuildInterpMask2D(ExtractType, InterpScope, PointsToFill2D, InterpMask)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType, InterpScope
+        integer, dimension(:, :), pointer               :: PointsToFill2D
+        logical, dimension(:, :), allocatable           :: InterpMask
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(4, 4)                        :: dij
+        integer, dimension(4)                           :: AuxI
+        logical, dimension(1:4)                         :: OpenBordersON
+        integer                                         :: ILB, IUB, JLB, JUB, i, j, l, sp, sp_max
+        integer                                         :: STAT_CALL, iflag, SpongeCells
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize2D%ILB; IUB = Me%WorkSize2D%IUB
+        JLB = Me%WorkSize2D%JLB; JUB = Me%WorkSize2D%JUB
+
+        InterpMask(:,:) = .false.
+
+        select case (InterpScope)
+
+            case (InterpScopeFull_)
+
+                where (PointsToFill2D == WaterPoint) InterpMask = .true.
+                return
+
+            case (InterpScopeBoundary_)
+
+                sp_max = InterpScopeBoundaryLayers_
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+            case (InterpScopeSponge_)
+
+                call GetData(SpongeCells,                                                 &
+                             Me%ObjEnterData , iflag,                                      &
+                             SearchType   = ExtractType,                                   &
+                             keyword      = 'SPONGE_CELLS',                                &
+                             Default      = 10,                                            &
+                             ClientModule = 'ModuleFillMatrix',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask2D - ModuleFillMatrix - ERR10'
+
+                sp_max = SpongeCells
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+                if (sp_max > IUB - ILB + 1 .and. sp_max > JUB - JLB + 1) then
+                    stop 'BuildInterpMask2D - ModuleFillMatrix - ERR20'
+                endif
+
+            case default
+
+                stop 'BuildInterpMask2D - ModuleFillMatrix - ERR15'
+
+        end select
+
+        OpenBordersON = GetDDecompOpenBorders(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask2D - ModuleFillMatrix - ERR30'
+
+        dij(:,:) = 0
+
+dsp:    do sp = 1, sp_max
+
+            AuxI(1) = min(ILB + sp - 1, IUB)
+            AuxI(2) = max(IUB - sp + 1, ILB)
+            AuxI(3) = min(JLB + sp - 1, JUB)
+            AuxI(4) = max(JUB - sp + 1, JLB)
+
+            dij(1,1) = max (1 - sp, 1 - (IUB - ILB))
+            dij(2,2) = min (sp - 1, (IUB - ILB) - 1)
+            dij(3,3) = max (1 - sp, 1 - (JUB - JLB))
+            dij(4,4) = min (sp - 1, (JUB - JLB) - 1)
+
+dl:         do l = 1, 2
+
+                if (.not. OpenBordersON(l)) cycle
+
+                i = AuxI(l)
+
+dj:             do j = JLB, JUB
+
+                    if (CheckSponge(PointsToFill2D = PointsToFill2D, sp = sp,              &
+                                    di1 = dij(l,1), di2 = dij(l,2), dj1 = 0, dj2 = 0,      &
+                                    i = i, j = j, k = 1)) then
+                        if (PointsToFill2D(i, j) == WaterPoint) InterpMask(i, j) = .true.
+                    endif
+
+                enddo dj
+
+            enddo dl
+
+dl2:        do l = 3, 4
+
+                if (.not. OpenBordersON(l)) cycle
+
+                j = AuxI(l)
+
+di:             do i = ILB, IUB
+
+                    if (CheckSponge(PointsToFill2D = PointsToFill2D, sp = sp,              &
+                                    di1 = 0, di2 = 0, dj1 = dij(l,3), dj2 = dij(l,4),      &
+                                    i = i, j = j, k = 1)) then
+                        if (PointsToFill2D(i, j) == WaterPoint) InterpMask(i, j) = .true.
+                    endif
+
+                enddo di
+
+            enddo dl2
+
+        enddo dsp
+
+    end subroutine BuildInterpMask2D
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine BuildInterpMask3D(ExtractType, InterpScope, PointsToFill3D, InterpMask)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType, InterpScope
+        integer, dimension(:, :, :), pointer            :: PointsToFill3D
+        logical, dimension(:, :, :), allocatable       :: InterpMask
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(4, 4)                        :: dij
+        integer, dimension(4)                           :: AuxI
+        logical, dimension(1:4)                         :: OpenBordersON
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                         :: i, j, k, l, sp, sp_max
+        integer                                         :: STAT_CALL, iflag, SpongeCells
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize3D%ILB; IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB; JUB = Me%WorkSize3D%JUB
+        KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+
+        InterpMask(:,:,:) = .false.
+
+        select case (InterpScope)
+
+            case (InterpScopeFull_)
+
+                where (PointsToFill3D == WaterPoint) InterpMask = .true.
+                return
+
+            case (InterpScopeBoundary_)
+
+                sp_max = InterpScopeBoundaryLayers_
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+            case (InterpScopeSponge_)
+
+                call GetData(SpongeCells,                                                 &
+                             Me%ObjEnterData , iflag,                                      &
+                             SearchType   = ExtractType,                                   &
+                             keyword      = 'SPONGE_CELLS',                                &
+                             Default      = 10,                                            &
+                             ClientModule = 'ModuleFillMatrix',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask3D - ModuleFillMatrix - ERR10'
+
+                sp_max = SpongeCells
+                if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) sp_max = sp_max + 1
+
+                if (sp_max > IUB - ILB + 1 .and. sp_max > JUB - JLB + 1) then
+                    stop 'BuildInterpMask3D - ModuleFillMatrix - ERR20'
+                endif
+
+            case default
+
+                stop 'BuildInterpMask3D - ModuleFillMatrix - ERR15'
+
+        end select
+
+        OpenBordersON = GetDDecompOpenBorders(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'BuildInterpMask3D - ModuleFillMatrix - ERR30'
+
+        dij(:,:) = 0
+
+dsp:    do sp = 1, sp_max
+
+            AuxI(1) = min(ILB + sp - 1, IUB)
+            AuxI(2) = max(IUB - sp + 1, ILB)
+            AuxI(3) = min(JLB + sp - 1, JUB)
+            AuxI(4) = max(JUB - sp + 1, JLB)
+
+            dij(1,1) = max (1 - sp, 1 - (IUB - ILB))
+            dij(2,2) = min (sp - 1, (IUB - ILB) - 1)
+            dij(3,3) = max (1 - sp, 1 - (JUB - JLB))
+            dij(4,4) = min (sp - 1, (JUB - JLB) - 1)
+
+dk:         do k = KLB, KUB
+
+dl:             do l = 1, 2
+
+                    if (.not. OpenBordersON(l)) cycle
+
+                    i = AuxI(l)
+
+dj:                 do j = JLB, JUB
+
+                        if (CheckSponge(PointsToFill3D = PointsToFill3D, sp = sp,          &
+                                        di1 = dij(l,1), di2 = dij(l,2), dj1 = 0, dj2 = 0,  &
+                                        i = i, j = j, k = k)) then
+                            if (PointsToFill3D(i, j, k) == WaterPoint) InterpMask(i, j, k) = .true.
+                        endif
+
+                    enddo dj
+
+                enddo dl
+
+dl2:            do l = 3, 4
+
+                    if (.not. OpenBordersON(l)) cycle
+
+                    j = AuxI(l)
+
+di:                 do i = ILB, IUB
+
+                        if (CheckSponge(PointsToFill3D = PointsToFill3D, sp = sp,          &
+                                        di1 = 0, di2 = 0, dj1 = dij(l,3), dj2 = dij(l,4),  &
+                                        i = i, j = j, k = k)) then
+                            if (PointsToFill3D(i, j, k) == WaterPoint) InterpMask(i, j, k) = .true.
+                        endif
+
+                    enddo di
+
+                enddo dl2
+
+            enddo dk
+
+        enddo dsp
+
+    end subroutine BuildInterpMask3D
+
+
+    !--------------------------------------------------------------------------
+
     subroutine ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)
         !Arguments----------------------------------------------------------------------
         integer                                         :: ExtractType, ClientID
@@ -8121,17 +8393,47 @@ d2:      do while(.not. FoundSecondInstant)
 
         !Local--------------------------------------------------------------------------
         real,       dimension(:,:),     pointer         :: CoordX, CoordY
+        logical, dimension(:, :),     allocatable        :: InterpMask2D
+        logical, dimension(:, :, :), allocatable        :: InterpMask3D
         real, dimension(1:2,1:2)                        :: WindowLimitsXY
         real                                            :: West, East, South, North
         real                                            :: LatDefault, LongDefault
-        integer                                         :: STAT_CALL, i, j, k, icount, NCells
+        integer                                         :: STAT_CALL, i, j, k, NCells, nP
         real, dimension(4)                              :: Aux4
         integer                                         :: iflag, ObjHorizontalGridAux
         character(len=PathLength)                       :: BathymetryFile
+        logical                                         :: MPIWindow
+        integer                                         :: WindowComm
 
         !Begin--------------------------------------------------------------------------
 
+        call GetData(CurrentHDF%InterpScope,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'INTERP_SCOPE',                                     &
+                     Default      = InterpScopeFull_,                                   &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR05'
+
+        if (CurrentHDF%InterpScope /= InterpScopeBoundary_ .and.                        &
+            CurrentHDF%InterpScope /= InterpScopeSponge_     .and.                      &
+            CurrentHDF%InterpScope /= InterpScopeFull_) then
+            write(*,*) 'INTERP_SCOPE must be 1 (boundary, 3 cells from open face), 2 (sponge), or 3 (full domain)'
+            stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR06'
+        endif
+
         Aux4 (:) = FillValueReal
+        WindowComm = null_int
+
+        call GetData(MPIWindow,                                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FIELD4D_MPI_WINDOW',                               &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR07'
 
         !West, East, South, North
         call GetData(Aux4,                                                              &
@@ -8142,26 +8444,48 @@ d2:      do while(.not. FoundSecondInstant)
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
 
-        if (iflag < 4) then
+        if (iflag < 4 .and. MPIWindow .and. GetDDecompON(Me%ObjHorizontalGrid)) then
+
+            !Read only this rank's subdomain (ReadGridFromFile pads it by 3 cells); extrapolation
+            !fills run on the union window (FillLayerMPIWindow) to match the global result.
+            call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR15'
+
+            call ConstructMPIWindowComm
+            WindowComm = MPIWindowComm
+
+        elseif (iflag < 4) then
 
             call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR20'
 
-            ObjHorizontalGridAux = 0
+            if (trim(BathymetryFile) /= trim(BorderLimitsFile)) then
 
-            !Entire grid
-            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
-                                         DataFile         = BathymetryFile,             &
-                                         STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+                ObjHorizontalGridAux = 0
+
+                !Entire grid
+                call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,   &
+                                             DataFile         = BathymetryFile,         &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
 
 
-            call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+                call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
 
-            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,            &
-                                    STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+                call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,        &
+                                        STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
+
+                BorderLimitsFile  = BathymetryFile
+                BorderLimitsCache = (/West, East, South, North/)
+
+            else
+
+                West  = BorderLimitsCache(1); East  = BorderLimitsCache(2)
+                South = BorderLimitsCache(3); North = BorderLimitsCache(4)
+
+            endif
 
         elseif (iflag == 4) then
 
@@ -8182,52 +8506,43 @@ d2:      do while(.not. FoundSecondInstant)
 
         if (Me%Dim == Dim2D) then
 
-            icount = 0
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-                icount = icount + PointsToFill2D(i,j)
-            enddo
-            enddo
+            allocate(InterpMask2D(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB))
+            call BuildInterpMask2D(ExtractType, CurrentHDF%InterpScope, PointsToFill2D, InterpMask2D)
 
-            Ncells        = icount
+            Ncells = count(InterpMask2D)
             CurrentHDF%Ncells = Ncells
 
         else
 
-            icount = 0
+            allocate(InterpMask3D(Me%Size3D%ILB:Me%Size3D%IUB, Me%Size3D%JLB:Me%Size3D%JUB, &
+                                  Me%Size3D%KLB:Me%Size3D%KUB))
+            call BuildInterpMask3D(ExtractType, CurrentHDF%InterpScope, PointsToFill3D, InterpMask3D)
 
             if (CurrentHDF%From2Dto3D) then
 
+                Ncells = 0
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    icount = icount + PointsToFill3D(i,j,Me%WorkSize3D%KUB)
+                    if (InterpMask3D(i, j, Me%WorkSize3D%KUB)) Ncells = Ncells + 1
                 enddo
                 enddo
-
-                Ncells        = icount
-                CurrentHDF%Ncells = Ncells
 
             else
 
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    icount = icount + PointsToFill3D(i,j,k)
-                enddo
-                enddo
-                enddo
-
-                Ncells        = icount
-                CurrentHDF%Ncells = Ncells
+                Ncells = count(InterpMask3D)
 
                 allocate(CurrentHDF%Z(1:NCells))
-
                 CurrentHDF%Z(1:NCells) = FillValueReal
 
             endif
+
+            CurrentHDF%Ncells = Ncells
+
         endif
 
+        allocate(CurrentHDF%CellI(1:NCells), CurrentHDF%CellJ(1:NCells))
         allocate(CurrentHDF%X(1:NCells), CurrentHDF%Y(1:NCells), CurrentHDF%Prop(1:NCells), CurrentHDF%NoData(1:NCells))
+        if (Me%Dim == Dim3D .and. .not. CurrentHDF%From2Dto3D) allocate(CurrentHDF%CellK(1:NCells))
 
         CurrentHDF%X     (1:NCells) = FillValueReal
         CurrentHDF%Y     (1:NCells) = FillValueReal
@@ -8237,38 +8552,42 @@ d2:      do while(.not. FoundSecondInstant)
         call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR70'
 
-        if (Me%Dim == Dim2D) then
+        nP = 0
 
-            icount = 0
+        if (Me%Dim == Dim2D) then
 
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
 
-                if (PointsToFill2D(i,j) == WaterPoint) then
+                if (InterpMask2D(i, j)) then
 
-                    icount           = icount + 1
-                    CurrentHDF%X(icount) = CoordX(i, j)
-                    CurrentHDF%Y(icount) = CoordY(i, j)
+                    nP                  = nP + 1
+                    CurrentHDF%CellI(nP) = i
+                    CurrentHDF%CellJ(nP) = j
+                    CurrentHDF%X(nP)     = CoordX(i, j)
+                    CurrentHDF%Y(nP)     = CoordY(i, j)
 
                 endif
 
             enddo
             enddo
 
-        else
+            deallocate(InterpMask2D)
 
-            icount = 0
+        else
 
             if (CurrentHDF%From2Dto3D) then
 
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
-                    if (PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then
+                    if (InterpMask3D(i, j, Me%WorkSize3D%KUB)) then
 
-                        icount           = icount + 1
-                        CurrentHDF%X(icount) = CoordX(i, j)
-                        CurrentHDF%Y(icount) = CoordY(i, j)
+                        nP                  = nP + 1
+                        CurrentHDF%CellI(nP) = i
+                        CurrentHDF%CellJ(nP) = j
+                        CurrentHDF%X(nP)     = CoordX(i, j)
+                        CurrentHDF%Y(nP)     = CoordY(i, j)
 
                     endif
 
@@ -8281,11 +8600,14 @@ d2:      do while(.not. FoundSecondInstant)
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
-                    if (PointsToFill3D(i,j,k) == WaterPoint) then
+                    if (InterpMask3D(i, j, k)) then
 
-                        icount           = icount + 1
-                        CurrentHDF%X(icount) = CoordX(i, j)
-                        CurrentHDF%Y(icount) = CoordY(i, j)
+                        nP                  = nP + 1
+                        CurrentHDF%CellI(nP) = i
+                        CurrentHDF%CellJ(nP) = j
+                        CurrentHDF%CellK(nP) = k
+                        CurrentHDF%X(nP)     = CoordX(i, j)
+                        CurrentHDF%Y(nP)     = CoordY(i, j)
 
                     endif
 
@@ -8295,7 +8617,13 @@ d2:      do while(.not. FoundSecondInstant)
 
             endif
 
+            deallocate(InterpMask3D)
+
         endif
+
+        if (nP /= Ncells) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR75'
+
+        write(*,'(A,I0,A,I0)') ' ConstructField4DInterpol: INTERP_SCOPE=', CurrentHDF%InterpScope, ' Ncells=', Ncells
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR80'
@@ -8347,12 +8675,75 @@ d2:      do while(.not. FoundSecondInstant)
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
                                   CheckHDF5_File    = Me%CheckHDF5_File,                &
+                                  MPIWindowComm     = WindowComm,                       &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
 
         endif
 
     end subroutine ConstructField4DInterpol
+
+    !----------------------------------------------------------------------------
+
+    subroutine ConstructMPIWindowComm
+
+        !Local--------------------------------------------------------------------------
+#ifdef _USE_MPI
+        integer,  dimension(:),     pointer             :: Slaves_MPI_ID
+        integer,  dimension(3,1)                        :: Ranks
+        integer                                         :: Master_MPI_ID, Nslaves
+        integer                                         :: WorldGroup, ModelGroup, STAT_CALL
+
+        !Begin--------------------------------------------------------------------------
+
+        if (MPIWindowComm /= null_int) return
+
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  Master_MPI_ID    = Master_MPI_ID,                     &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR10'
+
+        call GetDDecompSlaves(Me%ObjHorizontalGrid, Nslaves, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR20'
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Slaves_MPI_ID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR30'
+
+        !Model ranks are Master_MPI_ID..Master_MPI_ID+Nslaves of MPI_COMM_WORLD. Create the
+        !communicator from the group so only this model's ranks take part (nested models
+        !construct at different times).
+        Ranks(:,1) = (/Master_MPI_ID, Master_MPI_ID + Nslaves, 1/)
+
+        call MPI_Comm_group(MPI_COMM_WORLD, WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR40'
+
+        call MPI_Group_range_incl(WorldGroup, 1, Ranks, ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR50'
+        
+#ifdef _USE_INTEL_MPI
+
+        call MPI_Comm_create_group(MPI_COMM_WORLD, ModelGroup, Master_MPI_ID,           &
+                                   MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR60'
+#else        
+
+        call MPI_Comm_create(MPI_COMM_WORLD, ModelGroup, MPIWindowComm, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR70'
+        
+#endif
+
+        call MPI_Group_free(ModelGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR80'
+
+        call MPI_Group_free(WorldGroup, STAT_CALL)
+        if (STAT_CALL /= 0) stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR100'
+#else
+        write(*,*) 'FIELD4D_MPI_WINDOW : 1 needs an MPI build'
+        stop 'ConstructMPIWindowComm - ModuleFillMatrix - ERR110'
+#endif
+
+    end subroutine ConstructMPIWindowComm
+
     !----------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -8589,10 +8980,6 @@ if4D:   if (CurrentHDF%Field4D) then
         call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,                &
                                       Hour = Hour, Minute = Minute, Second = Second)
 
-        !!David
-        !!This does not make sense. get info from hdf but this routine is called from profileTimeSerie and ProfileTSDefault
-        if(Me%HDF%GenericYear) Year = CyclicTime
-
         if (Year == CyclicTime) then
 
             if (present(CyclicTimeON)) CyclicTimeON = .true.
@@ -8626,115 +9013,6 @@ if4D:   if (CurrentHDF%Field4D) then
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-
-    subroutine SetHDFCyclicDates(TimeInstant, RefTime, RestartCycle, CyclicTimeON, CurrentHDF)
-
-        !Arguments-------------------------------------------------------------
-        type(T_Time)                            :: TimeInstant
-        type(T_Time)                            :: RefTime
-        logical     , optional, intent(IN)      :: RestartCycle
-        logical     , optional, intent(OUT)     :: CyclicTimeON
-        type(T_Field4D)                         :: CurrentHDF
-
-        !Local-----------------------------------------------------------------
-        logical                                 :: RestartCycle_
-        logical                                 :: CyclicTimeON_
-        real, dimension(6)                      :: AuxTime, AuxTimeRef
-        integer                                 :: i
-
-        !Begin-----------------------------------------------------------------
-
-        call ExtractDate(TimeInstant, Year      = AuxTime(1),                           &
-                                      Month     = AuxTime(2),                           &
-                                      Day       = AuxTime(3),                           &
-                                      Hour      = AuxTime(4),                           &
-                                      Minute    = AuxTime(5),                           &
-                                      Second    = AuxTime(6))
-
-        if(CurrentHDF%GenericYear) AuxTime(1) = CyclicTime
-
-        if (present(RestartCycle)) then
-            RestartCycle_ = RestartCycle
-        else
-            RestartCycle_ = .false.
-        endif
-
-        if (AuxTime(1) == CyclicTime) then
-            CyclicTimeON_  = .true.
-        else
-            CyclicTimeON_  = .false.
-        endif
-
-        if (present(CyclicTimeON)) CyclicTimeON = CyclicTimeON_
-
-i1:     if (CyclicTimeON_) then
-
-            call ExtractDate(RefTime, Year      = AuxTimeRef(1),                        &
-                                      Month     = AuxTimeRef(2),                        &
-                                      Day       = AuxTimeRef(3),                        &
-                                      Hour      = AuxTimeRef(4),                        &
-                                      Minute    = AuxTimeRef(5),                        &
-                                      Second    = AuxTimeRef(6))
-d1:         do i=1,6
-                if (AuxTime(i) == CyclicTime) then
-                    AuxTime(i) = AuxTimeRef(i)
-                else
-                    if (RestartCycle_) then
-                        if (AuxTimeRef(i) > AuxTime(i)) then
-                            AuxTime(i-1) = AuxTime(i-1) + 1
-                        endif
-                    endif
-                    exit
-                endif
-            enddo d1
-
-        endif i1
-
-        call SetDate    (TimeInstant, Year      = AuxTime(1),                           &
-                                      Month     = AuxTime(2),                           &
-                                      Day       = AuxTime(3),                           &
-                                      Hour      = AuxTime(4),                           &
-                                      Minute    = AuxTime(5),                           &
-                                      Second    = AuxTime(6))
-
-    end subroutine SetHDFCyclicDates
-
-    !--------------------------------------------------------------------------
-
-
-    subroutine SetHDFGenericYear(TimeInstant, RefTime, AddYear)
-
-        !Arguments-------------------------------------------------------------
-        type(T_Time)                            :: TimeInstant
-        type(T_Time)                            :: RefTime
-        logical, optional                       :: AddYear
-
-        !Local-----------------------------------------------------------------
-        real                                    :: Year, Month, Day, Hour, Minute, Second
-        logical                                 :: AddYear_
-
-        !Begin-----------------------------------------------------------------
-
-        call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,       &
-                                      Hour = Hour, Minute = Minute, Second = Second)
-
-        call ExtractDate(RefTime, Year = Year)
-
-        if(present(AddYear))then
-            AddYear_ = AddYear
-        else
-            AddYear_ = .false.
-        end if
-
-        if(AddYear_)Year = Year + 1
-
-        call SetDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,           &
-                                  Hour = Hour, Minute = Minute, Second = Second)
-
-    end subroutine SetHDFGenericYear
-
-    !--------------------------------------------------------------------------
 
     real function HDF5Generic4DInstant(Instant, CurrentHDF)
 
@@ -9122,7 +9400,7 @@ if4D:   if (CurrentHDF%Field4D) then
         integer,                         optional   :: Instant
         !Local-----------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: ZCellCenter
-        integer                                     :: i, j, k, icount
+        integer                                     :: i, j, k, nP
         integer                                     :: STAT_CALL
         type (T_Size2D)                             :: HaloMap
         integer                                     :: di, dj
@@ -9153,6 +9431,19 @@ ifMS:   if (MasterOrSlave) then
 
         endif ifMS
 
+        if (CurrentHDF%InterpScope /= InterpScopeFull_) then
+            if (Me%Dim == Dim2D) then
+                call SetMatrixValue(Matrix      = Matrix2D,                             &
+                                    Size        = Me%WorkSize2D,                        &
+                                    ValueX      = Me%DefaultValue(1),                   &
+                                    MapMatrix   = Me%PointsToFill2D)
+            else
+                call SetMatrixValue(Matrix      = Matrix3D,                             &
+                                    Size        = Me%WorkSize3D,                        &
+                                    ValueX      = Me%DefaultValue(1),                   &
+                                    MapMatrix   = Me%PointsToFill3D)
+            endif
+        endif
 
 if2D:   if (Me%Dim == Dim2D) then
 
@@ -9167,28 +9458,23 @@ if2D:   if (Me%Dim == Dim2D) then
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30'
 
-            icount = 0
+            do nP = 1, CurrentHDF%Ncells
 
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                i = CurrentHDF%CellI(nP)
+                j = CurrentHDF%CellJ(nP)
 
-                if (Me%PointsToFill2D(i,j) == WaterPoint) then
-
-                    icount           = icount + 1
-                    if (CurrentHDF%NoData(icount)) then
-                        if (CurrentHDF%Extrapolate) then
-                            Matrix2D(i, j)   = Me%DefaultValue(1)
-                        else
-                            write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
-                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'
-                        endif
+                if (CurrentHDF%NoData(nP)) then
+                    if (CurrentHDF%Extrapolate) then
+                        Matrix2D(i, j) = Me%DefaultValue(1)
                     else
-                        Matrix2D(i, j)   = CurrentHDF%Prop(icount)
+                        write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
+                        write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'
                     endif
+                else
+                    Matrix2D(i, j) = CurrentHDF%Prop(nP)
                 endif
 
-            enddo
             enddo
 
 
@@ -9207,29 +9493,30 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50'
 
-                icount = 0
+                do nP = 1, CurrentHDF%Ncells
 
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                    if (Me%PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then
-                        icount           = icount + 1
-                        if (CurrentHDF%NoData(icount)) then
-                            if (CurrentHDF%Extrapolate) then
-                                !NeedToExtrapolate = .true.
-                                Matrix3D(i, j, k) = Me%DefaultValue(1)
-                            else
-                                write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'
-                            endif
-                        else
+                    i = CurrentHDF%CellI(nP)
+                    j = CurrentHDF%CellJ(nP)
+
+                    if (CurrentHDF%NoData(nP)) then
+                        if (CurrentHDF%Extrapolate) then
                             do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-                                    Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
+                                if (Me%PointsToFill3D(i, j, k) == WaterPoint) then
+                                    Matrix3D(i, j, k) = Me%DefaultValue(1)
                                 endif
                             enddo
+                        else
+                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'
                         endif
+                    else
+                        do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                            if (Me%PointsToFill3D(i, j, k) == WaterPoint) then
+                                Matrix3D(i, j, k) = CurrentHDF%Prop(nP)
+                            endif
+                        enddo
                     endif
-                enddo
+
                 enddo
 
             else F2D3D
@@ -9237,21 +9524,8 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                 call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70'
 
-                icount = 0
-
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-
-                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-
-                        icount           = icount + 1
-                        CurrentHDF%Z(icount) = ZCellCenter(i, j, k)
-
-                    endif
-
-                enddo
-                enddo
+                do nP = 1, CurrentHDF%Ncells
+                    CurrentHDF%Z(nP) = ZCellCenter(CurrentHDF%CellI(nP), CurrentHDF%CellJ(nP), CurrentHDF%CellK(nP))
                 enddo
 
                 call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
@@ -9269,45 +9543,31 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90'
 
-                icount = 0
+                do nP = 1, CurrentHDF%Ncells
 
-                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                    i = CurrentHDF%CellI(nP)
+                    j = CurrentHDF%CellJ(nP)
+                    k = CurrentHDF%CellK(nP)
 
-                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
-
-                        icount           = icount + 1
-                        if (CurrentHDF%NoData(icount)) then
-                            if (CurrentHDF%Extrapolate) then
-                                !NeedToExtrapolate = .true.
+                    if (CurrentHDF%NoData(nP)) then
+                        if (CurrentHDF%Extrapolate) then
+                            Matrix3D(i, j, k) = Me%DefaultValue(1)
+                        else
+                            if (CurrentHDF%NoDataDefaultValue) then
                                 Matrix3D(i, j, k) = Me%DefaultValue(1)
                             else
-                                if (CurrentHDF%NoDataDefaultValue) then
-                                    Matrix3D(i, j, k) = Me%DefaultValue(1)
-                                else
                                 write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
                                 stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
-                                endif
                             endif
-                        else
-                            Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
                         endif
-
+                    else
+                        Matrix3D(i, j, k) = CurrentHDF%Prop(nP)
                     endif
 
-                enddo
-                enddo
                 enddo
 
             endif F2D3D
         endif if2D
-
-        if (icount > CurrentHDF%Ncells) then
-            write(*,*) 'icount =', icount
-            write(*,*) 'CurrentHDF%Ncells =', CurrentHDF%Ncells
-            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR110'
-        endif
 
 
     end subroutine ModifyField4DInterpol
@@ -12437,83 +12697,69 @@ i2:         if (Me%PredictDTMethod == 2) then
         ReadNewField = ReadNewField_
 
         if (ReadNewField_)then
+            
+            if (CurrentHDF%CyclicMonths) then
+                        
+                call ActualizeHDF_12_CyclicMonths(Now, CurrentHDF)            
+                
+                n = 1
+            
+            else
 
-            n = 0
+                n = 0
 
-            do
+                do
 
-                !Backtracking time inversion is also done in the ModuleField4D
-                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                    if (Now .gt. CurrentHDF%NextTime) exit
-                else
-                    if (Now .lt. CurrentHDF%NextTime) exit
-                endif
-
-                CurrentHDF%PreviousInstant  = CurrentHDF%NextInstant
-
-                !Backtracking time inversion is also done in the ModuleField4D
-                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                    if(CurrentHDF%NextInstant .gt. 1)then
-                        CurrentHDF%NextInstant  = CurrentHDF%NextInstant - 1
+                    !Backtracking time inversion is also done in the ModuleField4D
+                    if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                        if (Now .gt. CurrentHDF%NextTime) exit
                     else
-                        exit
+                        if (Now .lt. CurrentHDF%NextTime) exit
                     endif
-                else
-                    if(CurrentHDF%NextInstant .lt. CurrentHDF%NumberOfInstants)then
-                        CurrentHDF%NextInstant  = CurrentHDF%NextInstant + 1
+
+                    CurrentHDF%PreviousInstant  = CurrentHDF%NextInstant
+
+                    !Backtracking time inversion is also done in the ModuleField4D
+                    if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                        if(CurrentHDF%NextInstant .gt. 1)then
+                            CurrentHDF%NextInstant  = CurrentHDF%NextInstant - 1
+                        else
+                            exit
+                        endif
                     else
-                        !if (CurrentHDF%GenericYear) then
-                        if (CurrentHDF%CyclicTimeON) then
-                            CurrentHDF%NextInstant  = 1
+                        if(CurrentHDF%NextInstant .lt. CurrentHDF%NumberOfInstants)then
+                            CurrentHDF%NextInstant  = CurrentHDF%NextInstant + 1
                         else
                             exit
                         endif
                     endif
+
+                    CurrentHDF%PreviousTime     = CurrentHDF%NextTime
+                    CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
+
+                    n = n + 1
+
+
+                enddo
+
+                !Backtracking time inversion is also done in the ModuleField4D
+                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
+                    if(Now .lt. CurrentHDF%NextTime)then
+                        write(*,*)
+                        write(*,*)'----------Backtracking mode-----------'
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'Time instants inconsistency.'
+                        stop      'ReadNewField - ModuleFillMatrix - ERR20'
+                    end if
+                else
+                    if(Now .gt. CurrentHDF%NextTime)then
+                        write(*,*)
+                        write(*,*)'Could not read solution from HDF5 file'
+                        write(*,*)'Time instants inconsistency.'
+                        stop      'ReadNewField - ModuleFillMatrix - ERR30'
+                    end if
                 endif
-
-                CurrentHDF%PreviousTime     = CurrentHDF%NextTime
-                CurrentHDF%NextTime         = HDF5TimeInstant(CurrentHDF%NextInstant, CurrentHDF)
-
-                !if (CurrentHDF%GenericYear) then
-                if (CurrentHDF%CyclicTimeON) then
-                    if(CurrentHDF%NextInstant > 1)then
-                        !call SetHDFGenericYear(CurrentHDF%NextTime, Now)
-                        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,          &
-                                               RefTime      = Now,                          &
-                                               CurrentHDF   = CurrentHDF)
-                    else
-                        !call SetHDFGenericYear(CurrentHDF%NextTime, Now, AddYear = .true.)
-                        call SetHDFCyclicDates(TimeInstant  = CurrentHDF%NextTime,          &
-                                               RefTime      = Now,                          &
-                                               RestartCycle = .true.,                       &
-                                               CurrentHDF   = CurrentHDF)
-
-                    endif
-                endif
-
-                n = n + 1
-
-
-            enddo
-
-            !Backtracking time inversion is also done in the ModuleField4D
-            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then
-                if(Now .lt. CurrentHDF%NextTime)then
-                    write(*,*)
-                    write(*,*)'----------Backtracking mode-----------'
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'Time instants inconsistency.'
-                    stop      'ReadNewField - ModuleFillMatrix - ERR20'
-                end if
-            else
-                if(Now .gt. CurrentHDF%NextTime)then
-                    write(*,*)
-                    write(*,*)'Could not read solution from HDF5 file'
-                    write(*,*)'Time instants inconsistency.'
-                    stop      'ReadNewField - ModuleFillMatrix - ERR30'
-                end if
             endif
-
         endif
 
     end function ReadNewField
@@ -12759,9 +13005,6 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
 
         TimeOfNextDatasetInHDF = CurrentHDF%TimeOfNextDataset
 
-!        if (CurrentHDF%CyclicTimeON) then
-!            TimeOfNextDatasetInHDF = CurrentHDF%NextTime
-!        else
 do1:     do while (TimeOfNextDatasetInHDF <= ActualTime)
             if (CurrentHDF%InstantOfNextDataset < CurrentHDF%NumberOfInstants) then
                 CurrentHDF%InstantOfNextDataset = CurrentHDF%InstantOfNextDataset + 1
@@ -12770,7 +13013,6 @@ do1:     do while (TimeOfNextDatasetInHDF <= ActualTime)
                 exit do1
             endif
         enddo do1
-!       endif
 
         !----------------------------------------------------------------------
 
@@ -13656,6 +13898,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          deallocate(CurrentHDF%Z)
                                     endif
 
+                                    if (associated(CurrentHDF%CellI)) deallocate(CurrentHDF%CellI)
+                                    if (associated(CurrentHDF%CellJ)) deallocate(CurrentHDF%CellJ)
+                                    if (associated(CurrentHDF%CellK)) deallocate(CurrentHDF%CellK)
                                     deallocate(CurrentHDF%X, CurrentHDF%Y, CurrentHDF%Prop, CurrentHDF%NoData)
 
                                 endif

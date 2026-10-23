@@ -369,9 +369,13 @@ program DigitalTerrainCreator
 
         call ReadGridFilesNames
         
+        call ConstructGlobalOptions
+        
         call SetGridLimits
 
-        call ConstructGlobalOptions
+        if (Me%DD%ON) then
+            call Construct_DD            
+        endif
 
         call ConstructLandZones
 
@@ -1213,9 +1217,6 @@ i2:         if      (trim(AuxChar) == 'j') then
                      STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR140'    
         
-        if (Me%DD%ON) then
-            call Construct_DD            
-        endif
         
         !call Construct_AllBorder
         

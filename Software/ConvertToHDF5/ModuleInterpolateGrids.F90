@@ -3818,6 +3818,9 @@ d4:                 do i = ii-1, ii+1
                             CellsChosen(i, j) = .true.
                         endif
                 
+                        if (j > Me%Father%WorkSize2D%JUB) cycle
+                        if (i > Me%Father%WorkSize2D%IUB) cycle
+                
 
                         AuxX = ((Me%Father%ConnectionX(i, j  ) + Me%Father%ConnectionX(i+1, j  ))/2. + &
                                            (Me%Father%ConnectionX(i, j+1) + Me%Father%ConnectionX(i+1, j+1))/2.)/2.
@@ -3825,7 +3828,7 @@ d4:                 do i = ii-1, ii+1
                         AuxY = ((Me%Father%ConnectionY(i, j  ) + Me%Father%ConnectionY(i+1, j  ))/2. + &
                                            (Me%Father%ConnectionY(i, j+1) + Me%Father%ConnectionY(i+1, j+1))/2.)/2.
                                    
-                                       
+                        if ((Count + 1) > NumberOfNodes) cycle                                       
                         
                         Count           = Count + 1
 

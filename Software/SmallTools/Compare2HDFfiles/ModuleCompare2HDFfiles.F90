@@ -759,7 +759,7 @@ Module ModuleCompare2HDFfiles
 
             call StartTimeSerie(TimeSerieID         = Me%ObjTimeSerieOut,               &
                                 ObjTime             = Me%ObjTime,                       &
-                                TimeSerieDataFile   = "Compare2HDFfiles.dat",                 &
+                                TimeSerieDataFile   = "Compare2HDFfiles.dat",           &
                                 PropertyList        = PropertyList,                     &
                                 Extension           = "dat",                            &
                                 WaterPoints2D       = Me%WaterPoints2D,                 &
@@ -1207,7 +1207,7 @@ i1:     if (PropertyFound) then
             if (flag == 0) then            
                 stop "ReadModelGrid - ModuleCompare2HDFfiles - ERR50"
             endif
-
+            
             Me%LatDefault  = 0.
             Me%LongDefault = 0.              
             

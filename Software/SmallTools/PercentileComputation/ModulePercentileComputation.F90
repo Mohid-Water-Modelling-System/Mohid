@@ -1397,7 +1397,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
         do j=1, Me%JUB
             Aux3D (j, i,1:Me%NumberCond+1) = Me%OutMatrix3D (i, j, 0:Me%NumberCond)
         enddo
-        enddo
+        enddo        
         
         ! Create GeoTiff
         call CreateRaster   (FileName       = trim(Me%OutputGeoTiff)  , &
@@ -1408,7 +1408,7 @@ iW:         if (WaterPoints2D(i,j) == 1) then
                              NumberBands    = Me%NumberCond+1         , &
                              Projection     = projref                 , &
                              GeoTrans       = geotrans                , &
-                             DataMatrix3D   = Aux3D )
+                             DataMatrix3D   = Aux3D)
         deallocate(Aux3D)
         
         ! Write corners of file in RasterCorners.txt

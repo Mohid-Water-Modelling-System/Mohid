@@ -1809,8 +1809,9 @@ cd2 :           if (BlockFound) then
         integer                                 :: ClientNumber
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D 
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D
+        integer, dimension(:,:  ), pointer      :: WaterFaces2D_U, WaterFaces2D_V
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
         integer                                 :: iflag
         logical                                 :: BlockFound
         !Local-----------------------------------------------------------------
@@ -1821,9 +1822,19 @@ cd2 :           if (BlockFound) then
         
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR10'
+
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                       &
+                             WaterFaces2DU = WaterFaces2D_U,                            &
+                             WaterFaces2DV = WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR11'
         
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR20'
+
+        call GetWaterFaces3D(Me%ObjMap,                                                 &
+                             WaterFacesU3D = WaterFaces3D_U,                            &
+                             WaterFacesV3D = WaterFaces3D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR19'
 
         if(STAT_CALL .EQ. SUCCESS_)then
 
@@ -1861,9 +1872,11 @@ cd0:        if (BlockFound) then
                 if (NewProperty%Dim == Dim_2D .or. NewProperty%Upscaling) then
                     !If upscaling, creates decaytime in 2DD as there is no 3D option yet avaliable for filling
                     !this matrix in the vertical coordinate
-                    call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D)
+                    call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D,   &
+                                                          WaterFaces2D_U, WaterFaces2D_V)
                 else if (NewProperty%Dim == Dim_3D) then
-                    call ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
+                    call ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D,   &
+                                                          WaterFaces3D_U, WaterFaces3D_V)
                 else
                     stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR12'
                 end if                    
@@ -1878,6 +1891,18 @@ cd0:        if (BlockFound) then
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR15'
 
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR17'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR18'
+
+        call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR21'
+
+        call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR22'
+
         call UngetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR16'
 
@@ -1890,16 +1915,16 @@ cd0:        if (BlockFound) then
     !>@Brief
     !>Constructs property coefficient for a 2D field
     !>@param[in] NewProperty
-    subroutine ConstructPropertyCoefficients_2D (NewProperty, WaterPoints2D)
+    subroutine ConstructPropertyCoefficients_2D (NewProperty, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V)
         !Arguments-------------------------------------------------------------
         type(T_property),     pointer, intent(INOUT)   :: NewProperty
-        integer, dimension(:,:  ), pointer, intent(IN) :: WaterPoints2D
+        integer, dimension(:,:  ), pointer, intent(IN) :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
         !External--------------------------------------------------------------
         integer                                        :: STAT_CALL
         integer, dimension(:,:  ), pointer             :: PointsToFill2D
         !Local-----------------------------------------------------------------
-        integer                                        :: i, j, ILB, JLB, IUB, JUB
-        !----------------------------------------------------------------------      
+        integer                                        :: ILB, JLB, IUB, JUB
+        !----------------------------------------------------------------------
         ILB = Me%Size%ILB; JLB = Me%Size%JLB
         IUB = Me%Size%IUB; JUB = Me%Size%JUB
         
@@ -1907,28 +1932,11 @@ cd0:        if (BlockFound) then
         allocate(PointsToFill2D            (ILB:IUB, JLB:JUB))
                     
         if (NewProperty%CoefField%TypeZUV == TypeZ_) then
-            PointsToFill2D (:,:) = WaterPoints2D (:,:)
-            
+            PointsToFill2D(:,:) = WaterPoints2D(:,:)
         else if (NewProperty%CoefField%TypeZUV == TypeU_) then
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints2D(i, j - 1) == WaterPoint .or. WaterPoints2D(i, j) == WaterPoint) then
-                    PointsToFill2D(i,j) = 1
-                else
-                    PointsToFill2D(i,j) = 0
-                endif
-            enddo
-            enddo
+            PointsToFill2D(:,:) = WaterFaces2D_U(:,:)
         else if (NewProperty%CoefField%TypeZUV == TypeV_) then
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints2D(i - 1, j) == WaterPoint .or. WaterPoints2D(i, j) == WaterPoint) then
-                    PointsToFill2D(i,j) = 1
-                else
-                    PointsToFill2D(i,j) = 0
-                endif
-            enddo
-            enddo
+            PointsToFill2D(:,:) = WaterFaces2D_V(:,:)
         endif
 
         NewProperty%CoefField%R2D(:,:) = FillValueReal
@@ -1946,7 +1954,7 @@ cd0:        if (BlockFound) then
                                         TimeID               = Me%ObjTime,                   &
                                         HorizontalGridID     = Me%ObjHorizontalGrid,         &
                                         ExtractType          = FromBlockInBlock,             &
-                                        PointsToFill2D       = WaterPoints2D,                &
+                                        PointsToFill2D       = PointsToFill2D,               &
                                         Matrix2D             = NewProperty%CoefField%R2D,    &
                                         TypeZUV              = NewProperty%CoefField%TypeZUV,&
                                         SpongeFILE_DT        = NewProperty%FilenameHDF,      &
@@ -1978,15 +1986,15 @@ cd0:        if (BlockFound) then
     !>@Brief
     !>Constructs property coefficient for a 3D field
     !>@param[in] NewProperty
-    subroutine ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
+    subroutine ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V)
         !Arguments-------------------------------------------------------------
         type(T_property),     pointer           :: NewProperty
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
         integer, dimension(:,:,:), pointer      :: PointsToFill3D
         !Local-----------------------------------------------------------------
-        integer                                 :: i, j, k, ILB, JLB, KLB, IUB, JUB, KUB 
+        integer                                 :: ILB, JLB, KLB, IUB, JUB, KUB
         !----------------------------------------------------------------------
      
         ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
@@ -1996,33 +2004,11 @@ cd0:        if (BlockFound) then
         allocate(PointsToFill3D           (ILB:IUB, JLB:JUB, KLB:KUB))
                     
         if (NewProperty%CoefField%TypeZUV == TypeZ_) then
-                    
             PointsToFill3D(:,:,:) = WaterPoints3D(:,:,:)
-                        
-        else if (NewProperty%CoefField%TypeZUV == TypeU_) then            
-            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints3D(i, j - 1, k) == WaterPoint .or. WaterPoints3D(i, j, k) == WaterPoint) then
-                    PointsToFill3D(i,j,k) = 1
-                else
-                    PointsToFill3D(i,j,k) = 0
-                endif
-            enddo
-            enddo 
-            enddo 
+        else if (NewProperty%CoefField%TypeZUV == TypeU_) then
+            PointsToFill3D(:,:,:) = WaterFaces3D_U(:,:,:)
         else if (NewProperty%CoefField%TypeZUV == TypeV_) then
-            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
-                if (WaterPoints3D(i - 1, j, k) == WaterPoint .or. WaterPoints3D(i, j, k) == WaterPoint) then
-                    PointsToFill3D(i,j,k) = 1
-                else
-                    PointsToFill3D(i,j,k) = 0
-                endif
-            enddo
-            enddo 
-            enddo
+            PointsToFill3D(:,:,:) = WaterFaces3D_V(:,:,:)
         endif
 
         NewProperty%CoefField%R3D(:,:,:) = FillValueReal
@@ -3291,7 +3277,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-!   Esta rotina È nova e calcula os campos de assimilaÁ„o
+!   Esta rotina √© nova e calcula os campos de assimila√ß√£o
 
     subroutine ModifyAssimilation(AssimilationID, Temperature, Salinity,                        &
                                     WaterLevelModel,                                            &
@@ -3424,7 +3410,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !           TemperatureAnalyzed                                                     !
 !           SalinityAnalyzed                                                        !
 !                                                                                    !
-!   2005 -   Jo„o Nogueira    joaonogueira@ist.utl.pt                                 !
+!   2005 -   Jo√£o Nogueira    joaonogueira@ist.utl.pt                                 !
 !                                                                                    !
 ! ----------------------------------------------------------------------------------!
 ! ----------------------------------------------------------------------------------!
@@ -5281,5 +5267,5 @@ end module ModuleAssimilation
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÈcnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T√©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------

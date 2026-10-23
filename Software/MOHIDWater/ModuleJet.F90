@@ -237,7 +237,7 @@ Module ModuleJet
         real                            :: OutfallAngle                 = null_real
         integer                         :: Number                       = null_int
         real                            :: MinPortVelocity              = null_real 
-        logical                         :: MonitorPlumeTop              = .false. 
+        logical                         :: MonitorPlumeTop              = .false.
         real                            :: DischargeSectionHorizScale   = null_real 
     end type T_Port
 
@@ -770,7 +770,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%OutPut%Header(12) = "Thickness"
 
             Me%OutPut%Header(13) = "Length_V"
-
+            
             Me%OutPut%Header(14) = "zmin"
             
             Me%OutPut%Header(15) = "zmax"            
@@ -798,7 +798,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%OutPut%Header(5)  = "Dilution"
 
-            Me%OutPut%Header(6)  = "1 / Dilution"
+            Me%OutPut%Header(6)  = "1/Dilution"
 
             Me%OutPut%Header(7)  = "Radius"
 
@@ -1918,8 +1918,8 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
                     Me%Evolution%VertLengthScale = Me%Evolution%VertLengthScale / (2. * DensityFrontSpeed*Me%Evolution%DT&
                                                                                   /Me%Evolution%Diameter  + 1.)
 
-                    RestrainedLengthScale = Me%Evolution%VertLengthScale                    
-
+                    RestrainedLengthScale = Me%Evolution%VertLengthScale 
+                    
                     Me%Evolution%HZAngle    = 0.
 
                 endif i3
@@ -2072,7 +2072,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         nx = Cos(Me%Evolution%XYAngle)
         ny = Sin(Me%Evolution%XYAngle)
-
+        
         Length_H = Me%Port%DischargeSectionHorizScale * length
 
         ! Calculate the first point of the segment
@@ -2192,7 +2192,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
         Me%OutPut%Matrix(Me%OutPut%Number,12) = Me%Evolution%Thickness
 
         Me%OutPut%Matrix(Me%OutPut%Number, 13)= Me%Evolution%VertLengthScale
-
+        
         Me%OutPut%Matrix(Me%OutPut%Number, 14)= Me%Evolution%zmin
         
         Me%OutPut%Matrix(Me%OutPut%Number, 15)= Me%Evolution%zmax        
@@ -2400,6 +2400,12 @@ Subroutine CloudOutPut_V2
         PointCenter = [Me%Evolution%x, Me%Evolution%y, Me%Evolution%z]
         
         generic_vector = [1., 0., 0.]
+        
+        if (normal_vector(1) == generic_vector(1)  .and.                            &
+            normal_vector(2) == generic_vector(2)  .and.                            &
+            normal_vector(3) == generic_vector(3)) then
+            generic_vector = [0., 1., 0.]
+        endif
             
         surf_vector_1 = normcrossprod_v2 (normal_vector, generic_vector)
         surf_vector_2 = normcrossprod_v2 (normal_vector, surf_vector_1)

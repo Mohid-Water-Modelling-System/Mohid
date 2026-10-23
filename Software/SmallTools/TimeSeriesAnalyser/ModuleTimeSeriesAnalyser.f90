@@ -97,8 +97,7 @@ Module ModuleTimeSeriesAnalyser
     
         integer                                                 :: InstanceID
     
-        complex (SPC),              dimension(:),   allocatable :: FFT
-        real     (SP),              dimension(:),   allocatable :: TimeSerie, AuxTimeSerie, amplitude, phase, frequency, FlagTimeSerie 
+        real     (SP),              dimension(:),   allocatable :: TimeSerie, amplitude, phase, frequency, FlagTimeSerie 
         real     (SP),              dimension(:),   allocatable :: Tempo, AuxFreq
         
         
@@ -172,6 +171,10 @@ Module ModuleTimeSeriesAnalyser
         real                                                    :: GapLimit
         
         real                                                    :: StartNightHour, EndNightHour, MinNightValuesRacio
+        
+        logical                                                 :: BandPassFilter
+        real                                                    :: lower_band_period, upper_band_period        
+        
         
         type (T_MovAveBack)                                     :: MovAverageBackward
 
@@ -793,9 +796,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (flag == 0) then
                 call null_time(Me%EndTime)
         endif
+        
+        !ReadsBand Pass Filter option
+        call GetData(Me%BandPassFilter,                                                 &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='BAND_PASS_FILTER',                                  &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     default     = .false.,                                             &
+                     STAT         = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR520'
+
+        if (Me%BandPassFilter) then
+            !reads lower band period
+            call GetData(Me%lower_band_period,                                          &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='LOWER_BAND_PERIOD',                             &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR530'
+
+            if (flag == 0) then
+                write (*,*) 'When BAND_PASS_FILTER is ON need to define LOWER_BAND_PERIOD'
+                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR540'
+            endif            
+            
+            
+            !reads upper band period
+            call GetData(Me%upper_band_period,                                          &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='UPPER_BAND_PERIOD',                             &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR550'
+
+            if (flag == 0) then
+                write (*,*) 'When BAND_PASS_FILTER is ON need to define UPPER_BAND_PERIOD'
+                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR560'
+            endif            
+            
+            
+        endif
 
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR520'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR570'
 
     
     end subroutine ReadKeywords
@@ -1392,6 +1441,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ModifyTimeSeriesFillAll
             
             call ModifyTimeSeriesSmooth
+            
+            if (Me%BandPassFilter) then
+                call FilterTimeSeriesFFT
+            endif
 
             STAT_ = SUCCESS_
         else               
@@ -2927,7 +2980,7 @@ i1:     if (Me%CompareTimeSerieOn) then
         
         !Determinação dos 
         if  (Me%SpectralAnalysis) then
-            call ComputeSpectralAnalysis
+            call ComputePowerSpectralDensity
         endif
 
         if  (Me%PercentileAnalysis) then
@@ -2942,42 +2995,254 @@ i1:     if (Me%CompareTimeSerieOn) then
     end subroutine ModifyTimeSeriesPatterns    
 
     !--------------------------------------------------------------------------    
-       
-    subroutine  ComputeSpectralAnalysis        
-
-        !Local--------------------------------------------------------------
-        real                    :: Aux
-        integer                 :: j
-        !Begin--------------------------------------------------------------
     
-        !http://en.wikipedia.org/wiki/Logarithm
-        !Aux = log2(nValuesAux)
-        Aux = log(real(Me%nValues))/log(2.)
+    !--------------------------------------------------------------------------   
         
-        Me%nFTT = 2**int(Aux)
-        
-        allocate(Me%AuxTimeSerie(1:Me%nFTT), Me%FFT(1:Me%nFTT/2) )    
-        
-        Me%AuxTimeSerie(1:Me%nFTT) = Me%TimeSerie(1:Me%nFTT)
-        
-        Me%AuxTimeSerie(1:Me%nFTT) = Me%TimeSerie(1:Me%nFTT)
+    subroutine ComputePowerSpectralDensity
 
-        call realft_sp(data=Me%AuxTimeSerie,isign=1,zdata=Me%FFT)
+        ! --------------------------------------------------------------------------
+        !  Purpose:   Compute one-sided amplitude spectrum and PSD from real FFT
+        !  Assumes:   realft_sp follows Numerical Recipes convention
+        ! --------------------------------------------------------------------------
 
-        write(Me%iS,'(A95)') "frequency[s-1], Period[days], amplitude[m], amplitude**2, amplitude**2/frequency phase*180./Pi_"
+        ! Local variables
+        complex (SPC), dimension(:),   allocatable :: FFT
+        real     (SP), dimension(:),   allocatable :: AuxTimeSerie
+    
+        real              :: aux
+        real              :: df
+        real              :: abs_fft
+        real              :: power_bin
+        real              :: psd_val
+        integer           :: j
+        integer           :: alloc_stat
+        integer           :: n, STAT_CALL
+
+
+        ! 1. Determine FFT length (largest power of 2 < original length)
+        aux = log(real(Me%nvalues)) / log(2.0)
+        Me%nftt = 2 ** int(aux)
+
+        if (Me%nftt < 4 .or. Me%nftt > Me%nvalues) then
+            write(*,'(a,i0)') "Error: invalid FFT length = ", Me%nftt
+            return
+        end if
+
+        n = Me%nftt
+
+        ! 2. Allocate working and result arrays
+        allocate(AuxTimeSerie(n), stat=alloc_stat)
+        if (alloc_stat /= 0) then
+            write(*,'(a)') "Allocation failed: auxtimeserie"
+            return
+        end if
+
+        allocate(FFT(n/2), stat=alloc_stat)
+        if (alloc_stat /= 0) then
+            write(*,'(a)') "Allocation failed: fft"
+            deallocate(AuxTimeSerie)
+            return
+        end if
+
+        ! Output arrays (only allocate if not already present)
+        if (.not. allocated(Me%frequency)) then
+            allocate(Me%frequency(n/2), stat=alloc_stat)
+            if (alloc_stat /= 0) stop "Allocation failed: frequency"
+        end if
+
+        if (.not. allocated(Me%amplitude)) then
+            allocate(Me%amplitude(n/2), stat=alloc_stat)
+            if (alloc_stat /= 0) stop "Allocation failed: amplitude"
+        end if
+
+        if (.not. allocated(Me%phase)) then
+            allocate(Me%phase(n/2), stat=alloc_stat)
+            if (alloc_stat /= 0) stop "Allocation failed: phase"
+        end if
+
+        ! 3. Copy input data (truncate/pad if necessary)
+        AuxTimeSerie(1:n) = Me%timeserie(1:n)
+
+        ! Note: window function could be applied here
+
+        ! 4. Forward real FFT
+        call realft_sp(data=AuxTimeSerie, isign=1, zdata=FFT)
+
+        ! 5. Frequency resolution [Hz]
+        df = 1.0 / (real(n, kind=kind(df)) * Me%dt_analysis)
+
+        ! 6. Header (plain ASCII only)
+        write(Me%is, '(a)') &
+            "frequency[s-1], Period[days], amplitude[m], power[m2], PSD[m2/Hz], phase[deg]"
+
+        ! 7. One-sided spectrum
+        do j = 1, n/2
+
+            abs_fft = abs(FFT(j))
+
+            ! Amplitude (one-sided convention)
+            if (j == 1) then
+                ! DC component
+                Me%amplitude(j) = abs_fft / real(n)
+            else
+                ! Positive frequencies – fold negative part
+                Me%amplitude(j) = 2.0 * abs_fft / real(n)
+            end if
+
+            ! Frequency of this bin
+            Me%frequency(j) = real(j-1) * df
+
+            ! Phase [degrees]
+            Me%phase(j) = atan2(aimag(FFT(j)), real(FFT(j))) &
+                        * 180.0 / 3.14159265
+
+            ! Power per frequency bin
+            power_bin = Me%amplitude(j)**2
+
+            ! Power Spectral Density [unit²/Hz]
+            psd_val = power_bin / df
+
+            ! Write one line of results
+            write(Me%is, '(6(es18.6))') &
+                Me%frequency(j), &
+                merge(0.0, 1.0/(Me%frequency(j)*86400.0), &
+                      Me%frequency(j) <= 1.0e-12), &
+                Me%amplitude(j), &
+                power_bin, &
+                psd_val, &
+                Me%phase(j)
+
+        end do
         
-        do j=1,Me%nFTT/2
-            Me%amplitude(j) = cabs(Me%FFT(j)) / real(Me%nFTT)
-            Me%phase(j)     = atan2(imag(Me%FFT(j)),real(Me%FFT(j)))
-            Me%frequency(j) = real(j) / real(Me%nValues) / Me%DT_Analysis
+        deallocate(AuxTimeSerie, FFT)
             
-            write(Me%iS,'(6e18.5)') Me%frequency(j), 1/Me%frequency(j)/3600/24, Me%amplitude(j), Me%amplitude(j)**2, &
-                                 Me%amplitude(j)**2/Me%frequency(j), Me%phase(j)*180./Pi_
-        enddo   
-        
-    end subroutine ComputeSpectralAnalysis     
-    
-    !--------------------------------------------------------------------------    
+        !close Output file
+        call UnitsManager(Me%iS, FileClose, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - KillVariablesAndFiles - ERR50'             
+
+
+    end subroutine ComputePowerSpectralDensity      
+      
+        !--------------------------------------------------------------------------   
+    subroutine FilterTimeSeriesFFT
+        ! --------------------------------------------------------------------------
+        ! Purpose: Pure band-pass filter using FFT with ZERO-PADDING
+        ! - Removes DC component
+        ! - Explicitly subtracts mean BEFORE filtering -> guarantees null average
+        ! - Preserves the ENTIRE raw time series (no truncation)
+        ! --------------------------------------------------------------------------
+
+        complex (SPC), dimension(:), allocatable :: FFT
+        real (SP),     dimension(:), allocatable :: AuxTimeSerie
+   
+        real :: df
+        real :: freq
+        real :: f_low, f_high
+        integer :: j, i
+        integer :: alloc_stat, STAT_CALL
+        integer :: n, iBandPass
+        integer :: k
+        REAL :: Year, Month, Day, hour, minute, second
+   
+        character(len = PathLength) :: BandPassFilterFile
+
+        ! 0. Input validation
+        if (Me%lower_band_period <= 0.0 .or. Me%lower_band_period >= Me%upper_band_period) then
+            write(*,'(a)') "Error: Me%lower_band_period must be > 0 and < Me%upper_band_period"
+            return
+        end if
+
+        ! 1. Next power of 2 >= original length (zero-padding)
+        k = 1
+        do while (k < Me%nvalues)
+            k = k * 2
+        end do
+        Me%nftt = k
+        n = Me%nftt
+
+        if (Me%nftt < 4) then
+            write(*,'(a,i0)') "Error: invalid FFT length = ", Me%nftt
+            return
+        end if
+
+        ! 2. Allocate
+        allocate(AuxTimeSerie(n), stat=alloc_stat)
+        if (alloc_stat /= 0) then
+            write(*,'(a)') "Allocation failed: auxtimeserie"
+            return
+        end if
+        allocate(FFT(n/2), stat=alloc_stat)
+        if (alloc_stat /= 0) then
+            write(*,'(a)') "Allocation failed: fft"
+            deallocate(AuxTimeSerie)
+            return
+        end if
+
+        ! 3. Copy data + REMOVE MEAN (null average)
+        AuxTimeSerie(1:Me%nvalues) = Me%timeserie(1:Me%nvalues) - Me%ave
+        if (n > Me%nvalues) then
+            AuxTimeSerie(Me%nvalues+1:n) = 0.0_SP
+        end if
+
+        ! 4. Forward real FFT
+        call realft_sp(data=AuxTimeSerie, isign=1, zdata=FFT)
+
+        ! 5. Frequency resolution
+        df = 1.0 / (real(n) * Me%dt_analysis)
+        f_low  = 1.0 / (Me%upper_band_period * 86400.0)
+        f_high = 1.0 / (Me%lower_band_period * 86400.0)
+
+        ! 6. Band-pass filter + remove DC
+        do j = 1, n/2
+            freq = real(j-1) * df
+            if (freq < f_low .or. freq > f_high .or. freq < 1.0e-12) then
+                FFT(j) = cmplx(0.0, 0.0)
+            end if
+        end do
+
+        ! 7. Inverse real FFT
+        call realft_sp(data=AuxTimeSerie, isign=-1, zdata=FFT)
+
+        ! 8. Scaling
+        AuxTimeSerie(1:n) = AuxTimeSerie(1:n) * (2.0 / real(n))
+
+        ! 9. Output (zero-mean band-pass)
+        BandPassFilterFile = AddString2FileName(Me%TimeSerieDataFile, "BandPassFilterOut_")
+       
+        call UnitsManager(iBandPass, FileOpen, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR10'
+       
+        open(unit = iBandPass, file = trim(BandPassFilterFile), form = 'FORMATTED', status = 'UNKNOWN')
+       
+        write(iBandPass,*) "NAME : ", trim(Me%TimeSerieName)
+        write(iBandPass,*) "LOCALIZATION_I : -999999"
+        write(iBandPass,*) "LOCALIZATION_J : -999999"
+        write(iBandPass,*) "LOCALIZATION_K : -999999"
+        call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+        write(iBandPass,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA : ", Year, Month, Day, hour, minute, second
+        write(iBandPass,*) "TIME_UNITS : SECONDS"
+        write(iBandPass,*) "COORD_X : ", Me%CoordX
+        write(iBandPass,*) "COORD_Y : ", Me%CoordY
+       
+        write(iBandPass,'(A82)') "Time Band_Pass_Filter"
+       
+        write(iBandPass,*) "<BeginTimeSerie>"
+              
+        do i = 1, Me%nvalues
+            if (Me%FlagTimeSerie(i) > 0 ) then
+                write(iBandPass,*) Me%TimeTSOutPut(i) - Me%BeginTime, AuxTimeSerie(i)
+            endif
+        enddo
+       
+        write(iBandPass,*) "<EndTimeSerie>"
+       
+        call UnitsManager(iBandPass, FileClose, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop "ModuleTimeSeriesAnalyser - FilterTimeSeriesFFT - ERR60"
+       
+        deallocate(AuxTimeSerie, FFT)
+       
+    end subroutine FilterTimeSeriesFFT
+!--------------------------------------------------------------------------
     
     subroutine ComputePercentileAnalysis             
 
@@ -3601,13 +3866,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         
         
-        if (Me%SpectralAnalysis) then
-            deallocate(Me%AuxTimeSerie, Me%FFT)
-            
-            !close Output file
-            call UnitsManager(Me%iS, FileClose, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - KillVariablesAndFiles - ERR50'             
-        endif
+
         
         if (Me%PercentileEvolution) then
            

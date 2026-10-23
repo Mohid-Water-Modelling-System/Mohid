@@ -6042,7 +6042,7 @@ d1:         do while(associated(Species))
                         Cohort%BivalveCondition%SM(Index) = Me%ExternalVar%Mass(L, Index)/ Species%IndividualParameters%Lb 
                     else
                         if (Cohort%BivalveCondition%SM(Index) .eq. null_real) then
-                            Cohort%BivalveCondition%SM(Index) = Me%ExternalVar%Mass(L, Index)/ Species%IndividualParameters%Lb                             
+                            Cohort%BivalveCondition%SM(Index) = Me%ExternalVar%Mass(L, Index)/ Species%IndividualParameters%Lb
                         endif
                         Cohort%BivalveCondition%SM_IsNowFixed(Index) = .true.
                     endif
