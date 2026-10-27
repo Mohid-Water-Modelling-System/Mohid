@@ -479,7 +479,7 @@ Module ModuleField4D
         type (T_Size2D)            ,          optional, intent(IN )   :: WindowLimitsJI
         logical,                              optional, intent(IN )   :: Extrapolate
         integer,                              optional, intent(IN )   :: ExtrapolateMethod
-        type (T_PropertyID),                  optional, intent(INOUT) :: PropertyID !Sobrinho
+        type (T_PropertyID),                  optional, intent(INOUT) :: PropertyID
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList
         character(*),                         optional, intent(IN )   :: FieldName, FieldName_2
@@ -697,7 +697,7 @@ wwd:            if (Me%WindowWithData) then
                             !endif
                         else
                             Me%BuildGeometry      = .true.
-                            call ReadGeometryFromFile !Sobrinho - Busca X, Y e Z
+                            call ReadGeometryFromFile
                         endif
 
                         if (present(MapID)) then
@@ -711,7 +711,7 @@ wwd:            if (Me%WindowWithData) then
                             Me%BuildMap      = .false.
                         else
                             Me%BuildMap      = .true.
-                            call ReadMap3DFromFile!Sobrinho - busca SZZ
+                            call ReadMap3DFromFile
                         endif
                     endif
 
@@ -719,7 +719,7 @@ wwd:            if (Me%WindowWithData) then
 
                     if (present(PropertyID)) then
                         NewPropField%ID = PropertyID
-                        !Sobrinho - aqui serao guardados os objID para enviar para o fillmatrix
+                        
                         PropertyID%ObjMap = Me%ObjMap
                         PropertyID%ObjHorizontalGrid =  Me%ObjHorizontalGrid
                         PropertyID%ObjHorizontalMap =  Me%ObjHorizontalMap
@@ -3349,7 +3349,7 @@ it:     if (NewPropField%ChangeInTime) then
 
                 if (NewPropField%PreviousInstant /= NewPropField%NextInstant) then
 
-                    if (NewPropField%ID%IsAngle) then !Sobrinho - interpolacao no tempo
+                    if (NewPropField%ID%IsAngle) then
 
                         call InterpolateAngle3DInTime (ActualTime       = Me%StartTime,                 &
                                                        Size             = Me%WorkSize3D,                &
@@ -4060,7 +4060,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                              WaterPoints3D      = WaterPoints3D,        &
                                              SZZ                = SZZ,                  &
                                              STAT               = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'  !Sobrinho - Calcula volumes e areas verticais
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'
 
                 deallocate(SZZ)
 
@@ -5980,7 +5980,7 @@ d2:     do N =1, NW
             if (Me%Output%Yes) call WriteOutput(PropField, PropertyIDNumber)
 
             if (present(Matrix2D)) then
-                if (Me%Upscaling) then !Sobrinho
+                if (Me%Upscaling) then
                     call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
 
@@ -6004,7 +6004,7 @@ d2:     do N =1, NW
 
             if (present(Matrix3D)) then
 
-                if (Me%Upscaling) then !Sobrinho
+                if (Me%Upscaling) then
                     
                     call PrepTwoWay (SonID = FieldUpscalingID, CallerID = mField4D_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
@@ -6299,7 +6299,7 @@ CTF:                if (CorrectTimeFrame) then
                                 !call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)
                                 call ModifyInputHarmonics2D(PropField)
                             else
-                                call ModifyInput2D        (PropField) !Sobrinho - aqui altera-se a matriz filho
+                                call ModifyInput2D        (PropField)
                             endif
 
                         else if (PropField%SpaceDim == Dim3D) then

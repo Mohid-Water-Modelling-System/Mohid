@@ -479,7 +479,7 @@ Module ModuleTwoWay
             ILB = Me%Father%WorkSize%ILB; JLB = Me%Father%WorkSize%JLB; KUB = Me%Father%WorkSize%KUB
             IUB = Me%Father%WorkSize%IUB; JUB = Me%Father%WorkSize%JUB
             !adjust to number of layers in son domain
-            KLB = Me%Father%WorkSize%KLB + (Me%Father%WorkSize%KUB - Me%WorkSize%KUB) !Sobrinho
+            KLB = Me%Father%WorkSize%KLB + (Me%Father%WorkSize%KUB - Me%WorkSize%KUB)
 
             if (Me%Hydro%InterpolationMethod == 1)then
                 allocate(Me%Father%TotSonIn   (ILB:IUB, JLB:JUB, KLB:KUB))

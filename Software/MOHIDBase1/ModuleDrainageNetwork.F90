@@ -2693,7 +2693,7 @@ do1:    do
 
             call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,     &
                                         BeginNode, EndNode, BlockFound,                  &
-                                        FirstLine, LastLine, STAT_CALL) 
+                                        FirstLine, LastLine, STAT = STAT_CALL) 
 
 if1:        if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -2754,7 +2754,7 @@ do1:    do
 
             call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,     &
                                         BeginNode, EndNode, BlockFound,                 &
-                                        FirstLine, LastLine, STAT_CALL) 
+                                        FirstLine, LastLine, STAT = STAT_CALL) 
 
 if1:        if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -3907,7 +3907,7 @@ do1:    do
 
             call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,      &
                                         BeginReach, EndReach, BlockFound,                &
-                                        FirstLine, LastLine, STAT_CALL) 
+                                        FirstLine, LastLine, STAT = STAT_CALL) 
 
 if1:        if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -3970,7 +3970,7 @@ do1:    do
 
             call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,      &
                                         BeginReach, EndReach, BlockFound,                &
-                                        FirstLine, LastLine, STAT_CALL) 
+                                        FirstLine, LastLine, STAT = STAT_CALL) 
 
 if1:        if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -7896,7 +7896,7 @@ do1:        do
                 !Nodes--------------------------------------------------------------
                 call ExtractBlockFromBuffer(Me%TimeSerie%ObjEnterData, ClientNumber,    &
                                             BeginNodeTimeSerie, EndNodeTimeSerie,       &
-                                            BlockFound, FirstLine, LastLine, STAT_CALL) 
+                                            BlockFound, FirstLine, LastLine, STAT = STAT_CALL) 
 
                 if (STAT_CALL .EQ. SUCCESS_) then    
 

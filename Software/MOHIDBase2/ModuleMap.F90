@@ -1797,24 +1797,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO
 
-        !obtain the U WetFaces !Joao sobrinho
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        
-        !do j = JLB+1, JUB
-        !do i = ILB, IUB
-        !    if (Me%OpenPoints3D(i, j, k) == 1 .or. Me%OpenPoints3D(i, j-1, k) == 1) then
-        !        Me%WetFaces%U(i, j, k) = 1
-        !    else
-        !        Me%WetFaces%U(i, j, k) = 0       
-        !    endif
-        !
-        !    if (Me%OpenPoints3D(i, JLB, k) == 1) then
-        !        Me%WetFaces%U(i, JLB, k) = 1
-        !    else
-        !        Me%WetFaces%U(i, JLB, k) = 0       
-        !    endif
-        !enddo
-        !enddo
         
         do j = JLB+1, JUB
         do i = ILB, IUB
