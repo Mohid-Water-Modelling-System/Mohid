@@ -334,11 +334,6 @@ Module ModuleRunOff
 
     integer, parameter                              :: UnitMax          = 80
 
-    !Performance A/B harness tolerances (see MOHID_Performance_Optimization_Plan.md).
-    !A mismatch FAILs only when BOTH the absolute and relative differences exceed these.
-    real,    parameter                              :: ProfileTolAbs_   = 1.0e-5
-    real,    parameter                              :: ProfileTolRel_   = 1.0e-4
-
     !water column computation in faces
     integer, parameter                              :: WCMaxBottom_     = 1
     integer, parameter                              :: WCAverageBottom_ = 2
@@ -8373,8 +8368,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
     !Phase 10: replaces two separate SetMatrixValue(...) calls (one per X/Y pair, each
     !its own OMP parallel region) with a single merged-loop copy, halving the fork/join
-    !count for this call site. Confirmed via VTune (ModuleStopWatch report) and
-    !compare_mohid.py zero-diff validation.
+    !count for this call site.
     !--------------------------------------------------------------------------
 
     subroutine SetInitialFlowXY(SizeArg, SourceX, SourceY, MapMatrix)
@@ -18153,103 +18147,6 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         endif
 
     end subroutine ComputeNextDT_CourantScan
-
-    !--------------------------------------------------------------------------
-
-    ! Reusable in-run A/B check: FAILs (and stops) only when BOTH the absolute and relative
-    ! differences between the baseline and performant scalar exceed the plan tolerances.
-    subroutine CheckProfileScalarDiff (baselineVal, perfVal, routineName, Niter)
-
-        !Arguments-------------------------------------------------------------
-        real,             intent(in)                :: baselineVal, perfVal
-        character(len=*), intent(in)                :: routineName
-        integer,          intent(in)                :: Niter
-
-        !Local-----------------------------------------------------------------
-        real                                        :: absDiff, relDiff, denom
-        !----------------------------------------------------------------------
-
-        absDiff = abs(perfVal - baselineVal)
-        denom   = max(abs(baselineVal), abs(perfVal))
-
-        if (denom > AlmostZero) then
-            relDiff = absDiff / denom
-        else
-            relDiff = 0.0
-        endif
-
-        if (absDiff > ProfileTolAbs_ .and. relDiff > ProfileTolRel_) then
-            write(*,*) 'PROFILE A/B MISMATCH in ', trim(routineName)
-            write(*,*) '  Niter      = ', Niter
-            write(*,*) '  baseline   = ', baselineVal
-            write(*,*) '  performant = ', perfVal
-            write(*,*) '  abs diff   = ', absDiff, ' (tol ', ProfileTolAbs_, ')'
-            write(*,*) '  rel diff   = ', relDiff, ' (tol ', ProfileTolRel_, ')'
-            stop 'CheckProfileScalarDiff - ModuleRunOff - A/B tolerance exceeded'
-        endif
-
-    end subroutine CheckProfileScalarDiff
-
-    !--------------------------------------------------------------------------
-
-    ! Reusable in-run A/B check for a 2D real matrix.  FAILs (and stops) only when BOTH
-    ! the absolute and relative differences for the worst computed cell exceed the plan tolerances.
-    ! Scans Me%WorkSize cells gated on Me%ExtVar%BasinPoints == 1.
-    subroutine CheckProfileMatrixDiff(baselineMat, perfMat, routineName, Niter)
-
-        !Arguments-------------------------------------------------------------
-        real,             dimension(:,:), intent(in) :: baselineMat, perfMat
-        character(len=*), intent(in)                 :: routineName
-        integer,          intent(in)                 :: Niter
-
-        !Local-----------------------------------------------------------------
-        integer                                      :: ii, jj, worstI, worstJ
-        real                                         :: absDiff, relDiff, denom
-        real                                         :: worstAbsDiff, worstRelDiff
-        real                                         :: worstBase, worstPerf
-        !----------------------------------------------------------------------
-
-        worstAbsDiff = 0.0
-        worstRelDiff = 0.0
-        worstBase    = 0.0
-        worstPerf    = 0.0
-        worstI       = Me%WorkSize%ILB
-        worstJ       = Me%WorkSize%JLB
-
-        do jj = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do ii = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BasinPoints(ii, jj) == 1) then
-                absDiff = abs(perfMat(ii,jj) - baselineMat(ii,jj))
-                denom   = max(abs(baselineMat(ii,jj)), abs(perfMat(ii,jj)))
-                if (denom > AlmostZero) then
-                    relDiff = absDiff / denom
-                else
-                    relDiff = 0.0
-                endif
-                if (absDiff > worstAbsDiff) then
-                    worstAbsDiff = absDiff
-                    worstRelDiff = relDiff
-                    worstBase    = baselineMat(ii,jj)
-                    worstPerf    = perfMat(ii,jj)
-                    worstI       = ii
-                    worstJ       = jj
-                endif
-            endif
-        enddo
-        enddo
-
-        if (worstAbsDiff > ProfileTolAbs_ .and. worstRelDiff > ProfileTolRel_) then
-            write(*,*) 'PROFILE A/B MISMATCH in ', trim(routineName)
-            write(*,*) '  Niter      = ', Niter
-            write(*,*) '  worst cell = (', worstI, ',', worstJ, ')'
-            write(*,*) '  baseline   = ', worstBase
-            write(*,*) '  performant = ', worstPerf
-            write(*,*) '  abs diff   = ', worstAbsDiff, ' (tol ', ProfileTolAbs_, ')'
-            write(*,*) '  rel diff   = ', worstRelDiff, ' (tol ', ProfileTolRel_, ')'
-            stop 'CheckProfileMatrixDiff - ModuleRunOff - A/B tolerance exceeded'
-        endif
-
-    end subroutine CheckProfileMatrixDiff
 
     !--------------------------------------------------------------------------
 
