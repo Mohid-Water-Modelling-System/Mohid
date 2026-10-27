@@ -2872,7 +2872,7 @@ if31:   if (MasterOrSlave) then
         integer, pointer,           dimension(:,:)  :: GridData2D_Int_Out
         real(4),    pointer,           dimension(:,:,:):: GridData3D_Real_Out
         integer, pointer,           dimension(:,:,:):: GridData3D_Int_Out
-        real(4),    pointer,           dimension(:,:)  :: Me_GridData2D_Out
+        real,       pointer,           dimension(:,:)  :: Me_GridData2D_Out
 
         real                                        :: Xorig      
         real                                        :: Yorig       
@@ -2902,6 +2902,9 @@ if31:   if (MasterOrSlave) then
         logical                                     :: ON, Master, MasterOrSlave
 
         !------------------------------------------------------------------------
+
+        nullify(GridData2D_Real_Out, GridData2D_Int_Out, GridData3D_Real_Out, GridData3D_Int_Out)
+        nullify(Me_GridData2D_Out, XX_Out, YY_Out, XX_IE_Out, YY_IE_Out, LatConn_Out, LongConn_Out)
 
         if ((present(GridData3D_Real) .or. present(GridData3D_Int)) .and.               &
             (.not. present(KLB) .or. .not. present(KUB))) then
@@ -3095,6 +3098,8 @@ if1:    if (MasterOrSlave) then
                 GridData3D_Int_Out  => GridData3D_Int
             elseif(present(GridData3D_Real)) then
                 GridData3D_Real_Out => GridData3D_Real
+            else
+                Me_GridData2D_Out   => Me%GridData2D
             end if
             
             XX_Out              => XX

@@ -148,7 +148,7 @@ def _compare_hdf5(baseline: Path, new: Path, tol_abs: float, tol_rel: float) -> 
             for ds_path in sorted(base_ds):
                 dd = _compare_hdf5_dataset(fb, fn, ds_path, tol_abs, tol_rel, new_ds)
                 result.diffs.append(dd)
-                if dd.status == "fail":
+                if dd.status in ("fail", "missing", "shape_mismatch"):
                     result.status = "fail"
 
             # datasets present in new but not in baseline
@@ -207,12 +207,9 @@ def _compare_hdf5_dataset(
     if np.any(mask):
         diff  = np.abs(a[mask] - b[mask])
         dd.max_abs = float(np.max(diff))
-        denom = np.abs(a[mask])
-        nz    = denom > 1e-300
-        if np.any(nz):
-            dd.max_rel = float(np.max(diff[nz] / denom[nz]))
+        dd.max_rel = float(np.max(diff / np.maximum(np.abs(a[mask]), 1e-300)))
 
-    new_nan_appeared = dd.nan_new > dd.nan_base
+    new_nan_appeared = bool(np.any(np.isfinite(a) & ~np.isfinite(b)))
     over_tol         = dd.max_abs > tol_abs and dd.max_rel > tol_rel
     if new_nan_appeared or over_tol:
         dd.status = "fail"
@@ -235,7 +232,7 @@ def _extract_floats(path: Path) -> Tuple[np.ndarray, int]:
             n_lines += 1
             for tok in _FLOAT_RE.findall(line):
                 try:
-                    values.append(float(tok))
+                    values.append(float(tok.replace("D", "E").replace("d", "e")))
                 except ValueError:
                     pass
     return np.asarray(values, dtype=np.float64), n_lines
@@ -269,12 +266,9 @@ def _compare_text(baseline: Path, new: Path, tol_abs: float, tol_rel: float) -> 
         if np.any(mask):
             diff = np.abs(arr_b[mask] - arr_n[mask])
             dd.max_abs = float(np.max(diff))
-            denom = np.abs(arr_b[mask])
-            nz    = denom > 1e-300
-            if np.any(nz):
-                dd.max_rel = float(np.max(diff[nz] / denom[nz]))
+            dd.max_rel = float(np.max(diff / np.maximum(np.abs(arr_b[mask]), 1e-300)))
 
-        new_nan_appeared = dd.nan_new > dd.nan_base
+        new_nan_appeared = bool(np.any(np.isfinite(arr_b) & ~np.isfinite(arr_n)))
         over_tol         = dd.max_abs > tol_abs and dd.max_rel > tol_rel
         if new_nan_appeared or over_tol:
             dd.status = "fail"

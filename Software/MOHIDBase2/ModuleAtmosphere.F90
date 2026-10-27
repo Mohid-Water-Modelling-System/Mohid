@@ -1355,7 +1355,9 @@ cd2 :           if (BlockFound) then
                    .or. PropertyX%ID%IDNumber==PBLHeight_          ) then
                 
                 !check always in construction phase. only check in modify if the prop has solution from file
-                if (Constructing .or. (PropertyX%ID%SolutionFromFile .and. .not. PropertyX%ID%SolutionFromTimeSerie)) then
+                !RANDOM_COMPONENT is applied after the time-series check, so those fields are scanned
+                if (Constructing .or. (PropertyX%ID%SolutionFromFile .and.                                  &
+                    (.not. PropertyX%ID%SolutionFromTimeSerie .or. PropertyX%HasRandomComponent))) then
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then

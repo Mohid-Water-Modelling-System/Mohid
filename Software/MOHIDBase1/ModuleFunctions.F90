@@ -2776,7 +2776,7 @@ subroutine SetMatrixValues3D_R4_FromMatrixPointer (Matrix, Size, InMatrix, MapMa
         !Local-----------------------------------------------------------------
         integer                                                 :: i, j, CHUNK
         !Begin-----------------------------------------------------------------
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "Sum2Matrixes_2D_R4")
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "Sum2Matrixes_2D_R8")
         if (present(MapMatrix)) then
             CHUNK = CHUNKJ
             !$OMP PARALLEL PRIVATE(i,j)

@@ -526,6 +526,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 rewind(Me%unit)
     do3 :       do I = 1, Me%BufferSize
                     read (Me%unit, "(A)") string
+                    !Same tab/comment handling as ConstructEnterData, only paid on lines that need it
+                    if (scan(string(1:len_trim(string)), tab//exclamation) > 0) call CleanAsciiGridLine(string)
                     string = adjustl(string)
                     
                     Me%BufferLines(I)%full_line = string
@@ -3867,7 +3869,7 @@ cd4 :               if (present(text)) then
                                                     block_begin,  block_end,   &
                                                     BlockFound,                &
                                                     FirstLine, LastLine,       &
-                                                    StopAt, STAT) 
+                                                    STAT, StopAt) 
                                  
         !External--------------------------------------------------------------
         integer                                     :: EnterDataID    
