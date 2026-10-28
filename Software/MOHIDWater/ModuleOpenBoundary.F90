@@ -517,8 +517,13 @@ cd2:    if (Me%Compute_Tide) then
             if (STAT_CALL /= SUCCESS_) stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR30'
 
 
-            !If there are less then three gauges, only the first is considered
-cd3:        if (NGauges < 3) then
+            !No open-boundary gauges: the neighbour sub-domain writes the interior border.
+            !One gauge is imposed on every boundary face. Two real gauges are reported.
+cd3:        if (NGauges == 0) then
+
+                Me%BoundaryReferenceLevel(:,:) = 0.
+
+            else if (NGauges < 3) then cd3
 
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -958,8 +963,15 @@ cd2:        if (Me%Compute_Tide) then
                                 STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR03'
 
-                !If there are less then three gauges, only the first is considered
-cd3:            if (NGauges < 3) then
+                !No open-boundary gauges: ImposedElevation is already 0 and the neighbour
+                !sub-domain writes the interior border. One gauge is imposed on every
+                !boundary face. Two real gauges stop.
+cd3:            if (NGauges == 0) then
+
+                    Me%VelocityU(:,:) = 0.
+                    Me%VelocityV(:,:) = 0.
+
+                else if (NGauges < 3) then cd3
                     
                     !$OMP PARALLEL PRIVATE(i,j)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
@@ -1290,8 +1302,10 @@ cd2:        if (Me%Compute_Tide) then
                                 STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'Modify_AllDomain - ModuleOpenBoundary - ERR03'
 
-                !If there are less then three gauges, only the first is considered
-cd3:            if (NGauges < 3) then
+                !No open-boundary gauges: elevation and velocity are already 0. The
+                !neighbour sub-domain writes the interior border. One gauge is imposed
+                !on every water point. Two real gauges stop.
+cd3:            if (NGauges > 0 .and. NGauges < 3) then
                     
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB

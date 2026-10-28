@@ -40,7 +40,8 @@ Module ModuleGauge
                                        GetGridBorderLimits, GetLatitudeLongitude,       &
                                        GetHorizontalGridSize, GetZCoordinates,          &
                                        WriteHorizontalGrid, UnGetHorizontalGrid,        &
-                                       GetDDecompMPI_ID, GetDDecompON    
+                                       GetDDecompMPI_ID, GetDDecompON,          &
+                                       GetDDecompOpenBorders
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY, AmpPhase_To_Complex, Complex_to_AmpPhase
     use ModuleTask2000,         only : Task2000Level, NTask2000          
@@ -129,6 +130,9 @@ Module ModuleGauge
         real                                :: Metric_Y         = FillValueReal
 
         logical                             :: DefinedMetric    = .false.
+        !Gauge located on a domain decomposition (MPI) interior border (halo).
+        !Its value is overwritten by the neighbour sub-domain, so the tide is not computed.
+        logical                             :: DDHalo           = .false.
 
         integer                             :: Grid_I           = FillValueInt
         integer                             :: Grid_J           = FillValueInt
@@ -180,7 +184,11 @@ Module ModuleGauge
         
         logical                             :: HDFFileTidalON           = .false.
         
-        logical                             :: HDFFileTidalOutON        = .false. 
+        logical                             :: HDFFileTidalOutON        = .false.
+
+        !Every boundary point of this sub-domain is an MPI interior border.
+        !There is no tide gauge. The neighbour sub-domain writes the level.
+        logical                             :: InteriorBorderOnly       = .false. 
         
         !Instance of ModuleField4D
         integer                             :: ObjField4D               = 0
@@ -433,7 +441,9 @@ Module ModuleGauge
 
 
 if8 :       if (.NOT. associated(Me%FirstGauge)) then
-                stop 'ConstructGauges - ModuleGauges - ERR120' 
+                !A sub-domain whose boundary cells are all MPI interior borders
+                !has no tide gauge. A missing gauge file still stops.
+                if (.not. Me%InteriorBorderOnly) stop 'ConstructGauges - ModuleGauges - ERR120'
             else
                 PresentGauge => Me%FirstGauge
 do4 :           do while (associated(PresentGauge))
@@ -468,7 +478,7 @@ do5 :               do while (associated(PresentWave))
                 end do do4
             end if if8
 
-            call LocationConsistence
+            if (associated(Me%FirstGauge)) call LocationConsistence
 
             !Returns ID
             GaugeID = Me%InstanceID
@@ -558,6 +568,9 @@ if6 :           if (BlockFound) then
         real,       dimension(:  ), pointer                     :: AuxX, AuxY
         integer,    dimension(:  ), pointer                     :: Icell, Jcell
         logical,    dimension(:  ), pointer                     :: NoAmplitude
+        logical,    dimension(:  ), pointer                     :: DDHalo
+        logical,    dimension(1:4)                              :: OpenBorders
+        integer                                                 :: NHalo
         logical,    dimension(:  ), pointer                     :: NoPhaseReal, NoPhaseImag
         type (T_Size2D)                                         :: WorkSize
         real                                                    :: West, East, South, North
@@ -769,6 +782,39 @@ if6 :           if (BlockFound) then
             
         endif
         
+        !Boundary points on MPI sub-domain interior borders (halo edges) are flagged.
+        !They are not tide gauges. The neighbour sub-domain writes the water level
+        !there. True open boundary points are unchanged.
+        allocate(DDHalo(1:NP))
+        DDHalo(:) = .false.
+        NHalo     = 0
+        if (.not. Me%Triangulation .and. Me%ObjHorizontalGrid /= 0) then
+            OpenBorders = GetDDecompOpenBorders(Me%ObjHorizontalGrid, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR155'
+            do ni = 1, NP
+                if ((Icell(ni) == ILB .and. .not. OpenBorders(1)) .or.                     &
+                    (Icell(ni) == IUB .and. .not. OpenBorders(2)) .or.                     &
+                    (Jcell(ni) == JLB .and. .not. OpenBorders(3)) .or.                     &
+                    (Jcell(ni) == JUB .and. .not. OpenBorders(4))) then
+                    DDHalo(ni) = .true.
+                    NHalo      = NHalo + 1
+                endif
+            enddo
+            if (NHalo > 0) then
+                write(*,*) 'ReadGaugeDataHDF - tide gauges in open boundary =', NP - NHalo,  &
+                           ' ; MPI interior borders are not tide gauges =', NHalo
+            endif
+            !With less than 3 gauges ModuleOpenBoundary imposes the first gauge value in
+            !all boundary points. That is wrong if true open boundary points and interior
+            !border points are mixed in the same sub-domain.
+            if (NHalo > 0 .and. NP - NHalo > 0 .and. NP < 3) then
+                write(*,*) 'MPI sub-domain with less than 3 boundary points mixing open boundary'
+                write(*,*) 'and interior borders. Change the domain decomposition.'
+                stop 'ReadGaugeDataHDF - ModuleGauges - ERR156'
+            endif
+            if (NHalo == NP) Me%InteriorBorderOnly = .true.
+        endif
+
         allocate(Amplitude  (1:NP), Phase      (1:NP))
         allocate(PhaseReal  (1:NP), PhaseImag  (1:NP))   
         allocate(NoAmplitude(1:NP)                   )     
@@ -824,19 +870,19 @@ if6 :           if (BlockFound) then
             
             do ni = 1, NP 
             
-                if (NoAmplitude(ni) .and. .not. Me%Triangulation) then
+                if (NoAmplitude(ni) .and. .not. Me%Triangulation .and. .not. DDHalo(ni)) then
                     write(*,*) 'Tidal amplitudes missing in the open boundary'  
                     write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR190' 
                 endif
                 
-                if (NoPhaseReal(ni)    .and. .not. Me%Triangulation) then
+                if (NoPhaseReal(ni)    .and. .not. Me%Triangulation .and. .not. DDHalo(ni)) then
                     write(*,*) 'Tidal phase (real component) missing in the open boundary'
                     write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR200' 
                 endif                    
 
-                if (NoPhaseImag(ni)    .and. .not. Me%Triangulation) then
+                if (NoPhaseImag(ni)    .and. .not. Me%Triangulation .and. .not. DDHalo(ni)) then
                     write(*,*) 'Tidal phase (imaginary component) missing in the open boundary'
                     write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR210' 
@@ -847,7 +893,8 @@ if6 :           if (BlockFound) then
                             
             if (n== 1) then
                 do ni = 1, NP 
-                    if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then
+                    if (.not. DDHalo(ni) .and. .not. NoAmplitude(ni) .and.                     &
+                        .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then
                         if(Me%Triangulation) then
                             i = FillValueInt
                             j = FillValueInt
@@ -857,6 +904,7 @@ if6 :           if (BlockFound) then
                                 i = Icell(ni)
                                 j = Jcell(ni)
                                 call CreateGaugeFromHDFData(X(ni), Y(ni), ni, i, j)
+                                Me%LastGauge%DDHalo = .false.
                             endif
                         endif                            
                     endif                        
@@ -866,7 +914,8 @@ if6 :           if (BlockFound) then
             PresentGauge => Me%FirstGauge
 
             do ni = 1, NP 
-                if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then            
+                if (.not. DDHalo(ni) .and. .not. NoAmplitude(ni) .and.                      &
+                    .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then
                     call Complex_to_AmpPhase(PhaseReal(ni), PhaseImag(ni), Aux, Phase(ni))
                     call NewWave(PresentGauge, HarmonicsName(n), Amplitude(ni), Phase(ni))                
                     PresentGauge => PresentGauge%Next
@@ -879,6 +928,7 @@ if6 :           if (BlockFound) then
         deallocate(Amplitude  , Phase      )
         deallocate(PhaseReal  , PhaseImag  )   
         deallocate(NoAmplitude             )     
+        deallocate(DDHalo                  )
         deallocate(NoPhaseReal, NoPhaseImag)        
         deallocate(HarmonicsName) 
         if (.not. Me%Triangulation) then
@@ -3129,7 +3179,11 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 do1 :       do while (associated(PresentGauge))
                 I = I + 1
 
-if2 :           if      (PresentGauge%LevelEvolution == Harmonics) then 
+if2 :           if      (PresentGauge%DDHalo) then
+                    !MPI interior border: value replaced by the neighbour sub-domain
+                    PresentGauge%WaterLevel = 0.
+                    WaterLevel(I)           = 0.
+                else if (PresentGauge%LevelEvolution == Harmonics) then if2
                     
                     call HarmonicsWaterLevel(PresentGauge, WaterLevel(I), Time)
 
