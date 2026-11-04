@@ -10,18 +10,21 @@ All pre-compiled images can be located inside Mohid Packages.
 
  ### Models
 - **MOHID Water**
- > docker pull ghcr.io/mohid-water-modelling-system/model/mohidwater:24.11
+ > docker pull ghcr.io/mohid-water-modelling-system/model/mohidwater:26.11
+
+- **MOHID Water MPI**
+ > docker pull ghcr.io/mohid-water-modelling-system/model/mohidwater-mpi:26.11
 
 - **MOHID Land**
- > docker pull ghcr.io/mohid-water-modelling-system/model/mohidland:24.11
+ > docker pull ghcr.io/mohid-water-modelling-system/model/mohidland:26.11
  
  ### Tools
  - **Compare2HDFfiles**
- > docker pull ghcr.io/mohid-water-modelling-system/tools/compare2hdf5files:24.11
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/compare2hdf5files:26.11
 - **Convert2HDF5**
- > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2hdf5:24.11
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2hdf5:26.11
 - **Convert2NC**
- > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2nc:24.11
+ > docker pull ghcr.io/mohid-water-modelling-system/tools/convert2nc:26.11
 
 All pre-compiled executables are located inside docker at /mohid .
 
@@ -31,6 +34,9 @@ If you prefer to customize the Docker images or if the public images are not yet
 ### Models
 - **MOHID Water**
  > docker build -f "Solutions\dockers\MohidWater\dockerfile" -t mohidwater:latest "."
+
+- **MOHID Water MPI**
+ > docker build -f "Solutions\dockers\MohidWater\dockerfile.mpi" -t mohidwater-mpi:latest "."
 
 - **MOHID Land**
  > docker build -f "Solutions\dockers\MohidLand\dockerfile" -t mohidland:latest "."

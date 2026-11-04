@@ -1,0 +1,60 @@
+name: Model - Mohid Water MPI - Yearly
+
+on:
+  # schedule:
+  #   - cron: '0 0 1 1 *'
+  workflow_dispatch:       # Permite execução manual do workflow
+
+
+env:
+  TAG: "26.11"
+  REPOSITORY: mohid-water-modelling-system
+  DOCKER_IMAGE_NAME: model/mohidwater-mpi
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Show release information
+        run: echo "Building $DOCKER_IMAGE_NAME with tag $TAG"
+
+      - name: Delete huge unnecessary tools folder
+        run: rm -rf /opt/hostedtoolcache
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log into registry ghcr.io
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3 # v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the Docker image
+        run: docker build . --file Solutions/dockers/MohidWater/dockerfile.mpi --tag ghcr.io/${{ env.REPOSITORY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TAG }}
+
+      - name: Verify image shared libraries
+        run: |
+          docker run --rm --entrypoint /bin/bash \
+            ghcr.io/${{ env.REPOSITORY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TAG }} -c '
+              set -e
+              for exe in /mohid/MohidWater.exe /mohid/MohidDDC.exe; do
+                echo "== ldd $exe =="
+                ldd "$exe"
+                if ldd "$exe" | grep -q "not found"; then
+                  echo "ERROR: missing shared libraries for $exe"
+                  exit 1
+                fi
+              done
+              echo "All shared libraries resolved."
+            '
+
+      - name: Push Docker image to GitHub Container Registry
+        run: docker push ghcr.io/${{ env.REPOSITORY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.TAG }}
