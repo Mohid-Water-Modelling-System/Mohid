@@ -1105,6 +1105,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call InitializeVariables
 
+            !Reads conditions from previous run. Must be done before ModifyGeometryAndMapping
+            !so that ActivePoints/OpenPoints reflect the restart water column
+            if (Me%Continuous) then
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call ReadInitialFile_Bin
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call ReadInitialFile_Hdf
+                endif
+            endif
+
             call ComputeBasinPointsWorkSize
 
             call ConstructBasinPointsList
@@ -1140,15 +1150,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     call ModifyBoundaryLevel
                 endif
 
-            endif
-
-            !Reads conditions from previous run
-            if (Me%Continuous) then
-                if (Me%OutPut%RestartFormat == BIN_) then
-                    call ReadInitialFile_Bin
-                else if (Me%OutPut%RestartFormat == HDF_) then
-                    call ReadInitialFile_Hdf
-                endif
             endif
 
             if (Me%OutPut%Yes) then
@@ -6851,6 +6852,7 @@ ifactivepoint:  if(Me%ExtVar%BasinPoints(Me%NodesI(n), Me%NodesJ(n)) == 1) then
 
                 Me%myWaterLevel(i, j)   = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
                 Me%myWaterVolume(i, j)  = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumnOld(i, j) = Me%myWaterColumn(i, j)
 
             endif
 
@@ -6978,6 +6980,7 @@ cd0:    if (Exist) then
 
                     Me%myWaterLevel(i, j)   = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
                     Me%myWaterVolume(i, j)  = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumnOld(i, j) = Me%myWaterColumn(i, j)
 
                 endif
 
