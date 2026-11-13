@@ -1,0 +1,3 @@
+# Selector
+
+**Selector** methods are used to access encapsulated information of an object. All selector methods in MOHID start with the prefix “Get”. Object location within the linked list is performed in the same way as in modifiers methods so that the selector method returns the desired information. For performance reasons, in the case of matrices, the selector methods return pointer arrays. In this case, the state of the object providing the information is set to READ\_LOCK, so it’s protected against modification, once its information is accessed from outside of the object. The state turns to IDLE again, if the client module releases the pointer array by calling an “UnGet” method.
