@@ -9399,7 +9399,7 @@ if4D:   if (CurrentHDF%Field4D) then
         type(T_Field4D)                             :: CurrentHDF
         integer,                         optional   :: Instant
         !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), pointer             :: ZCellCenter
+        real, dimension(:,:,:), pointer             :: SZZ
         integer                                     :: i, j, k, nP
         integer                                     :: STAT_CALL
         type (T_Size2D)                             :: HaloMap
@@ -9520,15 +9520,22 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                 enddo
 
             else F2D3D
+            
 
-                call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+                call GetGeometryDistances(Me%ObjGeometry, SZZ = SZZ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70'
 
                 do nP = 1, CurrentHDF%Ncells
-                    CurrentHDF%Z(nP) = ZCellCenter(CurrentHDF%CellI(nP), CurrentHDF%CellJ(nP), CurrentHDF%CellK(nP))
+                
+	                i = CurrentHDF%CellI(nP)
+	                j = CurrentHDF%CellJ(nP)
+	                k = CurrentHDF%CellK(nP)                
+                
+                    CurrentHDF%Z(nP) = (SZZ(i, j, k) + SZZ(i, j, k-1)) / 2.
+                    
                 enddo
 
-                call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+                call UnGetGeometry(Me%ObjGeometry, SZZ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80'
 
                 call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
