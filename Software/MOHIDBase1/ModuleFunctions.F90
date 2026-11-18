@@ -10888,13 +10888,13 @@ i5:         if      (TVD_Limitation == MinMod) then
 
                 if (abs(Cr)< MinValue) Cr = MinValue
                 !PDM
-                Theta = max(0.,min(real(Aux),2./(1.-Cr),2.*r/Cr))
+                Theta = max(0.,min(real(Aux),2./(1.-abs(Cr)),2.*r/abs(Cr)))
 
             else i5
                 stop "This TVD Limitation option is not valid to compute Advection1D"
             endif i5
 
-            Theta = 0.5 * Theta * (1. - Cr)
+            Theta = 0.5 * Theta * (1. - abs(Cr))
 
 
             !if (QFace > 0) then
@@ -10973,7 +10973,7 @@ i5:         if      (TVD_Limitation == MinMod) then
 
             Theta = max(0.,min(1.,2.*r),min(r, 2.))
 
-            Theta = 0.5 * Theta * (1. - Cr)
+            Theta = 0.5 * Theta * (1. - abs(Cr))
 
         else
 
@@ -10996,7 +10996,7 @@ i5:         if      (TVD_Limitation == MinMod) then
 
             Theta = max(0.,min(1.,2.*r),min(r, 2.))
 
-            Theta = 0.5 * Theta * (1. - Cr)
+            Theta = 0.5 * Theta * (1. - abs(Cr))
         endif
 
         CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
@@ -11035,7 +11035,7 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         Theta = max(0.,min(1.,2.*r),min(r, 2.))
 
-        Theta = 0.5 * Theta * (1. - Cr)
+        Theta = 0.5 * Theta * (1. - abs(Cr))
 
         CFace(2) =  (1. - Theta)
         CFace(3) =  Theta
@@ -11074,7 +11074,7 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         Theta = max(0.,min(1.,2.*r),min(r, 2.))
 
-        Theta = 0.5 * Theta * (1. - Cr)
+        Theta = 0.5 * Theta * (1. - abs(Cr))
 
         CFace(2) =  Theta
         CFace(3) =  (1. - Theta)
