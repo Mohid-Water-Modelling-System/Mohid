@@ -3508,6 +3508,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
 
 
+            !The relaxation time of the lagrangian layer faces (BRGEOMETRY) must be associated before
+            !ComputeSZZ, which calls ComputeLagrangianNew; it was associated after it (and nullified at the
+            !end), so the relaxation to the initial geometry was never applied.
+            if(present(DecayTime)) then
+                Me%ExternalVar%DecayTime => DecayTime
+            endif
+
             if (present(SZZ)) then
                 call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
             else
@@ -3528,9 +3535,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%KTop%Z(:,:) = KTop(:,:)
             endif
 
-            if(present(DecayTime)) then
-                Me%ExternalVar%DecayTime => DecayTime
-            endif
 
 
 
