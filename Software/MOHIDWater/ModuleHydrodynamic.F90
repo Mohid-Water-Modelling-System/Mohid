@@ -35388,7 +35388,7 @@ dok1:           do k = Kbottom, KUB
                                 ComputeFaces3D_UV(i, j, k) /= Covered) then
 
                         if (Me%ComputeOptions%MomentumDischarge) then
-                            Vel_UV_South = Me%WaterFluxes%DischargesVelUV(i, j, k)
+                            Vel_UV_North = Me%WaterFluxes%DischargesVelUV(i, j, k)
                         endif
 
                     endif
